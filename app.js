@@ -17,6 +17,7 @@ const fallbackIcons = {
   menu: '<path d="M4 6h16"></path><path d="M4 12h16"></path><path d="M4 18h16"></path>',
   "message-circle":
     '<path d="M21 11.5a8.4 8.4 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.4 8.4 0 0 1-3.8-.9L3 21l1.9-5.7a8.4 8.4 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.4 8.4 0 0 1 3.8-.9h.5a8.5 8.5 0 0 1 8 8v.5Z"></path>',
+  plus: '<path d="M5 12h14"></path><path d="M12 5v14"></path>',
   search: '<circle cx="11" cy="11" r="8"></circle><path d="m21 21-4.3-4.3"></path>',
   x: '<path d="M18 6 6 18"></path><path d="m6 6 12 12"></path>',
 };
@@ -135,6 +136,26 @@ const translations = {
     sellerPanelSubtitle: "Envía solicitudes de venta y revisa el estado de cada propiedad.",
     adminPanelTitle: "Panel administrativo",
     adminPanelSubtitle: "Revisa solicitudes, analiza actividad y administra las publicaciones del sitio.",
+    adminWorkspaceTitle: "Centro de control",
+    adminWorkspaceCopy: "Revisa solicitudes, publicaciones, precios, zonas y actividad desde un solo panel.",
+    adminJumpRequests: "Solicitudes",
+    adminJumpListings: "Publicaciones",
+    adminJumpNew: "Nueva propiedad",
+    adminScrollableHint: "Desplaza dentro de esta lista para ver más.",
+    adminListingsHint: "Edita, revisa y elimina publicaciones existentes.",
+    adminInsightPending: "Pendientes por revisar",
+    adminInsightFeatured: "Propiedades destacadas",
+    adminInsightAverage: "Precio promedio",
+    adminInsightSearches: "Búsquedas registradas",
+    adminRequestSummary: "solicitudes totales",
+    adminListingSummary: "publicaciones activas",
+    adminNoPending: "No hay solicitudes pendientes.",
+    adminTopZones: "Zonas con inventario",
+    adminOperations: "Operación",
+    adminInventory: "Inventario",
+    adminSellerContact: "Contacto del vendedor",
+    adminPropertyFacts: "Datos de la propiedad",
+    adminRequestMeta: "Solicitud",
     sellerRole: "Cuenta de vendedor",
     adminRole: "Cuenta administradora",
     accountPrompt: "Completa estos datos para crear tu cuenta de vendedor.",
@@ -282,6 +303,26 @@ const translations = {
     sellerPanelSubtitle: "Submit sale requests and review each property's status.",
     adminPanelTitle: "Admin panel",
     adminPanelSubtitle: "Review requests, monitor activity, and manage site listings.",
+    adminWorkspaceTitle: "Control center",
+    adminWorkspaceCopy: "Review requests, listings, prices, areas, and activity from one panel.",
+    adminJumpRequests: "Requests",
+    adminJumpListings: "Listings",
+    adminJumpNew: "New property",
+    adminScrollableHint: "Scroll inside this list to see more.",
+    adminListingsHint: "Edit, review, and delete existing listings.",
+    adminInsightPending: "Pending review",
+    adminInsightFeatured: "Featured properties",
+    adminInsightAverage: "Average price",
+    adminInsightSearches: "Recorded searches",
+    adminRequestSummary: "total requests",
+    adminListingSummary: "active listings",
+    adminNoPending: "No pending requests.",
+    adminTopZones: "Inventory areas",
+    adminOperations: "Operation",
+    adminInventory: "Inventory",
+    adminSellerContact: "Seller contact",
+    adminPropertyFacts: "Property facts",
+    adminRequestMeta: "Request",
     sellerRole: "Seller account",
     adminRole: "Admin account",
     accountPrompt: "Complete these details to create your seller account.",
@@ -325,7 +366,7 @@ const state = {
   session: null,
   properties: [],
   requests: [],
-  stats: { properties: 0, pendingRequests: 0, users: 0, visits: 0 },
+  stats: { properties: 0, pendingRequests: 0, users: 0, visits: 0, searches: 0 },
   filters: {
     text: "",
     type: "",
@@ -407,6 +448,18 @@ function formatDate(dateString) {
     month: "short",
     day: "2-digit",
   }).format(date);
+}
+
+function countBy(items, key) {
+  return items.reduce((counts, item) => {
+    const value = item[key] || "N/A";
+    counts[value] = (counts[value] || 0) + 1;
+    return counts;
+  }, {});
+}
+
+function formatUsd(value) {
+  return `USD $${new Intl.NumberFormat("en-US", { maximumFractionDigits: 0 }).format(Number(value || 0))}`;
 }
 
 function resetFilters() {
@@ -511,13 +564,30 @@ function renderRequestItem(request) {
       ? `MXN $${new Intl.NumberFormat("es-MX", { maximumFractionDigits: 0 }).format(request.price)}`
       : `USD $${new Intl.NumberFormat("en-US", { maximumFractionDigits: 0 }).format(request.price)}`;
   return `
-    <div class="request-item">
-      <span class="status ${escapeHtml(statusClass)}">${escapeHtml(t(statusClass))}</span>
-      <h3>${escapeHtml(request.title)}</h3>
-      <p>${escapeHtml(t("requestBy"))}: ${escapeHtml(request.sellerName || "")} · ${escapeHtml(request.email || "")} · ${escapeHtml(request.phone || "")}</p>
-      <p>${escapeHtml(displayType(request.type))} · ${escapeHtml(request.zone)} · ${escapeHtml(price)} · ${escapeHtml(t("preferred"))}: ${escapeHtml(preferred)}</p>
-      <p>${escapeHtml(request.description || "")}</p>
-      <p>${escapeHtml(formatDate(request.createdAt))}</p>
+    <div class="request-item detailed-request">
+      <div class="request-item-header">
+        <div>
+          <span class="status ${escapeHtml(statusClass)}">${escapeHtml(t(statusClass))}</span>
+          <h3>${escapeHtml(request.title)}</h3>
+        </div>
+        <strong>${escapeHtml(price)}</strong>
+      </div>
+      <div class="detail-grid compact">
+        <div>
+          <span>${escapeHtml(t("adminSellerContact"))}</span>
+          <strong>${escapeHtml(request.sellerName || "")}</strong>
+          <small>${escapeHtml(request.email || "")}</small>
+          <small>${escapeHtml(request.phone || "")}</small>
+        </div>
+        <div>
+          <span>${escapeHtml(t("adminPropertyFacts"))}</span>
+          <strong>${escapeHtml(displayType(request.type))}</strong>
+          <small>${escapeHtml(request.zone)} · ${escapeHtml(request.beds || 0)} ${escapeHtml(t("bedShort"))} · ${escapeHtml(request.baths || 0)} ${escapeHtml(t("bathShort"))}</small>
+          <small>${escapeHtml(t("preferred"))}: ${escapeHtml(preferred)}</small>
+        </div>
+      </div>
+      <p class="request-description">${escapeHtml(request.description || "")}</p>
+      <p class="request-date">${escapeHtml(t("adminRequestMeta"))}: ${escapeHtml(formatDate(request.createdAt))}</p>
     </div>
   `;
 }
@@ -535,6 +605,11 @@ function renderSellerRequests() {
 function renderAdminRequests() {
   const list = $("#adminRequests");
   if (!list) return;
+  const summary = $("#adminRequestSummary");
+  if (summary) {
+    const pending = state.requests.filter((request) => request.status === "pending").length;
+    summary.textContent = `${state.requests.length} ${t("adminRequestSummary")} · ${pending ? `${pending} ${t("pending")}` : t("adminNoPending")}`;
+  }
   if (!state.requests.length) {
     list.innerHTML = `<p class="empty-state">${escapeHtml(t("noRequests"))}</p>`;
     return;
@@ -548,7 +623,7 @@ function renderAdminRequests() {
               <button class="mini-button" type="button" data-reject="${escapeHtml(request.id)}">${escapeHtml(t("reject"))}</button>
             </div>`
           : "";
-      return `${renderRequestItem(request)}${actions}`;
+      return `<div class="request-admin-entry">${renderRequestItem(request)}${actions}</div>`;
     })
     .join("");
 }
@@ -565,10 +640,60 @@ function renderStats() {
     .join("");
 }
 
+function renderAdminInsights() {
+  const container = $("#adminInsights");
+  if (!container) return;
+  const properties = state.properties;
+  const pending = state.requests.filter((request) => request.status === "pending").length;
+  const featured = properties.filter((property) => property.featured).length;
+  const average =
+    properties.length > 0
+      ? Math.round(properties.reduce((sum, property) => sum + Number(property.priceUsd || 0), 0) / properties.length)
+      : 0;
+  const topZones = Object.entries(countBy(properties, "zone"))
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 4);
+  const operationCounts = countBy(properties, "operation");
+
+  container.innerHTML = `
+    <article class="insight-card priority">
+      <span>${escapeHtml(t("adminInsightPending"))}</span>
+      <strong>${pending}</strong>
+      <p>${escapeHtml(pending ? t("adminRequestsTitle") : t("adminNoPending"))}</p>
+    </article>
+    <article class="insight-card">
+      <span>${escapeHtml(t("adminInsightFeatured"))}</span>
+      <strong>${featured}</strong>
+      <p>${escapeHtml(t("adminInventory"))}: ${escapeHtml(properties.length)}</p>
+    </article>
+    <article class="insight-card">
+      <span>${escapeHtml(t("adminInsightAverage"))}</span>
+      <strong>${escapeHtml(formatUsd(average))}</strong>
+      <p>${escapeHtml(t("adminOperations"))}: ${escapeHtml(t("sale"))} ${operationCounts.sale || 0} · ${escapeHtml(t("rent"))} ${operationCounts.rent || 0}</p>
+    </article>
+    <article class="insight-card">
+      <span>${escapeHtml(t("adminTopZones"))}</span>
+      <div class="zone-pill-row">
+        ${
+          topZones.length
+            ? topZones.map(([zone, count]) => `<small>${escapeHtml(zone)} <b>${count}</b></small>`).join("")
+            : `<small>${escapeHtml(t("listingsEmpty"))}</small>`
+        }
+      </div>
+      <p>${escapeHtml(t("adminInsightSearches"))}: ${escapeHtml(state.stats.searches || 0)}</p>
+    </article>
+  `;
+}
+
 function renderAdminListings() {
   const list = $("#adminListings");
   if (!list) return;
   const properties = sortedProperties(state.properties);
+  const summary = $("#adminListingSummary");
+  if (summary) {
+    const featured = properties.filter((property) => property.featured).length;
+    summary.textContent = `${properties.length} ${t("adminListingSummary")} · ${featured} ${t("navFeatured")}`;
+  }
   if (!properties.length) {
     list.innerHTML = `<p class="empty-state">${escapeHtml(t("listingsEmpty"))}</p>`;
     return;
@@ -576,13 +701,28 @@ function renderAdminListings() {
   list.innerHTML = properties
     .map(
       (property) => `
-        <div class="listing-item">
-          <h3>${escapeHtml(localizedTitle(property))}</h3>
-          <p>${escapeHtml(displayType(property.type))} · ${escapeHtml(property.zone)} · ${escapeHtml(formatPrice(property.priceUsd, property.operation))}</p>
-          <p>${escapeHtml(localizedDescription(property))}</p>
-          <div class="item-actions">
-            <button class="mini-button primary" type="button" data-edit-listing="${escapeHtml(property.id)}">${escapeHtml(t("edit"))}</button>
-            <button class="mini-button" type="button" data-delete-listing="${escapeHtml(property.id)}">${escapeHtml(t("delete"))}</button>
+        <div class="listing-item detailed-listing">
+          <img src="${escapeHtml(property.image || fallbackImage)}" alt="${escapeHtml(localizedTitle(property))}" loading="lazy" />
+          <div class="listing-content">
+            <div class="listing-heading">
+              <div>
+                <span class="status ${property.featured ? "approved" : ""}">${escapeHtml(property.featured ? t("navFeatured") : displayType(property.type))}</span>
+                <h3>${escapeHtml(localizedTitle(property))}</h3>
+              </div>
+              <strong>${escapeHtml(formatPrice(property.priceUsd, property.operation))}</strong>
+            </div>
+            <p>${escapeHtml(property.zone)} · ${escapeHtml(displayType(property.type))} · ${escapeHtml(property.mls ? `${t("mls")} ${property.mls}` : "")}</p>
+            <div class="listing-facts">
+              <span>${escapeHtml(property.beds || 0)} ${escapeHtml(t("bedShort"))}</span>
+              <span>${escapeHtml(property.baths || 0)} ${escapeHtml(t("bathShort"))}</span>
+              <span>${escapeHtml(property.area || 0)} ${escapeHtml(t("sqmBuild"))}</span>
+              <span>${escapeHtml(property.operation === "rent" ? t("rent") : t("sale"))}</span>
+            </div>
+            <p>${escapeHtml(localizedDescription(property))}</p>
+            <div class="item-actions">
+              <button class="mini-button primary" type="button" data-edit-listing="${escapeHtml(property.id)}">${escapeHtml(t("edit"))}</button>
+              <button class="mini-button" type="button" data-delete-listing="${escapeHtml(property.id)}">${escapeHtml(t("delete"))}</button>
+            </div>
           </div>
         </div>
       `
@@ -624,6 +764,7 @@ async function renderPanel() {
   $("#sellerPanel").hidden = isAdmin;
   if (isAdmin) {
     renderStats();
+    renderAdminInsights();
     renderAdminRequests();
     renderAdminListings();
   } else {
@@ -1001,6 +1142,13 @@ function bindEvents() {
   $("#sellerRequestForm").addEventListener("submit", sellerRequestSubmit);
   $("#listingForm").addEventListener("submit", listingSubmit);
   $("#resetListingForm").addEventListener("click", resetListingForm);
+
+  $$("[data-admin-jump]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const target = document.getElementById(button.dataset.adminJump);
+      if (target) target.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+  });
 
   document.addEventListener("click", (event) => {
     const detail = event.target.closest("[data-detail]");

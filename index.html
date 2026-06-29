@@ -509,13 +509,38 @@
 
       <section class="dashboard" id="adminPanel" hidden>
         <div class="stats-grid" id="statsGrid"></div>
+        <div class="admin-command-bar">
+          <div>
+            <h2 data-i18n="adminWorkspaceTitle">Centro de control</h2>
+            <p data-i18n="adminWorkspaceCopy">Revisa solicitudes, publicaciones, precios, zonas y actividad desde un solo panel.</p>
+          </div>
+          <div class="admin-command-actions">
+            <button class="ghost-button" type="button" data-admin-jump="adminRequestsCard">
+              <i data-lucide="message-circle"></i>
+              <span data-i18n="adminJumpRequests">Solicitudes</span>
+            </button>
+            <button class="ghost-button" type="button" data-admin-jump="adminListingsCard">
+              <i data-lucide="home"></i>
+              <span data-i18n="adminJumpListings">Publicaciones</span>
+            </button>
+            <button class="primary-button" type="button" data-admin-jump="listingForm">
+              <i data-lucide="plus"></i>
+              <span data-i18n="adminJumpNew">Nueva propiedad</span>
+            </button>
+          </div>
+        </div>
+        <div class="admin-insights" id="adminInsights"></div>
         <div class="dashboard-grid admin-layout">
-          <article class="panel-card">
+          <article class="panel-card admin-requests-card" id="adminRequestsCard">
             <h2 data-i18n="adminRequestsTitle">Solicitudes de vendedores</h2>
+            <div class="panel-card-subhead">
+              <span id="adminRequestSummary"></span>
+              <span data-i18n="adminScrollableHint">Desplaza dentro de esta lista para ver mas.</span>
+            </div>
             <div class="request-list" id="adminRequests"></div>
           </article>
 
-          <article class="panel-card">
+          <article class="panel-card admin-listings-card" id="adminListingsCard">
             <h2 data-i18n="manageListings">Administrar publicaciones</h2>
             <form id="listingForm" class="stacked-form">
               <input type="hidden" name="id" />
@@ -593,6 +618,10 @@
                 <button class="ghost-button" type="button" id="resetListingForm" data-i18n="newListing">Nueva publicacion</button>
               </div>
             </form>
+            <div class="panel-card-subhead listings-subhead">
+              <span id="adminListingSummary"></span>
+              <span data-i18n="adminListingsHint">Edita, revisa y elimina publicaciones existentes.</span>
+            </div>
             <div class="admin-listings" id="adminListings"></div>
           </article>
         </div>

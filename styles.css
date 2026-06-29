@@ -31,8 +31,7 @@ body {
   line-height: 1.6;
 }
 
-body.modal-open,
-body.panel-open {
+body.modal-open {
   overflow: hidden;
 }
 
@@ -1123,6 +1122,114 @@ textarea {
   padding-bottom: 60px;
 }
 
+.admin-command-bar {
+  position: sticky;
+  z-index: 8;
+  top: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  margin-bottom: 18px;
+  padding: 18px 20px;
+  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: 0 16px 36px rgba(0, 31, 55, 0.08);
+  backdrop-filter: blur(10px);
+}
+
+.admin-command-bar h2 {
+  margin: 0 0 4px;
+  color: var(--blue-900);
+  font-family: "Playfair Display", Georgia, serif;
+  font-size: 1.75rem;
+  line-height: 1.1;
+}
+
+.admin-command-bar p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.admin-command-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.admin-command-actions .ghost-button,
+.admin-command-actions .primary-button {
+  min-height: 40px;
+  padding: 0 13px;
+  font-size: 0.78rem;
+}
+
+.admin-insights {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 14px;
+  margin-bottom: 22px;
+}
+
+.insight-card {
+  min-height: 142px;
+  border: 1px solid var(--line);
+  background: var(--white);
+  padding: 18px;
+  box-shadow: 0 12px 30px rgba(0, 31, 55, 0.06);
+}
+
+.insight-card.priority {
+  border-color: rgba(8, 118, 173, 0.36);
+  background: linear-gradient(180deg, #ffffff, #eef8fc);
+}
+
+.insight-card > span,
+.panel-card-subhead span,
+.detail-grid span {
+  color: var(--muted);
+  font-size: 0.76rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.insight-card strong {
+  display: block;
+  margin: 6px 0;
+  color: var(--blue-900);
+  font-family: "Playfair Display", Georgia, serif;
+  font-size: 2rem;
+  line-height: 1.05;
+}
+
+.insight-card p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.84rem;
+}
+
+.zone-pill-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 9px 0 10px;
+}
+
+.zone-pill-row small,
+.listing-facts span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 26px;
+  padding: 4px 8px;
+  background: #eef3f7;
+  color: var(--blue-900);
+  font-size: 0.76rem;
+  font-weight: 800;
+}
+
 .dashboard-grid {
   display: grid;
   grid-template-columns: 1.3fr 0.9fr;
@@ -1131,7 +1238,7 @@ textarea {
 }
 
 .dashboard-grid.admin-layout {
-  grid-template-columns: 0.85fr 1.3fr;
+  grid-template-columns: minmax(360px, 0.82fr) minmax(560px, 1.4fr);
 }
 
 .panel-card {
@@ -1149,10 +1256,49 @@ textarea {
   line-height: 1.1;
 }
 
+.panel-card-subhead {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  margin: -8px 0 14px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--line);
+}
+
+.panel-card-subhead span:last-child {
+  color: #697586;
+  text-transform: none;
+}
+
+.listings-subhead {
+  margin-top: 22px;
+}
+
 .request-list,
 .admin-listings {
   display: grid;
   gap: 12px;
+}
+
+.admin-requests-card .request-list,
+.admin-listings-card .admin-listings {
+  max-height: 720px;
+  overflow: auto;
+  padding-right: 6px;
+  scrollbar-width: thin;
+  scrollbar-color: var(--blue-700) #edf2f6;
+}
+
+.request-admin-entry {
+  display: grid;
+  gap: 10px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--line);
+}
+
+.request-admin-entry:last-child {
+  border-bottom: 0;
+  padding-bottom: 0;
 }
 
 .request-item,
@@ -1161,6 +1307,84 @@ textarea {
   border: 1px solid var(--line);
   background: #fbfcfd;
   padding: 14px;
+}
+
+.detailed-request,
+.detailed-listing {
+  background: var(--white);
+}
+
+.request-item-header,
+.listing-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 12px;
+}
+
+.request-item-header > strong,
+.listing-heading > strong {
+  color: var(--blue-900);
+  font-size: 0.98rem;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.detail-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.detail-grid > div {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+  padding: 10px;
+  background: #f4f7f9;
+}
+
+.detail-grid strong,
+.detail-grid small {
+  display: block;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.request-description {
+  margin-top: 12px !important;
+}
+
+.request-date {
+  font-weight: 800;
+}
+
+.detailed-listing {
+  display: grid;
+  grid-template-columns: 156px minmax(0, 1fr);
+  gap: 14px;
+}
+
+.detailed-listing > img {
+  width: 100%;
+  height: 126px;
+  object-fit: cover;
+}
+
+.listing-content {
+  min-width: 0;
+}
+
+.listing-heading {
+  margin-bottom: 6px;
+}
+
+.listing-facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 9px 0;
 }
 
 .request-item h3,
@@ -1331,6 +1555,7 @@ textarea {
   .section-heading,
   .properties-title-row,
   .sell-cta .content-wrap,
+  .admin-command-bar,
   .panel-hero {
     align-items: flex-start;
     flex-direction: column;
@@ -1356,6 +1581,21 @@ textarea {
 
   .stats-grid {
     grid-template-columns: repeat(2, 1fr);
+  }
+
+  .admin-insights {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .admin-command-actions {
+    justify-content: flex-start;
+  }
+
+  .admin-requests-card .request-list,
+  .admin-listings-card .admin-listings {
+    max-height: none;
+    overflow: visible;
+    padding-right: 0;
   }
 
   .footer-grid {
@@ -1425,11 +1665,46 @@ textarea {
   .type-grid,
   .team-grid,
   .more-grid,
+  .admin-insights,
   .stats-grid,
   .footer-grid,
   .form-row,
-  .form-row:has(> label:nth-child(3)) {
+  .form-row:has(> label:nth-child(3)),
+  .detail-grid,
+  .detailed-listing {
     grid-template-columns: 1fr;
+  }
+
+  .admin-command-bar {
+    position: static;
+    padding: 16px;
+  }
+
+  .admin-command-actions {
+    width: 100%;
+  }
+
+  .admin-command-actions .ghost-button,
+  .admin-command-actions .primary-button {
+    width: 100%;
+  }
+
+  .panel-card-subhead {
+    flex-direction: column;
+  }
+
+  .detailed-listing > img {
+    height: 190px;
+  }
+
+  .request-item-header,
+  .listing-heading {
+    flex-direction: column;
+  }
+
+  .request-item-header > strong,
+  .listing-heading > strong {
+    text-align: left;
   }
 
   .contact-numbers a {
