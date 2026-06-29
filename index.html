@@ -1,0 +1,672 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Puerto Cancún Center</title>
+    <meta
+      name="description"
+      content="Puerto Cancún Center, propiedades de lujo en Cancún, Puerto Cancún y Zona Hotelera."
+    />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&family=Playfair+Display:wght@500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="site-shell" id="siteShell">
+      <header class="main-header" id="mainHeader">
+        <div class="brand-row">
+          <a class="brand" href="#top" aria-label="Puerto Cancún Center">
+            <span class="brand-mark" aria-hidden="true">
+              <svg viewBox="0 0 72 72" role="img">
+                <circle cx="36" cy="36" r="30"></circle>
+                <circle cx="36" cy="36" r="22"></circle>
+                <path d="M36 4v64M4 36h64M17 17l38 38M55 17 17 55"></path>
+                <path d="m36 10 8 26-8 26-8-26Z"></path>
+              </svg>
+            </span>
+            <span class="brand-copy">
+              <span>Puerto</span>
+              <span>Cancún Center</span>
+            </span>
+          </a>
+
+          <div class="header-tools">
+            <label class="currency-control" for="currencySelect">
+              <span data-i18n="currencyLabel">Seleccione una moneda:</span>
+              <select id="currencySelect" aria-label="Currency">
+                <option value="USD">USD Dollar</option>
+                <option value="MXN">Peso Mexicano</option>
+              </select>
+            </label>
+            <button class="language-toggle" type="button" id="languageToggle">English</button>
+            <button class="menu-toggle" type="button" id="menuToggle" aria-label="Menu">
+              <i data-lucide="menu"></i>
+            </button>
+          </div>
+        </div>
+
+        <nav class="main-nav" id="mainNav" aria-label="Main navigation">
+          <a href="#buscar" data-i18n="navSearch">Buscar</a>
+          <a href="#properties" data-filter="featured" data-i18n="navFeatured">Destacadas</a>
+
+          <div class="nav-item has-menu">
+            <button type="button" data-i18n="navPropertyType">Tipo de propiedad</button>
+            <div class="nav-menu wide-menu">
+              <a href="#properties" data-filter="sale" data-i18n="menuAllSale">Ver todo en venta</a>
+              <div class="menu-columns">
+                <div>
+                  <a href="#properties" data-type="Casa" data-i18n="typeHouses">Casas</a>
+                  <a href="#properties" data-type="Terreno" data-i18n="typeLand">Terrenos</a>
+                  <a href="#properties" data-type="Preventa" data-i18n="typePresales">Pre-ventas</a>
+                  <a href="#properties" data-filter="rent" data-i18n="typeRentals">Rentas</a>
+                </div>
+                <div>
+                  <a href="#properties" data-type="Departamento" data-i18n="typeCondos">Departamentos</a>
+                  <a href="#properties" data-type="Comercial" data-i18n="typeCommercial">Comercial</a>
+                  <a href="#properties" data-type="Desarrollo" data-i18n="typeDevelopments">Desarrollos</a>
+                  <a href="#properties" data-filter="featured" data-i18n="navFeatured">Destacadas</a>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="nav-item has-menu">
+            <button type="button" data-i18n="navPuerto">Puerto Cancun</button>
+            <div class="nav-menu">
+              <a href="#properties" data-zone="Puerto Cancun" data-type="Casa" data-i18n="typeHouses">Casas</a>
+              <a href="#properties" data-zone="Puerto Cancun" data-type="Departamento" data-i18n="typeCondos">Departamentos</a>
+              <a href="#properties" data-zone="Puerto Cancun" data-filter="rent" data-i18n="typeRentals">Rentas</a>
+              <a href="#properties" data-zone="Puerto Cancun" data-type="Terreno" data-i18n="typeLand">Terrenos</a>
+              <a href="#properties" data-zone="Puerto Cancun" data-type="Preventa" data-i18n="typePresales">Preventas</a>
+            </div>
+          </div>
+
+          <div class="nav-item has-menu">
+            <button type="button" data-i18n="navZones">Zonas</button>
+            <div class="nav-menu wide-menu">
+              <a href="#zones" data-i18n="menuAllZones">Ver todas las zonas</a>
+              <div class="menu-columns">
+                <div>
+                  <a href="#properties" data-zone="Puerto Cancun">Puerto Cancun</a>
+                  <a href="#properties" data-zone="Cancun Centro">Cancun Centro</a>
+                  <a href="#properties" data-zone="Punta Sam / Playa Mujeres">Punta Sam / Playa Mujeres</a>
+                </div>
+                <div>
+                  <a href="#properties" data-zone="Zona Hotelera">Zona Hotelera</a>
+                  <a href="#properties" data-zone="Riviera Maya">Riviera Maya</a>
+                  <a href="#properties" data-zone="Isla Mujeres">Isla Mujeres</a>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <a href="#sell" id="sellNavLink" data-i18n="navSell">Vender</a>
+          <button class="login-link" type="button" id="loginOpen" data-i18n="navLogin">Iniciar sesion</button>
+          <a class="phone-link" href="tel:+529986880710">998-688-0710</a>
+        </nav>
+      </header>
+
+      <main id="top">
+        <section class="hero" id="buscar">
+          <div class="hero-content">
+            <p class="hero-kicker" data-i18n="heroKicker">Propiedades de lujo en Cancun</p>
+            <h1 data-i18n="heroTitle">Expertos en bienes raices</h1>
+            <form class="search-panel" id="searchForm">
+              <label class="search-field">
+                <i data-lucide="map-pin"></i>
+                <input
+                  id="searchInput"
+                  type="search"
+                  autocomplete="off"
+                  data-i18n-placeholder="searchPlaceholder"
+                  placeholder="Ciudad, dirección, código postal"
+                />
+              </label>
+              <button class="accent-button" type="submit">
+                <i data-lucide="search"></i>
+                <span data-i18n="searchButton">Buscar</span>
+              </button>
+            </form>
+          </div>
+        </section>
+
+        <section class="contact-strip" aria-label="Contact">
+          <h2 data-i18n="contactToday">Contactanos Hoy</h2>
+          <div class="contact-numbers">
+            <a href="tel:+529986880710">MEX 998-688-0710</a>
+            <a href="tel:+18174004324">US 817-400-4324</a>
+          </div>
+        </section>
+
+        <section class="zones-band" id="zones">
+          <div class="content-wrap">
+            <div class="section-heading inverse">
+              <h2 data-i18n="featuredZones">Zonas destacadas</h2>
+              <a class="outline-button" href="#properties" data-filter="all">
+                <span data-i18n="allZones">Todas las zonas</span>
+                <i data-lucide="arrow-right"></i>
+              </a>
+            </div>
+            <div class="zone-grid">
+              <button class="zone-card" type="button" data-zone="Puerto Cancun">
+                <img
+                  src="https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=900&q=80"
+                  alt="Puerto Cancun waterfront"
+                />
+                <span>Puerto Cancun</span>
+              </button>
+              <button class="zone-card" type="button" data-zone="Zona Hotelera">
+                <img
+                  src="https://images.unsplash.com/photo-1510414842594-a61c69b5ae57?auto=format&fit=crop&w=900&q=80"
+                  alt="Zona Hotelera beach"
+                />
+                <span>Zona Hotelera</span>
+              </button>
+              <button class="zone-card" type="button" data-type="Preventa">
+                <img
+                  src="https://images.unsplash.com/photo-1600607687644-c7171b42498f?auto=format&fit=crop&w=900&q=80"
+                  alt="Luxury presale tower"
+                />
+                <span data-i18n="zonePresales">Preventas | Presales</span>
+              </button>
+            </div>
+          </div>
+        </section>
+
+        <section class="welcome-section">
+          <div class="content-wrap">
+            <h2 data-i18n="welcomeTitle">Bienvenido a Puerto Cancún Center!</h2>
+            <p data-i18n="welcomeCopy">
+              Con años de experiencia en el ramo inmobiliario de lujo en Cancún, Puerto Cancún y la Zona Hotelera,
+              Puerto Cancún Center representa propiedades seleccionadas con inventario actualizado, asesoría
+              profesional y seguimiento cercano para compradores, vendedores e inversionistas.
+            </p>
+
+            <div class="feature-split">
+              <img
+                src="https://images.unsplash.com/photo-1499793983690-e29da59ef1c2?auto=format&fit=crop&w=1200&q=82"
+                alt="Luxury waterfront residence"
+              />
+              <div class="feature-copy">
+                <h3 data-i18n="featuredProperties">Propiedades destacadas</h3>
+                <p data-i18n="featuredCopy">
+                  Oportunidades de alta plusvalia en desarrollos frente al mar, residencias en canales y condominios
+                  con amenidades premium.
+                </p>
+                <a class="primary-button" href="#properties" data-filter="featured" data-i18n="seeMore">Ver mas</a>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="type-section" id="tipo">
+          <div class="content-wrap">
+            <div class="center-heading">
+              <h2 data-i18n="searchByType">Busca por tipo</h2>
+            </div>
+            <div class="type-grid">
+              <button class="type-tile" type="button" data-type="Casa">
+                <span data-i18n="typeHouses">Casas</span>
+                <img
+                  src="https://images.unsplash.com/photo-1613977257363-707ba9348227?auto=format&fit=crop&w=900&q=80"
+                  alt="Luxury house pool"
+                />
+              </button>
+              <button class="type-tile" type="button" data-type="Departamento">
+                <span data-i18n="typeCondos">Departamentos</span>
+                <img
+                  src="https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?auto=format&fit=crop&w=900&q=80"
+                  alt="Luxury apartment"
+                />
+              </button>
+              <button class="type-tile" type="button" data-type="Terreno">
+                <span data-i18n="typeLand">Terrenos</span>
+                <img
+                  src="https://images.unsplash.com/photo-1572120360610-d971b9d7767c?auto=format&fit=crop&w=900&q=80"
+                  alt="Waterfront land"
+                />
+              </button>
+            </div>
+
+            <div class="presale-feature">
+              <div>
+                <h3 data-i18n="presaleTitle">Pre-ventas</h3>
+                <p data-i18n="presaleCopy">
+                  Conozca de la mano de nuestros expertos opciones en preventa, con informacion clara de entrega,
+                  plusvalia y esquema de pago.
+                </p>
+                <a class="primary-button" href="#properties" data-type="Preventa" data-i18n="seeMore">Ver mas</a>
+              </div>
+              <img
+                src="https://images.unsplash.com/photo-1600607687920-4e2a09cf159d?auto=format&fit=crop&w=1200&q=82"
+                alt="Luxury presale building"
+              />
+            </div>
+          </div>
+        </section>
+
+        <section class="properties-section" id="properties">
+          <div class="content-wrap">
+            <div class="properties-title-row">
+              <h2 data-i18n="allProperties">Todas las propiedades</h2>
+              <button class="ghost-button" type="button" id="clearFilters">
+                <i data-lucide="x"></i>
+                <span data-i18n="clearFilters">Limpiar filtros</span>
+              </button>
+            </div>
+            <div class="property-toolbar">
+              <label>
+                <span data-i18n="sortBy">Ordenar por:</span>
+                <select id="sortSelect">
+                  <option value="high" data-i18n="sortHigh">Precio alto a bajo</option>
+                  <option value="low" data-i18n="sortLow">Precio bajo a alto</option>
+                  <option value="new" data-i18n="sortNew">Mas recientes</option>
+                </select>
+              </label>
+              <span class="result-count" id="resultCount"></span>
+            </div>
+            <div class="property-grid" id="propertyGrid"></div>
+          </div>
+        </section>
+
+        <section class="more-section">
+          <div class="content-wrap">
+            <div class="center-heading">
+              <h2 data-i18n="moreProperties">Ver mas propiedades</h2>
+            </div>
+            <div class="more-grid">
+              <button type="button" data-zone="Puerto Cancun">
+                <span>Puerto Cancun</span>
+                <img src="https://images.unsplash.com/photo-1510414842594-a61c69b5ae57?auto=format&fit=crop&w=700&q=75" alt="" />
+              </button>
+              <button type="button" data-zone="Zona Hotelera">
+                <span>Zona Hotelera</span>
+                <img src="https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=700&q=75" alt="" />
+              </button>
+              <button type="button" data-type="Preventa">
+                <span data-i18n="typePresales">Pre-ventas</span>
+                <img src="https://images.unsplash.com/photo-1600607687644-c7171b42498f?auto=format&fit=crop&w=700&q=75" alt="" />
+              </button>
+              <button type="button" data-filter="featured">
+                <span data-i18n="navFeatured">Destacadas</span>
+                <img src="https://images.unsplash.com/photo-1600607687920-4e2a09cf159d?auto=format&fit=crop&w=700&q=75" alt="" />
+              </button>
+              <button type="button" data-type="Casa">
+                <span data-i18n="typeHouses">Casas</span>
+                <img src="https://images.unsplash.com/photo-1613490493576-7fde63acd811?auto=format&fit=crop&w=700&q=75" alt="" />
+              </button>
+              <button type="button" data-type="Departamento">
+                <span data-i18n="typeCondos">Departamentos</span>
+                <img src="https://images.unsplash.com/photo-1600566753190-17f0baa2a6c3?auto=format&fit=crop&w=700&q=75" alt="" />
+              </button>
+              <button type="button" data-type="Terreno">
+                <span data-i18n="typeLand">Terrenos</span>
+                <img src="https://images.unsplash.com/photo-1572120360610-d971b9d7767c?auto=format&fit=crop&w=700&q=75" alt="" />
+              </button>
+              <button type="button" data-type="Desarrollo">
+                <span data-i18n="typeDevelopments">Desarrollos</span>
+                <img src="https://images.unsplash.com/photo-1582268611958-ebfd161ef9cf?auto=format&fit=crop&w=700&q=75" alt="" />
+              </button>
+            </div>
+          </div>
+        </section>
+
+        <section class="team-section">
+          <div class="content-wrap">
+            <h2 data-i18n="teamTitle">Conoce al equipo de Puerto Cancún Center</h2>
+            <div class="team-grid">
+              <article>
+                <img src="https://images.unsplash.com/photo-1560250097-0b93528c311a?auto=format&fit=crop&w=500&q=80" alt="Advisor" />
+                <h3>Alejandro Ruiz</h3>
+                <p data-i18n="teamRoleSales">Asesor inmobiliario senior</p>
+              </article>
+              <article>
+                <img src="https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=500&q=80" alt="Advisor" />
+                <h3>Mariana Torres</h3>
+                <p data-i18n="teamRoleListings">Coordinadora de propiedades</p>
+              </article>
+              <article>
+                <img src="https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?auto=format&fit=crop&w=500&q=80" alt="Advisor" />
+                <h3>Daniel Herrera</h3>
+                <p data-i18n="teamRoleInvestment">Consultor de inversion</p>
+              </article>
+            </div>
+          </div>
+        </section>
+
+        <section class="sell-cta" id="sell">
+          <div class="content-wrap">
+            <div>
+              <h2 data-i18n="sellTitle">Quieres vender una propiedad?</h2>
+              <p data-i18n="sellCopy">
+                Crea una cuenta, envia tu solicitud y el equipo administrativo revisara la informacion antes de
+                publicar.
+              </p>
+            </div>
+            <button class="accent-button" type="button" id="sellCtaButton">
+              <i data-lucide="home"></i>
+              <span data-i18n="startSellerRequest">Iniciar solicitud</span>
+            </button>
+          </div>
+        </section>
+      </main>
+
+      <footer class="footer">
+        <div class="content-wrap footer-grid">
+          <div class="footer-brand">
+            <a class="brand footer-logo" href="#top" aria-label="Puerto Cancún Center">
+              <span class="brand-mark" aria-hidden="true">
+                <svg viewBox="0 0 72 72" role="img">
+                  <circle cx="36" cy="36" r="30"></circle>
+                  <circle cx="36" cy="36" r="22"></circle>
+                  <path d="M36 4v64M4 36h64M17 17l38 38M55 17 17 55"></path>
+                  <path d="m36 10 8 26-8 26-8-26Z"></path>
+                </svg>
+              </span>
+              <span class="brand-copy">
+                <span>Puerto</span>
+                <span>Cancún Center</span>
+              </span>
+            </a>
+          </div>
+          <div>
+            <h3 data-i18n="footerCommunities">Comunidades</h3>
+            <a href="#properties" data-zone="Puerto Cancun">Puerto Cancun</a>
+            <a href="#properties" data-zone="Zona Hotelera">Zona Hotelera</a>
+            <a href="#properties" data-zone="Cancun Centro">Cancun Centro</a>
+            <a href="#properties" data-zone="Riviera Maya">Riviera Maya</a>
+            <a href="#properties" data-zone="Punta Sam / Playa Mujeres">Punta Sam / Playa Mujeres</a>
+          </div>
+          <div>
+            <h3 data-i18n="footerBuy">Compra de propiedad</h3>
+            <a href="#properties" data-filter="all" data-i18n="menuAllSale">Ver todas las propiedades</a>
+            <a href="#properties" data-filter="rent" data-i18n="typeRentals">Rentas</a>
+            <a href="#properties" data-type="Preventa" data-i18n="typePresales">Pre-ventas</a>
+          </div>
+          <div>
+            <h3 data-i18n="footerSell">Asesoria de venta</h3>
+            <button type="button" id="footerSellButton" data-i18n="saleProperty">Venta de propiedad</button>
+          </div>
+          <div>
+            <h3 data-i18n="footerAbout">Nosotros</h3>
+            <a href="#top" data-i18n="aboutPuerto">Sobre Puerto Cancún Center</a>
+            <h3 class="footer-location" data-i18n="location">Ubicacion</h3>
+            <p>Av. Bonampak Entrada Puerto Cancun<br />Plaza Nido, Local 4<br />Cancun, Quintana Roo, CP 77500</p>
+          </div>
+        </div>
+        <div class="content-wrap footer-note">
+          <p data-i18n="legalCopy">
+            Los precios de los inmuebles se expresan en Pesos Mexicanos (MXN), moneda oficial para operaciones
+            inmobiliarias en Mexico. Los precios en Dolares de Estados Unidos (USD) se presentan como referencia.
+          </p>
+          <p>© 2026 Puerto Cancún Center. <span data-i18n="rights">Todos los derechos reservados.</span></p>
+        </div>
+      </footer>
+    </div>
+
+    <main class="panel-view" id="panelView" hidden>
+      <section class="panel-hero">
+        <div>
+          <button class="ghost-light" type="button" id="backToSite">
+            <i data-lucide="arrow-left"></i>
+            <span data-i18n="backToSite">Volver al sitio</span>
+          </button>
+          <p class="panel-badge" id="panelRoleBadge"></p>
+          <h1 id="panelTitle"></h1>
+          <p id="panelSubtitle"></p>
+        </div>
+        <button class="outline-light" type="button" id="logoutButton">
+          <i data-lucide="log-out"></i>
+          <span data-i18n="logout">Cerrar sesion</span>
+        </button>
+      </section>
+
+      <section class="dashboard" id="sellerPanel" hidden>
+        <div class="dashboard-grid">
+          <article class="panel-card">
+            <h2 data-i18n="sellerRequestTitle">Enviar solicitud de venta</h2>
+            <form id="sellerRequestForm" class="stacked-form">
+              <div class="form-row">
+                <label>
+                  <span data-i18n="propertyTitle">Titulo de la propiedad</span>
+                  <input name="title" required />
+                </label>
+                <label>
+                  <span data-i18n="propertyType">Tipo de propiedad</span>
+                  <select name="type" required>
+                    <option>Casa</option>
+                    <option>Departamento</option>
+                    <option>Terreno</option>
+                    <option>Comercial</option>
+                    <option>Preventa</option>
+                    <option>Desarrollo</option>
+                  </select>
+                </label>
+              </div>
+              <div class="form-row">
+                <label>
+                  <span data-i18n="zone">Zona</span>
+                  <select name="zone" required>
+                    <option>Puerto Cancun</option>
+                    <option>Zona Hotelera</option>
+                    <option>Cancun Centro</option>
+                    <option>Riviera Maya</option>
+                    <option>Punta Sam / Playa Mujeres</option>
+                    <option>Isla Mujeres</option>
+                  </select>
+                </label>
+                <label>
+                  <span data-i18n="price">Precio</span>
+                  <input name="price" type="number" min="0" step="1000" required />
+                </label>
+              </div>
+              <div class="form-row">
+                <label>
+                  <span data-i18n="currency">Moneda</span>
+                  <select name="currency">
+                    <option value="USD">USD</option>
+                    <option value="MXN">MXN</option>
+                  </select>
+                </label>
+                <label>
+                  <span data-i18n="address">Direccion</span>
+                  <input name="address" required />
+                </label>
+              </div>
+              <div class="form-row">
+                <label>
+                  <span data-i18n="bedrooms">Recamaras</span>
+                  <input name="beds" type="number" min="0" />
+                </label>
+                <label>
+                  <span data-i18n="bathrooms">Banos</span>
+                  <input name="baths" type="number" min="0" />
+                </label>
+                <label>
+                  <span data-i18n="area">M2 construccion</span>
+                  <input name="area" type="number" min="0" />
+                </label>
+              </div>
+              <label>
+                <span data-i18n="description">Descripcion</span>
+                <textarea name="description" rows="4" required></textarea>
+              </label>
+              <button class="primary-button" type="submit" data-i18n="sendRequest">Enviar solicitud</button>
+            </form>
+          </article>
+
+          <article class="panel-card">
+            <h2 data-i18n="myRequests">Mis solicitudes</h2>
+            <div class="request-list" id="sellerRequests"></div>
+          </article>
+        </div>
+      </section>
+
+      <section class="dashboard" id="adminPanel" hidden>
+        <div class="stats-grid" id="statsGrid"></div>
+        <div class="dashboard-grid admin-layout">
+          <article class="panel-card">
+            <h2 data-i18n="adminRequestsTitle">Solicitudes de vendedores</h2>
+            <div class="request-list" id="adminRequests"></div>
+          </article>
+
+          <article class="panel-card">
+            <h2 data-i18n="manageListings">Administrar publicaciones</h2>
+            <form id="listingForm" class="stacked-form">
+              <input type="hidden" name="id" />
+              <div class="form-row">
+                <label>
+                  <span data-i18n="propertyTitle">Titulo de la propiedad</span>
+                  <input name="title" required />
+                </label>
+                <label>
+                  <span data-i18n="propertyType">Tipo de propiedad</span>
+                  <select name="type" required>
+                    <option>Casa</option>
+                    <option>Departamento</option>
+                    <option>Terreno</option>
+                    <option>Comercial</option>
+                    <option>Preventa</option>
+                    <option>Desarrollo</option>
+                  </select>
+                </label>
+              </div>
+              <div class="form-row">
+                <label>
+                  <span data-i18n="zone">Zona</span>
+                  <select name="zone" required>
+                    <option>Puerto Cancun</option>
+                    <option>Zona Hotelera</option>
+                    <option>Cancun Centro</option>
+                    <option>Riviera Maya</option>
+                    <option>Punta Sam / Playa Mujeres</option>
+                    <option>Isla Mujeres</option>
+                  </select>
+                </label>
+                <label>
+                  <span data-i18n="operation">Operacion</span>
+                  <select name="operation">
+                    <option value="sale" data-i18n="sale">Venta</option>
+                    <option value="rent" data-i18n="rent">Renta</option>
+                  </select>
+                </label>
+              </div>
+              <div class="form-row">
+                <label>
+                  <span data-i18n="priceUsd">Precio base USD</span>
+                  <input name="priceUsd" type="number" min="0" step="1000" required />
+                </label>
+                <label>
+                  <span data-i18n="imageUrl">URL de imagen</span>
+                  <input name="image" type="url" />
+                </label>
+              </div>
+              <div class="form-row">
+                <label>
+                  <span data-i18n="bedrooms">Recamaras</span>
+                  <input name="beds" type="number" min="0" />
+                </label>
+                <label>
+                  <span data-i18n="bathrooms">Banos</span>
+                  <input name="baths" type="number" min="0" />
+                </label>
+                <label>
+                  <span data-i18n="area">M2 construccion</span>
+                  <input name="area" type="number" min="0" />
+                </label>
+              </div>
+              <label class="checkbox-row">
+                <input name="featured" type="checkbox" />
+                <span data-i18n="markFeatured">Marcar como destacada</span>
+              </label>
+              <label>
+                <span data-i18n="description">Descripcion</span>
+                <textarea name="description" rows="3"></textarea>
+              </label>
+              <div class="form-actions">
+                <button class="primary-button" type="submit" data-i18n="saveListing">Guardar publicacion</button>
+                <button class="ghost-button" type="button" id="resetListingForm" data-i18n="newListing">Nueva publicacion</button>
+              </div>
+            </form>
+            <div class="admin-listings" id="adminListings"></div>
+          </article>
+        </div>
+      </section>
+    </main>
+
+    <div class="modal-backdrop" id="authModal" hidden>
+      <section class="auth-modal" role="dialog" aria-modal="true" aria-labelledby="authTitle">
+        <button class="modal-close" type="button" id="authClose" aria-label="Close">
+          <i data-lucide="x"></i>
+        </button>
+        <h2 id="authTitle" data-i18n="authTitle">Acceso Puerto Cancún Center</h2>
+        <div class="modal-tabs" role="tablist">
+          <button class="active" type="button" data-auth-tab="login" data-i18n="navLogin">Iniciar sesion</button>
+          <button type="button" data-auth-tab="register" data-i18n="createAccount">Crear cuenta</button>
+        </div>
+        <form id="loginForm" class="auth-form active">
+          <label>
+            <span data-i18n="emailOrUser">Correo o usuario</span>
+            <input name="username" autocomplete="username" required />
+          </label>
+          <label>
+            <span data-i18n="password">Contrasena</span>
+            <input name="password" type="password" autocomplete="current-password" required />
+          </label>
+          <button class="primary-button" type="submit" data-i18n="navLogin">Iniciar sesion</button>
+          <p class="form-message" id="loginMessage"></p>
+          <button class="text-button" type="button" data-auth-tab="register" data-i18n="noAccount">
+            No tienes cuenta? Crear una cuenta para vender
+          </button>
+        </form>
+
+        <form id="registerForm" class="auth-form">
+          <div class="form-row">
+            <label>
+              <span data-i18n="firstName">Nombre</span>
+              <input name="firstName" autocomplete="given-name" required />
+            </label>
+            <label>
+              <span data-i18n="lastName">Apellido</span>
+              <input name="lastName" autocomplete="family-name" required />
+            </label>
+          </div>
+          <label>
+            <span data-i18n="email">Direccion de correo</span>
+            <input name="email" type="email" autocomplete="email" required />
+          </label>
+          <label>
+            <span data-i18n="phone">Telefono</span>
+            <input name="phone" type="tel" autocomplete="tel" required />
+          </label>
+          <label>
+            <span data-i18n="preferredContact">Metodo de contacto preferido</span>
+            <select name="preferredContact" required>
+              <option value="email" data-i18n="contactEmail">Correo</option>
+              <option value="phone" data-i18n="contactPhone">Celular</option>
+            </select>
+          </label>
+          <label>
+            <span data-i18n="password">Contrasena</span>
+            <input name="password" type="password" autocomplete="new-password" minlength="6" required />
+          </label>
+          <button class="primary-button" type="submit" data-i18n="createAccount">Crear cuenta</button>
+          <p class="form-message" id="registerMessage"></p>
+        </form>
+      </section>
+    </div>
+
+    <button class="whatsapp-float" type="button" id="whatsappButton" aria-label="WhatsApp">
+      <span>WhatsApp</span>
+      <i data-lucide="message-circle"></i>
+    </button>
+
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="app.js"></script>
+  </body>
+</html>
