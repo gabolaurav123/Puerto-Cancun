@@ -1,4 +1,6 @@
-const RATE_MXN = 18.4;
+const IMAGE_MAX_BYTES = 1.5 * 1024 * 1024;
+const IMAGE_TYPES = new Set(["image/jpeg", "image/jpg", "image/png", "image/webp"]);
+const WHATSAPP_NUMBER = "529986880710";
 
 const keys = {
   lang: "pcc.lang",
@@ -105,8 +107,14 @@ const translations = {
     operation: "Operación",
     sale: "Venta",
     rent: "Renta",
-    priceUsd: "Precio base USD",
-    imageUrl: "URL de imagen",
+    priceUsd: "Precio USD",
+    priceMxn: "Precio MXN",
+    imageUpload: "Imagen de la propiedad",
+    imageHelp: "JPG, PNG o WEBP. Máximo 1.5 MB.",
+    currentImage: "Imagen actual",
+    imageTooLarge: "La imagen no debe superar 1.5 MB.",
+    invalidImageType: "La imagen debe ser JPG, JPEG, PNG o WEBP.",
+    missingPrice: "Agrega al menos un precio: USD o MXN.",
     markFeatured: "Marcar como destacada",
     saveListing: "Guardar publicación",
     newListing: "Nueva publicación",
@@ -125,7 +133,8 @@ const translations = {
     noResults: "No se encontraron propiedades con esos filtros.",
     resultText: "propiedades",
     viewDetails: "Ver detalle",
-    contactAdvisor: "Contactar",
+    contactAdvisor: "WhatsApp",
+    contactWhatsApp: "Contactar por WhatsApp",
     new: "Nuevo",
     reduced: "Precio reducido",
     pending: "Pendiente",
@@ -188,7 +197,6 @@ const translations = {
     sellerPanelShort: "Panel vendedor",
     adminPanelShort: "Panel admin",
     confirmDelete: "Eliminar esta publicación?",
-    detailsTitle: "Detalle de propiedad",
     apiError: "No se pudo conectar con la base de datos. Revisa DATABASE_URL y el servidor.",
   },
   en: {
@@ -272,8 +280,14 @@ const translations = {
     operation: "Operation",
     sale: "Sale",
     rent: "Rent",
-    priceUsd: "Base price USD",
-    imageUrl: "Image URL",
+    priceUsd: "USD price",
+    priceMxn: "MXN price",
+    imageUpload: "Property image",
+    imageHelp: "JPG, PNG or WEBP. Maximum 1.5 MB.",
+    currentImage: "Current image",
+    imageTooLarge: "Image must not exceed 1.5 MB.",
+    invalidImageType: "Image must be JPG, JPEG, PNG, or WEBP.",
+    missingPrice: "Add at least one price: USD or MXN.",
     markFeatured: "Mark as featured",
     saveListing: "Save listing",
     newListing: "New listing",
@@ -292,7 +306,8 @@ const translations = {
     noResults: "No properties matched those filters.",
     resultText: "properties",
     viewDetails: "View details",
-    contactAdvisor: "Contact",
+    contactAdvisor: "WhatsApp",
+    contactWhatsApp: "Contact on WhatsApp",
     new: "New",
     reduced: "Reduced price",
     pending: "Pending",
@@ -355,7 +370,6 @@ const translations = {
     sellerPanelShort: "Seller panel",
     adminPanelShort: "Admin panel",
     confirmDelete: "Delete this listing?",
-    detailsTitle: "Property details",
     apiError: "Could not connect to the database. Check DATABASE_URL and the server.",
   },
 };
@@ -433,11 +447,33 @@ function displayType(type) {
   return map[type] || type;
 }
 
-function formatPrice(priceUsd, operation = "sale") {
-  const amount = state.currency === "MXN" ? Number(priceUsd) * RATE_MXN : Number(priceUsd);
+function formatCurrencyLine(code, amount, operation = "sale") {
+  if (amount === null || amount === undefined || amount === "") return "";
   const locale = state.lang === "en" ? "en-US" : "es-MX";
-  const formatted = new Intl.NumberFormat(locale, { maximumFractionDigits: 0 }).format(amount || 0);
-  return `${state.currency} $${formatted}${operation === "rent" ? t("perMonth") : ""}`;
+  const formatted = new Intl.NumberFormat(locale, { maximumFractionDigits: 0 }).format(Number(amount || 0));
+  return `${code} ${formatted}${operation === "rent" ? t("perMonth") : ""}`;
+}
+
+function formatPriceLines(property) {
+  return [
+    formatCurrencyLine("USD", property.priceUsd, property.operation),
+    formatCurrencyLine("MXN", property.priceMxn, property.operation),
+  ].filter(Boolean);
+}
+
+function formatPriceSummary(property) {
+  const lines = formatPriceLines(property);
+  return lines.length ? lines.join(" / ") : "Precio por confirmar";
+}
+
+function comparablePrice(property) {
+  return Number(property.priceUsd || property.priceMxn || 0);
+}
+
+function truncateText(text, maxLength = 145) {
+  const clean = String(text || "").replace(/\s+/g, " ").trim();
+  if (clean.length <= maxLength) return clean;
+  return `${clean.slice(0, maxLength).trim()}...`;
 }
 
 function formatDate(dateString) {
@@ -459,7 +495,7 @@ function countBy(items, key) {
 }
 
 function formatUsd(value) {
-  return `USD $${new Intl.NumberFormat("en-US", { maximumFractionDigits: 0 }).format(Number(value || 0))}`;
+  return `USD ${new Intl.NumberFormat("en-US", { maximumFractionDigits: 0 }).format(Number(value || 0))}`;
 }
 
 function resetFilters() {
@@ -492,8 +528,8 @@ function propertyMatches(property) {
 function sortedProperties(properties) {
   const sort = $("#sortSelect")?.value || "high";
   const sorted = [...properties];
-  if (sort === "high") sorted.sort((a, b) => Number(b.priceUsd) - Number(a.priceUsd));
-  if (sort === "low") sorted.sort((a, b) => Number(a.priceUsd) - Number(b.priceUsd));
+  if (sort === "high") sorted.sort((a, b) => comparablePrice(b) - comparablePrice(a));
+  if (sort === "low") sorted.sort((a, b) => comparablePrice(a) - comparablePrice(b));
   if (sort === "new") sorted.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
   return sorted;
 }
@@ -536,17 +572,17 @@ function renderProperties() {
       return `
         <article class="property-card">
           <div class="property-image">
-            <img src="${escapeHtml(property.image || fallbackImage)}" alt="${escapeHtml(localizedTitle(property))}" loading="lazy" />
+            <img src="${escapeHtml(property.image || fallbackImage)}" alt="${escapeHtml(localizedTitle(property))}" loading="lazy" onerror="this.onerror=null;this.src='${escapeHtml(fallbackImage)}';" />
             <div class="badge-row">${badgeHtml}</div>
           </div>
           <div class="property-body">
-            <p class="property-price">${escapeHtml(formatPrice(property.priceUsd, property.operation))}</p>
+            <p class="property-price">${escapeHtml(formatPriceSummary(property))}</p>
             <h3 class="property-title">${escapeHtml(localizedTitle(property))}</h3>
             <p class="property-meta">${escapeHtml(meta.join(" • "))}</p>
-            <p class="property-description">${escapeHtml(localizedDescription(property))}</p>
+            <p class="property-description">${escapeHtml(truncateText(localizedDescription(property)))}</p>
             <div class="property-actions">
               <button class="mini-button primary" type="button" data-detail="${escapeHtml(property.id)}">${escapeHtml(t("viewDetails"))}</button>
-              <button class="mini-button" type="button" data-contact="${escapeHtml(property.id)}">${escapeHtml(t("contactAdvisor"))}</button>
+              <button class="mini-button" type="button" data-contact="${escapeHtml(property.id)}">${escapeHtml(t("contactWhatsApp"))}</button>
             </div>
           </div>
         </article>
@@ -646,9 +682,10 @@ function renderAdminInsights() {
   const properties = state.properties;
   const pending = state.requests.filter((request) => request.status === "pending").length;
   const featured = properties.filter((property) => property.featured).length;
+  const usdProperties = properties.filter((property) => property.priceUsd);
   const average =
-    properties.length > 0
-      ? Math.round(properties.reduce((sum, property) => sum + Number(property.priceUsd || 0), 0) / properties.length)
+    usdProperties.length > 0
+      ? Math.round(usdProperties.reduce((sum, property) => sum + Number(property.priceUsd || 0), 0) / usdProperties.length)
       : 0;
   const topZones = Object.entries(countBy(properties, "zone"))
     .sort((a, b) => b[1] - a[1])
@@ -668,7 +705,7 @@ function renderAdminInsights() {
     </article>
     <article class="insight-card">
       <span>${escapeHtml(t("adminInsightAverage"))}</span>
-      <strong>${escapeHtml(formatUsd(average))}</strong>
+      <strong>${escapeHtml(average ? formatUsd(average) : "N/A")}</strong>
       <p>${escapeHtml(t("adminOperations"))}: ${escapeHtml(t("sale"))} ${operationCounts.sale || 0} · ${escapeHtml(t("rent"))} ${operationCounts.rent || 0}</p>
     </article>
     <article class="insight-card">
@@ -702,14 +739,14 @@ function renderAdminListings() {
     .map(
       (property) => `
         <div class="listing-item detailed-listing">
-          <img src="${escapeHtml(property.image || fallbackImage)}" alt="${escapeHtml(localizedTitle(property))}" loading="lazy" />
+          <img src="${escapeHtml(property.image || fallbackImage)}" alt="${escapeHtml(localizedTitle(property))}" loading="lazy" onerror="this.onerror=null;this.src='${escapeHtml(fallbackImage)}';" />
           <div class="listing-content">
             <div class="listing-heading">
               <div>
                 <span class="status ${property.featured ? "approved" : ""}">${escapeHtml(property.featured ? t("navFeatured") : displayType(property.type))}</span>
                 <h3>${escapeHtml(localizedTitle(property))}</h3>
               </div>
-              <strong>${escapeHtml(formatPrice(property.priceUsd, property.operation))}</strong>
+              <strong>${escapeHtml(formatPriceSummary(property))}</strong>
             </div>
             <p>${escapeHtml(property.zone)} · ${escapeHtml(displayType(property.type))} · ${escapeHtml(property.mls ? `${t("mls")} ${property.mls}` : "")}</p>
             <div class="listing-facts">
@@ -935,19 +972,74 @@ function resetListingForm() {
   const form = $("#listingForm");
   form.reset();
   form.elements.id.value = "";
+  form.dataset.currentImage = "";
+  updateListingImagePreview("");
+  setFormMessage($("#listingFormMessage"), "");
+}
+
+function updateListingImagePreview(src) {
+  const preview = $("#listingImagePreview");
+  if (!preview) return;
+  const image = preview.querySelector("img");
+  if (src) {
+    image.src = src;
+    preview.hidden = false;
+  } else {
+    image.removeAttribute("src");
+    preview.hidden = true;
+  }
+}
+
+function validateImageFile(file) {
+  if (!file) return;
+  if (!IMAGE_TYPES.has(file.type)) {
+    throw new Error(t("invalidImageType"));
+  }
+  if (file.size > IMAGE_MAX_BYTES) {
+    throw new Error(t("imageTooLarge"));
+  }
+}
+
+function readImageFile(file) {
+  return new Promise((resolve, reject) => {
+    validateImageFile(file);
+    const reader = new FileReader();
+    reader.onload = () =>
+      resolve({
+        imageDataUrl: reader.result,
+        imageType: file.type,
+        imageSize: file.size,
+      });
+    reader.onerror = () => reject(new Error(t("apiError")));
+    reader.readAsDataURL(file);
+  });
+}
+
+async function getListingImagePayload(form) {
+  const file = form.elements.imageFile.files[0];
+  if (!file) return {};
+  return readImageFile(file);
 }
 
 async function listingSubmit(event) {
   event.preventDefault();
   const form = event.currentTarget;
   const id = form.elements.id.value;
+  const message = $("#listingFormMessage");
+  setFormMessage(message, "");
+  const priceUsd = form.priceUsd.value === "" ? null : Number(form.priceUsd.value);
+  const priceMxn = form.priceMxn.value === "" ? null : Number(form.priceMxn.value);
+  if (priceUsd === null && priceMxn === null) {
+    setFormMessage(message, t("missingPrice"), true);
+    return;
+  }
   const payload = {
     title: form.title.value.trim(),
     type: form.type.value,
     zone: form.zone.value,
     operation: form.operation.value,
-    priceUsd: Number(form.priceUsd.value || 0),
-    image: form.image.value.trim(),
+    priceUsd,
+    priceMxn,
     beds: Number(form.beds.value || 0),
     baths: Number(form.baths.value || 0),
     area: Number(form.area.value || 0),
@@ -956,6 +1048,7 @@ async function listingSubmit(event) {
     badges: ["new"],
   };
   try {
+    Object.assign(payload, await getListingImagePayload(form));
     await api(id ? `/api/admin/properties/${encodeURIComponent(id)}` : "/api/admin/properties", {
       method: id ? "PUT" : "POST",
       body: payload,
@@ -965,7 +1058,7 @@ async function listingSubmit(event) {
     renderProperties();
     alert(t("listingSaved"));
   } catch (error) {
-    alert(error.message);
+    setFormMessage(message, error.message, true);
   }
 }
 
@@ -978,8 +1071,11 @@ function editListing(id) {
   form.type.value = property.type;
   form.zone.value = property.zone;
   form.operation.value = property.operation;
-  form.priceUsd.value = property.priceUsd;
-  form.image.value = property.image || "";
+  form.priceUsd.value = property.priceUsd || "";
+  form.priceMxn.value = property.priceMxn || "";
+  form.elements.imageFile.value = "";
+  form.dataset.currentImage = property.image || "";
+  updateListingImagePreview(property.image || "");
   form.beds.value = property.beds || "";
   form.baths.value = property.baths || "";
   form.area.value = property.area || "";
@@ -1052,17 +1148,30 @@ function applyElementFilter(element) {
 function viewDetails(id) {
   const property = state.properties.find((item) => item.id === id);
   if (!property) return;
-  alert(
-    `${t("detailsTitle")}\n\n${localizedTitle(property)}\n${formatPrice(property.priceUsd, property.operation)}\n${displayType(
-      property.type
-    )} · ${property.zone}\n\n${localizedDescription(property)}`
-  );
+  openPropertyWhatsApp(property);
 }
 
 function contactAdvisor(id) {
   const property = state.properties.find((item) => item.id === id);
-  const title = property ? localizedTitle(property) : "";
-  alert(`${t("contactAdvisor")}: ${title}\nMEX 998-688-0710\nUS 817-400-4324`);
+  if (!property) return;
+  openPropertyWhatsApp(property);
+}
+
+function openPropertyWhatsApp(property) {
+  const message = [
+    "Hola, estoy interesado/a en esta propiedad:",
+    "",
+    localizedTitle(property),
+    `Precio: ${formatPriceSummary(property)}`,
+    `Ubicación: ${property.zone || ""}`,
+    `Tipo: ${displayType(property.type)}`,
+    `Dormitorios: ${property.beds || 0}`,
+    `Baños: ${property.baths || 0}`,
+    `M2 construcción: ${property.area || 0}`,
+    "",
+    "Quisiera recibir más información.",
+  ].join("\n");
+  window.open(`https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(message)}`, "_blank", "noopener,noreferrer");
 }
 
 function closeMobileNav() {
@@ -1142,6 +1251,23 @@ function bindEvents() {
   $("#sellerRequestForm").addEventListener("submit", sellerRequestSubmit);
   $("#listingForm").addEventListener("submit", listingSubmit);
   $("#resetListingForm").addEventListener("click", resetListingForm);
+  $("#listingForm").elements.imageFile.addEventListener("change", async (event) => {
+    const file = event.target.files[0];
+    const message = $("#listingFormMessage");
+    setFormMessage(message, "");
+    if (!file) {
+      updateListingImagePreview($("#listingForm").dataset.currentImage || "");
+      return;
+    }
+    try {
+      const payload = await readImageFile(file);
+      updateListingImagePreview(payload.imageDataUrl);
+    } catch (error) {
+      event.target.value = "";
+      updateListingImagePreview($("#listingForm").dataset.currentImage || "");
+      setFormMessage(message, error.message, true);
+    }
+  });
 
   $$("[data-admin-jump]").forEach((button) => {
     button.addEventListener("click", () => {

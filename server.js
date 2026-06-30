@@ -22,6 +22,8 @@ const pool = new Pool({
   max: 5,
 });
 
+const IMAGE_MAX_BYTES = 1.5 * 1024 * 1024;
+const IMAGE_TYPES = new Set(["image/jpeg", "image/jpg", "image/png", "image/webp"]);
 const adminUser = (process.env.ADMIN_USER || "admin prueba").trim().toLowerCase();
 const adminPassword = process.env.ADMIN_PASSWORD || "";
 
@@ -243,7 +245,8 @@ function toProperty(row) {
     type: row.type,
     zone: row.zone,
     operation: row.operation,
-    priceUsd: Number(row.price_usd || 0),
+    priceUsd: row.price_usd === null ? null : Number(row.price_usd || 0),
+    priceMxn: row.price_mxn === null ? null : Number(row.price_mxn || 0),
     beds: Number(row.beds || 0),
     baths: Number(row.baths || 0),
     area: Number(row.area || 0),
@@ -357,7 +360,8 @@ async function initDatabase() {
         type TEXT NOT NULL,
         zone TEXT NOT NULL,
         operation TEXT NOT NULL CHECK (operation IN ('sale', 'rent')),
-        price_usd NUMERIC NOT NULL,
+        price_usd NUMERIC,
+        price_mxn NUMERIC,
         beds INTEGER NOT NULL DEFAULT 0,
         baths INTEGER NOT NULL DEFAULT 0,
         area INTEGER NOT NULL DEFAULT 0,
@@ -372,6 +376,8 @@ async function initDatabase() {
         source_request_id TEXT UNIQUE
       );
     `);
+    await client.query("ALTER TABLE properties ADD COLUMN IF NOT EXISTS price_mxn NUMERIC");
+    await client.query("ALTER TABLE properties ALTER COLUMN price_usd DROP NOT NULL");
     await client.query(`
       CREATE TABLE IF NOT EXISTS app_metrics (
         id INTEGER PRIMARY KEY CHECK (id = 1),
@@ -390,9 +396,9 @@ async function initDatabase() {
       for (const property of seedProperties) {
         await client.query(
           `INSERT INTO properties
-            (id, title_es, title_en, type, zone, operation, price_usd, beds, baths, area, lot, mls, image, featured, badges, created_at, description_es, description_en)
+            (id, title_es, title_en, type, zone, operation, price_usd, price_mxn, beds, baths, area, lot, mls, image, featured, badges, created_at, description_es, description_en)
            VALUES
-            ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15::jsonb, $16, $17, $18)
+            ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16::jsonb, $17, $18, $19)
            ON CONFLICT (id) DO NOTHING`,
           [
             property.id,
@@ -402,6 +408,7 @@ async function initDatabase() {
             property.zone,
             property.operation,
             property.priceUsd,
+            property.priceMxn || null,
             property.beds,
             property.baths,
             property.area,
@@ -461,7 +468,7 @@ async function initDatabase() {
 }
 
 app.set("trust proxy", 1);
-app.use(express.json({ limit: "1mb" }));
+app.use(express.json({ limit: "3mb" }));
 app.use(
   session({
     store: new PgSession({
@@ -721,12 +728,13 @@ app.post("/api/admin/requests/:id/approve", requireRole("admin"), async (req, re
     const existing = await client.query("SELECT * FROM properties WHERE source_request_id = $1", [request.id]);
     let property = existing.rows[0];
     if (!property) {
-      const priceUsd = request.currency === "MXN" ? Math.round(Number(request.price) / 18.4) : Number(request.price);
+      const priceUsd = request.currency === "USD" ? Number(request.price) : null;
+      const priceMxn = request.currency === "MXN" ? Number(request.price) : null;
       const propertyResult = await client.query(
         `INSERT INTO properties
-          (id, title_es, title_en, type, zone, operation, price_usd, beds, baths, area, lot, mls, image, featured, badges, description_es, description_en, source_request_id)
+          (id, title_es, title_en, type, zone, operation, price_usd, price_mxn, beds, baths, area, lot, mls, image, featured, badges, description_es, description_en, source_request_id)
          VALUES
-          ($1, $2, $3, $4, $5, 'sale', $6, $7, $8, $9, 0, $10, $11, false, $12::jsonb, $13, $14, $15)
+          ($1, $2, $3, $4, $5, 'sale', $6, $7, $8, $9, $10, 0, $11, $12, false, $13::jsonb, $14, $15, $16)
          RETURNING *`,
         [
           uuid("prop"),
@@ -735,6 +743,7 @@ app.post("/api/admin/requests/:id/approve", requireRole("admin"), async (req, re
           request.type,
           request.zone,
           priceUsd,
+          priceMxn,
           request.beds,
           request.baths,
           request.area,
@@ -780,9 +789,9 @@ app.post("/api/admin/properties", requireRole("admin"), async (req, res, next) =
     const property = normalizePropertyInput(req.body, uuid("prop"));
     const result = await query(
       `INSERT INTO properties
-        (id, title_es, title_en, type, zone, operation, price_usd, beds, baths, area, lot, mls, image, featured, badges, description_es, description_en)
+        (id, title_es, title_en, type, zone, operation, price_usd, price_mxn, beds, baths, area, lot, mls, image, featured, badges, description_es, description_en)
        VALUES
-        ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15::jsonb, $16, $17)
+        ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16::jsonb, $17, $18)
        RETURNING *`,
       [
         property.id,
@@ -792,6 +801,7 @@ app.post("/api/admin/properties", requireRole("admin"), async (req, res, next) =
         property.zone,
         property.operation,
         property.priceUsd,
+        property.priceMxn,
         property.beds,
         property.baths,
         property.area,
@@ -812,12 +822,17 @@ app.post("/api/admin/properties", requireRole("admin"), async (req, res, next) =
 
 app.put("/api/admin/properties/:id", requireRole("admin"), async (req, res, next) => {
   try {
-    const property = normalizePropertyInput(req.body, req.params.id);
+    const existing = await query("SELECT * FROM properties WHERE id = $1", [req.params.id]);
+    if (!existing.rows[0]) {
+      res.status(404).json({ error: "Property not found" });
+      return;
+    }
+    const property = normalizePropertyInput(req.body, req.params.id, existing.rows[0].image);
     const result = await query(
       `UPDATE properties
-       SET title_es = $2, title_en = $3, type = $4, zone = $5, operation = $6, price_usd = $7,
-           beds = $8, baths = $9, area = $10, lot = $11, mls = $12, image = $13,
-           featured = $14, badges = $15::jsonb, description_es = $16, description_en = $17
+       SET title_es = $2, title_en = $3, type = $4, zone = $5, operation = $6, price_usd = $7, price_mxn = $8,
+           beds = $9, baths = $10, area = $11, lot = $12, mls = $13, image = $14,
+           featured = $15, badges = $16::jsonb, description_es = $17, description_en = $18
        WHERE id = $1
        RETURNING *`,
       [
@@ -828,6 +843,7 @@ app.put("/api/admin/properties/:id", requireRole("admin"), async (req, res, next
         property.zone,
         property.operation,
         property.priceUsd,
+        property.priceMxn,
         property.beds,
         property.baths,
         property.area,
@@ -859,14 +875,62 @@ app.delete("/api/admin/properties/:id", requireRole("admin"), async (req, res, n
   }
 });
 
-function normalizePropertyInput(body, id) {
+function parseOptionalPrice(value, fieldName) {
+  if (value === undefined || value === null || value === "") return null;
+  const number = Number(value);
+  if (!Number.isFinite(number) || number < 0) {
+    const error = new Error(`${fieldName} must be a valid number`);
+    error.status = 400;
+    throw error;
+  }
+  return number;
+}
+
+function parseUploadedImage(body, existingImage = null) {
+  if (!body.imageDataUrl) return existingImage || null;
+
+  const mimeType = String(body.imageType || "").toLowerCase();
+  const size = Number(body.imageSize || 0);
+  const dataUrl = String(body.imageDataUrl || "");
+
+  if (!IMAGE_TYPES.has(mimeType)) {
+    const error = new Error("La imagen debe ser JPG, JPEG, PNG o WEBP.");
+    error.status = 400;
+    throw error;
+  }
+
+  if (!Number.isFinite(size) || size <= 0 || size > IMAGE_MAX_BYTES) {
+    const error = new Error("La imagen no debe superar 1.5 MB.");
+    error.status = 400;
+    throw error;
+  }
+
+  const match = dataUrl.match(/^data:(image\/(?:jpeg|jpg|png|webp));base64,([A-Za-z0-9+/=]+)$/);
+  if (!match || match[1].toLowerCase() !== mimeType) {
+    const error = new Error("La imagen no tiene un formato valido.");
+    error.status = 400;
+    throw error;
+  }
+
+  const estimatedBytes = Math.floor((match[2].length * 3) / 4);
+  if (estimatedBytes > IMAGE_MAX_BYTES) {
+    const error = new Error("La imagen no debe superar 1.5 MB.");
+    error.status = 400;
+    throw error;
+  }
+
+  return dataUrl;
+}
+
+function normalizePropertyInput(body, id, existingImage = null) {
   const title = String(body.title || body.titleEs || "").trim();
   const type = String(body.type || "").trim();
   const zone = String(body.zone || "").trim();
   const operation = body.operation === "rent" ? "rent" : "sale";
-  const priceUsd = Number(body.priceUsd || 0);
+  const priceUsd = parseOptionalPrice(body.priceUsd, "priceUsd");
+  const priceMxn = parseOptionalPrice(body.priceMxn, "priceMxn");
 
-  if (!title || !type || !zone || !priceUsd) {
+  if (!title || !type || !zone || (priceUsd === null && priceMxn === null)) {
     const error = new Error("Missing required property fields");
     error.status = 400;
     throw error;
@@ -880,12 +944,13 @@ function normalizePropertyInput(body, id) {
     zone,
     operation,
     priceUsd,
+    priceMxn,
     beds: Number(body.beds || 0),
     baths: Number(body.baths || 0),
     area: Number(body.area || 0),
     lot: Number(body.lot || 0),
     mls: String(body.mls || Math.floor(2000 + Math.random() * 8000)),
-    image: String(body.image || defaultImageForType(type)).trim(),
+    image: parseUploadedImage(body, existingImage),
     featured: Boolean(body.featured),
     badges: Array.isArray(body.badges) ? body.badges : ["new"],
     descriptionEs: String(body.description || body.descriptionEs || "").trim() || "Propiedad publicada por administracion.",

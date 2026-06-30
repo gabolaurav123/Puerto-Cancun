@@ -583,14 +583,24 @@
               </div>
               <div class="form-row">
                 <label>
-                  <span data-i18n="priceUsd">Precio base USD</span>
-                  <input name="priceUsd" type="number" min="0" step="1000" required />
+                  <span data-i18n="priceUsd">Precio USD</span>
+                  <input name="priceUsd" type="number" min="0" step="1" />
                 </label>
                 <label>
-                  <span data-i18n="imageUrl">URL de imagen</span>
-                  <input name="image" type="url" />
+                  <span data-i18n="priceMxn">Precio MXN</span>
+                  <input name="priceMxn" type="number" min="0" step="1" />
                 </label>
               </div>
+              <label class="file-field">
+                <span data-i18n="imageUpload">Imagen de la propiedad</span>
+                <input name="imageFile" type="file" accept="image/jpeg,image/jpg,image/png,image/webp" />
+                <small data-i18n="imageHelp">JPG, PNG o WEBP. Máximo 1.5 MB.</small>
+              </label>
+              <div class="image-preview" id="listingImagePreview" hidden>
+                <span data-i18n="currentImage">Imagen actual</span>
+                <img alt="Property preview" />
+              </div>
+              <p class="form-message" id="listingFormMessage"></p>
               <div class="form-row">
                 <label>
                   <span data-i18n="bedrooms">Recamaras</span>

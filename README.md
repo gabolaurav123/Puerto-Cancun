@@ -40,4 +40,7 @@ El servidor crea automaticamente las tablas necesarias y carga propiedades de ej
 - Registro e inicio de sesion para vendedores.
 - Panel de vendedor para enviar solicitudes de venta.
 - Panel administrativo para aprobar/rechazar solicitudes y crear/editar/borrar publicaciones.
+- Publicaciones con precio USD y precio MXN como campos independientes.
+- Carga de imagen desde archivo JPG, PNG o WEBP, maximo 1.5 MB.
+- Botones de propiedad conectados a WhatsApp con mensaje automatico.
 - Persistencia en PostgreSQL para cuentas, solicitudes, publicaciones, metricas y sesiones.

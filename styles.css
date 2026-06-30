@@ -739,6 +739,7 @@ i[data-lucide] svg {
   margin: 0 0 12px;
   color: var(--muted);
   font-size: 0.88rem;
+  min-height: 4.2em;
 }
 
 .property-actions {
@@ -1042,6 +1043,40 @@ textarea {
   color: var(--ink);
   padding: 11px 12px;
   outline-color: var(--blue-700);
+}
+
+input[type="file"] {
+  padding: 10px;
+  background: #f7fafc;
+}
+
+.file-field small {
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+.image-preview {
+  display: grid;
+  gap: 8px;
+  width: min(360px, 100%);
+  padding: 12px;
+  border: 1px solid var(--line);
+  background: #f7fafc;
+}
+
+.image-preview span {
+  color: var(--muted);
+  font-size: 0.76rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.image-preview img {
+  width: 100%;
+  aspect-ratio: 16 / 10;
+  object-fit: cover;
+  border: 1px solid var(--line);
 }
 
 textarea {
