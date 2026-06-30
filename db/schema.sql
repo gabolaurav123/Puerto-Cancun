@@ -26,6 +26,7 @@ CREATE TABLE IF NOT EXISTS seller_requests (
   baths INTEGER NOT NULL DEFAULT 0,
   area INTEGER NOT NULL DEFAULT 0,
   description TEXT NOT NULL,
+  image TEXT,
   status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'approved', 'rejected')),
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   reviewed_at TIMESTAMPTZ

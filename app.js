@@ -68,6 +68,14 @@ const translations = {
     sortHigh: "Precio alto a bajo",
     sortLow: "Precio bajo a alto",
     sortNew: "Más recientes",
+    filterType: "Tipo",
+    filterZone: "Zona",
+    filterOperation: "Operacion",
+    allTypes: "Todos",
+    allZonesShort: "Todas",
+    allOperations: "Todas",
+    activeFilters: "Filtro activo",
+    requestInfo: "Solicitar informacion",
     moreProperties: "Ver más propiedades",
     teamTitle: "Conoce al equipo de Puerto Cancún Center",
     teamRoleSales: "Asesor inmobiliario senior",
@@ -90,6 +98,10 @@ const translations = {
     backToSite: "Volver al sitio",
     logout: "Cerrar sesión",
     sellerRequestTitle: "Enviar solicitud de venta",
+    sellerGuideTitle: "Guia rapida para vender",
+    sellerGuideCopy:
+      "Completa los datos principales, agrega una imagen clara y deja un mensaje para que el equipo pueda pedirte mas informacion antes de publicar.",
+    sellerContactTitle: "Datos de contacto para esta solicitud",
     propertyTitle: "Título de la propiedad",
     propertyType: "Tipo de propiedad",
     zone: "Zona",
@@ -112,6 +124,9 @@ const translations = {
     imageUpload: "Imagen de la propiedad",
     imageHelp: "JPG, PNG o WEBP. Máximo 1.5 MB.",
     currentImage: "Imagen actual",
+    selectedImage: "Imagen seleccionada",
+    removeImage: "Quitar imagen",
+    imageRemoved: "Imagen quitada. Puedes seleccionar otra antes de guardar.",
     imageTooLarge: "La imagen no debe superar 1.5 MB.",
     invalidImageType: "La imagen debe ser JPG, JPEG, PNG o WEBP.",
     missingPrice: "Agrega al menos un precio: USD o MXN.",
@@ -242,6 +257,14 @@ const translations = {
     sortHigh: "Price high to low",
     sortLow: "Price low to high",
     sortNew: "Newest",
+    filterType: "Type",
+    filterZone: "Area",
+    filterOperation: "Operation",
+    allTypes: "All",
+    allZonesShort: "All",
+    allOperations: "All",
+    activeFilters: "Active filter",
+    requestInfo: "Request information",
     moreProperties: "See more properties",
     teamTitle: "Meet the Puerto Cancun Center team",
     teamRoleSales: "Senior real estate advisor",
@@ -263,6 +286,10 @@ const translations = {
     backToSite: "Back to site",
     logout: "Log out",
     sellerRequestTitle: "Submit sale request",
+    sellerGuideTitle: "Quick selling guide",
+    sellerGuideCopy:
+      "Complete the key details, add a clear image, and leave a message so the team can request more information before publishing.",
+    sellerContactTitle: "Contact details for this request",
     propertyTitle: "Property title",
     propertyType: "Property type",
     zone: "Area",
@@ -285,6 +312,9 @@ const translations = {
     imageUpload: "Property image",
     imageHelp: "JPG, PNG or WEBP. Maximum 1.5 MB.",
     currentImage: "Current image",
+    selectedImage: "Selected image",
+    removeImage: "Remove image",
+    imageRemoved: "Image removed. You can select another one before saving.",
     imageTooLarge: "Image must not exceed 1.5 MB.",
     invalidImageType: "Image must be JPG, JPEG, PNG, or WEBP.",
     missingPrice: "Add at least one price: USD or MXN.",
@@ -388,6 +418,7 @@ const state = {
     operation: "",
     featured: false,
   },
+  detailPropertyId: null,
 };
 
 const $ = (selector) => document.querySelector(selector);
@@ -455,10 +486,19 @@ function formatCurrencyLine(code, amount, operation = "sale") {
 }
 
 function formatPriceLines(property) {
-  return [
-    formatCurrencyLine("USD", property.priceUsd, property.operation),
-    formatCurrencyLine("MXN", property.priceMxn, property.operation),
-  ].filter(Boolean);
+  const preferred =
+    state.currency === "MXN"
+      ? [
+          ["MXN", property.priceMxn],
+          ["USD", property.priceUsd],
+        ]
+      : [
+          ["USD", property.priceUsd],
+          ["MXN", property.priceMxn],
+        ];
+  const firstAvailable = preferred.find(([, amount]) => amount !== null && amount !== undefined && amount !== "");
+  if (!firstAvailable) return [];
+  return [formatCurrencyLine(firstAvailable[0], firstAvailable[1], property.operation)];
 }
 
 function formatPriceSummary(property) {
@@ -502,6 +542,93 @@ function resetFilters() {
   state.filters = { text: "", type: "", zone: "", operation: "", featured: false };
   const searchInput = $("#searchInput");
   if (searchInput) searchInput.value = "";
+  syncFilterControls();
+}
+
+function syncFilterControls() {
+  const type = $("#filterType");
+  const zone = $("#filterZone");
+  const operation = $("#filterOperation");
+  if (type) type.value = state.filters.type || "";
+  if (zone) zone.value = state.filters.zone || "";
+  if (operation) operation.value = state.filters.operation || "";
+}
+
+function activeFilterLabels() {
+  const labels = [];
+  if (state.filters.featured) labels.push(t("navFeatured"));
+  if (state.filters.operation) labels.push(state.filters.operation === "rent" ? t("rent") : t("sale"));
+  if (state.filters.type) labels.push(displayType(state.filters.type));
+  if (state.filters.zone) labels.push(state.filters.zone);
+  if (state.filters.text) labels.push(`"${state.filters.text}"`);
+  return labels;
+}
+
+function updateActiveFilterSummary() {
+  const summary = $("#activeFilterSummary");
+  if (!summary) return;
+  const labels = activeFilterLabels();
+  summary.textContent = labels.length ? `${t("activeFilters")}: ${labels.join(" · ")}` : "";
+}
+
+function hasCategoryFilter() {
+  return Boolean(state.filters.type || state.filters.zone || state.filters.operation || state.filters.featured);
+}
+
+function categoryTitle() {
+  if (state.filters.featured) return t("featuredProperties");
+  if (state.filters.type === "Casa") return state.lang === "en" ? "Homes in Cancun" : "Casas en Cancun";
+  if (state.filters.type === "Departamento") return state.lang === "en" ? "Condos in Cancun" : "Departamentos en Cancun";
+  if (state.filters.type === "Terreno") return state.lang === "en" ? "Land in Cancun" : "Terrenos en Cancun";
+  if (state.filters.type === "Comercial") return state.lang === "en" ? "Commercial properties in Cancun" : "Propiedades comerciales en Cancun";
+  if (state.filters.type === "Preventa") return state.lang === "en" ? "Presales in Cancun" : "Pre-ventas en Cancun";
+  if (state.filters.type === "Desarrollo") return state.lang === "en" ? "Developments in Cancun" : "Desarrollos en Cancun";
+  if (state.filters.operation === "rent") return state.lang === "en" ? "Cancun rentals" : "Cancun rentas";
+  if (state.filters.operation === "sale") return state.lang === "en" ? "Properties for sale in Cancun" : "Propiedades en venta en Cancun";
+  if (state.filters.zone) return state.lang === "en" ? `Properties in ${state.filters.zone}` : `Propiedades en ${state.filters.zone}`;
+  return t("allProperties");
+}
+
+function categoryIntro() {
+  if (state.filters.operation === "rent") {
+    return state.lang === "en"
+      ? "Review condos and homes for rent in Puerto Cancun, the Hotel Zone, Riviera Maya, and Playa Mujeres."
+      : "Revisa departamentos y casas en renta en Puerto Cancun, Zona Hotelera, Riviera Maya y Playa Mujeres.";
+  }
+  if (state.filters.type === "Preventa") {
+    return state.lang === "en"
+      ? "Presale opportunities with curated developments, payment plans, delivery context, and advisor follow-up."
+      : "Oportunidades en pre-venta con desarrollos seleccionados, esquemas de pago, contexto de entrega y seguimiento de asesores.";
+  }
+  if (state.filters.type) {
+    return state.lang === "en"
+      ? `Available ${displayType(state.filters.type).toLowerCase()} with current prices, area details, images, and direct advisor contact.`
+      : `${displayType(state.filters.type)} disponibles con precios actuales, datos de superficie, imagenes y contacto directo con asesores.`;
+  }
+  if (state.filters.zone) {
+    return state.lang === "en"
+      ? `Explore selected inventory in ${state.filters.zone}, including sale and rental opportunities.`
+      : `Explora inventario seleccionado en ${state.filters.zone}, incluyendo oportunidades en venta y renta.`;
+  }
+  if (state.filters.featured) {
+    return state.lang === "en"
+      ? "Selected opportunities from the current inventory with premium location, views, or standout value."
+      : "Oportunidades seleccionadas del inventario actual por ubicacion, vistas o valor destacado.";
+  }
+  return "";
+}
+
+function renderCategoryPage() {
+  const section = $("#categoryPage");
+  if (!section) return;
+  if (!hasCategoryFilter()) {
+    section.hidden = true;
+    return;
+  }
+  $("#categoryBreadcrumb").textContent = state.lang === "en" ? "Home / Properties" : "Home / Propiedades";
+  $("#categoryTitle").textContent = categoryTitle();
+  $("#categoryIntro").textContent = categoryIntro();
+  section.hidden = false;
 }
 
 function propertyMatches(property) {
@@ -537,6 +664,9 @@ function sortedProperties(properties) {
 function renderProperties() {
   const grid = $("#propertyGrid");
   if (!grid) return;
+  syncFilterControls();
+  updateActiveFilterSummary();
+  renderCategoryPage();
   const properties = sortedProperties(state.properties.filter(propertyMatches));
   $("#resultCount").textContent = `${properties.length} ${t("resultText")}`;
 
@@ -608,6 +738,11 @@ function renderRequestItem(request) {
         </div>
         <strong>${escapeHtml(price)}</strong>
       </div>
+      ${
+        request.image
+          ? `<img class="request-thumb" src="${escapeHtml(request.image)}" alt="${escapeHtml(request.title)}" loading="lazy" />`
+          : ""
+      }
       <div class="detail-grid compact">
         <div>
           <span>${escapeHtml(t("adminSellerContact"))}</span>
@@ -790,6 +925,14 @@ async function loadPanelData() {
   }
 }
 
+function prepareSellerForm() {
+  const form = $("#sellerRequestForm");
+  if (!form || !state.session || state.session.role !== "seller") return;
+  if (!form.email.value) form.email.value = state.session.email || "";
+  if (!form.phone.value) form.phone.value = state.session.phone || "";
+  form.preferredContact.value = state.session.preferredContact || "email";
+}
+
 async function renderPanel() {
   if (!state.session) return;
   await loadPanelData();
@@ -805,6 +948,7 @@ async function renderPanel() {
     renderAdminRequests();
     renderAdminListings();
   } else {
+    prepareSellerForm();
     renderSellerRequests();
   }
   refreshIcons();
@@ -832,6 +976,10 @@ function applyTranslations() {
   $("#languageToggle").textContent = state.lang === "es" ? "English" : "Español";
   updateAuthNav();
   renderProperties();
+  if (state.detailPropertyId) {
+    const property = state.properties.find((item) => item.id === state.detailPropertyId);
+    if (property) renderPropertyDetail(property);
+  }
   if (!$("#panelView").hidden) {
     void renderPanel();
   }
@@ -955,16 +1103,22 @@ async function registerSubmit(event) {
 async function sellerRequestSubmit(event) {
   event.preventDefault();
   const form = event.currentTarget;
+  const message = $("#sellerFormMessage");
+  setFormMessage(message, "");
   try {
+    const payload = Object.fromEntries(new FormData(form).entries());
+    delete payload.imageFile;
+    Object.assign(payload, await getFormImagePayload(form));
     await api("/api/seller/requests", {
       method: "POST",
-      body: Object.fromEntries(new FormData(form).entries()),
+      body: payload,
     });
     form.reset();
+    updateSellerImagePreview("");
     await renderPanel();
-    alert(t("requestSent"));
+    setFormMessage($("#sellerFormMessage"), t("requestSent"));
   } catch (error) {
-    alert(error.message);
+    setFormMessage(message, error.message, true);
   }
 }
 
@@ -973,8 +1127,22 @@ function resetListingForm() {
   form.reset();
   form.elements.id.value = "";
   form.dataset.currentImage = "";
+  form.dataset.removeImage = "false";
   updateListingImagePreview("");
   setFormMessage($("#listingFormMessage"), "");
+}
+
+function updateSellerImagePreview(src) {
+  const preview = $("#sellerImagePreview");
+  if (!preview) return;
+  const image = preview.querySelector("img");
+  if (src) {
+    image.src = src;
+    preview.hidden = false;
+  } else {
+    image.removeAttribute("src");
+    preview.hidden = true;
+  }
 }
 
 function updateListingImagePreview(src) {
@@ -1015,9 +1183,18 @@ function readImageFile(file) {
   });
 }
 
+async function getFormImagePayload(form) {
+  const file = form.elements.imageFile?.files?.[0];
+  if (!file) return {};
+  return readImageFile(file);
+}
+
 async function getListingImagePayload(form) {
   const file = form.elements.imageFile.files[0];
-  if (!file) return {};
+  if (!file) {
+    return form.dataset.removeImage === "true" ? { removeImage: true } : {};
+  }
+  form.dataset.removeImage = "false";
   return readImageFile(file);
 }
 
@@ -1075,6 +1252,7 @@ function editListing(id) {
   form.priceMxn.value = property.priceMxn || "";
   form.elements.imageFile.value = "";
   form.dataset.currentImage = property.image || "";
+  form.dataset.removeImage = "false";
   updateListingImagePreview(property.image || "");
   form.beds.value = property.beds || "";
   form.baths.value = property.baths || "";
@@ -1142,19 +1320,89 @@ function applyElementFilter(element) {
   if (element.dataset.zone) state.filters.zone = element.dataset.zone;
   renderProperties();
   closeMobileNav();
-  $("#properties").scrollIntoView({ behavior: "smooth", block: "start" });
+  const target = hasCategoryFilter() ? $("#categoryPage") : $("#properties");
+  target.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+function applyToolbarFilters() {
+  state.filters.type = $("#filterType")?.value || "";
+  state.filters.zone = $("#filterZone")?.value || "";
+  state.filters.operation = $("#filterOperation")?.value || "";
+  renderProperties();
 }
 
 function viewDetails(id) {
   const property = state.properties.find((item) => item.id === id);
   if (!property) return;
-  openPropertyWhatsApp(property);
+  openPropertyDetail(property);
 }
 
 function contactAdvisor(id) {
   const property = state.properties.find((item) => item.id === id);
   if (!property) return;
   openPropertyWhatsApp(property);
+}
+
+function propertyFacts(property) {
+  return [
+    property.zone || "",
+    property.type ? displayType(property.type) : "",
+    property.beds ? `${property.beds} ${t("bedShort")}` : "",
+    property.baths ? `${property.baths} ${t("bathShort")}` : "",
+    property.area
+      ? `${new Intl.NumberFormat(state.lang === "en" ? "en-US" : "es-MX").format(property.area)} ${t("sqmBuild")}`
+      : "",
+    property.lot
+      ? `${new Intl.NumberFormat(state.lang === "en" ? "en-US" : "es-MX").format(property.lot)} ${t("sqmLot")}`
+      : "",
+    property.mls ? `${t("mls")} ${property.mls}` : "",
+  ].filter(Boolean);
+}
+
+function openPropertyDetail(property) {
+  state.detailPropertyId = property.id;
+  renderPropertyDetail(property);
+  $("#propertyDetailModal").hidden = false;
+  document.body.classList.add("modal-open");
+}
+
+function closePropertyDetail() {
+  state.detailPropertyId = null;
+  $("#propertyDetailModal").hidden = true;
+  document.body.classList.remove("modal-open");
+}
+
+function renderPropertyDetail(property) {
+  const content = $("#propertyDetailContent");
+  if (!content || !property) return;
+  const description = localizedDescription(property) || "";
+  const paragraphs = description
+    .split(/\n+/)
+    .map((paragraph) => paragraph.trim())
+    .filter(Boolean)
+    .map((paragraph) => `<p>${escapeHtml(paragraph)}</p>`)
+    .join("");
+  const facts = propertyFacts(property)
+    .map((fact) => `<span>${escapeHtml(fact)}</span>`)
+    .join("");
+
+  content.innerHTML = `
+    <div class="property-detail-layout">
+      <div class="property-detail-image">
+        <img src="${escapeHtml(property.image || fallbackImage)}" alt="${escapeHtml(localizedTitle(property))}" onerror="this.onerror=null;this.src='${escapeHtml(fallbackImage)}';" />
+      </div>
+      <div class="property-detail-copy">
+        <p class="property-detail-price">${escapeHtml(formatPriceSummary(property))}</p>
+        <h2 id="propertyDetailTitle">${escapeHtml(localizedTitle(property))}</h2>
+        <div class="property-detail-meta">${facts}</div>
+        <div class="property-detail-description">${paragraphs || `<p>${escapeHtml(t("noResults"))}</p>`}</div>
+        <div class="property-detail-actions">
+          <button class="primary-button" type="button" data-detail-contact="${escapeHtml(property.id)}">${escapeHtml(t("contactWhatsApp"))}</button>
+        </div>
+      </div>
+    </div>
+  `;
+  refreshIcons();
 }
 
 function openPropertyWhatsApp(property) {
@@ -1208,9 +1456,15 @@ function bindEvents() {
 
   $("#searchForm").addEventListener("submit", handleSearch);
   $("#sortSelect").addEventListener("change", renderProperties);
+  ["#filterType", "#filterZone", "#filterOperation"].forEach((selector) => {
+    $(selector).addEventListener("change", applyToolbarFilters);
+  });
   $("#clearFilters").addEventListener("click", () => {
     resetFilters();
     renderProperties();
+  });
+  $("#categoryInfoButton").addEventListener("click", () => {
+    $("#properties").scrollIntoView({ behavior: "smooth", block: "start" });
   });
 
   $$(
@@ -1234,6 +1488,10 @@ function bindEvents() {
   $("#authModal").addEventListener("click", (event) => {
     if (event.target.id === "authModal") closeAuth();
   });
+  $("#propertyDetailClose").addEventListener("click", closePropertyDetail);
+  $("#propertyDetailModal").addEventListener("click", (event) => {
+    if (event.target.id === "propertyDetailModal") closePropertyDetail();
+  });
   $$("[data-auth-tab]").forEach((button) => {
     button.addEventListener("click", () => switchAuthTab(button.dataset.authTab));
   });
@@ -1249,22 +1507,55 @@ function bindEvents() {
   });
 
   $("#sellerRequestForm").addEventListener("submit", sellerRequestSubmit);
-  $("#listingForm").addEventListener("submit", listingSubmit);
-  $("#resetListingForm").addEventListener("click", resetListingForm);
-  $("#listingForm").elements.imageFile.addEventListener("change", async (event) => {
+  $("#sellerRequestForm").elements.imageFile.addEventListener("change", async (event) => {
     const file = event.target.files[0];
-    const message = $("#listingFormMessage");
+    const message = $("#sellerFormMessage");
     setFormMessage(message, "");
     if (!file) {
-      updateListingImagePreview($("#listingForm").dataset.currentImage || "");
+      updateSellerImagePreview("");
       return;
     }
     try {
       const payload = await readImageFile(file);
+      updateSellerImagePreview(payload.imageDataUrl);
+    } catch (error) {
+      event.target.value = "";
+      updateSellerImagePreview("");
+      setFormMessage(message, error.message, true);
+    }
+  });
+  $("#clearSellerImage").addEventListener("click", () => {
+    const form = $("#sellerRequestForm");
+    form.elements.imageFile.value = "";
+    updateSellerImagePreview("");
+    setFormMessage($("#sellerFormMessage"), t("imageRemoved"));
+  });
+  $("#listingForm").addEventListener("submit", listingSubmit);
+  $("#resetListingForm").addEventListener("click", resetListingForm);
+  $("#clearListingImage").addEventListener("click", () => {
+    const form = $("#listingForm");
+    form.elements.imageFile.value = "";
+    form.dataset.currentImage = "";
+    form.dataset.removeImage = "true";
+    updateListingImagePreview("");
+    setFormMessage($("#listingFormMessage"), t("imageRemoved"));
+  });
+  $("#listingForm").elements.imageFile.addEventListener("change", async (event) => {
+    const file = event.target.files[0];
+    const form = $("#listingForm");
+    const message = $("#listingFormMessage");
+    setFormMessage(message, "");
+    if (!file) {
+      updateListingImagePreview(form.dataset.removeImage === "true" ? "" : form.dataset.currentImage || "");
+      return;
+    }
+    try {
+      const payload = await readImageFile(file);
+      form.dataset.removeImage = "false";
       updateListingImagePreview(payload.imageDataUrl);
     } catch (error) {
       event.target.value = "";
-      updateListingImagePreview($("#listingForm").dataset.currentImage || "");
+      updateListingImagePreview(form.dataset.removeImage === "true" ? "" : form.dataset.currentImage || "");
       setFormMessage(message, error.message, true);
     }
   });
@@ -1282,6 +1573,9 @@ function bindEvents() {
 
     const contact = event.target.closest("[data-contact]");
     if (contact) contactAdvisor(contact.dataset.contact);
+
+    const detailContact = event.target.closest("[data-detail-contact]");
+    if (detailContact) contactAdvisor(detailContact.dataset.detailContact);
 
     const approve = event.target.closest("[data-approve]");
     if (approve) void approveRequest(approve.dataset.approve);

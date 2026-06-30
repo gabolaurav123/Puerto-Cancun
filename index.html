@@ -250,24 +250,78 @@
           </div>
         </section>
 
+        <section class="category-page" id="categoryPage" hidden>
+          <div class="content-wrap">
+            <p class="breadcrumb" id="categoryBreadcrumb"></p>
+            <h2 id="categoryTitle"></h2>
+            <p id="categoryIntro"></p>
+            <div class="category-actions">
+              <a class="accent-button" href="tel:9986880710">998-688-0710</a>
+              <button class="primary-button" type="button" id="categoryInfoButton">
+                <i data-lucide="message-circle"></i>
+                <span data-i18n="requestInfo">Solicitar informacion</span>
+              </button>
+            </div>
+          </div>
+        </section>
+
         <section class="properties-section" id="properties">
           <div class="content-wrap">
             <div class="properties-title-row">
-              <h2 data-i18n="allProperties">Todas las propiedades</h2>
+              <div>
+                <h2 data-i18n="allProperties">Todas las propiedades</h2>
+                <p class="active-filter-summary" id="activeFilterSummary"></p>
+              </div>
               <button class="ghost-button" type="button" id="clearFilters">
                 <i data-lucide="x"></i>
                 <span data-i18n="clearFilters">Limpiar filtros</span>
               </button>
             </div>
             <div class="property-toolbar">
-              <label>
-                <span data-i18n="sortBy">Ordenar por:</span>
-                <select id="sortSelect">
-                  <option value="high" data-i18n="sortHigh">Precio alto a bajo</option>
-                  <option value="low" data-i18n="sortLow">Precio bajo a alto</option>
-                  <option value="new" data-i18n="sortNew">Mas recientes</option>
-                </select>
-              </label>
+              <div class="filter-controls">
+                <label>
+                  <span data-i18n="filterType">Tipo</span>
+                  <select id="filterType">
+                    <option value="" data-i18n="allTypes">Todos</option>
+                    <option value="Casa" data-i18n="typeHouses">Casas</option>
+                    <option value="Departamento" data-i18n="typeCondos">Departamentos</option>
+                    <option value="Terreno" data-i18n="typeLand">Terrenos</option>
+                    <option value="Comercial" data-i18n="typeCommercial">Comercial</option>
+                    <option value="Preventa" data-i18n="typePresales">Pre-ventas</option>
+                    <option value="Desarrollo" data-i18n="typeDevelopments">Desarrollos</option>
+                  </select>
+                </label>
+                <label>
+                  <span data-i18n="filterZone">Zona</span>
+                  <select id="filterZone">
+                    <option value="" data-i18n="allZonesShort">Todas</option>
+                    <option>Puerto Cancun</option>
+                    <option>Zona Hotelera</option>
+                    <option>Cancun Centro</option>
+                    <option>Riviera Maya</option>
+                    <option>Punta Sam / Playa Mujeres</option>
+                    <option>Isla Mujeres</option>
+                  </select>
+                </label>
+                <label>
+                  <span data-i18n="filterOperation">Operacion</span>
+                  <select id="filterOperation">
+                    <option value="" data-i18n="allOperations">Todas</option>
+                    <option value="sale" data-i18n="sale">Venta</option>
+                    <option value="rent" data-i18n="rent">Renta</option>
+                  </select>
+                </label>
+              </div>
+              <div class="sort-controls">
+                <label>
+                  <span data-i18n="sortBy">Ordenar por:</span>
+                  <select id="sortSelect">
+                    <option value="high" data-i18n="sortHigh">Precio alto a bajo</option>
+                    <option value="low" data-i18n="sortLow">Precio bajo a alto</option>
+                    <option value="new" data-i18n="sortNew">Mas recientes</option>
+                  </select>
+                </label>
+              </div>
               <span class="result-count" id="resultCount"></span>
             </div>
             <div class="property-grid" id="propertyGrid"></div>
@@ -430,7 +484,34 @@
         <div class="dashboard-grid">
           <article class="panel-card">
             <h2 data-i18n="sellerRequestTitle">Enviar solicitud de venta</h2>
+            <div class="seller-guide">
+              <h3 data-i18n="sellerGuideTitle">Guia rapida para vender</h3>
+              <p data-i18n="sellerGuideCopy">
+                Completa los datos principales, agrega una imagen clara y deja un mensaje para que el equipo pueda
+                pedirte mas informacion antes de publicar.
+              </p>
+            </div>
             <form id="sellerRequestForm" class="stacked-form">
+              <fieldset class="form-section">
+                <legend data-i18n="sellerContactTitle">Datos de contacto para esta solicitud</legend>
+                <div class="form-row">
+                  <label>
+                    <span data-i18n="email">Direccion de correo</span>
+                    <input name="email" type="email" required />
+                  </label>
+                  <label>
+                    <span data-i18n="phone">Telefono</span>
+                    <input name="phone" required />
+                  </label>
+                </div>
+                <label>
+                  <span data-i18n="preferredContact">Metodo de contacto preferido</span>
+                  <select name="preferredContact">
+                    <option value="email" data-i18n="contactEmail">Correo</option>
+                    <option value="phone" data-i18n="contactPhone">Celular</option>
+                  </select>
+                </label>
+              </fieldset>
               <div class="form-row">
                 <label>
                   <span data-i18n="propertyTitle">Titulo de la propiedad</span>
@@ -494,8 +575,21 @@
               </div>
               <label>
                 <span data-i18n="description">Descripcion</span>
-                <textarea name="description" rows="4" required></textarea>
+                <textarea name="description" rows="5" required></textarea>
               </label>
+              <label class="file-field">
+                <span data-i18n="imageUpload">Imagen de la propiedad</span>
+                <input name="imageFile" type="file" accept="image/jpeg,image/jpg,image/png,image/webp" />
+                <small data-i18n="imageHelp">JPG, PNG o WEBP. Maximo 1.5 MB.</small>
+              </label>
+              <div class="image-preview" id="sellerImagePreview" hidden>
+                <div class="image-preview-header">
+                  <span data-i18n="selectedImage">Imagen seleccionada</span>
+                  <button class="text-button danger" type="button" id="clearSellerImage" data-i18n="removeImage">Quitar imagen</button>
+                </div>
+                <img alt="Seller property preview" />
+              </div>
+              <p class="form-message" id="sellerFormMessage"></p>
               <button class="primary-button" type="submit" data-i18n="sendRequest">Enviar solicitud</button>
             </form>
           </article>
@@ -597,7 +691,10 @@
                 <small data-i18n="imageHelp">JPG, PNG o WEBP. Máximo 1.5 MB.</small>
               </label>
               <div class="image-preview" id="listingImagePreview" hidden>
-                <span data-i18n="currentImage">Imagen actual</span>
+                <div class="image-preview-header">
+                  <span data-i18n="currentImage">Imagen actual</span>
+                  <button class="text-button danger" type="button" id="clearListingImage" data-i18n="removeImage">Quitar imagen</button>
+                </div>
                 <img alt="Property preview" />
               </div>
               <p class="form-message" id="listingFormMessage"></p>
@@ -697,6 +794,15 @@
           <button class="primary-button" type="submit" data-i18n="createAccount">Crear cuenta</button>
           <p class="form-message" id="registerMessage"></p>
         </form>
+      </section>
+    </div>
+
+    <div class="modal-backdrop property-detail-backdrop" id="propertyDetailModal" hidden>
+      <section class="property-detail-modal" role="dialog" aria-modal="true" aria-labelledby="propertyDetailTitle">
+        <button class="modal-close" type="button" id="propertyDetailClose" aria-label="Close">
+          <i data-lucide="x"></i>
+        </button>
+        <div id="propertyDetailContent"></div>
       </section>
     </div>
 

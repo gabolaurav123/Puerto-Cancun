@@ -280,6 +280,7 @@ function toRequest(row) {
     baths: Number(row.baths || 0),
     area: Number(row.area || 0),
     description: row.description,
+    image: row.image,
     status: row.status,
     createdAt: row.created_at,
     reviewedAt: row.reviewed_at,
@@ -347,6 +348,7 @@ async function initDatabase() {
         baths INTEGER NOT NULL DEFAULT 0,
         area INTEGER NOT NULL DEFAULT 0,
         description TEXT NOT NULL,
+        image TEXT,
         status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'approved', 'rejected')),
         created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
         reviewed_at TIMESTAMPTZ
@@ -378,6 +380,7 @@ async function initDatabase() {
     `);
     await client.query("ALTER TABLE properties ADD COLUMN IF NOT EXISTS price_mxn NUMERIC");
     await client.query("ALTER TABLE properties ALTER COLUMN price_usd DROP NOT NULL");
+    await client.query("ALTER TABLE seller_requests ADD COLUMN IF NOT EXISTS image TEXT");
     await client.query(`
       CREATE TABLE IF NOT EXISTS app_metrics (
         id INTEGER PRIMARY KEY CHECK (id = 1),
@@ -632,6 +635,9 @@ app.post("/api/seller/requests", requireRole("seller"), async (req, res, next) =
   try {
     const id = uuid("req");
     const body = req.body;
+    const email = String(body.email || req.session.user.email || "").trim().toLowerCase();
+    const phone = String(body.phone || req.session.user.phone || "").trim();
+    const preferredContact = body.preferredContact === "phone" ? "phone" : "email";
     const request = {
       title: String(body.title || "").trim(),
       type: String(body.type || "").trim(),
@@ -643,26 +649,36 @@ app.post("/api/seller/requests", requireRole("seller"), async (req, res, next) =
       baths: Number(body.baths || 0),
       area: Number(body.area || 0),
       description: String(body.description || "").trim(),
+      image: parseUploadedImage(body, null),
     };
 
-    if (!request.title || !request.type || !request.zone || !request.price || !request.address || !request.description) {
+    if (
+      !email ||
+      !phone ||
+      !request.title ||
+      !request.type ||
+      !request.zone ||
+      !request.price ||
+      !request.address ||
+      !request.description
+    ) {
       res.status(400).json({ error: "Missing required fields" });
       return;
     }
 
     const result = await query(
       `INSERT INTO seller_requests
-        (id, seller_id, seller_name, email, phone, preferred_contact, title, type, zone, price, currency, address, beds, baths, area, description)
+        (id, seller_id, seller_name, email, phone, preferred_contact, title, type, zone, price, currency, address, beds, baths, area, description, image)
        VALUES
-        ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
+        ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
        RETURNING *`,
       [
         id,
         req.session.user.id,
         req.session.user.name,
-        req.session.user.email,
-        req.session.user.phone,
-        req.session.user.preferredContact,
+        email,
+        phone,
+        preferredContact,
         request.title,
         request.type,
         request.zone,
@@ -673,6 +689,7 @@ app.post("/api/seller/requests", requireRole("seller"), async (req, res, next) =
         request.baths,
         request.area,
         request.description,
+        request.image,
       ]
     );
     res.status(201).json({ request: toRequest(result.rows[0]) });
@@ -748,7 +765,7 @@ app.post("/api/admin/requests/:id/approve", requireRole("admin"), async (req, re
           request.baths,
           request.area,
           String(Math.floor(2000 + Math.random() * 8000)),
-          defaultImageForType(request.type),
+          request.image || null,
           JSON.stringify(["new"]),
           request.description,
           request.description,
@@ -887,6 +904,7 @@ function parseOptionalPrice(value, fieldName) {
 }
 
 function parseUploadedImage(body, existingImage = null) {
+  if (body.removeImage === true || body.removeImage === "true") return null;
   if (!body.imageDataUrl) return existingImage || null;
 
   const mimeType = String(body.imageType || "").toLowerCase();
