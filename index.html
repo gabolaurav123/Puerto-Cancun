@@ -3,11 +3,29 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Puerto Cancún Center</title>
+    <title>Compra y venta de propiedades en Cancun | Inmobiliaria en Cancun</title>
     <meta
       name="description"
-      content="Puerto Cancún Center, propiedades de lujo en Cancún, Puerto Cancún y Zona Hotelera."
+      content="Inmobiliaria en Cancun para comprar, vender, valorar e invertir en propiedades con estrategia local, datos e inteligencia artificial validada por asesores."
     />
+    <link rel="canonical" href="https://puerto-cancun.seenode.app/" />
+    <meta name="robots" content="index,follow,max-image-preview:large" />
+    <meta name="author" content="Puerto Cancun Center" />
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Compra y venta de propiedades en Cancun | Inmobiliaria en Cancun" />
+    <meta
+      property="og:description"
+      content="Compra, venta y valoracion inmobiliaria en Cancun con estrategia local, datos e inteligencia artificial validada por asesores."
+    />
+    <meta property="og:url" content="https://puerto-cancun.seenode.app/" />
+    <meta property="og:image" content="https://puerto-cancun.seenode.app/og-puerto-cancun-center.svg" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Compra y venta de propiedades en Cancun | Inmobiliaria en Cancun" />
+    <meta
+      name="twitter:description"
+      content="Inmobiliaria en Cancun para comprar, vender, valorar e invertir con criterio local e IA bien utilizada."
+    />
+    <meta name="twitter:image" content="https://puerto-cancun.seenode.app/og-puerto-cancun-center.svg" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -15,8 +33,9 @@
       rel="stylesheet"
     />
     <link rel="stylesheet" href="styles.css" />
+    <!-- SEO_JSON_LD -->
   </head>
-  <body>
+  <body data-page="home">
     <div class="site-shell" id="siteShell">
       <header class="main-header" id="mainHeader">
         <div class="brand-row">
@@ -112,10 +131,20 @@
       </header>
 
       <main id="top">
-        <section class="hero" id="buscar">
+        <!-- SEO_PAGE_CONTENT -->
+        <section class="hero home-only" id="buscar">
           <div class="hero-content">
             <p class="hero-kicker" data-i18n="heroKicker">Propiedades de lujo en Cancun</p>
-            <h1 data-i18n="heroTitle">Expertos en bienes raices</h1>
+            <h1 data-i18n="heroTitle">Compra o vende tu propiedad en Cancun con estrategia, datos e inteligencia artificial</h1>
+            <p class="hero-subtitle" data-i18n="heroSubtitle">
+              Te ayudamos a validar precios, preparar tu propiedad, encontrar compradores reales y tomar mejores
+              decisiones inmobiliarias en Cancun.
+            </p>
+            <div class="hero-actions">
+              <a class="accent-button" href="#sell" id="heroSellButton" data-i18n="heroSellCta">Quiero vender mi propiedad</a>
+              <a class="outline-button" href="/comprar-casa-cancun" data-i18n="heroBuyCta">Quiero comprar en Cancun</a>
+              <a class="outline-button" href="/valuacion-inmobiliaria-cancun" data-i18n="heroValuationCta">Validar precio con asesor</a>
+            </div>
             <form class="search-panel" id="searchForm">
               <label class="search-field">
                 <i data-lucide="map-pin"></i>
@@ -135,7 +164,7 @@
           </div>
         </section>
 
-        <section class="contact-strip" aria-label="Contact">
+        <section class="contact-strip home-only" aria-label="Contact">
           <h2 data-i18n="contactToday">Contactanos Hoy</h2>
           <div class="contact-numbers">
             <a href="tel:+529986880710">MEX 998-688-0710</a>
@@ -143,7 +172,112 @@
           </div>
         </section>
 
-        <section class="zones-band" id="zones">
+        <section class="ai-home-section home-only">
+          <div class="content-wrap ai-home-grid">
+            <div>
+              <p class="section-kicker" data-i18n="aiHomeKicker">IA + criterio local</p>
+              <h2 data-i18n="aiHomeTitle">Usa la IA para informarte. Usa un asesor local para decidir bien.</h2>
+              <p data-i18n="aiHomeCopy">
+                Hoy muchos propietarios y compradores usan ChatGPT, Gemini o Claude para estimar precios, crear anuncios o
+                comparar zonas. Eso puede ser util, pero una operacion real en Cancun depende de factores que la IA no
+                siempre puede validar: documentacion, demanda por zona, estado fisico, negociacion, perfil del comprador,
+                tiempos de cierre y condiciones reales del mercado.
+              </p>
+              <a class="primary-button" href="/validar-respuesta-ia" data-i18n="aiHomeCta">Validar mi decision con un asesor local</a>
+            </div>
+            <div class="ai-note-card">
+              <h3 data-i18n="aiNoteTitle">La IA orienta. Cancun confirma.</h3>
+              <p data-i18n="aiNoteCopy">Convertimos la informacion de la IA en una estrategia inmobiliaria revisada con criterio local.</p>
+            </div>
+          </div>
+        </section>
+
+        <section class="ai-validation-home home-only" id="validar-ia">
+          <div class="content-wrap validation-grid">
+            <div>
+              <p class="section-kicker" data-i18n="aiValidationKicker">Validacion de IA</p>
+              <h2 data-i18n="aiValidationTitle">ChatGPT ya te dio un precio o una estrategia?</h2>
+              <p data-i18n="aiValidationCopy">
+                Pega aqui el precio, descripcion o recomendacion que te dio la IA y te ayudamos a revisarlo desde el
+                mercado inmobiliario real de Cancun.
+              </p>
+            </div>
+            <form class="lead-form seo-form" data-lead-form>
+              <input type="hidden" name="leadType" value="validacion-ia-home" />
+              <div class="form-row">
+                <label>
+                  <span data-i18n="firstName">Nombre</span>
+                  <input name="name" required />
+                </label>
+                <label>
+                  <span>WhatsApp</span>
+                  <input name="whatsapp" type="tel" required />
+                </label>
+              </div>
+              <div class="form-row">
+                <label>
+                  <span data-i18n="operationType">Tipo de operacion</span>
+                  <select name="operationType">
+                    <option data-i18n="sellOperation">Vender</option>
+                    <option data-i18n="buyOperation">Comprar</option>
+                    <option data-i18n="investOperation">Invertir</option>
+                  </select>
+                </label>
+                <label>
+                  <span data-i18n="zone">Zona</span>
+                  <input name="zone" />
+                </label>
+              </div>
+              <label>
+                <span data-i18n="propertyType">Tipo de propiedad</span>
+                <input name="propertyType" />
+              </label>
+              <label>
+                <span data-i18n="aiResponseField">Respuesta que te dio la IA</span>
+                <textarea name="aiResponse" rows="5"></textarea>
+              </label>
+              <button class="primary-button" type="submit" data-i18n="validateWithAdvisor">Validar con asesor local</button>
+              <p class="form-message" data-lead-message></p>
+            </form>
+          </div>
+        </section>
+
+        <section class="audience-section home-only">
+          <div class="content-wrap audience-grid">
+            <article>
+              <h2 data-i18n="sellerAudienceTitle">Para propietarios que quieren vender mejor</h2>
+              <p data-i18n="sellerAudienceCopy">
+                Te ayudamos a definir un precio competitivo, preparar tu propiedad, crear una estrategia de difusion y
+                negociar con compradores reales.
+              </p>
+              <a class="primary-button" href="/vender-casa-cancun" data-i18n="valuationRequest">Solicitar valoracion</a>
+            </article>
+            <article>
+              <h2 data-i18n="buyerAudienceTitle">Para compradores que buscan elegir bien</h2>
+              <p data-i18n="buyerAudienceCopy">
+                Te ayudamos a encontrar propiedades segun tu presupuesto, zona, estilo de vida y objetivo de inversion.
+              </p>
+              <a class="primary-button" href="/comprar-casa-cancun" data-i18n="searchProperty">Buscar propiedad</a>
+            </article>
+          </div>
+        </section>
+
+        <section class="resource-section home-only">
+          <div class="content-wrap">
+            <div class="center-heading">
+              <h2 data-i18n="aiResourcesTitle">Recursos de IA para comprar o vender en Cancun</h2>
+            </div>
+            <div class="resource-grid">
+              <a href="/prompts-inmobiliarios-cancun" data-i18n="resourcePrompts">Prompts inmobiliarios</a>
+              <a href="/vender-casa-cancun" data-i18n="resourceSellGuide">Guia para vender casa en Cancun</a>
+              <a href="/comprar-casa-cancun" data-i18n="resourceBuyGuide">Guia para comprar casa en Cancun</a>
+              <a href="/valuacion-inmobiliaria-cancun" data-i18n="resourceValuation">Valoracion inmobiliaria</a>
+              <a href="/faq-inmobiliario-cancun" data-i18n="resourceFaq">Preguntas frecuentes</a>
+            </div>
+          </div>
+        </section>
+
+        <section class="zones-band home-only" id="zones">
           <div class="content-wrap">
             <div class="section-heading inverse">
               <h2 data-i18n="featuredZones">Zonas destacadas</h2>
@@ -178,7 +312,7 @@
           </div>
         </section>
 
-        <section class="welcome-section">
+        <section class="welcome-section home-only">
           <div class="content-wrap">
             <h2 data-i18n="welcomeTitle">Bienvenido a Puerto Cancún Center!</h2>
             <p data-i18n="welcomeCopy">
@@ -204,7 +338,7 @@
           </div>
         </section>
 
-        <section class="type-section" id="tipo">
+        <section class="type-section home-only" id="tipo">
           <div class="content-wrap">
             <div class="center-heading">
               <h2 data-i18n="searchByType">Busca por tipo</h2>
@@ -250,7 +384,7 @@
           </div>
         </section>
 
-        <section class="category-page" id="categoryPage" hidden>
+        <section class="category-page home-only" id="categoryPage" hidden>
           <div class="content-wrap">
             <p class="breadcrumb" id="categoryBreadcrumb"></p>
             <h2 id="categoryTitle"></h2>
@@ -265,7 +399,7 @@
           </div>
         </section>
 
-        <section class="properties-section" id="properties">
+        <section class="properties-section home-only" id="properties">
           <div class="content-wrap">
             <div class="properties-title-row">
               <div>
@@ -328,7 +462,7 @@
           </div>
         </section>
 
-        <section class="more-section">
+        <section class="more-section home-only">
           <div class="content-wrap">
             <div class="center-heading">
               <h2 data-i18n="moreProperties">Ver mas propiedades</h2>
@@ -370,7 +504,7 @@
           </div>
         </section>
 
-        <section class="team-section">
+        <section class="team-section home-only">
           <div class="content-wrap">
             <h2 data-i18n="teamTitle">Conoce al equipo de Puerto Cancún Center</h2>
             <div class="team-grid">
@@ -393,7 +527,7 @@
           </div>
         </section>
 
-        <section class="sell-cta" id="sell">
+        <section class="sell-cta home-only" id="sell">
           <div class="content-wrap">
             <div>
               <h2 data-i18n="sellTitle">Quieres vender una propiedad?</h2>
@@ -441,10 +575,16 @@
             <a href="#properties" data-filter="all" data-i18n="menuAllSale">Ver todas las propiedades</a>
             <a href="#properties" data-filter="rent" data-i18n="typeRentals">Rentas</a>
             <a href="#properties" data-type="Preventa" data-i18n="typePresales">Pre-ventas</a>
+            <a href="/comprar-casa-cancun" data-i18n="resourceBuyGuide">Guia para comprar casa en Cancun</a>
+            <a href="/zonas-cancun" data-i18n="resourceZones">Zonas de Cancun</a>
           </div>
           <div>
             <h3 data-i18n="footerSell">Asesoria de venta</h3>
             <button type="button" id="footerSellButton" data-i18n="saleProperty">Venta de propiedad</button>
+            <a href="/vender-casa-cancun" data-i18n="resourceSellGuide">Guia para vender casa en Cancun</a>
+            <a href="/valuacion-inmobiliaria-cancun" data-i18n="resourceValuation">Valoracion inmobiliaria</a>
+            <a href="/prompts-inmobiliarios-cancun" data-i18n="resourcePrompts">Prompts inmobiliarios</a>
+            <a href="/faq-inmobiliario-cancun" data-i18n="resourceFaq">Preguntas frecuentes</a>
           </div>
           <div>
             <h3 data-i18n="footerAbout">Nosotros</h3>

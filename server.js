@@ -1,15 +1,30 @@
 require("dotenv").config();
 
 const path = require("path");
+const fs = require("fs");
 const crypto = require("crypto");
 const express = require("express");
 const session = require("express-session");
 const PgSession = require("connect-pg-simple")(session);
 const bcrypt = require("bcryptjs");
 const { Pool } = require("pg");
+const {
+  DEFAULT_SITE_URL,
+  absoluteUrl,
+  aiSummary,
+  escapeHtml,
+  getPageByPath,
+  llmsTxt,
+  renderSeoHead,
+  renderSeoPage,
+  robotsTxt,
+  sitemapXml,
+} = require("./seo-pages");
 
 const app = express();
 const port = Number(process.env.PORT || 3000);
+const siteUrl = process.env.SITE_URL || DEFAULT_SITE_URL;
+const indexPath = path.join(__dirname, "index.html");
 
 if (!process.env.DATABASE_URL) {
   console.error("DATABASE_URL is required. Copy .env.example to .env and configure your Neon PostgreSQL URL.");
@@ -389,6 +404,19 @@ async function initDatabase() {
       );
     `);
     await client.query(`
+      CREATE TABLE IF NOT EXISTS lead_requests (
+        id TEXT PRIMARY KEY,
+        lead_type TEXT NOT NULL,
+        name TEXT NOT NULL,
+        phone TEXT NOT NULL,
+        email TEXT,
+        source_path TEXT,
+        payload JSONB NOT NULL DEFAULT '{}'::jsonb,
+        status TEXT NOT NULL DEFAULT 'new',
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      );
+    `);
+    await client.query(`
       INSERT INTO app_metrics (id, visits, searches)
       VALUES (1, 0, 0)
       ON CONFLICT (id) DO NOTHING;
@@ -615,6 +643,43 @@ app.post("/api/metrics/search", async (_req, res, next) => {
   try {
     await query("UPDATE app_metrics SET searches = searches + 1 WHERE id = 1");
     res.json({ ok: true });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.post("/api/leads", async (req, res, next) => {
+  try {
+    const body = req.body || {};
+    const leadType = String(body.leadType || "general").trim().slice(0, 80);
+    const name = String(body.name || body.firstName || "").trim();
+    const phone = String(body.whatsapp || body.phone || "").trim();
+    const email = String(body.email || "").trim().toLowerCase() || null;
+    const sourcePath = String(body.sourcePath || "").trim().slice(0, 220) || null;
+
+    if (!name || !phone) {
+      res.status(400).json({ error: "Nombre y WhatsApp son obligatorios." });
+      return;
+    }
+
+    const payload = { ...body };
+    delete payload.leadType;
+    delete payload.name;
+    delete payload.firstName;
+    delete payload.whatsapp;
+    delete payload.phone;
+    delete payload.email;
+    delete payload.sourcePath;
+
+    const result = await query(
+      `INSERT INTO lead_requests
+        (id, lead_type, name, phone, email, source_path, payload)
+       VALUES
+        ($1, $2, $3, $4, $5, $6, $7::jsonb)
+       RETURNING id, lead_type, created_at`,
+      [uuid("lead"), leadType, name, phone, email, sourcePath, JSON.stringify(payload)]
+    );
+    res.status(201).json({ lead: result.rows[0] });
   } catch (error) {
     next(error);
   }
@@ -988,10 +1053,76 @@ function defaultImageForType(type) {
   return images[type] || "https://images.unsplash.com/photo-1600566753190-17f0baa2a6c3?auto=format&fit=crop&w=1200&q=82";
 }
 
-app.use(express.static(__dirname));
+function replaceMetaTag(html, pattern, replacement) {
+  return html.replace(pattern, replacement);
+}
 
-app.get("*", (_req, res) => {
-  res.sendFile(path.join(__dirname, "index.html"));
+function renderPublicHtml(requestPath) {
+  const page = getPageByPath(requestPath) || getPageByPath("/");
+  const seo = renderSeoHead(page, siteUrl);
+  const pageContent = page.path === "/" ? "" : renderSeoPage(page.path);
+  let html = fs.readFileSync(indexPath, "utf8");
+
+  html = replaceMetaTag(html, /<title>[\s\S]*?<\/title>/, `<title>${escapeHtml(seo.title)}</title>`);
+  html = replaceMetaTag(
+    html,
+    /<meta\s+name="description"[\s\S]*?\/>/,
+    `<meta name="description" content="${escapeHtml(seo.description)}" />`
+  );
+  html = replaceMetaTag(html, /<link\s+rel="canonical"[\s\S]*?\/>/, `<link rel="canonical" href="${escapeHtml(seo.canonical)}" />`);
+  html = replaceMetaTag(
+    html,
+    /<meta\s+property="og:title"[\s\S]*?\/>/,
+    `<meta property="og:title" content="${escapeHtml(seo.title)}" />`
+  );
+  html = replaceMetaTag(
+    html,
+    /<meta\s+property="og:description"[\s\S]*?\/>/,
+    `<meta property="og:description" content="${escapeHtml(seo.description)}" />`
+  );
+  html = replaceMetaTag(html, /<meta\s+property="og:url"[\s\S]*?\/>/, `<meta property="og:url" content="${escapeHtml(seo.canonical)}" />`);
+  html = replaceMetaTag(html, /<meta\s+property="og:image"[\s\S]*?\/>/, `<meta property="og:image" content="${escapeHtml(seo.image)}" />`);
+  html = replaceMetaTag(
+    html,
+    /<meta\s+name="twitter:title"[\s\S]*?\/>/,
+    `<meta name="twitter:title" content="${escapeHtml(seo.title)}" />`
+  );
+  html = replaceMetaTag(
+    html,
+    /<meta\s+name="twitter:description"[\s\S]*?\/>/,
+    `<meta name="twitter:description" content="${escapeHtml(seo.description)}" />`
+  );
+  html = replaceMetaTag(
+    html,
+    /<meta\s+name="twitter:image"[\s\S]*?\/>/,
+    `<meta name="twitter:image" content="${escapeHtml(seo.image)}" />`
+  );
+  html = html.replace("<!-- SEO_JSON_LD -->", seo.jsonLd);
+  html = html.replace("<!-- SEO_PAGE_CONTENT -->", pageContent);
+  html = html.replace('<body data-page="home">', `<body data-page="${page.path === "/" ? "home" : "seo"}">`);
+  return html;
+}
+
+app.get("/robots.txt", (_req, res) => {
+  res.type("text/plain").send(robotsTxt(siteUrl));
+});
+
+app.get("/sitemap.xml", (_req, res) => {
+  res.type("application/xml").send(sitemapXml(siteUrl));
+});
+
+app.get("/llms.txt", (_req, res) => {
+  res.type("text/plain").send(llmsTxt(siteUrl));
+});
+
+app.get("/ai-summary.json", (_req, res) => {
+  res.json(aiSummary(siteUrl));
+});
+
+app.use(express.static(__dirname, { index: false }));
+
+app.get("*", (req, res) => {
+  res.send(renderPublicHtml(req.path));
 });
 
 app.use((error, _req, res, _next) => {

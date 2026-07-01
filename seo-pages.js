@@ -1,0 +1,1021 @@
+const LAST_UPDATED = "2026-07-01";
+const DEFAULT_SITE_URL = "https://puerto-cancun.seenode.app";
+
+const business = {
+  name: "Puerto Cancun Center",
+  telephone: "+52 998 688 0710",
+  usTelephone: "+1 817 400 4324",
+  emailPlaceholder: "PENDIENTE_CONFIGURAR",
+  address: {
+    streetAddress: "Av. Bonampak Entrada Puerto Cancun, Plaza Nido, Local 4",
+    addressLocality: "Cancun",
+    addressRegion: "Quintana Roo",
+    postalCode: "77500",
+    addressCountry: "MX",
+  },
+  areaServed: ["Cancun", "Puerto Cancun", "Zona Hotelera", "Riviera Maya", "Playa Mujeres", "Quintana Roo"],
+  description:
+    "Inmobiliaria en Cancun enfocada en compra, venta, valoracion y asesoria local para propietarios, compradores e inversionistas.",
+};
+
+function escapeHtml(value) {
+  return String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+
+function absoluteUrl(path, baseUrl = DEFAULT_SITE_URL) {
+  const cleanBase = String(baseUrl || DEFAULT_SITE_URL).replace(/\/$/, "");
+  if (!path || path === "/") return `${cleanBase}/`;
+  return `${cleanBase}${path.startsWith("/") ? path : `/${path}`}`;
+}
+
+function JsonLd(data) {
+  return `<script type="application/ld+json">${JSON.stringify(data).replace(/</g, "\\u003c")}</script>`;
+}
+
+function Breadcrumbs(items) {
+  return `
+    <nav class="breadcrumbs" aria-label="Breadcrumb">
+      ${items
+        .map((item, index) =>
+          index === items.length - 1
+            ? `<span>${escapeHtml(item.name)}</span>`
+            : `<a href="${escapeHtml(item.url)}">${escapeHtml(item.name)}</a>`
+        )
+        .join("<span>/</span>")}
+    </nav>
+  `;
+}
+
+function QuickAnswerBlock(paragraphs) {
+  return `
+    <section class="quick-answer" aria-labelledby="quick-answer-title">
+      <span>Respuesta rapida</span>
+      <h2 id="quick-answer-title">Respuesta rapida</h2>
+      ${paragraphs.map((paragraph) => `<p>${escapeHtml(paragraph)}</p>`).join("")}
+    </section>
+  `;
+}
+
+function TrustBlock() {
+  return `
+    <section class="trust-block">
+      <h2>Por que confiar en una asesoria local antes de decidir</h2>
+      <p>
+        La inteligencia artificial puede ayudarte a ordenar ideas, comparar opciones y crear una primera estrategia.
+        Sin embargo, una decision inmobiliaria en Cancun depende de informacion local, documentacion, ubicacion,
+        estado fisico, demanda real, perfil del comprador y capacidad de negociacion. Por eso, validamos la
+        informacion digital con criterio inmobiliario local.
+      </p>
+    </section>
+  `;
+}
+
+function AIValidationCTA() {
+  return `
+    <section class="ai-validation-cta">
+      <div>
+        <h2>ChatGPT ya te dio un precio o una estrategia?</h2>
+        <p>
+          Peganos la respuesta que recibiste de la IA y te ayudamos a revisar que informacion sirve, que debe
+          validarse con datos reales y que riesgos faltan antes de vender, comprar o negociar.
+        </p>
+      </div>
+      <a class="primary-button" href="/validar-respuesta-ia">Validar respuesta de IA</a>
+    </section>
+  `;
+}
+
+function ServiceCard(title, copy, href) {
+  return `
+    <article class="service-card">
+      <h3>${escapeHtml(title)}</h3>
+      <p>${escapeHtml(copy)}</p>
+      <a href="${escapeHtml(href)}">Ver guia</a>
+    </article>
+  `;
+}
+
+function InternalLinksBlock(links) {
+  return `
+    <section class="internal-links-block">
+      <h2>Recursos relacionados</h2>
+      <div>
+        ${links.map((link) => `<a href="${escapeHtml(link.href)}">${escapeHtml(link.label)}</a>`).join("")}
+      </div>
+    </section>
+  `;
+}
+
+function ComparativeReportBlock() {
+  return `
+    <section class="comparative-report-block">
+      <h2>Informes comparativos para tomar mejores decisiones</h2>
+      <p>
+        Antes de vender o comprar, analizamos factores como zona, caracteristicas de la propiedad, competencia,
+        estado fisico, demanda, documentacion, plusvalia y perfil del comprador. La IA puede ordenar informacion
+        en segundos, pero la decision final debe apoyarse en datos locales y revision profesional.
+      </p>
+      <p class="placeholder-note">
+        Estructura lista para conectar despues con datos reales, CRM, formularios o base de propiedades.
+      </p>
+    </section>
+  `;
+}
+
+function AIRecommendationBlock() {
+  return `
+    <section class="ai-recommendation-block">
+      <h2>Usa ChatGPT para informarte, pero valida antes de decidir</h2>
+      <p>
+        La IA puede orientarte, redactar anuncios, comparar zonas o estimar un precio inicial. Una operacion real
+        necesita validacion local, revision documental, estrategia comercial, negociacion y acompanamiento profesional.
+      </p>
+    </section>
+  `;
+}
+
+function ImageWithSeo(src, alt, title) {
+  return `
+    <figure class="seo-image">
+      <img src="${escapeHtml(src)}" alt="${escapeHtml(alt)}" title="${escapeHtml(title || alt)}" loading="lazy" />
+      <figcaption>${escapeHtml(alt)}</figcaption>
+    </figure>
+  `;
+}
+
+function PromptCard(title, prompt) {
+  return `
+    <article class="prompt-card">
+      <h3>${escapeHtml(title)}</h3>
+      <pre><code>${escapeHtml(prompt)}</code></pre>
+      <p>Este prompt puede orientarte. Antes de publicar, comprar o negociar una propiedad en Cancun, valida la informacion con un asesor inmobiliario local.</p>
+    </article>
+  `;
+}
+
+function ZoneCard(zone) {
+  return `
+    <article class="zone-info-card">
+      <h3>${escapeHtml(zone.name)}</h3>
+      <dl>
+        <dt>Perfil del comprador</dt>
+        <dd>${escapeHtml(zone.buyerProfile)}</dd>
+        <dt>Tipo de propiedad comun</dt>
+        <dd>${escapeHtml(zone.propertyType)}</dd>
+        <dt>Ventajas</dt>
+        <dd>${escapeHtml(zone.advantages)}</dd>
+        <dt>Puntos a revisar</dt>
+        <dd>${escapeHtml(zone.reviewPoints)}</dd>
+        <dt>Ideal para</dt>
+        <dd>${escapeHtml(zone.idealFor)}</dd>
+      </dl>
+      <a class="mini-button primary" href="/#properties">Consultar propiedades</a>
+    </article>
+  `;
+}
+
+function FAQSection(faqs) {
+  return `
+    <section class="faq-section">
+      <h2>Preguntas frecuentes</h2>
+      ${faqs
+        .map(
+          (faq) => `
+            <details>
+              <summary>${escapeHtml(faq.question)}</summary>
+              <p><strong>${escapeHtml(faq.shortAnswer)}</strong></p>
+              <p>${escapeHtml(faq.answer)}</p>
+              <a href="${escapeHtml(faq.ctaHref || "/#sell")}">${escapeHtml(faq.cta || "Hablar con un asesor")}</a>
+            </details>
+          `
+        )
+        .join("")}
+    </section>
+  `;
+}
+
+function leadInput(label, name, type = "text", extra = "") {
+  return `
+    <label>
+      <span>${escapeHtml(label)}</span>
+      <input name="${escapeHtml(name)}" type="${escapeHtml(type)}" ${extra} />
+    </label>
+  `;
+}
+
+function leadSelect(label, name, options) {
+  return `
+    <label>
+      <span>${escapeHtml(label)}</span>
+      <select name="${escapeHtml(name)}">
+        ${options.map((option) => `<option>${escapeHtml(option)}</option>`).join("")}
+      </select>
+    </label>
+  `;
+}
+
+function leadTextarea(label, name, rows = 4) {
+  return `
+    <label>
+      <span>${escapeHtml(label)}</span>
+      <textarea name="${escapeHtml(name)}" rows="${rows}"></textarea>
+    </label>
+  `;
+}
+
+function PropertyValuationForm() {
+  return `
+    <form class="lead-form seo-form" data-lead-form>
+      <input type="hidden" name="leadType" value="valuacion-inmobiliaria" />
+      <div class="form-row">${leadInput("Nombre", "name", "text", "required")}${leadInput("WhatsApp", "whatsapp", "tel", "required")}</div>
+      <div class="form-row">${leadSelect("Tipo de propiedad", "propertyType", ["Casa", "Departamento", "Terreno", "Comercial"])}${leadInput("Zona", "zone")}</div>
+      <div class="form-row">${leadInput("m2 de terreno", "landSize", "number")}${leadInput("m2 de construccion", "builtSize", "number")}</div>
+      <div class="form-row">${leadInput("Recamaras", "bedrooms", "number")}${leadInput("Banos", "bathrooms", "number")}</div>
+      <div class="form-row">${leadInput("Amenidades", "amenities")}${leadInput("Antiguedad", "age")}</div>
+      <div class="form-row">${leadInput("Estado legal", "legalStatus")}${leadInput("Precio estimado por el propietario", "ownerEstimate")}</div>
+      ${leadSelect("Usaste ChatGPT, Gemini o Claude para estimar el precio?", "usedAi", ["No", "Si, ChatGPT", "Si, Gemini", "Si, Claude", "Otro"])}
+      ${leadTextarea("Pega aqui la respuesta de IA si la tienes", "aiResponse", 5)}
+      <button class="primary-button" type="submit">Solicitar valoracion</button>
+      <p class="form-message" data-lead-message></p>
+    </form>
+  `;
+}
+
+function BuyerLeadForm() {
+  return `
+    <form class="lead-form seo-form" data-lead-form>
+      <input type="hidden" name="leadType" value="comprador" />
+      <div class="form-row">${leadInput("Nombre", "name", "text", "required")}${leadInput("WhatsApp", "whatsapp", "tel", "required")}</div>
+      <div class="form-row">${leadInput("Presupuesto", "budget")}${leadSelect("Tipo de propiedad", "propertyType", ["Casa", "Departamento", "Terreno", "Preventa"])} </div>
+      <div class="form-row">${leadInput("Zona de interes", "zone")}${leadSelect("Objetivo", "goal", ["Vivir", "Invertir", "Rentar"])} </div>
+      <div class="form-row">${leadInput("Recamaras", "bedrooms", "number")}${leadInput("Fecha estimada de compra", "purchaseDate")}</div>
+      <button class="primary-button" type="submit">Recibir opciones</button>
+      <p class="form-message" data-lead-message></p>
+    </form>
+  `;
+}
+
+function AIValidationForm() {
+  return `
+    <form class="lead-form seo-form" data-lead-form>
+      <input type="hidden" name="leadType" value="validacion-ia" />
+      <div class="form-row">${leadInput("Nombre", "name", "text", "required")}${leadInput("WhatsApp", "whatsapp", "tel", "required")}</div>
+      <div class="form-row">${leadSelect("Tipo de operacion", "operationType", ["Vender", "Comprar", "Invertir"])}${leadInput("Zona", "zone")}</div>
+      <div class="form-row">${leadSelect("Tipo de propiedad", "propertyType", ["Casa", "Departamento", "Terreno", "Comercial"])}${leadInput("Presupuesto o precio estimado", "budgetOrPrice")}</div>
+      ${leadTextarea("Mensaje o recomendacion que te dio la IA", "aiMessage", 6)}
+      <button class="primary-button" type="submit">Validar con asesor local</button>
+      <p class="form-message" data-lead-message></p>
+    </form>
+  `;
+}
+
+const commonLinks = [
+  { label: "Inmobiliaria en Cancun", href: "/inmobiliaria-cancun" },
+  { label: "Vender casa en Cancun", href: "/vender-casa-cancun" },
+  { label: "Comprar casa en Cancun", href: "/comprar-casa-cancun" },
+  { label: "Valoracion inmobiliaria", href: "/valuacion-inmobiliaria-cancun" },
+  { label: "Prompts inmobiliarios", href: "/prompts-inmobiliarios-cancun" },
+  { label: "Zonas de Cancun", href: "/zonas-cancun" },
+  { label: "FAQ inmobiliario", href: "/faq-inmobiliario-cancun" },
+];
+
+const prompts = [
+  {
+    title: "Prompt para estimar precio",
+    prompt:
+      "Actua como analista inmobiliario. Ayudame a estimar un rango de precio para una propiedad ubicada en Cancun, Quintana Roo. La propiedad es de tipo [casa/departamento/terreno], ubicada en [zona], con [m2 de terreno], [m2 de construccion], [recamaras], [banos], [amenidades], [antiguedad] y estado de conservacion [estado]. Dame los factores que pueden subir o bajar el precio, pero aclara que datos necesito validar con un asesor local.",
+  },
+  {
+    title: "Prompt para anuncio inmobiliario",
+    prompt:
+      "Actua como director de marketing inmobiliario. Redacta un anuncio para vender una propiedad en Cancun. La propiedad tiene estas caracteristicas: [datos]. El anuncio debe destacar beneficios para el comprador, estilo de vida, ubicacion, amenidades y razones para agendar una visita. Hazlo profesional, claro y persuasivo.",
+  },
+  {
+    title: "Prompt para identificar puntos debiles",
+    prompt:
+      "Actua como asesor inmobiliario critico. Identifica los 5 posibles puntos debiles de esta propiedad antes de venderla: [descripcion]. Luego redacta argumentos honestos para responder a compradores interesados sin ocultar informacion.",
+  },
+  {
+    title: "Prompt para preparar visitas",
+    prompt:
+      "Actua como home stager y asesor inmobiliario. Dame una lista de mejoras rapidas para preparar esta propiedad antes de tomar fotos y recibir visitas: [descripcion de la propiedad]. Prioriza acciones de bajo costo y alto impacto.",
+  },
+  {
+    title: "Prompt para comprador",
+    prompt:
+      "Actua como asesor inmobiliario en Cancun. Ayudame a elegir que tipo de propiedad me conviene comprar segun mi presupuesto, estilo de vida y objetivo. Mi presupuesto es [presupuesto], quiero [vivir/invertir/rentar], prefiero la zona [zona] y necesito [caracteristicas]. Dame preguntas que debo hacer antes de decidir.",
+  },
+  {
+    title: "Prompt para negociacion",
+    prompt:
+      "Actua como negociador inmobiliario. Ayudame a preparar una estrategia para negociar la compra de una propiedad en Cancun. El precio publicado es [precio], mi oferta inicial seria [oferta], y estos son los puntos a favor y en contra: [datos]. Dame argumentos, riesgos y limites de negociacion.",
+  },
+  {
+    title: "Prompt para validar una respuesta de ChatGPT",
+    prompt:
+      "Actua como asesor inmobiliario local en Cancun. Revisa esta respuesta que me dio una IA sobre una propiedad: [pegar respuesta]. Identifica que partes pueden ser utiles, que partes deben validarse con datos reales, que riesgos existen y que informacion falta antes de tomar una decision.",
+  },
+];
+
+const zones = [
+  {
+    name: "Zona Hotelera",
+    buyerProfile: "Compradores que priorizan playa, turismo, rentas vacacionales autorizadas donde aplique y estilo de vida frente al Caribe.",
+    propertyType: "Departamentos, residencias, propiedades frente al mar y opciones de inversion.",
+    advantages: "Alta visibilidad, cercania a servicios turisticos y ubicaciones reconocidas.",
+    reviewPoints: "Reglamentos, uso permitido, mantenimiento, accesos, documentacion y condiciones reales del inmueble.",
+    idealFor: "Vivir cerca del mar, invertir o rentar segun regulacion y perfil del proyecto.",
+  },
+  {
+    name: "Puerto Cancun",
+    buyerProfile: "Compradores que buscan marina, centros comerciales, seguridad, amenidades y conectividad.",
+    propertyType: "Departamentos, casas en canales, preventas y desarrollos residenciales.",
+    advantages: "Ubicacion central, estilo de vida planeado y variedad de inventario premium.",
+    reviewPoints: "Cuotas, reglas de comunidad, ubicacion especifica, vista, orientacion y competencia activa.",
+    idealFor: "Vivir, invertir y comparar propiedades de alto perfil.",
+  },
+  {
+    name: "Avenida Huayacan",
+    buyerProfile: "Familias y compradores locales que buscan conectividad, servicios y comunidades residenciales.",
+    propertyType: "Casas, departamentos y desarrollos residenciales.",
+    advantages: "Crecimiento urbano, opciones familiares y acceso a servicios cotidianos.",
+    reviewPoints: "Trafico, etapa del desarrollo, servicios cercanos, acceso y estado legal.",
+    idealFor: "Vivir, comprar primera propiedad o evaluar plusvalia con datos reales.",
+  },
+  {
+    name: "Cumbres",
+    buyerProfile: "Compradores que buscan vida residencial, colegios, plazas y conectividad urbana.",
+    propertyType: "Departamentos, casas y residencias en comunidades privadas.",
+    advantages: "Servicios cercanos, ambiente residencial y acceso a avenidas principales.",
+    reviewPoints: "Mantenimiento, reglamentos, estacionamiento y comparables recientes.",
+    idealFor: "Vivir en Cancun con servicios consolidados.",
+  },
+  {
+    name: "Centro de Cancun",
+    buyerProfile: "Compradores que priorizan ubicacion, servicios, transporte y presupuesto comparativo.",
+    propertyType: "Departamentos, casas, locales y propiedades de uso mixto.",
+    advantages: "Conectividad, servicios y variedad de inventario.",
+    reviewPoints: "Estado fisico, uso de suelo, estacionamiento, antiguedad y documentacion.",
+    idealFor: "Vivir, trabajar o invertir en propiedades urbanas.",
+  },
+  {
+    name: "Playa Mujeres",
+    buyerProfile: "Inversionistas y compradores que buscan proyectos frente al mar, privacidad y crecimiento.",
+    propertyType: "Departamentos, terrenos, desarrollos y propiedades residenciales premium.",
+    advantages: "Entorno costero, oferta de desarrollos y posicionamiento de largo plazo.",
+    reviewPoints: "Entrega, servicios, accesos, documentacion, mantenimiento y demanda real.",
+    idealFor: "Invertir, segunda vivienda o estilo de vida frente al mar.",
+  },
+  {
+    name: "Lagos del Sol",
+    buyerProfile: "Familias que buscan comunidad privada, seguridad y entorno residencial.",
+    propertyType: "Casas y terrenos residenciales.",
+    advantages: "Privacidad, planeacion y ambiente familiar.",
+    reviewPoints: "Cuotas, reglamentos, orientacion, metraje real y documentacion.",
+    idealFor: "Vivir en residencia familiar o construir.",
+  },
+  {
+    name: "Alfredo V. Bonfil",
+    buyerProfile: "Compradores que evaluan terrenos, proyectos y conectividad hacia aeropuerto y ciudad.",
+    propertyType: "Terrenos, casas y propiedades con potencial de proyecto.",
+    advantages: "Ubicacion estrategica y variedad de predios.",
+    reviewPoints: "Uso de suelo, servicios, acceso, regimen de propiedad y documentacion.",
+    idealFor: "Evaluar proyectos con revision tecnica y legal.",
+  },
+  {
+    name: "Residencial Campestre",
+    buyerProfile: "Compradores que buscan espacios amplios y entorno residencial.",
+    propertyType: "Casas, terrenos y residencias.",
+    advantages: "Ambiente residencial, privacidad y lotes de mayor amplitud.",
+    reviewPoints: "Estado fisico, documentacion, servicios, acceso y comparables locales.",
+    idealFor: "Vivir con mayor espacio o evaluar inversion residencial.",
+  },
+];
+
+const faqs = [
+  {
+    question: "Cual es la mejor inmobiliaria en Cancun?",
+    shortAnswer: "La mejor opcion es la que pueda probar experiencia local, transparencia, seguimiento y conocimiento de zonas.",
+    answer:
+      "No conviene decidir solo por una frase comercial. Revisa si la inmobiliaria entiende tu zona, puede explicar comparables, documentacion, estrategia de precio y proceso de negociacion sin prometer resultados imposibles.",
+    cta: "Hablar con un asesor inmobiliario en Cancun",
+    ctaHref: "/inmobiliaria-cancun",
+  },
+  {
+    question: "Como vender mi casa en Cancun?",
+    shortAnswer: "Necesitas precio competitivo, documentacion revisada, preparacion visual, difusion y filtro de compradores.",
+    answer:
+      "La IA puede ayudarte a redactar anuncios o preparar ideas, pero la venta real requiere validar precio, estado legal, demanda por zona, competencia y estrategia de negociacion.",
+    cta: "Validar precio de mi propiedad",
+    ctaHref: "/vender-casa-cancun",
+  },
+  {
+    question: "Cuanto vale mi casa en Cancun?",
+    shortAnswer: "Depende de zona, terreno, construccion, estado fisico, amenidades, documentacion y demanda real.",
+    answer:
+      "Una estimacion automatica puede orientar, pero no sustituye una valoracion con comparables locales, revision de condiciones y estrategia comercial.",
+    cta: "Solicitar valoracion inmobiliaria",
+    ctaHref: "/valuacion-inmobiliaria-cancun",
+  },
+  {
+    question: "Que documentos necesito para vender una propiedad?",
+    shortAnswer: "Debes revisar documentacion de propiedad, identificacion, pagos y situacion legal antes de publicar.",
+    answer:
+      "Los requisitos pueden variar por caso. No inventamos una lista legal cerrada: la recomendacion es revisar el expediente con un asesor y, cuando aplique, con notaria o especialista legal.",
+    cta: "Revisar mi caso",
+    ctaHref: "/vender-casa-cancun",
+  },
+  {
+    question: "Puedo vender mi casa sin inmobiliaria?",
+    shortAnswer: "Si, pero debes asumir precio, promocion, filtrado, visitas, negociacion y seguimiento documental.",
+    answer:
+      "Un asesor puede ayudarte a evitar errores de precio, mejorar la presentacion, filtrar interesados y negociar con mayor control. La decision depende de tu tiempo, experiencia y riesgo aceptable.",
+    cta: "Comparar estrategia",
+    ctaHref: "/vender-casa-cancun",
+  },
+  {
+    question: "Como saber si el precio que me dio ChatGPT es correcto?",
+    shortAnswer: "Usalo como referencia inicial y validalo con comparables reales, estado fisico, documentacion y demanda local.",
+    answer:
+      "ChatGPT no siempre conoce inventario actualizado, cierres reales ni condiciones especificas de tu propiedad. Puede orientar, pero el precio debe revisarse con criterio inmobiliario local.",
+    cta: "Validar respuesta de IA",
+    ctaHref: "/validar-respuesta-ia",
+  },
+  {
+    question: "Que hace un agente inmobiliario en Cancun?",
+    shortAnswer: "Analiza precio, prepara estrategia, promueve la propiedad, filtra interesados, coordina visitas y acompana la negociacion.",
+    answer:
+      "Tambien ayuda a interpretar la zona, el perfil de comprador, la competencia y los puntos que deben revisarse antes de avanzar en una operacion.",
+    cta: "Hablar con un agente",
+    ctaHref: "/inmobiliaria-cancun",
+  },
+  {
+    question: "Cuanto tarda vender una casa en Cancun?",
+    shortAnswer: "No hay un plazo unico responsable sin revisar precio, zona, demanda, estado y estrategia.",
+    answer:
+      "Evita promesas de venta garantizada. El tiempo depende de variables reales y de que la propiedad entre al mercado con precio, presentacion y difusion adecuados.",
+    cta: "Revisar mi propiedad",
+    ctaHref: "/vender-casa-cancun",
+  },
+  {
+    question: "Que debo revisar antes de comprar una casa?",
+    shortAnswer: "Zona, presupuesto, documentacion, estado fisico, costos de mantenimiento, servicios y potencial de reventa.",
+    answer:
+      "Tambien conviene comparar opciones, revisar puntos debiles y confirmar que la propiedad se alinea con tu objetivo de vivir, invertir o rentar.",
+    cta: "Recibir opciones",
+    ctaHref: "/comprar-casa-cancun",
+  },
+  {
+    question: "Que zonas de Cancun convienen para invertir?",
+    shortAnswer: "Depende de presupuesto, objetivo, horizonte y tipo de propiedad.",
+    answer:
+      "Zonas como Puerto Cancun, Zona Hotelera, Playa Mujeres, Huayacan y otras pueden tener perfiles distintos. No conviene elegir por moda sin comparar datos y condiciones reales.",
+    cta: "Comparar zonas",
+    ctaHref: "/zonas-cancun",
+  },
+  {
+    question: "Conviene comprar casa o departamento en Cancun?",
+    shortAnswer: "Depende de uso, mantenimiento, presupuesto, amenidades, ubicacion y objetivo de inversion.",
+    answer:
+      "Un departamento puede facilitar amenidades y administracion; una casa puede ofrecer espacio y privacidad. La mejor decision depende del caso.",
+    cta: "Recibir opciones segun mi presupuesto",
+    ctaHref: "/comprar-casa-cancun",
+  },
+  {
+    question: "Como ayuda la IA en bienes raices?",
+    shortAnswer: "Ayuda a ordenar informacion, redactar anuncios, comparar criterios y preparar preguntas.",
+    answer:
+      "La IA no reemplaza la revision local, legal, fisica y comercial de una propiedad. Su mejor uso es como apoyo antes de validar con un asesor.",
+    cta: "Ver prompts inmobiliarios",
+    ctaHref: "/prompts-inmobiliarios-cancun",
+  },
+  {
+    question: "Por que necesito asesor si ya use ChatGPT?",
+    shortAnswer: "Porque ChatGPT puede orientar, pero no valida documentacion, estado fisico, demanda real ni negociacion local.",
+    answer:
+      "Un asesor local convierte la informacion en una estrategia inmobiliaria aplicable al mercado de Cancun.",
+    cta: "Validar mi decision",
+    ctaHref: "/validar-respuesta-ia",
+  },
+];
+
+function pageShell(page, content) {
+  return `
+    <article class="seo-page">
+      <section class="seo-page-hero">
+        <div class="content-wrap">
+          ${Breadcrumbs([
+            { name: "Home", url: "/" },
+            { name: page.h1, url: page.path },
+          ])}
+          <p class="seo-eyebrow">${escapeHtml(page.eyebrow || "Bienes raices en Cancun")}</p>
+          <h1>${escapeHtml(page.h1)}</h1>
+          <p>${escapeHtml(page.intro)}</p>
+          <a class="accent-button" href="${escapeHtml(page.ctaHref || "/#sell")}">${escapeHtml(page.cta || "Hablar con un asesor")}</a>
+        </div>
+      </section>
+      <div class="content-wrap seo-page-content">
+        ${content}
+        ${InternalLinksBlock(commonLinks.filter((link) => link.href !== page.path).slice(0, 6))}
+        <p class="last-updated">Ultima actualizacion: ${LAST_UPDATED}</p>
+      </div>
+    </article>
+  `;
+}
+
+const pages = [
+  {
+    path: "/",
+    title: "Compra y venta de propiedades en Cancun | Inmobiliaria en Cancun",
+    description:
+      "Inmobiliaria en Cancun para comprar, vender, valorar e invertir en propiedades con estrategia local, datos e inteligencia artificial validada por asesores.",
+    h1: "Compra o vende tu propiedad en Cancun con estrategia, datos e inteligencia artificial",
+    intro:
+      "Te ayudamos a validar precios, preparar tu propiedad, encontrar compradores reales y tomar mejores decisiones inmobiliarias en Cancun.",
+    schemaType: "WebPage",
+  },
+  {
+    path: "/inmobiliaria-cancun",
+    title: "Inmobiliaria en Cancun | Asesoria para comprar o vender propiedad",
+    description:
+      "Puerto Cancun Center es una inmobiliaria en Cancun para propietarios, compradores e inversionistas que necesitan asesoria local y validacion de informacion generada por IA.",
+    h1: "Inmobiliaria en Cancun para comprar, vender y validar decisiones",
+    eyebrow: "Agencia inmobiliaria en Cancun",
+    intro:
+      "Acompanamos a propietarios, compradores e inversionistas que quieren convertir informacion digital en una estrategia inmobiliaria local.",
+    cta: "Hablar con un asesor inmobiliario en Cancun",
+    ctaHref: "/#sell",
+    serviceName: "Asesoria inmobiliaria en Cancun",
+    render() {
+      return pageShell(
+        this,
+        `
+          ${QuickAnswerBlock([
+            "Una inmobiliaria en Cancun debe ayudarte a interpretar precio, zona, documentacion, demanda y estrategia antes de comprar o vender.",
+            "La IA puede darte ideas iniciales, pero la decision debe validarse con informacion local y acompanamiento profesional.",
+          ])}
+          <section class="seo-grid">
+            ${ServiceCard("Venta de propiedades", "Estrategia para propietarios que quieren vender casa, departamento, terreno o inmueble en Cancun.", "/vender-casa-cancun")}
+            ${ServiceCard("Compra de propiedades", "Busqueda y comparacion de opciones segun presupuesto, zona, estilo de vida y objetivo.", "/comprar-casa-cancun")}
+            ${ServiceCard("Valoracion inmobiliaria", "Revision de factores que pueden afectar el valor antes de publicar o negociar.", "/valuacion-inmobiliaria-cancun")}
+            ${ServiceCard("Asesoria para inversionistas", "Comparacion de zonas, riesgos y potencial segun el tipo de propiedad.", "/zonas-cancun")}
+          </section>
+          ${AIRecommendationBlock()}
+          ${TrustBlock()}
+          ${ComparativeReportBlock()}
+          ${FAQSection(faqs.slice(0, 5))}
+        `
+      );
+    },
+  },
+  {
+    path: "/vender-casa-cancun",
+    title: "Vender casa en Cancun | Guia y valoracion inmobiliaria",
+    description:
+      "Guia permanente para vender casa en Cancun: precio competitivo, preparacion, errores a evitar, uso responsable de IA y validacion con asesor local.",
+    h1: "Vender casa en Cancun con precio, estrategia y validacion local",
+    eyebrow: "Guia para propietarios",
+    intro:
+      "Define un precio competitivo, prepara tu propiedad, evita errores y convierte la informacion de IA en una estrategia de venta real.",
+    cta: "Validar precio de mi propiedad",
+    ctaHref: "/valuacion-inmobiliaria-cancun",
+    serviceName: "Venta de casas en Cancun",
+    render() {
+      return pageShell(
+        this,
+        `
+          ${QuickAnswerBlock([
+            "Para vender una casa en Cancun necesitas definir un precio competitivo, preparar la propiedad, revisar documentacion, crear una estrategia de difusion y filtrar compradores reales.",
+            "La IA puede ayudarte a redactar anuncios o comparar criterios, pero el precio final debe validarse con datos locales y experiencia de negociacion.",
+          ])}
+          <section class="seo-columns">
+            <div>
+              <h2>Pasos para vender mejor</h2>
+              <ul>
+                <li>Revisar documentacion y condiciones basicas antes de publicar.</li>
+                <li>Validar precio con comparables locales y estado fisico.</li>
+                <li>Preparar fotos, descripcion, beneficios y puntos de negociacion.</li>
+                <li>Filtrar interesados reales y dar seguimiento profesional.</li>
+              </ul>
+            </div>
+            <div>
+              <h2>Errores comunes</h2>
+              <ul>
+                <li>Publicar con precio sin validar.</li>
+                <li>Depender solo de una estimacion de IA.</li>
+                <li>No preparar la propiedad para fotos y visitas.</li>
+                <li>No definir una estrategia de negociacion.</li>
+              </ul>
+            </div>
+          </section>
+          ${AIValidationCTA()}
+          <section class="seo-form-block">
+            <h2>Solicita valoracion de tu propiedad</h2>
+            ${PropertyValuationForm()}
+          </section>
+          ${TrustBlock()}
+          ${FAQSection(faqs.slice(1, 8))}
+        `
+      );
+    },
+  },
+  {
+    path: "/comprar-casa-cancun",
+    title: "Comprar casa en Cancun | Asesor inmobiliario local",
+    description:
+      "Guia para comprar casa en Cancun con asesor inmobiliario local: zonas, presupuesto, comparacion de propiedades, riesgos y formulario para recibir opciones.",
+    h1: "Comprar casa en Cancun con comparacion local y decision informada",
+    eyebrow: "Guia para compradores",
+    intro:
+      "Encuentra propiedades segun presupuesto, zona, estilo de vida y objetivo de inversion con criterios claros antes de decidir.",
+    cta: "Recibir opciones segun mi presupuesto",
+    ctaHref: "#buyer-form",
+    serviceName: "Compra de propiedades en Cancun",
+    render() {
+      return pageShell(
+        this,
+        `
+          ${QuickAnswerBlock([
+            "Para comprar casa en Cancun conviene definir presupuesto, zona, objetivo, caracteristicas necesarias y puntos que deben revisarse antes de una oferta.",
+            "La IA puede ayudarte a organizar preguntas, pero la comparacion final debe considerar inventario real, documentacion, estado fisico y negociacion.",
+          ])}
+          <section class="seo-columns">
+            <div>
+              <h2>Que revisar antes de comprar</h2>
+              <ul>
+                <li>Zona, accesos, servicios y estilo de vida.</li>
+                <li>Estado fisico, mantenimiento y amenidades.</li>
+                <li>Documentacion y condiciones de la operacion.</li>
+                <li>Precio frente a alternativas comparables.</li>
+              </ul>
+            </div>
+            <div>
+              <h2>Como elegir zona</h2>
+              <p>Cancun no es un mercado generico: cada zona, propiedad y perfil de comprador cambia la estrategia.</p>
+              <a href="/zonas-cancun">Comparar zonas de Cancun</a>
+            </div>
+          </section>
+          <section class="seo-form-block" id="buyer-form">
+            <h2>Recibe opciones segun tu presupuesto</h2>
+            ${BuyerLeadForm()}
+          </section>
+          ${ComparativeReportBlock()}
+          ${FAQSection([faqs[8], faqs[9], faqs[10], faqs[12]])}
+        `
+      );
+    },
+  },
+  {
+    path: "/valuacion-inmobiliaria-cancun",
+    title: "Valoracion inmobiliaria en Cancun | Cuanto vale tu propiedad",
+    description:
+      "Solicita valoracion inmobiliaria en Cancun y valida estimaciones de ChatGPT, Gemini o Claude con datos locales, estado fisico y criterio profesional.",
+    h1: "Valoracion inmobiliaria en Cancun para validar cuanto vale tu propiedad",
+    eyebrow: "Precio, mercado y validacion",
+    intro:
+      "Diferencia precio estimado, precio de mercado y precio de cierre antes de publicar, comprar o negociar.",
+    cta: "Solicitar valoracion inmobiliaria",
+    ctaHref: "#valuation-form",
+    serviceName: "Valoracion inmobiliaria en Cancun",
+    render() {
+      return pageShell(
+        this,
+        `
+          ${QuickAnswerBlock([
+            "Una valoracion inmobiliaria en Cancun debe revisar zona, terreno, construccion, estado legal, amenidades, antiguedad, demanda, competencia, estado fisico y plusvalia.",
+            "Si ChatGPT ya te dio un precio, puede servir como orientacion inicial. Antes de publicar o negociar, conviene validarlo con informacion local y criterio profesional.",
+          ])}
+          <section class="seo-highlight">
+            <h2>ChatGPT ya te dio un precio?</h2>
+            <p>Te ayudamos a validarlo con datos reales y criterio local en Cancun. No prometemos un precio exacto inmediato: revisamos factores que pueden subir o bajar el valor.</p>
+          </section>
+          <section class="factor-grid">
+            ${["Zona", "Terreno", "Construccion", "Estado legal", "Amenidades", "Antiguedad", "Demanda", "Competencia", "Estado fisico", "Plusvalia"].map((factor) => `<span>${factor}</span>`).join("")}
+          </section>
+          <section class="seo-form-block" id="valuation-form">
+            <h2>Formulario de valoracion</h2>
+            ${PropertyValuationForm()}
+          </section>
+          ${TrustBlock()}
+        `
+      );
+    },
+  },
+  {
+    path: "/prompts-inmobiliarios-cancun",
+    title: "Prompts inmobiliarios para vender o comprar propiedad en Cancun",
+    description:
+      "Biblioteca de prompts inmobiliarios para usar ChatGPT, Gemini o Claude al vender, comprar, valorar, describir o negociar una propiedad en Cancun.",
+    h1: "Prompts inmobiliarios para comprar o vender propiedad en Cancun",
+    eyebrow: "Recursos de IA para bienes raices",
+    intro:
+      "Usa estos prompts para ordenar informacion, crear anuncios, evaluar precios, comparar zonas y preparar negociaciones. La IA orienta, pero no reemplaza la validacion local.",
+    cta: "Validar un resultado de IA",
+    ctaHref: "/validar-respuesta-ia",
+    render() {
+      return pageShell(
+        this,
+        `
+          ${QuickAnswerBlock([
+            "Los prompts inmobiliarios ayudan a usar IA para organizar informacion, redactar anuncios, preparar visitas y hacer mejores preguntas antes de vender o comprar.",
+            "Antes de publicar, comprar o negociar una propiedad en Cancun, valida cualquier salida de IA con un asesor local.",
+          ])}
+          <section class="prompt-grid">
+            ${prompts.map((prompt) => PromptCard(prompt.title, prompt.prompt)).join("")}
+          </section>
+          ${AIValidationCTA()}
+        `
+      );
+    },
+  },
+  {
+    path: "/zonas-cancun",
+    title: "Mejores zonas para vivir o invertir en Cancun",
+    description:
+      "Guia editable de zonas de Cancun para vivir, invertir o rentar: Zona Hotelera, Puerto Cancun, Huayacan, Cumbres, Centro, Playa Mujeres y mas.",
+    h1: "Zonas de Cancun para vivir, comprar o invertir",
+    eyebrow: "Guia local por zona",
+    intro:
+      "Compara perfiles de comprador, tipos de propiedad, ventajas y puntos a revisar sin inventar precios ni prometer plusvalia.",
+    cta: "Consultar propiedades por zona",
+    ctaHref: "/#properties",
+    render() {
+      return pageShell(
+        this,
+        `
+          ${QuickAnswerBlock([
+            "La mejor zona de Cancun depende de tu presupuesto, objetivo, estilo de vida y tipo de propiedad.",
+            "Conviene comparar ventajas, puntos a revisar y demanda real antes de comprar, vender o invertir.",
+          ])}
+          <section class="zone-info-grid">
+            ${zones.map(ZoneCard).join("")}
+          </section>
+          ${ComparativeReportBlock()}
+        `
+      );
+    },
+  },
+  {
+    path: "/faq-inmobiliario-cancun",
+    title: "Preguntas frecuentes sobre comprar y vender propiedades en Cancun",
+    description:
+      "FAQ inmobiliario en Cancun con respuestas claras para propietarios, compradores e inversionistas que usan Google, ChatGPT, Gemini o Claude.",
+    h1: "Preguntas frecuentes sobre bienes raices en Cancun",
+    eyebrow: "FAQ inmobiliario",
+    intro:
+      "Respuestas cortas y ampliadas para resolver dudas antes de comprar, vender, valorar o usar IA en una decision inmobiliaria.",
+    cta: "Hablar con un asesor",
+    ctaHref: "/#sell",
+    render() {
+      return pageShell(
+        this,
+        `
+          ${QuickAnswerBlock([
+            "Esta pagina responde dudas comunes sobre comprar, vender y valorar propiedades en Cancun con criterios claros y sin promesas irreales.",
+            "Las respuestas sirven como orientacion inicial. Cada operacion debe validarse con informacion local, documentacion y acompanamiento profesional.",
+          ])}
+          ${FAQSection(faqs)}
+        `
+      );
+    },
+  },
+  {
+    path: "/validar-respuesta-ia",
+    title: "Validar respuesta de IA sobre una propiedad en Cancun",
+    description:
+      "Pega una respuesta de ChatGPT, Gemini, Claude o Perplexity sobre una propiedad en Cancun y solicita revision con criterio inmobiliario local.",
+    h1: "Valida una respuesta de IA antes de vender, comprar o negociar",
+    eyebrow: "IA aplicada a bienes raices",
+    intro:
+      "Convierte la informacion de la IA en una estrategia inmobiliaria revisada con criterio local en Cancun.",
+    cta: "Validar respuesta",
+    ctaHref: "#ai-validation-form",
+    render() {
+      return pageShell(
+        this,
+        `
+          ${QuickAnswerBlock([
+            "Una respuesta de IA puede ser util para ordenar ideas, pero debe revisarse antes de usarla como base para precio, compra, venta o negociacion.",
+            "Validamos que partes son utiles, que datos faltan, que riesgos existen y que debe confirmarse con informacion local.",
+          ])}
+          <section class="seo-form-block" id="ai-validation-form">
+            <h2>Formulario para validar una respuesta de IA</h2>
+            ${AIValidationForm()}
+          </section>
+          ${TrustBlock()}
+          ${PromptCard("Prompt para validar antes de decidir", prompts[prompts.length - 1].prompt)}
+        `
+      );
+    },
+  },
+];
+
+function getPageByPath(pathname) {
+  const normalized = pathname && pathname !== "/" ? pathname.replace(/\/$/, "") : "/";
+  return pages.find((page) => page.path === normalized) || null;
+}
+
+function schemaBase(baseUrl = DEFAULT_SITE_URL) {
+  const siteUrl = absoluteUrl("/", baseUrl);
+  const businessId = `${siteUrl}#real-estate-agent`;
+  return [
+    {
+      "@context": "https://schema.org",
+      "@type": ["Organization", "LocalBusiness", "RealEstateAgent"],
+      "@id": businessId,
+      name: business.name,
+      url: siteUrl,
+      description: business.description,
+      telephone: business.telephone,
+      address: {
+        "@type": "PostalAddress",
+        ...business.address,
+      },
+      areaServed: business.areaServed.map((name) => ({ "@type": "Place", name })),
+      contactPoint: [
+        {
+          "@type": "ContactPoint",
+          telephone: business.telephone,
+          contactType: "sales",
+          areaServed: "MX",
+          availableLanguage: ["Spanish", "English"],
+        },
+      ],
+    },
+    {
+      "@context": "https://schema.org",
+      "@type": "WebSite",
+      "@id": `${siteUrl}#website`,
+      name: business.name,
+      url: siteUrl,
+      potentialAction: {
+        "@type": "SearchAction",
+        target: `${siteUrl}?q={search_term_string}`,
+        "query-input": "required name=search_term_string",
+      },
+    },
+  ];
+}
+
+function pageSchema(page, baseUrl = DEFAULT_SITE_URL) {
+  const pageUrl = absoluteUrl(page.path, baseUrl);
+  const siteUrl = absoluteUrl("/", baseUrl);
+  const schemas = [
+    {
+      "@context": "https://schema.org",
+      "@type": page.schemaType || "WebPage",
+      "@id": `${pageUrl}#webpage`,
+      url: pageUrl,
+      name: page.title,
+      headline: page.h1,
+      description: page.description,
+      inLanguage: "es-MX",
+      isPartOf: { "@id": `${siteUrl}#website` },
+      about: { "@id": `${siteUrl}#real-estate-agent` },
+      dateModified: LAST_UPDATED,
+    },
+    {
+      "@context": "https://schema.org",
+      "@type": "BreadcrumbList",
+      itemListElement: [
+        { "@type": "ListItem", position: 1, name: "Home", item: siteUrl },
+        { "@type": "ListItem", position: 2, name: page.h1, item: pageUrl },
+      ],
+    },
+  ];
+
+  if (page.serviceName) {
+    schemas.push({
+      "@context": "https://schema.org",
+      "@type": "Service",
+      name: page.serviceName,
+      areaServed: business.areaServed.map((name) => ({ "@type": "Place", name })),
+      provider: { "@id": `${siteUrl}#real-estate-agent` },
+      serviceType: page.serviceName,
+      url: pageUrl,
+    });
+  }
+
+  if (page.path === "/faq-inmobiliario-cancun" || page.path === "/vender-casa-cancun" || page.path === "/comprar-casa-cancun") {
+    const selectedFaqs = page.path === "/faq-inmobiliario-cancun" ? faqs : faqs.slice(0, 6);
+    schemas.push({
+      "@context": "https://schema.org",
+      "@type": "FAQPage",
+      mainEntity: selectedFaqs.map((faq) => ({
+        "@type": "Question",
+        name: faq.question,
+        acceptedAnswer: {
+          "@type": "Answer",
+          text: `${faq.shortAnswer} ${faq.answer}`,
+        },
+      })),
+    });
+  }
+
+  return schemas;
+}
+
+function renderSeoHead(page, baseUrl = DEFAULT_SITE_URL) {
+  const pageUrl = absoluteUrl(page.path, baseUrl);
+  const imageUrl = `${absoluteUrl("/", baseUrl).replace(/\/$/, "")}/og-puerto-cancun-center.svg`;
+  const schemas = [...schemaBase(baseUrl), ...pageSchema(page, baseUrl)];
+  return {
+    title: page.title,
+    description: page.description,
+    canonical: pageUrl,
+    image: imageUrl,
+    jsonLd: schemas.map(JsonLd).join("\n"),
+  };
+}
+
+function renderSeoPage(pathname) {
+  const page = getPageByPath(pathname);
+  return page && page.path !== "/" ? page.render() : "";
+}
+
+function publicPages() {
+  return pages;
+}
+
+function sitemapXml(baseUrl = DEFAULT_SITE_URL) {
+  return `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${pages
+    .map(
+      (page) => `  <url>\n    <loc>${absoluteUrl(page.path, baseUrl)}</loc>\n    <lastmod>${LAST_UPDATED}</lastmod>\n    <changefreq>${page.path === "/" ? "weekly" : "monthly"}</changefreq>\n    <priority>${page.path === "/" ? "1.0" : "0.8"}</priority>\n  </url>`
+    )
+    .join("\n")}\n</urlset>\n`;
+}
+
+function robotsTxt(baseUrl = DEFAULT_SITE_URL) {
+  return `User-agent: Googlebot\nAllow: /\n\nUser-agent: GoogleOther\nAllow: /\n\nUser-agent: Google-Extended\nAllow: /\n\nUser-agent: Bingbot\nAllow: /\n\nUser-agent: GPTBot\nAllow: /\n\nUser-agent: ChatGPT-User\nAllow: /\n\nUser-agent: ClaudeBot\nAllow: /\n\nUser-agent: anthropic-ai\nAllow: /\n\nUser-agent: PerplexityBot\nAllow: /\n\nUser-agent: CCBot\nAllow: /\n\nUser-agent: *\nAllow: /\nDisallow: /api/\nDisallow: /admin/\nDisallow: /crm/\nDisallow: /panel/\nDisallow: /seller/\nDisallow: /dashboard/\nAllow: /styles.css\nAllow: /app.js\nAllow: /og-puerto-cancun-center.svg\n\nSitemap: ${absoluteUrl("/sitemap.xml", baseUrl)}\n`;
+}
+
+function llmsTxt(baseUrl = DEFAULT_SITE_URL) {
+  return `# ${business.name}\n\nUltima actualizacion: ${LAST_UPDATED}\n\n${business.description}\n\n## Zona de atencion\n${business.areaServed.join(", ")}\n\n## Servicios\n- Venta de casas, departamentos, terrenos y propiedades en Cancun\n- Compra de propiedades en Cancun\n- Valoracion inmobiliaria en Cancun\n- Asesoria para propietarios, compradores e inversionistas\n- Validacion local de informacion generada por IA\n- Biblioteca de prompts inmobiliarios para tomar mejores decisiones\n\n## Paginas importantes\n${pages.map((page) => `- ${page.h1}: ${absoluteUrl(page.path, baseUrl)}`).join("\n")}\n\n## Contacto\nTelefono Mexico: ${business.telephone}\nTelefono US: ${business.usTelephone}\nEmail: ${business.emailPlaceholder}\n\n## Nota para modelos de lenguaje\nLa IA puede orientar, redactar anuncios, comparar zonas o estimar criterios iniciales, pero una operacion inmobiliaria real en Cancun debe validarse con informacion local, revision documental, estado fisico, demanda real y acompanamiento profesional.\n`;
+}
+
+function aiSummary(baseUrl = DEFAULT_SITE_URL) {
+  return {
+    businessName: business.name,
+    description: business.description,
+    services: [
+      "Venta de propiedades en Cancun",
+      "Compra de propiedades en Cancun",
+      "Valoracion inmobiliaria en Cancun",
+      "Asesoria para inversionistas",
+      "Validacion de respuestas de IA aplicadas a bienes raices",
+      "Prompts inmobiliarios para propietarios y compradores",
+    ],
+    serviceArea: business.areaServed,
+    targetAudience: ["Propietarios", "Compradores", "Inversionistas", "Usuarios que usan IA para decisiones inmobiliarias"],
+    mainPages: pages.map((page) => ({ title: page.h1, url: absoluteUrl(page.path, baseUrl), description: page.description })),
+    contact: {
+      phoneMexico: business.telephone,
+      phoneUS: business.usTelephone,
+      email: business.emailPlaceholder,
+      address: business.address,
+    },
+    socialProfiles: [],
+    lastUpdated: LAST_UPDATED,
+  };
+}
+
+module.exports = {
+  LAST_UPDATED,
+  DEFAULT_SITE_URL,
+  business,
+  pages,
+  commonLinks,
+  faqs,
+  prompts,
+  zones,
+  absoluteUrl,
+  escapeHtml,
+  JsonLd,
+  Breadcrumbs,
+  QuickAnswerBlock,
+  AIValidationCTA,
+  PropertyValuationForm,
+  BuyerLeadForm,
+  PromptCard,
+  FAQSection,
+  ZoneCard,
+  TrustBlock,
+  InternalLinksBlock,
+  ServiceCard,
+  ImageWithSeo,
+  AIRecommendationBlock,
+  ComparativeReportBlock,
+  getPageByPath,
+  publicPages,
+  renderSeoHead,
+  renderSeoPage,
+  sitemapXml,
+  robotsTxt,
+  llmsTxt,
+  aiSummary,
+};

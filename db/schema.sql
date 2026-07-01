@@ -61,6 +61,18 @@ CREATE TABLE IF NOT EXISTS app_metrics (
   searches INTEGER NOT NULL DEFAULT 0
 );
 
+CREATE TABLE IF NOT EXISTS lead_requests (
+  id TEXT PRIMARY KEY,
+  lead_type TEXT NOT NULL,
+  name TEXT NOT NULL,
+  phone TEXT NOT NULL,
+  email TEXT,
+  source_path TEXT,
+  payload JSONB NOT NULL DEFAULT '{}'::jsonb,
+  status TEXT NOT NULL DEFAULT 'new',
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
 CREATE TABLE IF NOT EXISTS user_sessions (
   sid VARCHAR NOT NULL COLLATE "default",
   sess JSON NOT NULL,

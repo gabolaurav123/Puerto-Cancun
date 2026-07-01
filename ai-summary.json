@@ -1,0 +1,66 @@
+{
+  "businessName": "Puerto Cancun Center",
+  "description": "Inmobiliaria en Cancun enfocada en compra, venta, valoracion y asesoria local para propietarios, compradores e inversionistas.",
+  "services": [
+    "Venta de propiedades en Cancun",
+    "Compra de propiedades en Cancun",
+    "Valoracion inmobiliaria en Cancun",
+    "Asesoria para inversionistas",
+    "Validacion de respuestas de IA aplicadas a bienes raices",
+    "Prompts inmobiliarios para propietarios y compradores"
+  ],
+  "serviceArea": ["Cancun", "Puerto Cancun", "Zona Hotelera", "Riviera Maya", "Playa Mujeres", "Quintana Roo"],
+  "targetAudience": ["Propietarios", "Compradores", "Inversionistas", "Usuarios que usan IA para decisiones inmobiliarias"],
+  "mainPages": [
+    {
+      "title": "Compra o vende tu propiedad en Cancun con estrategia, datos e inteligencia artificial",
+      "url": "https://puerto-cancun.seenode.app/"
+    },
+    {
+      "title": "Inmobiliaria en Cancun para comprar, vender y validar decisiones",
+      "url": "https://puerto-cancun.seenode.app/inmobiliaria-cancun"
+    },
+    {
+      "title": "Vender casa en Cancun con precio, estrategia y validacion local",
+      "url": "https://puerto-cancun.seenode.app/vender-casa-cancun"
+    },
+    {
+      "title": "Comprar casa en Cancun con comparacion local y decision informada",
+      "url": "https://puerto-cancun.seenode.app/comprar-casa-cancun"
+    },
+    {
+      "title": "Valoracion inmobiliaria en Cancun para validar cuanto vale tu propiedad",
+      "url": "https://puerto-cancun.seenode.app/valuacion-inmobiliaria-cancun"
+    },
+    {
+      "title": "Prompts inmobiliarios para comprar o vender propiedad en Cancun",
+      "url": "https://puerto-cancun.seenode.app/prompts-inmobiliarios-cancun"
+    },
+    {
+      "title": "Zonas de Cancun para vivir, comprar o invertir",
+      "url": "https://puerto-cancun.seenode.app/zonas-cancun"
+    },
+    {
+      "title": "Preguntas frecuentes sobre bienes raices en Cancun",
+      "url": "https://puerto-cancun.seenode.app/faq-inmobiliario-cancun"
+    },
+    {
+      "title": "Valida una respuesta de IA antes de vender, comprar o negociar",
+      "url": "https://puerto-cancun.seenode.app/validar-respuesta-ia"
+    }
+  ],
+  "contact": {
+    "phoneMexico": "+52 998 688 0710",
+    "phoneUS": "+1 817 400 4324",
+    "email": "PENDIENTE_CONFIGURAR",
+    "address": {
+      "streetAddress": "Av. Bonampak Entrada Puerto Cancun, Plaza Nido, Local 4",
+      "addressLocality": "Cancun",
+      "addressRegion": "Quintana Roo",
+      "postalCode": "77500",
+      "addressCountry": "MX"
+    }
+  },
+  "socialProfiles": [],
+  "lastUpdated": "2026-07-01"
+}

@@ -44,10 +44,47 @@ const translations = {
     navSell: "Vender",
     navLogin: "Iniciar sesión",
     heroKicker: "Propiedades de lujo en Cancún",
-    heroTitle: "Expertos en bienes raíces",
+    heroTitle: "Compra o vende tu propiedad en Cancún con estrategia, datos e inteligencia artificial",
+    heroSubtitle:
+      "Te ayudamos a validar precios, preparar tu propiedad, encontrar compradores reales y tomar mejores decisiones inmobiliarias en Cancún.",
+    heroSellCta: "Quiero vender mi propiedad",
+    heroBuyCta: "Quiero comprar en Cancún",
+    heroValuationCta: "Validar precio con asesor",
     searchPlaceholder: "Ciudad, dirección, código postal",
     searchButton: "Buscar",
     contactToday: "Contáctanos Hoy",
+    aiHomeKicker: "IA + criterio local",
+    aiHomeTitle: "Usa la IA para informarte. Usa un asesor local para decidir bien.",
+    aiHomeCopy:
+      "Hoy muchos propietarios y compradores usan ChatGPT, Gemini o Claude para estimar precios, crear anuncios o comparar zonas. Eso puede ser útil, pero una operación real en Cancún depende de factores que la IA no siempre puede validar: documentación, demanda por zona, estado físico, negociación, perfil del comprador, tiempos de cierre y condiciones reales del mercado.",
+    aiHomeCta: "Validar mi decisión con un asesor local",
+    aiNoteTitle: "La IA orienta. Cancún confirma.",
+    aiNoteCopy: "Convertimos la información de la IA en una estrategia inmobiliaria revisada con criterio local.",
+    aiValidationKicker: "Validación de IA",
+    aiValidationTitle: "ChatGPT ya te dio un precio o una estrategia?",
+    aiValidationCopy:
+      "Pega aquí el precio, descripción o recomendación que te dio la IA y te ayudamos a revisarlo desde el mercado inmobiliario real de Cancún.",
+    operationType: "Tipo de operación",
+    sellOperation: "Vender",
+    buyOperation: "Comprar",
+    investOperation: "Invertir",
+    aiResponseField: "Respuesta que te dio la IA",
+    validateWithAdvisor: "Validar con asesor local",
+    sellerAudienceTitle: "Para propietarios que quieren vender mejor",
+    sellerAudienceCopy:
+      "Te ayudamos a definir un precio competitivo, preparar tu propiedad, crear una estrategia de difusión y negociar con compradores reales.",
+    buyerAudienceTitle: "Para compradores que buscan elegir bien",
+    buyerAudienceCopy:
+      "Te ayudamos a encontrar propiedades según tu presupuesto, zona, estilo de vida y objetivo de inversión.",
+    valuationRequest: "Solicitar valoración",
+    searchProperty: "Buscar propiedad",
+    aiResourcesTitle: "Recursos de IA para comprar o vender en Cancún",
+    resourcePrompts: "Prompts inmobiliarios",
+    resourceSellGuide: "Guía para vender casa en Cancún",
+    resourceBuyGuide: "Guía para comprar casa en Cancún",
+    resourceValuation: "Valoración inmobiliaria",
+    resourceFaq: "Preguntas frecuentes",
+    resourceZones: "Zonas de Cancún",
     featuredZones: "Zonas destacadas",
     allZones: "Todas las zonas",
     zonePresales: "Preventas | Presales",
@@ -184,6 +221,7 @@ const translations = {
     adminRole: "Cuenta administradora",
     accountPrompt: "Completa estos datos para crear tu cuenta de vendedor.",
     requestSent: "Solicitud enviada. El administrador podrá revisarla en su panel.",
+    leadSent: "Solicitud enviada. Un asesor puede revisar tu información.",
     loginError: "La contraseña no coincide con esa cuenta.",
     accountExists: "Ya existe una cuenta con ese correo.",
     accountCreated: "Cuenta creada. Bienvenido al panel de vendedor.",
@@ -233,10 +271,46 @@ const translations = {
     navSell: "Sell",
     navLogin: "Log in",
     heroKicker: "Luxury properties in Cancun",
-    heroTitle: "Real estate experts",
+    heroTitle: "Buy or sell your Cancun property with strategy, data, and artificial intelligence",
+    heroSubtitle:
+      "We help you validate pricing, prepare your property, find real buyers, and make better real estate decisions in Cancun.",
+    heroSellCta: "I want to sell my property",
+    heroBuyCta: "I want to buy in Cancun",
+    heroValuationCta: "Validate price with an advisor",
     searchPlaceholder: "City, address, zip code",
     searchButton: "Search",
     contactToday: "Contact Us Today",
+    aiHomeKicker: "AI + local judgment",
+    aiHomeTitle: "Use AI to get informed. Use a local advisor to decide well.",
+    aiHomeCopy:
+      "Many owners and buyers now use ChatGPT, Gemini, or Claude to estimate prices, create listings, or compare areas. That can help, but a real Cancun transaction depends on factors AI cannot always validate: documents, area demand, physical condition, negotiation, buyer profile, closing timing, and real market conditions.",
+    aiHomeCta: "Validate my decision with a local advisor",
+    aiNoteTitle: "AI orients. Cancun confirms.",
+    aiNoteCopy: "We turn AI information into a real estate strategy reviewed with local judgment.",
+    aiValidationKicker: "AI validation",
+    aiValidationTitle: "Did ChatGPT already give you a price or strategy?",
+    aiValidationCopy:
+      "Paste the price, description, or recommendation AI gave you and we can review it from the real Cancun property market.",
+    operationType: "Operation type",
+    sellOperation: "Sell",
+    buyOperation: "Buy",
+    investOperation: "Invest",
+    aiResponseField: "AI response",
+    validateWithAdvisor: "Validate with local advisor",
+    sellerAudienceTitle: "For owners who want to sell better",
+    sellerAudienceCopy:
+      "We help define a competitive price, prepare your property, create a marketing strategy, and negotiate with real buyers.",
+    buyerAudienceTitle: "For buyers who want to choose well",
+    buyerAudienceCopy: "We help find properties by budget, area, lifestyle, and investment objective.",
+    valuationRequest: "Request valuation",
+    searchProperty: "Search property",
+    aiResourcesTitle: "AI resources to buy or sell in Cancun",
+    resourcePrompts: "Real estate prompts",
+    resourceSellGuide: "Guide to selling a home in Cancun",
+    resourceBuyGuide: "Guide to buying a home in Cancun",
+    resourceValuation: "Property valuation",
+    resourceFaq: "Frequently asked questions",
+    resourceZones: "Cancun areas",
     featuredZones: "Featured areas",
     allZones: "All areas",
     zonePresales: "Presales",
@@ -372,6 +446,7 @@ const translations = {
     adminRole: "Admin account",
     accountPrompt: "Complete these details to create your seller account.",
     requestSent: "Request submitted. The administrator can review it in the panel.",
+    leadSent: "Request submitted. An advisor can review your information.",
     loginError: "The password does not match that account.",
     accountExists: "An account already exists with that email.",
     accountCreated: "Account created. Welcome to the seller panel.",
@@ -504,6 +579,20 @@ function formatPriceLines(property) {
 function formatPriceSummary(property) {
   const lines = formatPriceLines(property);
   return lines.length ? lines.join(" / ") : "Precio por confirmar";
+}
+
+function selectedPrice(property) {
+  const preferred =
+    state.currency === "MXN"
+      ? [
+          ["MXN", property.priceMxn],
+          ["USD", property.priceUsd],
+        ]
+      : [
+          ["USD", property.priceUsd],
+          ["MXN", property.priceMxn],
+        ];
+  return preferred.find(([, amount]) => amount !== null && amount !== undefined && amount !== "") || null;
 }
 
 function comparablePrice(property) {
@@ -700,7 +789,7 @@ function renderProperties() {
       ].filter(Boolean);
 
       return `
-        <article class="property-card">
+        <article class="property-card" id="property-${escapeHtml(property.id)}">
           <div class="property-image">
             <img src="${escapeHtml(property.image || fallbackImage)}" alt="${escapeHtml(localizedTitle(property))}" loading="lazy" onerror="this.onerror=null;this.src='${escapeHtml(fallbackImage)}';" />
             <div class="badge-row">${badgeHtml}</div>
@@ -720,6 +809,76 @@ function renderProperties() {
     })
     .join("");
   refreshIcons();
+  updatePropertyJsonLd();
+}
+
+function propertySchemaType(property) {
+  if (property.type === "Casa") return "House";
+  if (property.type === "Departamento") return "Apartment";
+  return "Residence";
+}
+
+function updatePropertyJsonLd() {
+  const existing = document.getElementById("property-jsonld");
+  if (existing) existing.remove();
+  if (!state.properties.length) return;
+
+  const itemList = {
+    "@context": "https://schema.org",
+    "@type": "ItemList",
+    name: "Propiedades en venta y renta en Cancun",
+    itemListElement: state.properties.slice(0, 24).map((property, index) => {
+      const price = selectedPrice(property);
+      const url = `${window.location.origin}/#property-${encodeURIComponent(property.id)}`;
+      const listing = {
+        "@type": "RealEstateListing",
+        name: localizedTitle(property),
+        url,
+        description: localizedDescription(property),
+        image: property.image || fallbackImage,
+        datePosted: property.createdAt,
+        mainEntity: {
+          "@type": propertySchemaType(property),
+          name: localizedTitle(property),
+          description: localizedDescription(property),
+          numberOfRooms: property.beds || undefined,
+          numberOfBathroomsTotal: property.baths || undefined,
+          floorSize: property.area
+            ? {
+                "@type": "QuantitativeValue",
+                value: property.area,
+                unitCode: "MTK",
+              }
+            : undefined,
+          containedInPlace: {
+            "@type": "Place",
+            name: property.zone || "Cancun",
+          },
+        },
+      };
+      if (price) {
+        listing.offers = {
+          "@type": "Offer",
+          price: Number(price[1]),
+          priceCurrency: price[0],
+          availability: "https://schema.org/InStock",
+          url,
+        };
+      }
+      return {
+        "@type": "ListItem",
+        position: index + 1,
+        url,
+        item: listing,
+      };
+    }),
+  };
+
+  const script = document.createElement("script");
+  script.type = "application/ld+json";
+  script.id = "property-jsonld";
+  script.textContent = JSON.stringify(itemList);
+  document.head.appendChild(script);
 }
 
 function renderRequestItem(request) {
@@ -1122,6 +1281,28 @@ async function sellerRequestSubmit(event) {
   }
 }
 
+async function leadFormSubmit(event) {
+  event.preventDefault();
+  const form = event.currentTarget;
+  const message = form.querySelector("[data-lead-message]") || form.querySelector(".form-message");
+  if (message) setFormMessage(message, "");
+  const payload = Object.fromEntries(new FormData(form).entries());
+  try {
+    await api("/api/leads", {
+      method: "POST",
+      body: {
+        ...payload,
+        sourcePath: window.location.pathname,
+      },
+    });
+    form.reset();
+    if (message) setFormMessage(message, t("leadSent"));
+  } catch (error) {
+    if (message) setFormMessage(message, error.message, true);
+    else alert(error.message);
+  }
+}
+
 function resetListingForm() {
   const form = $("#listingForm");
   form.reset();
@@ -1455,6 +1636,9 @@ function bindEvents() {
   });
 
   $("#searchForm").addEventListener("submit", handleSearch);
+  $$("[data-lead-form]").forEach((form) => {
+    form.addEventListener("submit", leadFormSubmit);
+  });
   $("#sortSelect").addEventListener("change", renderProperties);
   ["#filterType", "#filterZone", "#filterOperation"].forEach((selector) => {
     $(selector).addEventListener("change", applyToolbarFilters);
@@ -1472,6 +1656,11 @@ function bindEvents() {
   ).forEach((element) => {
     element.addEventListener("click", (event) => {
       event.preventDefault();
+      if (document.body.dataset.page === "seo") {
+        const href = element.getAttribute("href") || "#properties";
+        window.location.href = href.startsWith("#") ? `/${href}` : href;
+        return;
+      }
       applyElementFilter(element);
     });
   });
