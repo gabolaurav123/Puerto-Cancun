@@ -1715,6 +1715,48 @@ textarea {
   margin-bottom: 22px;
 }
 
+.admin-prompts-card {
+  margin-bottom: 22px;
+}
+
+.admin-prompts-heading {
+  display: flex;
+  justify-content: space-between;
+  gap: 18px;
+  margin-bottom: 16px;
+}
+
+.admin-prompts-heading p {
+  max-width: 780px;
+  margin: -8px 0 0;
+  color: var(--muted);
+}
+
+.admin-prompt-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.admin-prompt-grid details {
+  border: 1px solid var(--line);
+  background: #fbfcfd;
+  padding: 14px;
+}
+
+.admin-prompt-grid summary {
+  cursor: pointer;
+  color: var(--blue-900);
+  font-weight: 800;
+}
+
+.admin-prompt-grid p {
+  margin: 12px 0 0;
+  color: var(--muted);
+  font-size: 0.9rem;
+  line-height: 1.6;
+}
+
 .insight-card {
   min-height: 142px;
   border: 1px solid var(--line);
@@ -2161,6 +2203,10 @@ textarea {
 
   .admin-insights {
     grid-template-columns: repeat(2, 1fr);
+  }
+
+  .admin-prompt-grid {
+    grid-template-columns: 1fr;
   }
 
   .admin-command-actions {

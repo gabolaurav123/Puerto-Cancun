@@ -44,7 +44,7 @@ const translations = {
     navSell: "Vender",
     navLogin: "Iniciar sesión",
     heroKicker: "Propiedades de lujo en Cancún",
-    heroTitle: "Compra o vende tu propiedad en Cancún con estrategia, datos e inteligencia artificial",
+    heroTitle: "Compra o vende tu propiedad en Cancún",
     heroSubtitle:
       "Te ayudamos a validar precios, preparar tu propiedad, encontrar compradores reales y tomar mejores decisiones inmobiliarias en Cancún.",
     heroSellCta: "Quiero vender mi propiedad",
@@ -78,9 +78,9 @@ const translations = {
       "Te ayudamos a encontrar propiedades según tu presupuesto, zona, estilo de vida y objetivo de inversión.",
     valuationRequest: "Solicitar valoración",
     searchProperty: "Buscar propiedad",
-    aiResourcesTitle: "Recursos de IA para comprar o vender en Cancún",
-    resourcePrompts: "Prompts inmobiliarios",
-    resourceSellGuide: "Guía para vender casa en Cancún",
+    aiResourcesTitle: "Compra, vende o valora con Puerto Cancún Center",
+    resourceProperties: "Ver propiedades disponibles",
+    resourceSellHere: "Vender mi propiedad aquí",
     resourceBuyGuide: "Guía para comprar casa en Cancún",
     resourceValuation: "Valoración inmobiliaria",
     resourceFaq: "Preguntas frecuentes",
@@ -202,6 +202,11 @@ const translations = {
     adminJumpRequests: "Solicitudes",
     adminJumpListings: "Publicaciones",
     adminJumpNew: "Nueva propiedad",
+    adminJumpPrompts: "Herramientas IA",
+    adminPromptLibraryTitle: "Herramientas IA internas para publicaciones y asesorías",
+    adminPromptLibraryCopy:
+      "Usa estos textos como apoyo interno para valorar, redactar y revisar propiedades antes de publicar. No son una sección pública.",
+    adminPromptsEmpty: "No hay herramientas internas configuradas.",
     adminScrollableHint: "Desplaza dentro de esta lista para ver más.",
     adminListingsHint: "Edita, revisa y elimina publicaciones existentes.",
     adminInsightPending: "Pendientes por revisar",
@@ -271,7 +276,7 @@ const translations = {
     navSell: "Sell",
     navLogin: "Log in",
     heroKicker: "Luxury properties in Cancun",
-    heroTitle: "Buy or sell your Cancun property with strategy, data, and artificial intelligence",
+    heroTitle: "Buy or sell your Cancun property",
     heroSubtitle:
       "We help you validate pricing, prepare your property, find real buyers, and make better real estate decisions in Cancun.",
     heroSellCta: "I want to sell my property",
@@ -304,9 +309,9 @@ const translations = {
     buyerAudienceCopy: "We help find properties by budget, area, lifestyle, and investment objective.",
     valuationRequest: "Request valuation",
     searchProperty: "Search property",
-    aiResourcesTitle: "AI resources to buy or sell in Cancun",
-    resourcePrompts: "Real estate prompts",
-    resourceSellGuide: "Guide to selling a home in Cancun",
+    aiResourcesTitle: "Buy, sell, or value with Puerto Cancun Center",
+    resourceProperties: "View available properties",
+    resourceSellHere: "Sell my property here",
     resourceBuyGuide: "Guide to buying a home in Cancun",
     resourceValuation: "Property valuation",
     resourceFaq: "Frequently asked questions",
@@ -427,6 +432,11 @@ const translations = {
     adminJumpRequests: "Requests",
     adminJumpListings: "Listings",
     adminJumpNew: "New property",
+    adminJumpPrompts: "AI tools",
+    adminPromptLibraryTitle: "Internal AI tools for listings and advisory",
+    adminPromptLibraryCopy:
+      "Use these texts as internal support to value, write, and review properties before publishing. This is not a public section.",
+    adminPromptsEmpty: "No internal tools configured.",
     adminScrollableHint: "Scroll inside this list to see more.",
     adminListingsHint: "Edit, review, and delete existing listings.",
     adminInsightPending: "Pending review",
@@ -485,6 +495,7 @@ const state = {
   session: null,
   properties: [],
   requests: [],
+  adminPrompts: [],
   stats: { properties: 0, pendingRequests: 0, users: 0, visits: 0, searches: 0 },
   filters: {
     text: "",
@@ -1016,6 +1027,26 @@ function renderAdminInsights() {
   `;
 }
 
+function renderAdminPrompts() {
+  const list = $("#adminPromptList");
+  if (!list) return;
+  const prompts = Array.isArray(state.adminPrompts) ? state.adminPrompts : [];
+  if (!prompts.length) {
+    list.innerHTML = `<p class="empty-state">${escapeHtml(t("adminPromptsEmpty"))}</p>`;
+    return;
+  }
+  list.innerHTML = prompts
+    .map(
+      (prompt) => `
+        <details>
+          <summary>${escapeHtml(prompt.title)}</summary>
+          <p>${escapeHtml(prompt.body)}</p>
+        </details>
+      `
+    )
+    .join("");
+}
+
 function renderAdminListings() {
   const list = $("#adminListings");
   if (!list) return;
@@ -1070,17 +1101,20 @@ async function loadPublicData() {
 async function loadPanelData() {
   if (!state.session) return;
   if (state.session.role === "admin") {
-    const [statsData, requestsData, propertiesData] = await Promise.all([
+    const [statsData, requestsData, propertiesData, promptsData] = await Promise.all([
       api("/api/admin/stats"),
       api("/api/admin/requests"),
       api("/api/properties"),
+      api("/api/admin/prompts"),
     ]);
     state.stats = statsData;
     state.requests = requestsData.requests || [];
     state.properties = propertiesData.properties || [];
+    state.adminPrompts = promptsData.prompts || [];
   } else {
     const requestsData = await api("/api/seller/requests");
     state.requests = requestsData.requests || [];
+    state.adminPrompts = [];
   }
 }
 
@@ -1104,6 +1138,7 @@ async function renderPanel() {
   if (isAdmin) {
     renderStats();
     renderAdminInsights();
+    renderAdminPrompts();
     renderAdminRequests();
     renderAdminListings();
   } else {

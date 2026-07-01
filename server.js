@@ -25,6 +25,7 @@ const app = express();
 const port = Number(process.env.PORT || 3000);
 const siteUrl = process.env.SITE_URL || DEFAULT_SITE_URL;
 const indexPath = path.join(__dirname, "index.html");
+const publicStaticFiles = new Set(["/app.js", "/styles.css", "/og-puerto-cancun-center.svg"]);
 
 if (!process.env.DATABASE_URL) {
   console.error("DATABASE_URL is required. Copy .env.example to .env and configure your Neon PostgreSQL URL.");
@@ -41,6 +42,27 @@ const IMAGE_MAX_BYTES = 1.5 * 1024 * 1024;
 const IMAGE_TYPES = new Set(["image/jpeg", "image/jpg", "image/png", "image/webp"]);
 const adminUser = (process.env.ADMIN_USER || "admin prueba").trim().toLowerCase();
 const adminPassword = process.env.ADMIN_PASSWORD || "";
+
+const adminPrompts = [
+  {
+    id: "price-review",
+    title: "Valorar precio inicial",
+    body:
+      "Actua como analista inmobiliario de Puerto Cancun Center. Revisa esta propiedad en Cancun: [zona], [tipo], [m2], [recamaras], [banos], [amenidades], [estado]. Indica factores que pueden subir o bajar el precio y que datos necesita validar el asesor antes de publicar.",
+  },
+  {
+    id: "listing-copy",
+    title: "Redactar publicacion",
+    body:
+      "Actua como redactor inmobiliario de Puerto Cancun Center. Crea una descripcion profesional para vender esta propiedad: [datos]. Destaca estilo de vida, zona, amenidades, diferenciadores y cierre para agendar contacto con un asesor.",
+  },
+  {
+    id: "buyer-reply",
+    title: "Responder a comprador",
+    body:
+      "Actua como asesor inmobiliario en Cancun. El comprador busca [tipo] en [zona] con presupuesto [presupuesto]. Prepara una respuesta breve que lo invite a revisar opciones dentro de Puerto Cancun Center y a compartir datos de contacto.",
+  },
+];
 
 const seedProperties = [
   {
@@ -783,6 +805,10 @@ app.get("/api/admin/stats", requireRole("admin"), async (_req, res, next) => {
   }
 });
 
+app.get("/api/admin/prompts", requireRole("admin"), (_req, res) => {
+  res.json({ prompts: adminPrompts });
+});
+
 app.get("/api/admin/requests", requireRole("admin"), async (_req, res, next) => {
   try {
     const result = await query("SELECT * FROM seller_requests ORDER BY created_at DESC");
@@ -1119,7 +1145,13 @@ app.get("/ai-summary.json", (_req, res) => {
   res.json(aiSummary(siteUrl));
 });
 
-app.use(express.static(__dirname, { index: false }));
+app.get("/prompts-inmobiliarios-cancun", (_req, res) => {
+  res.redirect(301, "/validar-respuesta-ia");
+});
+
+app.get(Array.from(publicStaticFiles), (req, res) => {
+  res.sendFile(path.join(__dirname, req.path.slice(1)));
+});
 
 app.get("*", (req, res) => {
   res.send(renderPublicHtml(req.path));

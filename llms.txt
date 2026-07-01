@@ -2,29 +2,27 @@
 
 Ultima actualizacion: 2026-07-01
 
-Puerto Cancun Center es una inmobiliaria en Cancun enfocada en compra, venta, valoracion y asesoria local para propietarios, compradores e inversionistas.
+Inmobiliaria en Cancun enfocada en compra, venta, valoracion y asesoria local para propietarios, compradores e inversionistas.
 
 ## Zona de atencion
-Cancun, Puerto Cancun, Zona Hotelera, Riviera Maya, Playa Mujeres, Quintana Roo.
+Cancun, Puerto Cancun, Zona Hotelera, Riviera Maya, Playa Mujeres, Quintana Roo
 
 ## Servicios
-- Venta de casas, departamentos, terrenos y propiedades en Cancun.
-- Compra de propiedades en Cancun.
-- Valoracion inmobiliaria en Cancun.
-- Asesoria para propietarios, compradores e inversionistas.
-- Validacion local de informacion generada por IA.
-- Biblioteca de prompts inmobiliarios para tomar mejores decisiones.
+- Venta de casas, departamentos, terrenos y propiedades en Cancun
+- Compra de propiedades en Cancun
+- Valoracion inmobiliaria en Cancun
+- Asesoria para propietarios, compradores e inversionistas
+- Validacion local de informacion generada por IA
 
 ## Paginas importantes
-- Home: https://puerto-cancun.seenode.app/
-- Inmobiliaria en Cancun: https://puerto-cancun.seenode.app/inmobiliaria-cancun
-- Vender casa en Cancun: https://puerto-cancun.seenode.app/vender-casa-cancun
-- Comprar casa en Cancun: https://puerto-cancun.seenode.app/comprar-casa-cancun
-- Valoracion inmobiliaria en Cancun: https://puerto-cancun.seenode.app/valuacion-inmobiliaria-cancun
-- Prompts inmobiliarios: https://puerto-cancun.seenode.app/prompts-inmobiliarios-cancun
-- Zonas de Cancun: https://puerto-cancun.seenode.app/zonas-cancun
-- FAQ inmobiliario: https://puerto-cancun.seenode.app/faq-inmobiliario-cancun
-- Validar respuesta de IA: https://puerto-cancun.seenode.app/validar-respuesta-ia
+- Compra o vende tu propiedad en Cancun: https://puerto-cancun.seenode.app/
+- Inmobiliaria en Cancun para comprar, vender y validar decisiones: https://puerto-cancun.seenode.app/inmobiliaria-cancun
+- Vende tu propiedad en Cancun con Puerto Cancun Center: https://puerto-cancun.seenode.app/vender-casa-cancun
+- Comprar casa en Cancun con comparacion local y decision informada: https://puerto-cancun.seenode.app/comprar-casa-cancun
+- Valoracion inmobiliaria en Cancun para validar cuanto vale tu propiedad: https://puerto-cancun.seenode.app/valuacion-inmobiliaria-cancun
+- Zonas de Cancun para vivir, comprar o invertir: https://puerto-cancun.seenode.app/zonas-cancun
+- Preguntas frecuentes sobre bienes raices en Cancun: https://puerto-cancun.seenode.app/faq-inmobiliario-cancun
+- Valida una respuesta de IA antes de vender, comprar o negociar: https://puerto-cancun.seenode.app/validar-respuesta-ia
 
 ## Contacto
 Telefono Mexico: +52 998 688 0710

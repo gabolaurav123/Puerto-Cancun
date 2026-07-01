@@ -6,47 +6,62 @@
     "Compra de propiedades en Cancun",
     "Valoracion inmobiliaria en Cancun",
     "Asesoria para inversionistas",
-    "Validacion de respuestas de IA aplicadas a bienes raices",
-    "Prompts inmobiliarios para propietarios y compradores"
+    "Validacion de respuestas de IA aplicadas a bienes raices"
   ],
-  "serviceArea": ["Cancun", "Puerto Cancun", "Zona Hotelera", "Riviera Maya", "Playa Mujeres", "Quintana Roo"],
-  "targetAudience": ["Propietarios", "Compradores", "Inversionistas", "Usuarios que usan IA para decisiones inmobiliarias"],
+  "serviceArea": [
+    "Cancun",
+    "Puerto Cancun",
+    "Zona Hotelera",
+    "Riviera Maya",
+    "Playa Mujeres",
+    "Quintana Roo"
+  ],
+  "targetAudience": [
+    "Propietarios",
+    "Compradores",
+    "Inversionistas",
+    "Usuarios que usan IA para decisiones inmobiliarias"
+  ],
   "mainPages": [
     {
-      "title": "Compra o vende tu propiedad en Cancun con estrategia, datos e inteligencia artificial",
-      "url": "https://puerto-cancun.seenode.app/"
+      "title": "Compra o vende tu propiedad en Cancun",
+      "url": "https://puerto-cancun.seenode.app/",
+      "description": "Inmobiliaria en Cancun para comprar, vender, valorar e invertir en propiedades con estrategia local, datos e inteligencia artificial validada por asesores."
     },
     {
       "title": "Inmobiliaria en Cancun para comprar, vender y validar decisiones",
-      "url": "https://puerto-cancun.seenode.app/inmobiliaria-cancun"
+      "url": "https://puerto-cancun.seenode.app/inmobiliaria-cancun",
+      "description": "Puerto Cancun Center es una inmobiliaria en Cancun para propietarios, compradores e inversionistas que necesitan asesoria local y validacion de informacion generada por IA."
     },
     {
-      "title": "Vender casa en Cancun con precio, estrategia y validacion local",
-      "url": "https://puerto-cancun.seenode.app/vender-casa-cancun"
+      "title": "Vende tu propiedad en Cancun con Puerto Cancun Center",
+      "url": "https://puerto-cancun.seenode.app/vender-casa-cancun",
+      "description": "Solicita asesoria para vender tu casa, departamento, terreno o propiedad en Cancun con Puerto Cancun Center: precio, publicacion, compradores y seguimiento."
     },
     {
       "title": "Comprar casa en Cancun con comparacion local y decision informada",
-      "url": "https://puerto-cancun.seenode.app/comprar-casa-cancun"
+      "url": "https://puerto-cancun.seenode.app/comprar-casa-cancun",
+      "description": "Guia para comprar casa en Cancun con asesor inmobiliario local: zonas, presupuesto, comparacion de propiedades, riesgos y formulario para recibir opciones."
     },
     {
       "title": "Valoracion inmobiliaria en Cancun para validar cuanto vale tu propiedad",
-      "url": "https://puerto-cancun.seenode.app/valuacion-inmobiliaria-cancun"
-    },
-    {
-      "title": "Prompts inmobiliarios para comprar o vender propiedad en Cancun",
-      "url": "https://puerto-cancun.seenode.app/prompts-inmobiliarios-cancun"
+      "url": "https://puerto-cancun.seenode.app/valuacion-inmobiliaria-cancun",
+      "description": "Solicita valoracion inmobiliaria en Cancun y valida estimaciones de ChatGPT, Gemini o Claude con datos locales, estado fisico y criterio profesional."
     },
     {
       "title": "Zonas de Cancun para vivir, comprar o invertir",
-      "url": "https://puerto-cancun.seenode.app/zonas-cancun"
+      "url": "https://puerto-cancun.seenode.app/zonas-cancun",
+      "description": "Guia editable de zonas de Cancun para vivir, invertir o rentar: Zona Hotelera, Puerto Cancun, Huayacan, Cumbres, Centro, Playa Mujeres y mas."
     },
     {
       "title": "Preguntas frecuentes sobre bienes raices en Cancun",
-      "url": "https://puerto-cancun.seenode.app/faq-inmobiliario-cancun"
+      "url": "https://puerto-cancun.seenode.app/faq-inmobiliario-cancun",
+      "description": "FAQ inmobiliario en Cancun con respuestas claras para propietarios, compradores e inversionistas que usan Google, ChatGPT, Gemini o Claude."
     },
     {
       "title": "Valida una respuesta de IA antes de vender, comprar o negociar",
-      "url": "https://puerto-cancun.seenode.app/validar-respuesta-ia"
+      "url": "https://puerto-cancun.seenode.app/validar-respuesta-ia",
+      "description": "Pega una respuesta de ChatGPT, Gemini, Claude o Perplexity sobre una propiedad en Cancun y solicita revision con criterio inmobiliario local."
     }
   ],
   "contact": {

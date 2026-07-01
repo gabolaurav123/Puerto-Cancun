@@ -39,7 +39,7 @@
     <div class="site-shell" id="siteShell">
       <header class="main-header" id="mainHeader">
         <div class="brand-row">
-          <a class="brand" href="#top" aria-label="Puerto Cancún Center">
+          <a class="brand" href="/" aria-label="Puerto Cancún Center">
             <span class="brand-mark" aria-hidden="true">
               <svg viewBox="0 0 72 72" role="img">
                 <circle cx="36" cy="36" r="30"></circle>
@@ -135,7 +135,7 @@
         <section class="hero home-only" id="buscar">
           <div class="hero-content">
             <p class="hero-kicker" data-i18n="heroKicker">Propiedades de lujo en Cancun</p>
-            <h1 data-i18n="heroTitle">Compra o vende tu propiedad en Cancun con estrategia, datos e inteligencia artificial</h1>
+            <h1 data-i18n="heroTitle">Compra o vende tu propiedad en Cancun</h1>
             <p class="hero-subtitle" data-i18n="heroSubtitle">
               Te ayudamos a validar precios, preparar tu propiedad, encontrar compradores reales y tomar mejores
               decisiones inmobiliarias en Cancun.
@@ -265,11 +265,11 @@
         <section class="resource-section home-only">
           <div class="content-wrap">
             <div class="center-heading">
-              <h2 data-i18n="aiResourcesTitle">Recursos de IA para comprar o vender en Cancun</h2>
+              <h2 data-i18n="aiResourcesTitle">Compra, vende o valora con Puerto Cancun Center</h2>
             </div>
             <div class="resource-grid">
-              <a href="/prompts-inmobiliarios-cancun" data-i18n="resourcePrompts">Prompts inmobiliarios</a>
-              <a href="/vender-casa-cancun" data-i18n="resourceSellGuide">Guia para vender casa en Cancun</a>
+              <a href="#properties" data-filter="all" data-i18n="resourceProperties">Ver propiedades disponibles</a>
+              <a href="/vender-casa-cancun" data-i18n="resourceSellHere">Vender mi propiedad aqui</a>
               <a href="/comprar-casa-cancun" data-i18n="resourceBuyGuide">Guia para comprar casa en Cancun</a>
               <a href="/valuacion-inmobiliaria-cancun" data-i18n="resourceValuation">Valoracion inmobiliaria</a>
               <a href="/faq-inmobiliario-cancun" data-i18n="resourceFaq">Preguntas frecuentes</a>
@@ -547,7 +547,7 @@
       <footer class="footer">
         <div class="content-wrap footer-grid">
           <div class="footer-brand">
-            <a class="brand footer-logo" href="#top" aria-label="Puerto Cancún Center">
+            <a class="brand footer-logo" href="/" aria-label="Puerto Cancún Center">
               <span class="brand-mark" aria-hidden="true">
                 <svg viewBox="0 0 72 72" role="img">
                   <circle cx="36" cy="36" r="30"></circle>
@@ -581,9 +581,8 @@
           <div>
             <h3 data-i18n="footerSell">Asesoria de venta</h3>
             <button type="button" id="footerSellButton" data-i18n="saleProperty">Venta de propiedad</button>
-            <a href="/vender-casa-cancun" data-i18n="resourceSellGuide">Guia para vender casa en Cancun</a>
+            <a href="/vender-casa-cancun" data-i18n="resourceSellHere">Vender mi propiedad aqui</a>
             <a href="/valuacion-inmobiliaria-cancun" data-i18n="resourceValuation">Valoracion inmobiliaria</a>
-            <a href="/prompts-inmobiliarios-cancun" data-i18n="resourcePrompts">Prompts inmobiliarios</a>
             <a href="/faq-inmobiliario-cancun" data-i18n="resourceFaq">Preguntas frecuentes</a>
           </div>
           <div>
@@ -761,9 +760,24 @@
               <i data-lucide="plus"></i>
               <span data-i18n="adminJumpNew">Nueva propiedad</span>
             </button>
+            <button class="ghost-button" type="button" data-admin-jump="adminPromptsCard">
+              <i data-lucide="message-circle"></i>
+              <span data-i18n="adminJumpPrompts">Herramientas IA</span>
+            </button>
           </div>
         </div>
         <div class="admin-insights" id="adminInsights"></div>
+        <article class="panel-card admin-prompts-card" id="adminPromptsCard">
+          <div class="admin-prompts-heading">
+            <div>
+              <h2 data-i18n="adminPromptLibraryTitle">Herramientas IA internas para publicaciones y asesorias</h2>
+              <p data-i18n="adminPromptLibraryCopy">
+                Usa estos textos como apoyo interno para valorar, redactar y revisar propiedades antes de publicar. No son una seccion publica.
+              </p>
+            </div>
+          </div>
+          <div class="admin-prompt-grid" id="adminPromptList"></div>
+        </article>
         <div class="dashboard-grid admin-layout">
           <article class="panel-card admin-requests-card" id="adminRequestsCard">
             <h2 data-i18n="adminRequestsTitle">Solicitudes de vendedores</h2>
