@@ -26,6 +26,7 @@
       content="Inmobiliaria en Cancun para comprar, vender, valorar e invertir con criterio local e IA bien utilizada."
     />
     <meta name="twitter:image" content="https://puerto-cancun.seenode.app/og-puerto-cancun-center.svg" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -134,7 +135,6 @@
         <!-- SEO_PAGE_CONTENT -->
         <section class="hero home-only" id="buscar">
           <div class="hero-content">
-            <p class="hero-kicker" data-i18n="heroKicker">Propiedades de lujo en Cancun</p>
             <h1 data-i18n="heroTitle">Compra o vende tu propiedad en Cancun</h1>
             <p class="hero-subtitle" data-i18n="heroSubtitle">
               Te ayudamos a validar precios, preparar tu propiedad, encontrar compradores reales y tomar mejores
@@ -267,11 +267,26 @@
               <h2 data-i18n="aiResourcesTitle">Compra, vende o valora con Puerto Cancun Center</h2>
             </div>
             <div class="resource-grid">
-              <a href="#properties" data-filter="all" data-i18n="resourceProperties">Ver propiedades disponibles</a>
-              <a href="/vender-casa-cancun" data-i18n="resourceSellHere">Vender mi propiedad aqui</a>
-              <a href="/comprar-casa-cancun" data-i18n="resourceBuyGuide">Guia para comprar casa en Cancun</a>
-              <a href="/valuacion-inmobiliaria-cancun" data-i18n="resourceValuation">Valoracion inmobiliaria</a>
-              <a href="/faq-inmobiliario-cancun" data-i18n="resourceFaq">Preguntas frecuentes</a>
+              <a href="#properties" data-filter="all">
+                <i data-lucide="home"></i>
+                <span data-i18n="resourceProperties">Ver propiedades disponibles</span>
+              </a>
+              <a href="/vender-casa-cancun">
+                <i data-lucide="badge-dollar-sign"></i>
+                <span data-i18n="resourceSellHere">Vender mi propiedad aqui</span>
+              </a>
+              <a href="/comprar-casa-cancun">
+                <i data-lucide="book-open"></i>
+                <span data-i18n="resourceBuyGuide">Guia para comprar casa en Cancun</span>
+              </a>
+              <a href="/valuacion-inmobiliaria-cancun">
+                <i data-lucide="calculator"></i>
+                <span data-i18n="resourceValuation">Valoracion inmobiliaria</span>
+              </a>
+              <a href="/faq-inmobiliario-cancun">
+                <i data-lucide="circle-help"></i>
+                <span data-i18n="resourceFaq">Preguntas frecuentes</span>
+              </a>
             </div>
           </div>
         </section>
@@ -704,6 +719,45 @@
                   <input name="address" required />
                 </label>
               </div>
+              <div class="map-picker" data-map-picker>
+                <div class="map-picker-copy">
+                  <div>
+                    <h3 data-i18n="mapPickerTitle">Ubicacion en mapa</h3>
+                    <p data-i18n="mapPickerCopy">Selecciona o confirma la ubicacion aproximada del inmueble.</p>
+                  </div>
+                  <div class="map-actions">
+                    <button class="ghost-button" type="button" data-use-current-location>
+                      <i data-lucide="crosshair"></i>
+                      <span data-i18n="useCurrentLocation">Usar mi ubicacion</span>
+                    </button>
+                    <a class="ghost-button" href="https://www.google.com/maps/search/?api=1&query=Cancun%2C%20Quintana%20Roo" target="_blank" rel="noopener" data-open-map>
+                      <i data-lucide="map"></i>
+                      <span data-i18n="openGoogleMaps">Abrir Google Maps</span>
+                    </a>
+                  </div>
+                </div>
+                <iframe
+                  title="Google Maps"
+                  loading="lazy"
+                  referrerpolicy="no-referrer-when-downgrade"
+                  data-map-frame
+                  src="https://www.google.com/maps?q=Cancun%2C%20Quintana%20Roo&output=embed"
+                ></iframe>
+                <div class="form-row coordinate-row">
+                  <label>
+                    <span data-i18n="latitudeField">Latitud</span>
+                    <input name="latitude" type="number" step="any" min="-90" max="90" data-map-lat />
+                  </label>
+                  <label>
+                    <span data-i18n="longitudeField">Longitud</span>
+                    <input name="longitude" type="number" step="any" min="-180" max="180" data-map-lng />
+                  </label>
+                </div>
+                <input name="mapPlace" type="hidden" data-map-place />
+                <p class="map-help" data-i18n="mapPickerHelp">
+                  Si no ves el mapa interactivo, escribe la direccion o pega coordenadas; al guardar quedaran vinculadas a la solicitud.
+                </p>
+              </div>
               <div class="form-row">
                 <label>
                   <span data-i18n="bedrooms">Recamaras</span>
@@ -744,6 +798,16 @@
             <div class="request-list" id="sellerRequests"></div>
           </article>
         </div>
+        <article class="panel-card seller-help-card">
+          <div>
+            <h2 data-i18n="sellerHelpTitle">Necesitas asesoria para llenar el formulario?</h2>
+            <p data-i18n="sellerHelpCopy">Un asesor puede ayudarte a preparar la informacion, fotos y ubicacion antes de enviar la solicitud.</p>
+          </div>
+          <button class="primary-button" type="button" data-seller-help>
+            <i data-lucide="message-circle"></i>
+            <span data-i18n="sellerHelpCta">Solicitar guia por WhatsApp</span>
+          </button>
+        </article>
       </section>
 
       <section class="dashboard" id="adminPanel" hidden>
@@ -892,6 +956,45 @@
                 <span data-i18n="address">Direccion</span>
                 <input name="address" />
               </label>
+              <div class="map-picker" data-map-picker>
+                <div class="map-picker-copy">
+                  <div>
+                    <h3 data-i18n="mapPickerTitle">Ubicacion en mapa</h3>
+                    <p data-i18n="mapPickerCopy">Selecciona o confirma la ubicacion aproximada del inmueble.</p>
+                  </div>
+                  <div class="map-actions">
+                    <button class="ghost-button" type="button" data-use-current-location>
+                      <i data-lucide="crosshair"></i>
+                      <span data-i18n="useCurrentLocation">Usar mi ubicacion</span>
+                    </button>
+                    <a class="ghost-button" href="https://www.google.com/maps/search/?api=1&query=Cancun%2C%20Quintana%20Roo" target="_blank" rel="noopener" data-open-map>
+                      <i data-lucide="map"></i>
+                      <span data-i18n="openGoogleMaps">Abrir Google Maps</span>
+                    </a>
+                  </div>
+                </div>
+                <iframe
+                  title="Google Maps"
+                  loading="lazy"
+                  referrerpolicy="no-referrer-when-downgrade"
+                  data-map-frame
+                  src="https://www.google.com/maps?q=Cancun%2C%20Quintana%20Roo&output=embed"
+                ></iframe>
+                <div class="form-row coordinate-row">
+                  <label>
+                    <span data-i18n="latitudeField">Latitud</span>
+                    <input name="latitude" type="number" step="any" min="-90" max="90" data-map-lat />
+                  </label>
+                  <label>
+                    <span data-i18n="longitudeField">Longitud</span>
+                    <input name="longitude" type="number" step="any" min="-180" max="180" data-map-lng />
+                  </label>
+                </div>
+                <input name="mapPlace" type="hidden" data-map-place />
+                <p class="map-help" data-i18n="mapPickerHelp">
+                  Si no ves el mapa interactivo, escribe la direccion o pega coordenadas; al guardar quedaran vinculadas a la publicacion.
+                </p>
+              </div>
               <label class="file-field">
                 <span data-i18n="imageUpload">Imagenes de la propiedad</span>
                 <input name="imageFile" type="file" accept="image/jpeg,image/jpg,image/png,image/webp" multiple />
@@ -951,6 +1054,11 @@
         <div class="modal-tabs" role="tablist">
           <button class="active" type="button" data-auth-tab="login" data-i18n="navLogin">Iniciar sesion</button>
           <button type="button" data-auth-tab="register" data-i18n="createAccount">Crear cuenta</button>
+        </div>
+        <div class="google-auth-box" id="googleAuthBox" hidden>
+          <p data-i18n="googleAuthCopy">Tambien puedes entrar con tu cuenta de Google.</p>
+          <div id="googleSignInButton"></div>
+          <p class="form-message" id="googleAuthMessage"></p>
         </div>
         <form id="loginForm" class="auth-form active">
           <label>

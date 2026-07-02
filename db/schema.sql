@@ -6,6 +6,8 @@ CREATE TABLE IF NOT EXISTS seller_accounts (
   phone TEXT NOT NULL,
   preferred_contact TEXT NOT NULL CHECK (preferred_contact IN ('email', 'phone')),
   password_hash TEXT NOT NULL,
+  google_sub TEXT UNIQUE,
+  auth_provider TEXT NOT NULL DEFAULT 'password',
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
@@ -22,6 +24,9 @@ CREATE TABLE IF NOT EXISTS seller_requests (
   city TEXT NOT NULL DEFAULT 'Cancun',
   zone TEXT NOT NULL,
   neighborhood TEXT,
+  latitude NUMERIC,
+  longitude NUMERIC,
+  map_place TEXT,
   price NUMERIC NOT NULL,
   currency TEXT NOT NULL CHECK (currency IN ('USD', 'MXN')),
   address TEXT NOT NULL,
@@ -46,6 +51,9 @@ CREATE TABLE IF NOT EXISTS properties (
   zone TEXT NOT NULL,
   neighborhood TEXT,
   address TEXT,
+  latitude NUMERIC,
+  longitude NUMERIC,
+  map_place TEXT,
   operation TEXT NOT NULL CHECK (operation IN ('sale', 'rent')),
   price_usd NUMERIC,
   price_mxn NUMERIC,

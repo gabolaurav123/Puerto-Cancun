@@ -15,9 +15,17 @@ const fallbackImage =
 const fallbackIcons = {
   "arrow-left": '<path d="M19 12H5"></path><path d="m12 19-7-7 7-7"></path>',
   "arrow-right": '<path d="M5 12h14"></path><path d="m12 5 7 7-7 7"></path>',
+  "badge-dollar-sign":
+    '<path d="M3.85 8.62a4 4 0 0 1 4.78-4.77 4 4 0 0 1 6.74 0 4 4 0 0 1 4.78 4.77 4 4 0 0 1 0 6.76 4 4 0 0 1-4.78 4.77 4 4 0 0 1-6.74 0 4 4 0 0 1-4.78-4.77 4 4 0 0 1 0-6.76Z"></path><path d="M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8"></path><path d="M12 18V6"></path>',
+  "book-open": '<path d="M12 7v14"></path><path d="M3 18a1 1 0 0 1 1-1h5a3 3 0 0 1 3 3 3 3 0 0 1 3-3h5a1 1 0 0 1 1 1V5a1 1 0 0 0-1-1h-5a3 3 0 0 0-3 3 3 3 0 0 0-3-3H4a1 1 0 0 0-1 1Z"></path>',
+  calculator:
+    '<rect width="16" height="20" x="4" y="2" rx="2"></rect><line x1="8" x2="16" y1="6" y2="6"></line><line x1="16" x2="16" y1="14" y2="18"></line><path d="M8 10h.01M12 10h.01M16 10h.01M8 14h.01M12 14h.01M8 18h.01M12 18h.01"></path>',
+  "circle-help": '<circle cx="12" cy="12" r="10"></circle><path d="M9.1 9a3 3 0 1 1 5.8 1c0 2-3 2-3 4"></path><path d="M12 17h.01"></path>',
+  crosshair: '<circle cx="12" cy="12" r="10"></circle><line x1="22" x2="18" y1="12" y2="12"></line><line x1="6" x2="2" y1="12" y2="12"></line><line x1="12" x2="12" y1="6" y2="2"></line><line x1="12" x2="12" y1="22" y2="18"></line>',
   home: '<path d="m3 11 9-8 9 8"></path><path d="M5 10v10h14V10"></path><path d="M9 20v-6h6v6"></path>',
   "log-out": '<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><path d="M16 17l5-5-5-5"></path><path d="M21 12H9"></path>',
   "map-pin": '<path d="M20 10c0 5-8 11-8 11S4 15 4 10a8 8 0 1 1 16 0Z"></path><circle cx="12" cy="10" r="3"></circle>',
+  map: '<polygon points="3 6 9 3 15 6 21 3 21 18 15 21 9 18 3 21"></polygon><line x1="9" x2="9" y1="3" y2="18"></line><line x1="15" x2="15" y1="6" y2="21"></line>',
   menu: '<path d="M4 6h16"></path><path d="M4 12h16"></path><path d="M4 18h16"></path>',
   "message-circle":
     '<path d="M21 11.5a8.4 8.4 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.4 8.4 0 0 1-3.8-.9L3 21l1.9-5.7a8.4 8.4 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.4 8.4 0 0 1 3.8-.9h.5a8.5 8.5 0 0 1 8 8v.5Z"></path>',
@@ -80,7 +88,7 @@ const translations = {
       "Te ayudamos a encontrar propiedades según tu presupuesto, zona, estilo de vida y objetivo de inversión.",
     valuationRequest: "Solicitar valoración",
     searchProperty: "Buscar propiedad",
-    aiResourcesTitle: "Compra, vende o valora con Puerto Cancún Center",
+    aiResourcesTitle: "Compra o vende tu propiedad en Cancún",
     resourceProperties: "Ver propiedades disponibles",
     resourceSellHere: "Vender mi propiedad aquí",
     resourceBuyGuide: "Guía para comprar casa en Cancún",
@@ -140,6 +148,9 @@ const translations = {
     sellerGuideTitle: "Guia rapida para vender",
     sellerGuideCopy:
       "Completa los datos principales, agrega una imagen clara y deja un mensaje para que el equipo pueda pedirte mas informacion antes de publicar.",
+    sellerHelpTitle: "Necesitas asesoria para llenar el formulario?",
+    sellerHelpCopy: "Un asesor puede ayudarte a preparar la informacion, fotos y ubicacion antes de enviar la solicitud.",
+    sellerHelpCta: "Solicitar guia por WhatsApp",
     sellerContactTitle: "Datos de contacto para esta solicitud",
     propertyTitle: "Título de la propiedad",
     propertyType: "Tipo de propiedad",
@@ -150,6 +161,16 @@ const translations = {
     price: "Precio",
     currency: "Moneda",
     address: "Dirección",
+    mapPickerTitle: "Ubicacion en mapa",
+    mapPickerCopy: "Selecciona o confirma la ubicacion aproximada del inmueble.",
+    mapPickerHelp:
+      "Si no ves el mapa interactivo, escribe la direccion o pega coordenadas; al guardar quedaran vinculadas a la propiedad.",
+    useCurrentLocation: "Usar mi ubicacion",
+    openGoogleMaps: "Abrir Google Maps",
+    latitudeField: "Latitud",
+    longitudeField: "Longitud",
+    locationDetected: "Ubicacion detectada. Revisa el mapa antes de guardar.",
+    locationUnavailable: "No se pudo obtener tu ubicacion. Puedes escribir las coordenadas manualmente.",
     bedrooms: "Recámaras",
     bathrooms: "Baños",
     area: "M2 construcción",
@@ -181,6 +202,9 @@ const translations = {
     emailOrUser: "Correo o usuario",
     password: "Contraseña",
     noAccount: "No tienes cuenta? Crear una cuenta para vender",
+    googleAuthCopy: "Tambien puedes entrar con tu cuenta de Google.",
+    googleLoginUnavailable: "Configura GOOGLE_CLIENT_ID para activar el acceso con Google.",
+    googleLoginError: "No se pudo iniciar sesion con Google.",
     firstName: "Nombre",
     lastName: "Apellido",
     email: "Dirección de correo",
@@ -332,7 +356,7 @@ const translations = {
     buyerAudienceCopy: "We help find properties by budget, area, lifestyle, and investment objective.",
     valuationRequest: "Request valuation",
     searchProperty: "Search property",
-    aiResourcesTitle: "Buy, sell, or value with Puerto Cancun Center",
+    aiResourcesTitle: "Buy or sell your property in Cancun",
     resourceProperties: "View available properties",
     resourceSellHere: "Sell my property here",
     resourceBuyGuide: "Guide to buying a home in Cancun",
@@ -391,6 +415,9 @@ const translations = {
     sellerGuideTitle: "Quick selling guide",
     sellerGuideCopy:
       "Complete the key details, add a clear image, and leave a message so the team can request more information before publishing.",
+    sellerHelpTitle: "Need help filling out the form?",
+    sellerHelpCopy: "An advisor can help prepare the information, photos, and location before you submit the request.",
+    sellerHelpCta: "Request WhatsApp guidance",
     sellerContactTitle: "Contact details for this request",
     propertyTitle: "Property title",
     propertyType: "Property type",
@@ -401,6 +428,15 @@ const translations = {
     price: "Price",
     currency: "Currency",
     address: "Address",
+    mapPickerTitle: "Map location",
+    mapPickerCopy: "Select or confirm the approximate property location.",
+    mapPickerHelp: "If the interactive map is unavailable, type the address or paste coordinates; they will be saved with the property.",
+    useCurrentLocation: "Use my location",
+    openGoogleMaps: "Open Google Maps",
+    latitudeField: "Latitude",
+    longitudeField: "Longitude",
+    locationDetected: "Location detected. Review the map before saving.",
+    locationUnavailable: "Could not get your location. You can enter coordinates manually.",
     bedrooms: "Bedrooms",
     bathrooms: "Bathrooms",
     area: "Built m2",
@@ -432,6 +468,9 @@ const translations = {
     emailOrUser: "Email or user",
     password: "Password",
     noAccount: "No account? Create a seller account",
+    googleAuthCopy: "You can also continue with your Google account.",
+    googleLoginUnavailable: "Set GOOGLE_CLIENT_ID to enable Google sign-in.",
+    googleLoginError: "Could not sign in with Google.",
     firstName: "First name",
     lastName: "Last name",
     email: "Email address",
@@ -541,6 +580,8 @@ const state = {
   requests: [],
   adminPrompts: [],
   locationOptions: [],
+  config: { googleClientId: "", googleMapsApiKey: "" },
+  googleReady: false,
   stats: { properties: 0, pendingRequests: 0, users: 0, visits: 0, searches: 0 },
   filters: {
     text: "",
@@ -554,6 +595,8 @@ const state = {
 
 const $ = (selector) => document.querySelector(selector);
 const $$ = (selector) => Array.from(document.querySelectorAll(selector));
+const googleMapInstances = new WeakMap();
+let lastScrollY = 0;
 
 function t(key) {
   return translations[state.lang][key] || translations.es[key] || key;
@@ -654,6 +697,145 @@ function handleLocationSelectChange(select) {
   if (currentIndex < 0) return;
   LOCATION_FIELD_ORDER.slice(currentIndex + 1).forEach((name) => {
     fillLocationSelect(form.elements[name], "", { preserveUnknown: false });
+  });
+  updateMapPickerForForm(form);
+}
+
+function scriptOnce(src, id) {
+  return new Promise((resolve, reject) => {
+    const existing = document.getElementById(id);
+    if (existing) {
+      if (existing.dataset.loaded === "true") resolve();
+      else existing.addEventListener("load", () => resolve(), { once: true });
+      return;
+    }
+    const script = document.createElement("script");
+    script.id = id;
+    script.src = src;
+    script.async = true;
+    script.defer = true;
+    script.onload = () => {
+      script.dataset.loaded = "true";
+      resolve();
+    };
+    script.onerror = () => reject(new Error(t("apiError")));
+    document.head.append(script);
+  });
+}
+
+function mapQueryFromForm(form) {
+  if (!form) return "Cancun, Quintana Roo";
+  const latitude = form.elements.latitude?.value;
+  const longitude = form.elements.longitude?.value;
+  if (latitude && longitude) return `${latitude},${longitude}`;
+  const parts = [
+    form.elements.address?.value,
+    form.elements.neighborhood?.value,
+    form.elements.zone?.value,
+    form.elements.city?.value,
+    form.elements.state?.value,
+  ].filter(Boolean);
+  return parts.join(", ") || "Cancun, Quintana Roo";
+}
+
+function updateMapPicker(picker) {
+  if (!picker) return;
+  const form = picker.closest("form");
+  const query = mapQueryFromForm(form);
+  const encoded = encodeURIComponent(query);
+  const frame = picker.querySelector("[data-map-frame]");
+  const openLink = picker.querySelector("[data-open-map]");
+  const placeInput = picker.querySelector("[data-map-place]");
+  if (frame) frame.src = `https://www.google.com/maps?q=${encoded}&output=embed`;
+  if (openLink) openLink.href = `https://www.google.com/maps/search/?api=1&query=${encoded}`;
+  if (placeInput) placeInput.value = query;
+
+  const instance = googleMapInstances.get(picker);
+  if (instance && form?.elements.latitude?.value && form?.elements.longitude?.value) {
+    const center = {
+      lat: Number(form.elements.latitude.value),
+      lng: Number(form.elements.longitude.value),
+    };
+    instance.map.setCenter(center);
+    instance.marker.setPosition(center);
+  }
+}
+
+function updateMapPickerForForm(form) {
+  const picker = form?.querySelector("[data-map-picker]");
+  if (picker) updateMapPicker(picker);
+}
+
+function setMapCoordinates(picker, latitude, longitude, messageKey = "") {
+  const form = picker.closest("form");
+  if (!form) return;
+  form.elements.latitude.value = Number(latitude).toFixed(6);
+  form.elements.longitude.value = Number(longitude).toFixed(6);
+  updateMapPicker(picker);
+  const message = form.querySelector(".form-message");
+  if (message && messageKey) setFormMessage(message, t(messageKey));
+}
+
+async function initializeGoogleMaps() {
+  if (!state.config.googleMapsApiKey || window.google?.maps) return;
+  await scriptOnce(
+    `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(state.config.googleMapsApiKey)}`,
+    "googleMapsScript"
+  );
+}
+
+async function enhanceMapPicker(picker) {
+  if (!state.config.googleMapsApiKey || googleMapInstances.has(picker)) return;
+  await initializeGoogleMaps();
+  if (!window.google?.maps) return;
+  const form = picker.closest("form");
+  const latitude = Number(form?.elements.latitude?.value || 21.1619);
+  const longitude = Number(form?.elements.longitude?.value || -86.8515);
+  const center = { lat: latitude, lng: longitude };
+  const canvas = document.createElement("div");
+  canvas.className = "google-map-canvas";
+  picker.querySelector("[data-map-frame]")?.before(canvas);
+  const map = new google.maps.Map(canvas, {
+    center,
+    zoom: 13,
+    mapTypeControl: false,
+    streetViewControl: false,
+    fullscreenControl: false,
+  });
+  const marker = new google.maps.Marker({ map, position: center });
+  map.addListener("click", (event) => {
+    marker.setPosition(event.latLng);
+    setMapCoordinates(picker, event.latLng.lat(), event.latLng.lng());
+  });
+  googleMapInstances.set(picker, { map, marker });
+  picker.classList.add("has-google-map");
+}
+
+function bindMapPickers() {
+  $$("[data-map-picker]").forEach((picker) => {
+    if (picker.dataset.bound === "true") {
+      updateMapPicker(picker);
+      return;
+    }
+    picker.dataset.bound = "true";
+    const form = picker.closest("form");
+    ["address", "state", "city", "zone", "neighborhood", "latitude", "longitude"].forEach((name) => {
+      form?.elements[name]?.addEventListener("input", () => updateMapPicker(picker));
+      form?.elements[name]?.addEventListener("change", () => updateMapPicker(picker));
+    });
+    picker.querySelector("[data-use-current-location]")?.addEventListener("click", () => {
+      if (!navigator.geolocation) {
+        setFormMessage(form.querySelector(".form-message"), t("locationUnavailable"), true);
+        return;
+      }
+      navigator.geolocation.getCurrentPosition(
+        (position) => setMapCoordinates(picker, position.coords.latitude, position.coords.longitude, "locationDetected"),
+        () => setFormMessage(form.querySelector(".form-message"), t("locationUnavailable"), true),
+        { enableHighAccuracy: true, timeout: 9000 }
+      );
+    });
+    updateMapPicker(picker);
+    void enhanceMapPicker(picker).catch(() => null);
   });
 }
 
@@ -889,6 +1071,7 @@ function propertyMatches(property) {
       property.zone,
       property.neighborhood,
       property.address,
+      property.mapPlace,
       property.type,
       property.mls,
     ]
@@ -1344,14 +1527,16 @@ function renderAdminListings() {
 }
 
 async function loadPublicData() {
-  const [propertiesData, sessionData, locationData] = await Promise.all([
+  const [propertiesData, sessionData, locationData, configData] = await Promise.all([
     api("/api/properties"),
     api("/api/session"),
     api("/api/location-options"),
+    api("/api/config"),
   ]);
   state.properties = propertiesData.properties || [];
   state.session = sessionData.user;
   state.locationOptions = locationData.options || [];
+  state.config = configData || state.config;
 }
 
 async function loadPanelData() {
@@ -1404,6 +1589,7 @@ async function renderPanel() {
     prepareSellerForm();
     renderSellerRequests();
   }
+  bindMapPickers();
   refreshIcons();
 }
 
@@ -1415,6 +1601,18 @@ function updateAuthNav() {
     return;
   }
   loginButton.textContent = state.session.role === "admin" ? t("adminPanelShort") : t("sellerPanelShort");
+}
+
+function updateHeaderVisibility() {
+  const header = $("#mainHeader");
+  if (!header || document.body.classList.contains("panel-open")) return;
+  const current = window.scrollY || 0;
+  const atTop = current < 24;
+  const scrollingDown = current > lastScrollY;
+  header.classList.toggle("is-sticky", !atTop);
+  header.classList.toggle("is-hidden", !atTop && scrollingDown && current > 220 && !$("#mainNav").classList.contains("open"));
+  document.body.classList.toggle("at-top", atTop);
+  lastScrollY = current;
 }
 
 function applyTranslations() {
@@ -1430,6 +1628,7 @@ function applyTranslations() {
   refreshLocationSelects();
   renderCatalogParentOptions();
   renderLocationCatalogs();
+  bindMapPickers();
   updateAuthNav();
   renderProperties();
   if (state.detailPropertyId) {
@@ -1459,6 +1658,9 @@ function openAuth(tab = "login") {
   $("#authModal").hidden = false;
   document.body.classList.add("modal-open");
   switchAuthTab(tab);
+  void initializeGoogleAuth().catch(() => {
+    setFormMessage($("#googleAuthMessage"), t("googleLoginUnavailable"), true);
+  });
 }
 
 function closeAuth() {
@@ -1466,8 +1668,10 @@ function closeAuth() {
   document.body.classList.remove("modal-open");
   $("#loginMessage").textContent = "";
   $("#registerMessage").textContent = "";
+  $("#googleAuthMessage").textContent = "";
   $("#loginMessage").classList.remove("error");
   $("#registerMessage").classList.remove("error");
+  $("#googleAuthMessage").classList.remove("error");
 }
 
 function switchAuthTab(tab) {
@@ -1477,6 +1681,48 @@ function switchAuthTab(tab) {
   $$(".auth-form").forEach((form) => {
     form.classList.toggle("active", form.id === `${tab}Form`);
   });
+}
+
+async function handleGoogleCredential(response) {
+  const message = $("#googleAuthMessage");
+  setFormMessage(message, "");
+  try {
+    const data = await api("/api/auth/google", {
+      method: "POST",
+      body: { credential: response.credential },
+    });
+    state.session = data.user;
+    closeAuth();
+    updateAuthNav();
+    await showPanel();
+  } catch (error) {
+    setFormMessage(message, t("googleLoginError"), true);
+  }
+}
+
+async function initializeGoogleAuth() {
+  const box = $("#googleAuthBox");
+  const button = $("#googleSignInButton");
+  if (!box || !button) return;
+  if (!state.config.googleClientId) {
+    box.hidden = true;
+    return;
+  }
+  box.hidden = false;
+  if (state.googleReady) return;
+  await scriptOnce("https://accounts.google.com/gsi/client", "googleIdentityScript");
+  if (!window.google?.accounts?.id) return;
+  window.google.accounts.id.initialize({
+    client_id: state.config.googleClientId,
+    callback: handleGoogleCredential,
+  });
+  window.google.accounts.id.renderButton(button, {
+    theme: "outline",
+    size: "large",
+    width: Math.min(360, button.clientWidth || 320),
+    text: "continue_with",
+  });
+  state.googleReady = true;
 }
 
 async function showPanel() {
@@ -1493,6 +1739,7 @@ function hidePanel() {
   document.body.classList.remove("panel-open");
   updateAuthNav();
   window.scrollTo({ top: 0, behavior: "auto" });
+  updateHeaderVisibility();
 }
 
 function setFormMessage(element, text, error = false) {
@@ -1571,6 +1818,7 @@ async function sellerRequestSubmit(event) {
     });
     form.reset();
     refreshLocationSelects();
+    updateMapPickerForForm(form);
     updateSellerImagePreview([]);
     await renderPanel();
     setFormMessage($("#sellerFormMessage"), t("requestSent"));
@@ -1608,6 +1856,7 @@ function resetListingForm() {
   form.dataset.currentImages = "[]";
   form.dataset.removeImage = "false";
   refreshLocationSelects();
+  updateMapPickerForForm(form);
   updateListingImagePreview([]);
   setFormMessage($("#listingFormMessage"), "");
 }
@@ -1704,6 +1953,9 @@ async function listingSubmit(event) {
     zone: form.zone.value,
     neighborhood: form.neighborhood.value,
     address: form.address.value.trim(),
+    latitude: form.latitude.value,
+    longitude: form.longitude.value,
+    mapPlace: form.mapPlace.value,
     operation: form.operation.value,
     priceUsd,
     priceMxn,
@@ -1741,6 +1993,10 @@ function editListing(id) {
   form.priceUsd.value = property.priceUsd || "";
   form.priceMxn.value = property.priceMxn || "";
   form.address.value = property.address || "";
+  form.latitude.value = property.latitude ?? "";
+  form.longitude.value = property.longitude ?? "";
+  form.mapPlace.value = property.mapPlace || "";
+  updateMapPickerForForm(form);
   form.elements.imageFile.value = "";
   form.dataset.currentImages = JSON.stringify(storedImages(property));
   form.dataset.removeImage = "false";
@@ -1960,7 +2216,19 @@ function bindEvents() {
 
   $("#menuToggle").addEventListener("click", () => {
     $("#mainNav").classList.toggle("open");
+    updateHeaderVisibility();
   });
+
+  $$(".brand").forEach((brand) => {
+    brand.addEventListener("click", (event) => {
+      if (document.body.dataset.page !== "home" || !$("#siteShell") || $("#siteShell").hidden) return;
+      event.preventDefault();
+      closeMobileNav();
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    });
+  });
+
+  window.addEventListener("scroll", updateHeaderVisibility, { passive: true });
 
   $("#searchForm").addEventListener("submit", handleSearch);
   $$("[data-lead-form]").forEach((form) => {
@@ -2079,6 +2347,10 @@ function bindEvents() {
     }
   });
 
+  $$("[data-seller-help]").forEach((button) => {
+    button.addEventListener("click", openGeneralWhatsApp);
+  });
+
   $$("[data-admin-jump]").forEach((button) => {
     button.addEventListener("click", () => {
       const target = document.getElementById(button.dataset.adminJump);
@@ -2131,6 +2403,8 @@ async function init() {
     alert(t("apiError"));
   }
   applyTranslations();
+  updateHeaderVisibility();
+  void initializeGoogleAuth().catch(() => null);
 }
 
 init();
