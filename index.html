@@ -126,7 +126,7 @@
 
           <a href="#sell" id="sellNavLink" data-i18n="navSell">Vender</a>
           <button class="login-link" type="button" id="loginOpen" data-i18n="navLogin">Iniciar sesion</button>
-          <a class="phone-link" href="tel:+529986880710">998-688-0710</a>
+          <a class="phone-link" href="tel:+5219982166563">998-216-6563</a>
         </nav>
       </header>
 
@@ -167,8 +167,7 @@
         <section class="contact-strip home-only" aria-label="Contact">
           <h2 data-i18n="contactToday">Contactanos Hoy</h2>
           <div class="contact-numbers">
-            <a href="tel:+529986880710">MEX 998-688-0710</a>
-            <a href="tel:+18174004324">US 817-400-4324</a>
+            <a href="tel:+5219982166563">MEX +52 1 998-216-6563</a>
           </div>
         </section>
 
@@ -390,7 +389,7 @@
             <h2 id="categoryTitle"></h2>
             <p id="categoryIntro"></p>
             <div class="category-actions">
-              <a class="accent-button" href="tel:9986880710">998-688-0710</a>
+              <a class="accent-button" href="tel:+5219982166563">998-216-6563</a>
               <button class="primary-button" type="button" id="categoryInfoButton">
                 <i data-lucide="message-circle"></i>
                 <span data-i18n="requestInfo">Solicitar informacion</span>
@@ -670,15 +669,22 @@
               </div>
               <div class="form-row">
                 <label>
+                  <span data-i18n="stateField">Estado</span>
+                  <select name="state" data-location-select="state" required></select>
+                </label>
+                <label>
+                  <span data-i18n="cityField">Ciudad / municipio</span>
+                  <select name="city" data-location-select="city" required></select>
+                </label>
+              </div>
+              <div class="form-row">
+                <label>
                   <span data-i18n="zone">Zona</span>
-                  <select name="zone" required>
-                    <option>Puerto Cancun</option>
-                    <option>Zona Hotelera</option>
-                    <option>Cancun Centro</option>
-                    <option>Riviera Maya</option>
-                    <option>Punta Sam / Playa Mujeres</option>
-                    <option>Isla Mujeres</option>
-                  </select>
+                  <select name="zone" data-location-select="zone" required></select>
+                </label>
+                <label>
+                  <span data-i18n="neighborhoodField">Colonia / desarrollo</span>
+                  <select name="neighborhood" data-location-select="neighborhood"></select>
                 </label>
                 <label>
                   <span data-i18n="price">Precio</span>
@@ -717,16 +723,16 @@
                 <textarea name="description" rows="5" required></textarea>
               </label>
               <label class="file-field">
-                <span data-i18n="imageUpload">Imagen de la propiedad</span>
-                <input name="imageFile" type="file" accept="image/jpeg,image/jpg,image/png,image/webp" />
-                <small data-i18n="imageHelp">JPG, PNG o WEBP. Maximo 1.5 MB.</small>
+                <span data-i18n="imageUpload">Imagenes de la propiedad</span>
+                <input name="imageFile" type="file" accept="image/jpeg,image/jpg,image/png,image/webp" multiple />
+                <small data-i18n="imageHelp">JPG, PNG o WEBP. Maximo 8 imagenes de 1.5 MB cada una.</small>
               </label>
               <div class="image-preview" id="sellerImagePreview" hidden>
                 <div class="image-preview-header">
-                  <span data-i18n="selectedImage">Imagen seleccionada</span>
-                  <button class="text-button danger" type="button" id="clearSellerImage" data-i18n="removeImage">Quitar imagen</button>
+                  <span data-i18n="selectedImage">Imagenes seleccionadas</span>
+                  <button class="text-button danger" type="button" id="clearSellerImage" data-i18n="removeImage">Quitar imagenes</button>
                 </div>
-                <img alt="Seller property preview" />
+                <div class="image-preview-grid"></div>
               </div>
               <p class="form-message" id="sellerFormMessage"></p>
               <button class="primary-button" type="submit" data-i18n="sendRequest">Enviar solicitud</button>
@@ -756,6 +762,10 @@
               <i data-lucide="home"></i>
               <span data-i18n="adminJumpListings">Publicaciones</span>
             </button>
+            <button class="ghost-button" type="button" data-admin-jump="adminCatalogsCard">
+              <i data-lucide="map-pin"></i>
+              <span data-i18n="adminJumpCatalogs">Catálogos</span>
+            </button>
             <button class="primary-button" type="button" data-admin-jump="listingForm">
               <i data-lucide="plus"></i>
               <span data-i18n="adminJumpNew">Nueva propiedad</span>
@@ -767,6 +777,38 @@
           </div>
         </div>
         <div class="admin-insights" id="adminInsights"></div>
+        <article class="panel-card admin-catalogs-card" id="adminCatalogsCard">
+          <div class="admin-prompts-heading">
+            <div>
+              <h2 data-i18n="locationCatalogTitle">Catálogos de ubicación</h2>
+              <p data-i18n="locationCatalogCopy">
+                Da de alta estados, ciudades, zonas y colonias para registrar direcciones más precisas en cada inmueble.
+              </p>
+            </div>
+          </div>
+          <form id="locationCatalogForm" class="catalog-form">
+            <label>
+              <span data-i18n="catalogType">Tipo</span>
+              <select name="type">
+                <option value="state" data-i18n="catalogState">Estado</option>
+                <option value="city" data-i18n="catalogCity">Ciudad / municipio</option>
+                <option value="zone" data-i18n="catalogZone">Zona</option>
+                <option value="neighborhood" data-i18n="catalogNeighborhood">Colonia / desarrollo</option>
+              </select>
+            </label>
+            <label>
+              <span data-i18n="catalogParent">Pertenece a</span>
+              <select name="parentId"></select>
+            </label>
+            <label>
+              <span data-i18n="catalogName">Nombre</span>
+              <input name="name" required />
+            </label>
+            <button class="primary-button" type="submit" data-i18n="saveCatalog">Guardar catálogo</button>
+          </form>
+          <p class="form-message" id="catalogFormMessage"></p>
+          <div class="location-catalog-list" id="locationCatalogList"></div>
+        </article>
         <article class="panel-card admin-prompts-card" id="adminPromptsCard">
           <div class="admin-prompts-heading">
             <div>
@@ -811,15 +853,22 @@
               </div>
               <div class="form-row">
                 <label>
+                  <span data-i18n="stateField">Estado</span>
+                  <select name="state" data-location-select="state" required></select>
+                </label>
+                <label>
+                  <span data-i18n="cityField">Ciudad / municipio</span>
+                  <select name="city" data-location-select="city" required></select>
+                </label>
+              </div>
+              <div class="form-row">
+                <label>
                   <span data-i18n="zone">Zona</span>
-                  <select name="zone" required>
-                    <option>Puerto Cancun</option>
-                    <option>Zona Hotelera</option>
-                    <option>Cancun Centro</option>
-                    <option>Riviera Maya</option>
-                    <option>Punta Sam / Playa Mujeres</option>
-                    <option>Isla Mujeres</option>
-                  </select>
+                  <select name="zone" data-location-select="zone" required></select>
+                </label>
+                <label>
+                  <span data-i18n="neighborhoodField">Colonia / desarrollo</span>
+                  <select name="neighborhood" data-location-select="neighborhood"></select>
                 </label>
                 <label>
                   <span data-i18n="operation">Operacion</span>
@@ -839,17 +888,21 @@
                   <input name="priceMxn" type="number" min="0" step="1" />
                 </label>
               </div>
+              <label>
+                <span data-i18n="address">Direccion</span>
+                <input name="address" />
+              </label>
               <label class="file-field">
-                <span data-i18n="imageUpload">Imagen de la propiedad</span>
-                <input name="imageFile" type="file" accept="image/jpeg,image/jpg,image/png,image/webp" />
-                <small data-i18n="imageHelp">JPG, PNG o WEBP. Máximo 1.5 MB.</small>
+                <span data-i18n="imageUpload">Imagenes de la propiedad</span>
+                <input name="imageFile" type="file" accept="image/jpeg,image/jpg,image/png,image/webp" multiple />
+                <small data-i18n="imageHelp">JPG, PNG o WEBP. Máximo 8 imagenes de 1.5 MB cada una.</small>
               </label>
               <div class="image-preview" id="listingImagePreview" hidden>
                 <div class="image-preview-header">
                   <span data-i18n="currentImage">Imagen actual</span>
-                  <button class="text-button danger" type="button" id="clearListingImage" data-i18n="removeImage">Quitar imagen</button>
+                  <button class="text-button danger" type="button" id="clearListingImage" data-i18n="removeImage">Quitar imagenes</button>
                 </div>
-                <img alt="Property preview" />
+                <div class="image-preview-grid"></div>
               </div>
               <p class="form-message" id="listingFormMessage"></p>
               <div class="form-row">

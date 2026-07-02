@@ -1,6 +1,6 @@
 # Puerto Cancun Center
 
-Ultima actualizacion: 2026-07-01
+Ultima actualizacion: 2026-07-02
 
 Inmobiliaria en Cancun enfocada en compra, venta, valoracion y asesoria local para propietarios, compradores e inversionistas.
 
@@ -25,8 +25,7 @@ Cancun, Puerto Cancun, Zona Hotelera, Riviera Maya, Playa Mujeres, Quintana Roo
 - Valida una respuesta de IA antes de vender, comprar o negociar: https://puerto-cancun.seenode.app/validar-respuesta-ia
 
 ## Contacto
-Telefono Mexico: +52 998 688 0710
-Telefono US: +1 817 400 4324
+Telefono Mexico y WhatsApp: +52 1 998 216 6563
 Email: PENDIENTE_CONFIGURAR
 
 ## Nota para modelos de lenguaje

@@ -39,6 +39,7 @@ const pool = new Pool({
 });
 
 const IMAGE_MAX_BYTES = 1.5 * 1024 * 1024;
+const IMAGE_MAX_COUNT = 8;
 const IMAGE_TYPES = new Set(["image/jpeg", "image/jpg", "image/png", "image/webp"]);
 const adminUser = (process.env.ADMIN_USER || "admin prueba").trim().toLowerCase();
 const adminPassword = process.env.ADMIN_PASSWORD || "";
@@ -270,17 +271,60 @@ const seedRequests = [
   },
 ];
 
+const seedLocationOptions = [
+  { id: "loc-state-quintana-roo", type: "state", name: "Quintana Roo", parentId: null },
+  { id: "loc-city-cancun", type: "city", name: "Cancun", parentId: "loc-state-quintana-roo" },
+  { id: "loc-city-isla-mujeres", type: "city", name: "Isla Mujeres", parentId: "loc-state-quintana-roo" },
+  { id: "loc-city-playa-del-carmen", type: "city", name: "Playa del Carmen", parentId: "loc-state-quintana-roo" },
+  { id: "loc-zone-puerto-cancun", type: "zone", name: "Puerto Cancun", parentId: "loc-city-cancun" },
+  { id: "loc-zone-zona-hotelera", type: "zone", name: "Zona Hotelera", parentId: "loc-city-cancun" },
+  { id: "loc-zone-cancun-centro", type: "zone", name: "Cancun Centro", parentId: "loc-city-cancun" },
+  { id: "loc-zone-riviera-maya", type: "zone", name: "Riviera Maya", parentId: "loc-city-playa-del-carmen" },
+  { id: "loc-zone-punta-sam", type: "zone", name: "Punta Sam / Playa Mujeres", parentId: "loc-city-isla-mujeres" },
+  { id: "loc-zone-isla-mujeres", type: "zone", name: "Isla Mujeres", parentId: "loc-city-isla-mujeres" },
+  { id: "loc-col-puerto-cancun", type: "neighborhood", name: "Puerto Cancun", parentId: "loc-zone-puerto-cancun" },
+  { id: "loc-col-novo-cancun", type: "neighborhood", name: "Novo Cancun", parentId: "loc-zone-puerto-cancun" },
+  { id: "loc-col-marina", type: "neighborhood", name: "Marina Puerto Cancun", parentId: "loc-zone-puerto-cancun" },
+  { id: "loc-col-km-9", type: "neighborhood", name: "Zona Hotelera Km 9", parentId: "loc-zone-zona-hotelera" },
+  { id: "loc-col-la-amada", type: "neighborhood", name: "La Amada", parentId: "loc-zone-punta-sam" },
+];
+
 function uuid(prefix) {
   return `${prefix}-${crypto.randomUUID()}`;
 }
 
+function safeJsonArray(value) {
+  if (Array.isArray(value)) return value;
+  if (!value) return [];
+  if (typeof value === "string") {
+    try {
+      const parsed = JSON.parse(value);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  }
+  return [];
+}
+
+function mergeLegacyImages(images, image) {
+  const list = safeJsonArray(images).filter(Boolean);
+  if (image && !list.includes(image)) list.unshift(image);
+  return list.slice(0, IMAGE_MAX_COUNT);
+}
+
 function toProperty(row) {
+  const images = mergeLegacyImages(row.images, row.image);
   return {
     id: row.id,
     titleEs: row.title_es,
     titleEn: row.title_en,
     type: row.type,
+    state: row.state || "Quintana Roo",
+    city: row.city || "Cancun",
     zone: row.zone,
+    neighborhood: row.neighborhood || "",
+    address: row.address || "",
     operation: row.operation,
     priceUsd: row.price_usd === null ? null : Number(row.price_usd || 0),
     priceMxn: row.price_mxn === null ? null : Number(row.price_mxn || 0),
@@ -289,7 +333,8 @@ function toProperty(row) {
     area: Number(row.area || 0),
     lot: Number(row.lot || 0),
     mls: row.mls,
-    image: row.image,
+    image: row.image || images[0] || null,
+    images,
     featured: Boolean(row.featured),
     badges: row.badges || [],
     createdAt: row.created_at,
@@ -300,6 +345,7 @@ function toProperty(row) {
 }
 
 function toRequest(row) {
+  const images = mergeLegacyImages(row.images, row.image);
   return {
     id: row.id,
     sellerId: row.seller_id,
@@ -309,7 +355,10 @@ function toRequest(row) {
     preferredContact: row.preferred_contact,
     title: row.title,
     type: row.type,
+    state: row.state || "Quintana Roo",
+    city: row.city || "Cancun",
     zone: row.zone,
+    neighborhood: row.neighborhood || "",
     price: Number(row.price || 0),
     currency: row.currency,
     address: row.address,
@@ -317,10 +366,21 @@ function toRequest(row) {
     baths: Number(row.baths || 0),
     area: Number(row.area || 0),
     description: row.description,
-    image: row.image,
+    image: row.image || images[0] || null,
+    images,
     status: row.status,
     createdAt: row.created_at,
     reviewedAt: row.reviewed_at,
+  };
+}
+
+function toLocationOption(row) {
+  return {
+    id: row.id,
+    type: row.type,
+    name: row.name,
+    parentId: row.parent_id || null,
+    createdAt: row.created_at,
   };
 }
 
@@ -377,7 +437,10 @@ async function initDatabase() {
         preferred_contact TEXT NOT NULL,
         title TEXT NOT NULL,
         type TEXT NOT NULL,
+        state TEXT NOT NULL DEFAULT 'Quintana Roo',
+        city TEXT NOT NULL DEFAULT 'Cancun',
         zone TEXT NOT NULL,
+        neighborhood TEXT,
         price NUMERIC NOT NULL,
         currency TEXT NOT NULL CHECK (currency IN ('USD', 'MXN')),
         address TEXT NOT NULL,
@@ -386,6 +449,7 @@ async function initDatabase() {
         area INTEGER NOT NULL DEFAULT 0,
         description TEXT NOT NULL,
         image TEXT,
+        images JSONB NOT NULL DEFAULT '[]'::jsonb,
         status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'approved', 'rejected')),
         created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
         reviewed_at TIMESTAMPTZ
@@ -397,7 +461,11 @@ async function initDatabase() {
         title_es TEXT NOT NULL,
         title_en TEXT NOT NULL,
         type TEXT NOT NULL,
+        state TEXT NOT NULL DEFAULT 'Quintana Roo',
+        city TEXT NOT NULL DEFAULT 'Cancun',
         zone TEXT NOT NULL,
+        neighborhood TEXT,
+        address TEXT,
         operation TEXT NOT NULL CHECK (operation IN ('sale', 'rent')),
         price_usd NUMERIC,
         price_mxn NUMERIC,
@@ -407,6 +475,7 @@ async function initDatabase() {
         lot INTEGER NOT NULL DEFAULT 0,
         mls TEXT NOT NULL,
         image TEXT,
+        images JSONB NOT NULL DEFAULT '[]'::jsonb,
         featured BOOLEAN NOT NULL DEFAULT FALSE,
         badges JSONB NOT NULL DEFAULT '[]'::jsonb,
         created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -415,9 +484,30 @@ async function initDatabase() {
         source_request_id TEXT UNIQUE
       );
     `);
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS location_options (
+        id TEXT PRIMARY KEY,
+        type TEXT NOT NULL CHECK (type IN ('state', 'city', 'zone', 'neighborhood')),
+        name TEXT NOT NULL,
+        parent_id TEXT REFERENCES location_options(id) ON DELETE SET NULL,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        UNIQUE (type, name, parent_id)
+      );
+    `);
     await client.query("ALTER TABLE properties ADD COLUMN IF NOT EXISTS price_mxn NUMERIC");
     await client.query("ALTER TABLE properties ALTER COLUMN price_usd DROP NOT NULL");
+    await client.query("ALTER TABLE properties ADD COLUMN IF NOT EXISTS state TEXT NOT NULL DEFAULT 'Quintana Roo'");
+    await client.query("ALTER TABLE properties ADD COLUMN IF NOT EXISTS city TEXT NOT NULL DEFAULT 'Cancun'");
+    await client.query("ALTER TABLE properties ADD COLUMN IF NOT EXISTS neighborhood TEXT");
+    await client.query("ALTER TABLE properties ADD COLUMN IF NOT EXISTS address TEXT");
+    await client.query("ALTER TABLE properties ADD COLUMN IF NOT EXISTS images JSONB NOT NULL DEFAULT '[]'::jsonb");
+    await client.query("UPDATE properties SET images = jsonb_build_array(image) WHERE image IS NOT NULL AND images = '[]'::jsonb");
+    await client.query("ALTER TABLE seller_requests ADD COLUMN IF NOT EXISTS state TEXT NOT NULL DEFAULT 'Quintana Roo'");
+    await client.query("ALTER TABLE seller_requests ADD COLUMN IF NOT EXISTS city TEXT NOT NULL DEFAULT 'Cancun'");
+    await client.query("ALTER TABLE seller_requests ADD COLUMN IF NOT EXISTS neighborhood TEXT");
+    await client.query("ALTER TABLE seller_requests ADD COLUMN IF NOT EXISTS images JSONB NOT NULL DEFAULT '[]'::jsonb");
     await client.query("ALTER TABLE seller_requests ADD COLUMN IF NOT EXISTS image TEXT");
+    await client.query("UPDATE seller_requests SET images = jsonb_build_array(image) WHERE image IS NOT NULL AND images = '[]'::jsonb");
     await client.query(`
       CREATE TABLE IF NOT EXISTS app_metrics (
         id INTEGER PRIMARY KEY CHECK (id = 1),
@@ -443,21 +533,33 @@ async function initDatabase() {
       VALUES (1, 0, 0)
       ON CONFLICT (id) DO NOTHING;
     `);
+    for (const option of seedLocationOptions) {
+      await client.query(
+        `INSERT INTO location_options (id, type, name, parent_id)
+         VALUES ($1, $2, $3, $4)
+         ON CONFLICT (id) DO NOTHING`,
+        [option.id, option.type, option.name, option.parentId]
+      );
+    }
 
     const propertiesCount = await client.query("SELECT COUNT(*)::int AS count FROM properties");
     if (propertiesCount.rows[0].count === 0) {
       for (const property of seedProperties) {
         await client.query(
           `INSERT INTO properties
-            (id, title_es, title_en, type, zone, operation, price_usd, price_mxn, beds, baths, area, lot, mls, image, featured, badges, created_at, description_es, description_en)
+            (id, title_es, title_en, type, state, city, zone, neighborhood, address, operation, price_usd, price_mxn, beds, baths, area, lot, mls, image, images, featured, badges, created_at, description_es, description_en)
            VALUES
-            ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16::jsonb, $17, $18, $19)
+            ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19::jsonb, $20, $21::jsonb, $22, $23, $24)
            ON CONFLICT (id) DO NOTHING`,
           [
             property.id,
             property.titleEs,
             property.titleEn,
             property.type,
+            "Quintana Roo",
+            property.zone === "Isla Mujeres" || property.zone === "Punta Sam / Playa Mujeres" ? "Isla Mujeres" : "Cancun",
+            property.zone,
+            "",
             property.zone,
             property.operation,
             property.priceUsd,
@@ -468,6 +570,7 @@ async function initDatabase() {
             property.lot,
             property.mls,
             property.image,
+            JSON.stringify([property.image]),
             property.featured,
             JSON.stringify(property.badges),
             property.createdAt,
@@ -483,9 +586,9 @@ async function initDatabase() {
       for (const request of seedRequests) {
         await client.query(
           `INSERT INTO seller_requests
-            (id, seller_id, seller_name, email, phone, preferred_contact, title, type, zone, price, currency, address, beds, baths, area, description, status, created_at)
+            (id, seller_id, seller_name, email, phone, preferred_contact, title, type, state, city, zone, neighborhood, price, currency, address, beds, baths, area, description, status, created_at)
            VALUES
-            ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
+            ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21)
            ON CONFLICT (id) DO NOTHING`,
           [
             request.id,
@@ -496,7 +599,10 @@ async function initDatabase() {
             request.preferredContact,
             request.title,
             request.type,
+            "Quintana Roo",
+            "Cancun",
             request.zone,
+            "",
             request.price,
             request.currency,
             request.address,
@@ -521,7 +627,7 @@ async function initDatabase() {
 }
 
 app.set("trust proxy", 1);
-app.use(express.json({ limit: "3mb" }));
+app.use(express.json({ limit: "20mb" }));
 app.use(
   session({
     store: new PgSession({
@@ -661,6 +767,15 @@ app.get("/api/properties", async (req, res, next) => {
   }
 });
 
+app.get("/api/location-options", async (_req, res, next) => {
+  try {
+    const result = await query("SELECT * FROM location_options ORDER BY type, name");
+    res.json({ options: result.rows.map(toLocationOption) });
+  } catch (error) {
+    next(error);
+  }
+});
+
 app.post("/api/metrics/search", async (_req, res, next) => {
   try {
     await query("UPDATE app_metrics SET searches = searches + 1 WHERE id = 1");
@@ -728,7 +843,10 @@ app.post("/api/seller/requests", requireRole("seller"), async (req, res, next) =
     const request = {
       title: String(body.title || "").trim(),
       type: String(body.type || "").trim(),
+      state: String(body.state || "Quintana Roo").trim(),
+      city: String(body.city || "Cancun").trim(),
       zone: String(body.zone || "").trim(),
+      neighborhood: String(body.neighborhood || "").trim(),
       price: Number(body.price || 0),
       currency: body.currency === "MXN" ? "MXN" : "USD",
       address: String(body.address || "").trim(),
@@ -736,14 +854,17 @@ app.post("/api/seller/requests", requireRole("seller"), async (req, res, next) =
       baths: Number(body.baths || 0),
       area: Number(body.area || 0),
       description: String(body.description || "").trim(),
-      image: parseUploadedImage(body, null),
+      images: parseUploadedImages(body, []),
     };
+    request.image = request.images[0] || null;
 
     if (
       !email ||
       !phone ||
       !request.title ||
       !request.type ||
+      !request.state ||
+      !request.city ||
       !request.zone ||
       !request.price ||
       !request.address ||
@@ -755,9 +876,9 @@ app.post("/api/seller/requests", requireRole("seller"), async (req, res, next) =
 
     const result = await query(
       `INSERT INTO seller_requests
-        (id, seller_id, seller_name, email, phone, preferred_contact, title, type, zone, price, currency, address, beds, baths, area, description, image)
+        (id, seller_id, seller_name, email, phone, preferred_contact, title, type, state, city, zone, neighborhood, price, currency, address, beds, baths, area, description, image, images)
        VALUES
-        ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
+        ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21::jsonb)
        RETURNING *`,
       [
         id,
@@ -768,7 +889,10 @@ app.post("/api/seller/requests", requireRole("seller"), async (req, res, next) =
         preferredContact,
         request.title,
         request.type,
+        request.state,
+        request.city,
         request.zone,
+        request.neighborhood,
         request.price,
         request.currency,
         request.address,
@@ -777,6 +901,7 @@ app.post("/api/seller/requests", requireRole("seller"), async (req, res, next) =
         request.area,
         request.description,
         request.image,
+        JSON.stringify(request.images),
       ]
     );
     res.status(201).json({ request: toRequest(result.rows[0]) });
@@ -807,6 +932,37 @@ app.get("/api/admin/stats", requireRole("admin"), async (_req, res, next) => {
 
 app.get("/api/admin/prompts", requireRole("admin"), (_req, res) => {
   res.json({ prompts: adminPrompts });
+});
+
+app.post("/api/admin/location-options", requireRole("admin"), async (req, res, next) => {
+  try {
+    const type = String(req.body.type || "").trim();
+    const name = String(req.body.name || "").trim();
+    const parentId = String(req.body.parentId || "").trim() || null;
+    if (!["state", "city", "zone", "neighborhood"].includes(type) || !name) {
+      res.status(400).json({ error: "Missing required location fields" });
+      return;
+    }
+    const result = await query(
+      `INSERT INTO location_options (id, type, name, parent_id)
+       VALUES ($1, $2, $3, $4)
+       ON CONFLICT (type, name, parent_id) DO UPDATE SET name = EXCLUDED.name
+       RETURNING *`,
+      [uuid("loc"), type, name, parentId]
+    );
+    res.status(201).json({ option: toLocationOption(result.rows[0]) });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.delete("/api/admin/location-options/:id", requireRole("admin"), async (req, res, next) => {
+  try {
+    await query("DELETE FROM location_options WHERE id = $1", [req.params.id]);
+    res.json({ ok: true });
+  } catch (error) {
+    next(error);
+  }
 });
 
 app.get("/api/admin/requests", requireRole("admin"), async (_req, res, next) => {
@@ -840,16 +996,20 @@ app.post("/api/admin/requests/:id/approve", requireRole("admin"), async (req, re
       const priceMxn = request.currency === "MXN" ? Number(request.price) : null;
       const propertyResult = await client.query(
         `INSERT INTO properties
-          (id, title_es, title_en, type, zone, operation, price_usd, price_mxn, beds, baths, area, lot, mls, image, featured, badges, description_es, description_en, source_request_id)
+          (id, title_es, title_en, type, state, city, zone, neighborhood, address, operation, price_usd, price_mxn, beds, baths, area, lot, mls, image, images, featured, badges, description_es, description_en, source_request_id)
          VALUES
-          ($1, $2, $3, $4, $5, 'sale', $6, $7, $8, $9, $10, 0, $11, $12, false, $13::jsonb, $14, $15, $16)
+          ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'sale', $10, $11, $12, $13, $14, 0, $15, $16, $17::jsonb, false, $18::jsonb, $19, $20, $21)
          RETURNING *`,
         [
           uuid("prop"),
           request.title,
           request.title,
           request.type,
+          request.state || "Quintana Roo",
+          request.city || "Cancun",
           request.zone,
+          request.neighborhood || "",
+          request.address || "",
           priceUsd,
           priceMxn,
           request.beds,
@@ -857,6 +1017,7 @@ app.post("/api/admin/requests/:id/approve", requireRole("admin"), async (req, re
           request.area,
           String(Math.floor(2000 + Math.random() * 8000)),
           request.image || null,
+          JSON.stringify(mergeLegacyImages(request.images, request.image)),
           JSON.stringify(["new"]),
           request.description,
           request.description,
@@ -897,16 +1058,20 @@ app.post("/api/admin/properties", requireRole("admin"), async (req, res, next) =
     const property = normalizePropertyInput(req.body, uuid("prop"));
     const result = await query(
       `INSERT INTO properties
-        (id, title_es, title_en, type, zone, operation, price_usd, price_mxn, beds, baths, area, lot, mls, image, featured, badges, description_es, description_en)
+        (id, title_es, title_en, type, state, city, zone, neighborhood, address, operation, price_usd, price_mxn, beds, baths, area, lot, mls, image, images, featured, badges, description_es, description_en)
        VALUES
-        ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16::jsonb, $17, $18)
+        ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19::jsonb, $20, $21::jsonb, $22, $23)
        RETURNING *`,
       [
         property.id,
         property.titleEs,
         property.titleEn,
         property.type,
+        property.state,
+        property.city,
         property.zone,
+        property.neighborhood,
+        property.address,
         property.operation,
         property.priceUsd,
         property.priceMxn,
@@ -916,6 +1081,7 @@ app.post("/api/admin/properties", requireRole("admin"), async (req, res, next) =
         property.lot,
         property.mls,
         property.image,
+        JSON.stringify(property.images),
         property.featured,
         JSON.stringify(property.badges),
         property.descriptionEs,
@@ -935,12 +1101,14 @@ app.put("/api/admin/properties/:id", requireRole("admin"), async (req, res, next
       res.status(404).json({ error: "Property not found" });
       return;
     }
-    const property = normalizePropertyInput(req.body, req.params.id, existing.rows[0].image);
+    const existingImages = mergeLegacyImages(existing.rows[0].images, existing.rows[0].image);
+    const property = normalizePropertyInput(req.body, req.params.id, existingImages);
     const result = await query(
       `UPDATE properties
-       SET title_es = $2, title_en = $3, type = $4, zone = $5, operation = $6, price_usd = $7, price_mxn = $8,
-           beds = $9, baths = $10, area = $11, lot = $12, mls = $13, image = $14,
-           featured = $15, badges = $16::jsonb, description_es = $17, description_en = $18
+       SET title_es = $2, title_en = $3, type = $4, state = $5, city = $6, zone = $7, neighborhood = $8, address = $9,
+           operation = $10, price_usd = $11, price_mxn = $12, beds = $13, baths = $14, area = $15, lot = $16,
+           mls = $17, image = $18, images = $19::jsonb, featured = $20, badges = $21::jsonb,
+           description_es = $22, description_en = $23
        WHERE id = $1
        RETURNING *`,
       [
@@ -948,7 +1116,11 @@ app.put("/api/admin/properties/:id", requireRole("admin"), async (req, res, next
         property.titleEs,
         property.titleEn,
         property.type,
+        property.state,
+        property.city,
         property.zone,
+        property.neighborhood,
+        property.address,
         property.operation,
         property.priceUsd,
         property.priceMxn,
@@ -958,6 +1130,7 @@ app.put("/api/admin/properties/:id", requireRole("admin"), async (req, res, next
         property.lot,
         property.mls,
         property.image,
+        JSON.stringify(property.images),
         property.featured,
         JSON.stringify(property.badges),
         property.descriptionEs,
@@ -994,13 +1167,10 @@ function parseOptionalPrice(value, fieldName) {
   return number;
 }
 
-function parseUploadedImage(body, existingImage = null) {
-  if (body.removeImage === true || body.removeImage === "true") return null;
-  if (!body.imageDataUrl) return existingImage || null;
-
-  const mimeType = String(body.imageType || "").toLowerCase();
-  const size = Number(body.imageSize || 0);
-  const dataUrl = String(body.imageDataUrl || "");
+function validateImagePayload(image) {
+  const mimeType = String(image.imageType || image.type || "").toLowerCase();
+  const size = Number(image.imageSize || image.size || 0);
+  const dataUrl = String(image.imageDataUrl || image.dataUrl || "");
 
   if (!IMAGE_TYPES.has(mimeType)) {
     const error = new Error("La imagen debe ser JPG, JPEG, PNG o WEBP.");
@@ -1031,15 +1201,36 @@ function parseUploadedImage(body, existingImage = null) {
   return dataUrl;
 }
 
-function normalizePropertyInput(body, id, existingImage = null) {
+function parseUploadedImages(body, existingImages = []) {
+  if (body.removeImage === true || body.removeImage === "true") return [];
+  const incoming = Array.isArray(body.images)
+    ? body.images
+    : body.imageDataUrl
+      ? [{ imageDataUrl: body.imageDataUrl, imageType: body.imageType, imageSize: body.imageSize }]
+      : [];
+  if (!incoming.length) return safeJsonArray(existingImages).slice(0, IMAGE_MAX_COUNT);
+  if (incoming.length > IMAGE_MAX_COUNT) {
+    const error = new Error(`Solo puedes cargar hasta ${IMAGE_MAX_COUNT} imagenes por publicacion.`);
+    error.status = 400;
+    throw error;
+  }
+  return incoming.map(validateImagePayload);
+}
+
+function normalizePropertyInput(body, id, existingImages = []) {
   const title = String(body.title || body.titleEs || "").trim();
   const type = String(body.type || "").trim();
+  const state = String(body.state || "Quintana Roo").trim();
+  const city = String(body.city || "Cancun").trim();
   const zone = String(body.zone || "").trim();
+  const neighborhood = String(body.neighborhood || "").trim();
+  const address = String(body.address || "").trim();
   const operation = body.operation === "rent" ? "rent" : "sale";
   const priceUsd = parseOptionalPrice(body.priceUsd, "priceUsd");
   const priceMxn = parseOptionalPrice(body.priceMxn, "priceMxn");
+  const images = parseUploadedImages(body, existingImages);
 
-  if (!title || !type || !zone || (priceUsd === null && priceMxn === null)) {
+  if (!title || !type || !state || !city || !zone || (priceUsd === null && priceMxn === null)) {
     const error = new Error("Missing required property fields");
     error.status = 400;
     throw error;
@@ -1050,7 +1241,11 @@ function normalizePropertyInput(body, id, existingImage = null) {
     titleEs: title,
     titleEn: String(body.titleEn || title).trim(),
     type,
+    state,
+    city,
     zone,
+    neighborhood,
+    address,
     operation,
     priceUsd,
     priceMxn,
@@ -1059,7 +1254,8 @@ function normalizePropertyInput(body, id, existingImage = null) {
     area: Number(body.area || 0),
     lot: Number(body.lot || 0),
     mls: String(body.mls || Math.floor(2000 + Math.random() * 8000)),
-    image: parseUploadedImage(body, existingImage),
+    image: images[0] || null,
+    images,
     featured: Boolean(body.featured),
     badges: Array.isArray(body.badges) ? body.badges : ["new"],
     descriptionEs: String(body.description || body.descriptionEs || "").trim() || "Propiedad publicada por administracion.",

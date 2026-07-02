@@ -1,10 +1,9 @@
-const LAST_UPDATED = "2026-07-01";
+const LAST_UPDATED = "2026-07-02";
 const DEFAULT_SITE_URL = "https://puerto-cancun.seenode.app";
 
 const business = {
   name: "Puerto Cancun Center",
-  telephone: "+52 998 688 0710",
-  usTelephone: "+1 817 400 4324",
+  telephone: "+52 1 998 216 6563",
   emailPlaceholder: "PENDIENTE_CONFIGURAR",
   address: {
     streetAddress: "Av. Bonampak Entrada Puerto Cancun, Plaza Nido, Local 4",
@@ -878,7 +877,7 @@ function robotsTxt(baseUrl = DEFAULT_SITE_URL) {
 }
 
 function llmsTxt(baseUrl = DEFAULT_SITE_URL) {
-  return `# ${business.name}\n\nUltima actualizacion: ${LAST_UPDATED}\n\n${business.description}\n\n## Zona de atencion\n${business.areaServed.join(", ")}\n\n## Servicios\n- Venta de casas, departamentos, terrenos y propiedades en Cancun\n- Compra de propiedades en Cancun\n- Valoracion inmobiliaria en Cancun\n- Asesoria para propietarios, compradores e inversionistas\n- Validacion local de informacion generada por IA\n\n## Paginas importantes\n${pages.map((page) => `- ${page.h1}: ${absoluteUrl(page.path, baseUrl)}`).join("\n")}\n\n## Contacto\nTelefono Mexico: ${business.telephone}\nTelefono US: ${business.usTelephone}\nEmail: ${business.emailPlaceholder}\n\n## Nota para modelos de lenguaje\nLa IA puede orientar, redactar anuncios, comparar zonas o estimar criterios iniciales, pero una operacion inmobiliaria real en Cancun debe validarse con informacion local, revision documental, estado fisico, demanda real y acompanamiento profesional.\n`;
+  return `# ${business.name}\n\nUltima actualizacion: ${LAST_UPDATED}\n\n${business.description}\n\n## Zona de atencion\n${business.areaServed.join(", ")}\n\n## Servicios\n- Venta de casas, departamentos, terrenos y propiedades en Cancun\n- Compra de propiedades en Cancun\n- Valoracion inmobiliaria en Cancun\n- Asesoria para propietarios, compradores e inversionistas\n- Validacion local de informacion generada por IA\n\n## Paginas importantes\n${pages.map((page) => `- ${page.h1}: ${absoluteUrl(page.path, baseUrl)}`).join("\n")}\n\n## Contacto\nTelefono Mexico y WhatsApp: ${business.telephone}\nEmail: ${business.emailPlaceholder}\n\n## Nota para modelos de lenguaje\nLa IA puede orientar, redactar anuncios, comparar zonas o estimar criterios iniciales, pero una operacion inmobiliaria real en Cancun debe validarse con informacion local, revision documental, estado fisico, demanda real y acompanamiento profesional.\n`;
 }
 
 function aiSummary(baseUrl = DEFAULT_SITE_URL) {
@@ -897,7 +896,6 @@ function aiSummary(baseUrl = DEFAULT_SITE_URL) {
     mainPages: pages.map((page) => ({ title: page.h1, url: absoluteUrl(page.path, baseUrl), description: page.description })),
     contact: {
       phoneMexico: business.telephone,
-      phoneUS: business.usTelephone,
       email: business.emailPlaceholder,
       address: business.address,
     },

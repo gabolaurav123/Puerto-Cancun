@@ -1,6 +1,8 @@
 const IMAGE_MAX_BYTES = 1.5 * 1024 * 1024;
+const IMAGE_MAX_COUNT = 8;
 const IMAGE_TYPES = new Set(["image/jpeg", "image/jpg", "image/png", "image/webp"]);
-const WHATSAPP_NUMBER = "529986880710";
+const WHATSAPP_NUMBER = "5219982166563";
+const LOCATION_FIELD_ORDER = ["state", "city", "zone", "neighborhood"];
 
 const keys = {
   lang: "pcc.lang",
@@ -142,6 +144,9 @@ const translations = {
     propertyTitle: "Título de la propiedad",
     propertyType: "Tipo de propiedad",
     zone: "Zona",
+    stateField: "Estado",
+    cityField: "Ciudad / municipio",
+    neighborhoodField: "Colonia / desarrollo",
     price: "Precio",
     currency: "Moneda",
     address: "Dirección",
@@ -158,13 +163,14 @@ const translations = {
     rent: "Renta",
     priceUsd: "Precio USD",
     priceMxn: "Precio MXN",
-    imageUpload: "Imagen de la propiedad",
-    imageHelp: "JPG, PNG o WEBP. Máximo 1.5 MB.",
+    imageUpload: "Imagenes de la propiedad",
+    imageHelp: "JPG, PNG o WEBP. Maximo 8 imagenes de 1.5 MB cada una.",
     currentImage: "Imagen actual",
-    selectedImage: "Imagen seleccionada",
-    removeImage: "Quitar imagen",
-    imageRemoved: "Imagen quitada. Puedes seleccionar otra antes de guardar.",
+    selectedImage: "Imagenes seleccionadas",
+    removeImage: "Quitar imagenes",
+    imageRemoved: "Imagenes quitadas. Puedes seleccionar otras antes de guardar.",
     imageTooLarge: "La imagen no debe superar 1.5 MB.",
+    tooManyImages: "Solo puedes cargar hasta 8 imagenes por publicacion.",
     invalidImageType: "La imagen debe ser JPG, JPEG, PNG o WEBP.",
     missingPrice: "Agrega al menos un precio: USD o MXN.",
     markFeatured: "Marcar como destacada",
@@ -201,6 +207,7 @@ const translations = {
     adminWorkspaceCopy: "Revisa solicitudes, publicaciones, precios, zonas y actividad desde un solo panel.",
     adminJumpRequests: "Solicitudes",
     adminJumpListings: "Publicaciones",
+    adminJumpCatalogs: "Catálogos",
     adminJumpNew: "Nueva propiedad",
     adminJumpPrompts: "Herramientas IA",
     adminPromptLibraryTitle: "Herramientas IA internas para publicaciones y asesorías",
@@ -222,6 +229,22 @@ const translations = {
     adminSellerContact: "Contacto del vendedor",
     adminPropertyFacts: "Datos de la propiedad",
     adminRequestMeta: "Solicitud",
+    locationCatalogTitle: "Catálogos de ubicación",
+    locationCatalogCopy: "Da de alta estados, ciudades, zonas y colonias para registrar direcciones más precisas en cada inmueble.",
+    catalogType: "Tipo",
+    catalogParent: "Pertenece a",
+    catalogName: "Nombre",
+    catalogState: "Estado",
+    catalogCity: "Ciudad / municipio",
+    catalogZone: "Zona",
+    catalogNeighborhood: "Colonia / desarrollo",
+    saveCatalog: "Guardar catálogo",
+    catalogSaved: "Catálogo guardado.",
+    catalogDeleted: "Catálogo eliminado.",
+    catalogEmpty: "No hay opciones registradas.",
+    noParent: "Sin superior",
+    optionalLocation: "Sin seleccionar",
+    showMore: "Mostrar más",
     sellerRole: "Cuenta de vendedor",
     adminRole: "Cuenta administradora",
     accountPrompt: "Completa estos datos para crear tu cuenta de vendedor.",
@@ -234,7 +257,7 @@ const translations = {
     listingDeleted: "Publicación eliminada.",
     requestApproved: "Solicitud aprobada y publicada.",
     requestRejected: "Solicitud rechazada.",
-    whatsAppPending: "Botón de WhatsApp listo. Falta configurar el número final.",
+    whatsAppPending: "Abrir WhatsApp",
     statProperties: "Publicaciones",
     statRequests: "Solicitudes pendientes",
     statUsers: "Cuentas vendedor",
@@ -372,6 +395,9 @@ const translations = {
     propertyTitle: "Property title",
     propertyType: "Property type",
     zone: "Area",
+    stateField: "State",
+    cityField: "City / municipality",
+    neighborhoodField: "Neighborhood / development",
     price: "Price",
     currency: "Currency",
     address: "Address",
@@ -388,13 +414,14 @@ const translations = {
     rent: "Rent",
     priceUsd: "USD price",
     priceMxn: "MXN price",
-    imageUpload: "Property image",
-    imageHelp: "JPG, PNG or WEBP. Maximum 1.5 MB.",
+    imageUpload: "Property images",
+    imageHelp: "JPG, PNG or WEBP. Up to 8 images, 1.5 MB each.",
     currentImage: "Current image",
-    selectedImage: "Selected image",
-    removeImage: "Remove image",
-    imageRemoved: "Image removed. You can select another one before saving.",
+    selectedImage: "Selected images",
+    removeImage: "Remove images",
+    imageRemoved: "Images removed. You can select others before saving.",
     imageTooLarge: "Image must not exceed 1.5 MB.",
+    tooManyImages: "You can upload up to 8 images per listing.",
     invalidImageType: "Image must be JPG, JPEG, PNG, or WEBP.",
     missingPrice: "Add at least one price: USD or MXN.",
     markFeatured: "Mark as featured",
@@ -431,6 +458,7 @@ const translations = {
     adminWorkspaceCopy: "Review requests, listings, prices, areas, and activity from one panel.",
     adminJumpRequests: "Requests",
     adminJumpListings: "Listings",
+    adminJumpCatalogs: "Catalogs",
     adminJumpNew: "New property",
     adminJumpPrompts: "AI tools",
     adminPromptLibraryTitle: "Internal AI tools for listings and advisory",
@@ -452,6 +480,22 @@ const translations = {
     adminSellerContact: "Seller contact",
     adminPropertyFacts: "Property facts",
     adminRequestMeta: "Request",
+    locationCatalogTitle: "Location catalogs",
+    locationCatalogCopy: "Add states, cities, areas, and neighborhoods to register more precise property addresses.",
+    catalogType: "Type",
+    catalogParent: "Belongs to",
+    catalogName: "Name",
+    catalogState: "State",
+    catalogCity: "City / municipality",
+    catalogZone: "Area",
+    catalogNeighborhood: "Neighborhood / development",
+    saveCatalog: "Save catalog",
+    catalogSaved: "Catalog saved.",
+    catalogDeleted: "Catalog deleted.",
+    catalogEmpty: "No options registered.",
+    noParent: "No parent",
+    optionalLocation: "Not selected",
+    showMore: "Show more",
     sellerRole: "Seller account",
     adminRole: "Admin account",
     accountPrompt: "Complete these details to create your seller account.",
@@ -464,7 +508,7 @@ const translations = {
     listingDeleted: "Listing deleted.",
     requestApproved: "Request approved and published.",
     requestRejected: "Request rejected.",
-    whatsAppPending: "WhatsApp button ready. The final number still needs to be configured.",
+    whatsAppPending: "Open WhatsApp",
     statProperties: "Listings",
     statRequests: "Pending requests",
     statUsers: "Seller accounts",
@@ -496,6 +540,7 @@ const state = {
   properties: [],
   requests: [],
   adminPrompts: [],
+  locationOptions: [],
   stats: { properties: 0, pendingRequests: 0, users: 0, visits: 0, searches: 0 },
   filters: {
     text: "",
@@ -512,6 +557,104 @@ const $$ = (selector) => Array.from(document.querySelectorAll(selector));
 
 function t(key) {
   return translations[state.lang][key] || translations.es[key] || key;
+}
+
+function storedImages(item) {
+  const images = Array.isArray(item?.images) ? item.images.filter(Boolean) : [];
+  if (item?.image && !images.includes(item.image)) images.unshift(item.image);
+  return images;
+}
+
+function safeParseImages(value) {
+  try {
+    const parsed = JSON.parse(value || "[]");
+    return Array.isArray(parsed) ? parsed.filter(Boolean) : [];
+  } catch {
+    return [];
+  }
+}
+
+function primaryImage(item) {
+  return storedImages(item)[0] || fallbackImage;
+}
+
+function displayLocation(item) {
+  const parts = [item.neighborhood, item.zone, item.city, item.state].filter(Boolean);
+  return parts.filter((part, index) => parts.indexOf(part) === index).join(", ");
+}
+
+function parentFieldForLocation(type) {
+  if (type === "city") return "state";
+  if (type === "zone") return "city";
+  if (type === "neighborhood") return "zone";
+  return "";
+}
+
+function locationOptionsByType(type, form = null) {
+  const parentField = parentFieldForLocation(type);
+  let options = state.locationOptions.filter((option) => option.type === type);
+  if (form && parentField && form.elements[parentField]?.value) {
+    const parentValue = form.elements[parentField].value;
+    const parentIds = state.locationOptions
+      .filter((option) => option.type === parentField && option.name === parentValue)
+      .map((option) => option.id);
+    if (parentIds.length) {
+      options = options.filter((option) => parentIds.includes(option.parentId));
+    }
+  }
+  return options.sort((a, b) => a.name.localeCompare(b.name));
+}
+
+function ensureSelectOption(select, value) {
+  if (!select || !value) return;
+  if (!Array.from(select.options).some((option) => option.value === value)) {
+    select.append(new Option(value, value));
+  }
+}
+
+function fillLocationSelect(select, selectedValue = select?.value || "", optionsConfig = {}) {
+  if (!select) return;
+  const type = select.dataset.locationSelect;
+  const required = select.required;
+  const current = selectedValue || select.value;
+  const preserveUnknown = optionsConfig.preserveUnknown !== false;
+  const options = locationOptionsByType(type, select.form);
+  select.innerHTML = required ? "" : `<option value="">${escapeHtml(t("optionalLocation"))}</option>`;
+  options.forEach((option) => {
+    select.append(new Option(option.name, option.name));
+  });
+  if (preserveUnknown) ensureSelectOption(select, current);
+  if (current) select.value = current;
+  if (!select.value && required && options[0]) select.value = options[0].name;
+}
+
+function refreshLocationSelects() {
+  const forms = [...new Set($$("[data-location-select]").map((select) => select.form).filter(Boolean))];
+  forms.forEach((form) => {
+    LOCATION_FIELD_ORDER.forEach((name) => fillLocationSelect(form.elements[name]));
+  });
+  $$("[data-location-select]")
+    .filter((select) => !select.form)
+    .forEach((select) => fillLocationSelect(select));
+}
+
+function setLocationFormValues(form, source = {}) {
+  LOCATION_FIELD_ORDER.forEach((name) => {
+    const select = form.elements[name];
+    if (!select) return;
+    fillLocationSelect(select, source[name] || select.value || "");
+    if (source[name]) select.value = source[name];
+  });
+}
+
+function handleLocationSelectChange(select) {
+  const form = select.form;
+  if (!form) return;
+  const currentIndex = LOCATION_FIELD_ORDER.indexOf(select.name);
+  if (currentIndex < 0) return;
+  LOCATION_FIELD_ORDER.slice(currentIndex + 1).forEach((name) => {
+    fillLocationSelect(form.elements[name], "", { preserveUnknown: false });
+  });
 }
 
 function escapeHtml(value) {
@@ -741,7 +884,11 @@ function propertyMatches(property) {
     const haystack = [
       localizedTitle(property),
       localizedDescription(property),
+      property.state,
+      property.city,
       property.zone,
+      property.neighborhood,
+      property.address,
       property.type,
       property.mls,
     ]
@@ -802,12 +949,13 @@ function renderProperties() {
       return `
         <article class="property-card" id="property-${escapeHtml(property.id)}">
           <div class="property-image">
-            <img src="${escapeHtml(property.image || fallbackImage)}" alt="${escapeHtml(localizedTitle(property))}" loading="lazy" onerror="this.onerror=null;this.src='${escapeHtml(fallbackImage)}';" />
+            <img src="${escapeHtml(primaryImage(property))}" alt="${escapeHtml(localizedTitle(property))}" loading="lazy" onerror="this.onerror=null;this.src='${escapeHtml(fallbackImage)}';" />
             <div class="badge-row">${badgeHtml}</div>
           </div>
           <div class="property-body">
             <p class="property-price">${escapeHtml(formatPriceSummary(property))}</p>
             <h3 class="property-title">${escapeHtml(localizedTitle(property))}</h3>
+            <p class="property-location">${escapeHtml(displayLocation(property))}</p>
             <p class="property-meta">${escapeHtml(meta.join(" • "))}</p>
             <p class="property-description">${escapeHtml(truncateText(localizedDescription(property)))}</p>
             <div class="property-actions">
@@ -846,7 +994,7 @@ function updatePropertyJsonLd() {
         name: localizedTitle(property),
         url,
         description: localizedDescription(property),
-        image: property.image || fallbackImage,
+        image: storedImages(property).length > 1 ? storedImages(property) : primaryImage(property),
         datePosted: property.createdAt,
         mainEntity: {
           "@type": propertySchemaType(property),
@@ -863,7 +1011,7 @@ function updatePropertyJsonLd() {
             : undefined,
           containedInPlace: {
             "@type": "Place",
-            name: property.zone || "Cancun",
+            name: displayLocation(property) || "Cancun",
           },
         },
       };
@@ -909,8 +1057,8 @@ function renderRequestItem(request) {
         <strong>${escapeHtml(price)}</strong>
       </div>
       ${
-        request.image
-          ? `<img class="request-thumb" src="${escapeHtml(request.image)}" alt="${escapeHtml(request.title)}" loading="lazy" />`
+        storedImages(request).length
+          ? `<img class="request-thumb" src="${escapeHtml(primaryImage(request))}" alt="${escapeHtml(request.title)}" loading="lazy" />`
           : ""
       }
       <div class="detail-grid compact">
@@ -923,7 +1071,7 @@ function renderRequestItem(request) {
         <div>
           <span>${escapeHtml(t("adminPropertyFacts"))}</span>
           <strong>${escapeHtml(displayType(request.type))}</strong>
-          <small>${escapeHtml(request.zone)} · ${escapeHtml(request.beds || 0)} ${escapeHtml(t("bedShort"))} · ${escapeHtml(request.baths || 0)} ${escapeHtml(t("bathShort"))}</small>
+          <small>${escapeHtml(displayLocation(request))} · ${escapeHtml(request.beds || 0)} ${escapeHtml(t("bedShort"))} · ${escapeHtml(request.baths || 0)} ${escapeHtml(t("bathShort"))}</small>
           <small>${escapeHtml(t("preferred"))}: ${escapeHtml(preferred)}</small>
         </div>
       </div>
@@ -1047,6 +1195,101 @@ function renderAdminPrompts() {
     .join("");
 }
 
+function renderLocationCatalogs() {
+  const list = $("#locationCatalogList");
+  if (!list) return;
+  const types = ["state", "city", "zone", "neighborhood"];
+  list.innerHTML = types
+    .map((type) => {
+      const options = locationOptionsByType(type);
+      const titleKey =
+        type === "state"
+          ? "catalogState"
+          : type === "city"
+            ? "catalogCity"
+            : type === "zone"
+              ? "catalogZone"
+              : "catalogNeighborhood";
+      return `
+        <article class="catalog-group">
+          <h3>${escapeHtml(t(titleKey))}</h3>
+          ${
+            options.length
+              ? options
+                  .map(
+                    (option) => `
+                      <div class="catalog-entry">
+                        <span>${escapeHtml(option.name)}</span>
+                        <button class="text-button danger" type="button" data-delete-location="${escapeHtml(option.id)}">${escapeHtml(t("delete"))}</button>
+                      </div>
+                    `
+                  )
+                  .join("")
+              : `<p class="empty-state">${escapeHtml(t("catalogEmpty"))}</p>`
+          }
+        </article>
+      `;
+    })
+    .join("");
+}
+
+function renderCatalogParentOptions() {
+  const form = $("#locationCatalogForm");
+  if (!form) return;
+  const type = form.elements.type.value;
+  const parentSelect = form.elements.parentId;
+  const parentType = type === "city" ? "state" : type === "zone" ? "city" : type === "neighborhood" ? "zone" : "";
+  parentSelect.innerHTML = `<option value="">${escapeHtml(t("noParent"))}</option>`;
+  if (!parentType) {
+    parentSelect.disabled = true;
+    return;
+  }
+  parentSelect.disabled = false;
+  locationOptionsByType(parentType).forEach((option) => {
+    parentSelect.append(new Option(option.name, option.id));
+  });
+}
+
+async function refreshLocationOptions() {
+  const data = await api("/api/location-options");
+  state.locationOptions = data.options || [];
+  refreshLocationSelects();
+  renderCatalogParentOptions();
+  renderLocationCatalogs();
+}
+
+async function locationCatalogSubmit(event) {
+  event.preventDefault();
+  const form = event.currentTarget;
+  const message = $("#catalogFormMessage");
+  setFormMessage(message, "");
+  try {
+    await api("/api/admin/location-options", {
+      method: "POST",
+      body: {
+        type: form.type.value,
+        parentId: form.parentId.value,
+        name: form.name.value.trim(),
+      },
+    });
+    form.name.value = "";
+    await refreshLocationOptions();
+    setFormMessage(message, t("catalogSaved"));
+  } catch (error) {
+    setFormMessage(message, error.message, true);
+  }
+}
+
+async function deleteLocationOption(id) {
+  try {
+    await api(`/api/admin/location-options/${encodeURIComponent(id)}`, { method: "DELETE" });
+    await refreshLocationOptions();
+    setFormMessage($("#catalogFormMessage"), t("catalogDeleted"));
+  } catch (error) {
+    setFormMessage($("#catalogFormMessage"), error.message, true);
+  }
+}
+
 function renderAdminListings() {
   const list = $("#adminListings");
   if (!list) return;
@@ -1061,10 +1304,13 @@ function renderAdminListings() {
     return;
   }
   list.innerHTML = properties
-    .map(
-      (property) => `
+    .map((property) => {
+      const description = localizedDescription(property);
+      const excerpt = truncateText(description, 180);
+      const hasMore = description.length > excerpt.length;
+      return `
         <div class="listing-item detailed-listing">
-          <img src="${escapeHtml(property.image || fallbackImage)}" alt="${escapeHtml(localizedTitle(property))}" loading="lazy" onerror="this.onerror=null;this.src='${escapeHtml(fallbackImage)}';" />
+          <img src="${escapeHtml(primaryImage(property))}" alt="${escapeHtml(localizedTitle(property))}" loading="lazy" onerror="this.onerror=null;this.src='${escapeHtml(fallbackImage)}';" />
           <div class="listing-content">
             <div class="listing-heading">
               <div>
@@ -1073,29 +1319,39 @@ function renderAdminListings() {
               </div>
               <strong>${escapeHtml(formatPriceSummary(property))}</strong>
             </div>
-            <p>${escapeHtml(property.zone)} · ${escapeHtml(displayType(property.type))} · ${escapeHtml(property.mls ? `${t("mls")} ${property.mls}` : "")}</p>
+            <p>${escapeHtml(displayLocation(property))} · ${escapeHtml(displayType(property.type))} · ${escapeHtml(property.mls ? `${t("mls")} ${property.mls}` : "")}</p>
             <div class="listing-facts">
               <span>${escapeHtml(property.beds || 0)} ${escapeHtml(t("bedShort"))}</span>
               <span>${escapeHtml(property.baths || 0)} ${escapeHtml(t("bathShort"))}</span>
               <span>${escapeHtml(property.area || 0)} ${escapeHtml(t("sqmBuild"))}</span>
               <span>${escapeHtml(property.operation === "rent" ? t("rent") : t("sale"))}</span>
             </div>
-            <p>${escapeHtml(localizedDescription(property))}</p>
+            <p class="listing-excerpt">${escapeHtml(excerpt)}</p>
+            ${
+              hasMore
+                ? `<details class="listing-more"><summary>${escapeHtml(t("showMore"))}</summary><p>${escapeHtml(description)}</p></details>`
+                : ""
+            }
             <div class="item-actions">
               <button class="mini-button primary" type="button" data-edit-listing="${escapeHtml(property.id)}">${escapeHtml(t("edit"))}</button>
               <button class="mini-button" type="button" data-delete-listing="${escapeHtml(property.id)}">${escapeHtml(t("delete"))}</button>
             </div>
           </div>
         </div>
-      `
-    )
+      `;
+    })
     .join("");
 }
 
 async function loadPublicData() {
-  const [propertiesData, sessionData] = await Promise.all([api("/api/properties"), api("/api/session")]);
+  const [propertiesData, sessionData, locationData] = await Promise.all([
+    api("/api/properties"),
+    api("/api/session"),
+    api("/api/location-options"),
+  ]);
   state.properties = propertiesData.properties || [];
   state.session = sessionData.user;
+  state.locationOptions = locationData.options || [];
 }
 
 async function loadPanelData() {
@@ -1135,9 +1391,12 @@ async function renderPanel() {
   $("#panelSubtitle").textContent = isAdmin ? t("adminPanelSubtitle") : t("sellerPanelSubtitle");
   $("#adminPanel").hidden = !isAdmin;
   $("#sellerPanel").hidden = isAdmin;
+  refreshLocationSelects();
   if (isAdmin) {
     renderStats();
     renderAdminInsights();
+    renderCatalogParentOptions();
+    renderLocationCatalogs();
     renderAdminPrompts();
     renderAdminRequests();
     renderAdminListings();
@@ -1168,6 +1427,9 @@ function applyTranslations() {
     element.setAttribute("placeholder", t(element.dataset.i18nPlaceholder));
   });
   $("#languageToggle").textContent = state.lang === "es" ? "English" : "Español";
+  refreshLocationSelects();
+  renderCatalogParentOptions();
+  renderLocationCatalogs();
   updateAuthNav();
   renderProperties();
   if (state.detailPropertyId) {
@@ -1308,7 +1570,8 @@ async function sellerRequestSubmit(event) {
       body: payload,
     });
     form.reset();
-    updateSellerImagePreview("");
+    refreshLocationSelects();
+    updateSellerImagePreview([]);
     await renderPanel();
     setFormMessage($("#sellerFormMessage"), t("requestSent"));
   } catch (error) {
@@ -1342,36 +1605,34 @@ function resetListingForm() {
   const form = $("#listingForm");
   form.reset();
   form.elements.id.value = "";
-  form.dataset.currentImage = "";
+  form.dataset.currentImages = "[]";
   form.dataset.removeImage = "false";
-  updateListingImagePreview("");
+  refreshLocationSelects();
+  updateListingImagePreview([]);
   setFormMessage($("#listingFormMessage"), "");
 }
 
-function updateSellerImagePreview(src) {
-  const preview = $("#sellerImagePreview");
+function renderImagePreview(preview, images) {
   if (!preview) return;
-  const image = preview.querySelector("img");
-  if (src) {
-    image.src = src;
+  const list = Array.isArray(images) ? images.filter(Boolean) : images ? [images] : [];
+  const grid = preview.querySelector(".image-preview-grid");
+  if (list.length) {
+    grid.innerHTML = list
+      .map((src, index) => `<img src="${escapeHtml(src)}" alt="Property preview ${index + 1}" loading="lazy" />`)
+      .join("");
     preview.hidden = false;
   } else {
-    image.removeAttribute("src");
+    grid.innerHTML = "";
     preview.hidden = true;
   }
 }
 
-function updateListingImagePreview(src) {
-  const preview = $("#listingImagePreview");
-  if (!preview) return;
-  const image = preview.querySelector("img");
-  if (src) {
-    image.src = src;
-    preview.hidden = false;
-  } else {
-    image.removeAttribute("src");
-    preview.hidden = true;
-  }
+function updateSellerImagePreview(images) {
+  renderImagePreview($("#sellerImagePreview"), images);
+}
+
+function updateListingImagePreview(images) {
+  renderImagePreview($("#listingImagePreview"), images);
 }
 
 function validateImageFile(file) {
@@ -1399,19 +1660,28 @@ function readImageFile(file) {
   });
 }
 
+async function readImageFiles(files) {
+  const list = Array.from(files || []);
+  if (list.length > IMAGE_MAX_COUNT) {
+    throw new Error(t("tooManyImages"));
+  }
+  const images = await Promise.all(list.map(readImageFile));
+  return { images };
+}
+
 async function getFormImagePayload(form) {
-  const file = form.elements.imageFile?.files?.[0];
-  if (!file) return {};
-  return readImageFile(file);
+  const files = form.elements.imageFile?.files || [];
+  if (!files.length) return {};
+  return readImageFiles(files);
 }
 
 async function getListingImagePayload(form) {
-  const file = form.elements.imageFile.files[0];
-  if (!file) {
+  const files = form.elements.imageFile.files;
+  if (!files.length) {
     return form.dataset.removeImage === "true" ? { removeImage: true } : {};
   }
   form.dataset.removeImage = "false";
-  return readImageFile(file);
+  return readImageFiles(files);
 }
 
 async function listingSubmit(event) {
@@ -1429,7 +1699,11 @@ async function listingSubmit(event) {
   const payload = {
     title: form.title.value.trim(),
     type: form.type.value,
+    state: form.state.value,
+    city: form.city.value,
     zone: form.zone.value,
+    neighborhood: form.neighborhood.value,
+    address: form.address.value.trim(),
     operation: form.operation.value,
     priceUsd,
     priceMxn,
@@ -1462,14 +1736,15 @@ function editListing(id) {
   form.elements.id.value = property.id;
   form.title.value = localizedTitle(property);
   form.type.value = property.type;
-  form.zone.value = property.zone;
+  setLocationFormValues(form, property);
   form.operation.value = property.operation;
   form.priceUsd.value = property.priceUsd || "";
   form.priceMxn.value = property.priceMxn || "";
+  form.address.value = property.address || "";
   form.elements.imageFile.value = "";
-  form.dataset.currentImage = property.image || "";
+  form.dataset.currentImages = JSON.stringify(storedImages(property));
   form.dataset.removeImage = "false";
-  updateListingImagePreview(property.image || "");
+  updateListingImagePreview(storedImages(property));
   form.beds.value = property.beds || "";
   form.baths.value = property.baths || "";
   form.area.value = property.area || "";
@@ -1561,7 +1836,7 @@ function contactAdvisor(id) {
 
 function propertyFacts(property) {
   return [
-    property.zone || "",
+    displayLocation(property),
     property.type ? displayType(property.type) : "",
     property.beds ? `${property.beds} ${t("bedShort")}` : "",
     property.baths ? `${property.baths} ${t("bathShort")}` : "",
@@ -1601,11 +1876,23 @@ function renderPropertyDetail(property) {
   const facts = propertyFacts(property)
     .map((fact) => `<span>${escapeHtml(fact)}</span>`)
     .join("");
+  const images = storedImages(property);
+  const galleryImages = images.length ? images : [fallbackImage];
+  const gallery = galleryImages
+    .map(
+      (src, index) => `
+        <figure class="property-detail-slide">
+          <img src="${escapeHtml(src)}" alt="${escapeHtml(`${localizedTitle(property)} ${index + 1}`)}" onerror="this.onerror=null;this.src='${escapeHtml(fallbackImage)}';" />
+        </figure>
+      `
+    )
+    .join("");
 
   content.innerHTML = `
     <div class="property-detail-layout">
-      <div class="property-detail-image">
-        <img src="${escapeHtml(property.image || fallbackImage)}" alt="${escapeHtml(localizedTitle(property))}" onerror="this.onerror=null;this.src='${escapeHtml(fallbackImage)}';" />
+      <div class="property-detail-image property-detail-gallery">
+        <div class="property-detail-track">${gallery}</div>
+        ${galleryImages.length > 1 ? `<span class="gallery-count">1 / ${galleryImages.length}</span>` : ""}
       </div>
       <div class="property-detail-copy">
         <p class="property-detail-price">${escapeHtml(formatPriceSummary(property))}</p>
@@ -1627,7 +1914,7 @@ function openPropertyWhatsApp(property) {
     "",
     localizedTitle(property),
     `Precio: ${formatPriceSummary(property)}`,
-    `Ubicación: ${property.zone || ""}`,
+    `Ubicacion: ${displayLocation(property) || ""}`,
     `Tipo: ${displayType(property.type)}`,
     `Dormitorios: ${property.beds || 0}`,
     `Baños: ${property.baths || 0}`,
@@ -1635,6 +1922,11 @@ function openPropertyWhatsApp(property) {
     "",
     "Quisiera recibir más información.",
   ].join("\n");
+  window.open(`https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(message)}`, "_blank", "noopener,noreferrer");
+}
+
+function openGeneralWhatsApp() {
+  const message = "Hola, quiero recibir informacion de Puerto Cancun Center.";
   window.open(`https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(message)}`, "_blank", "noopener,noreferrer");
 }
 
@@ -1732,54 +2024,57 @@ function bindEvents() {
 
   $("#sellerRequestForm").addEventListener("submit", sellerRequestSubmit);
   $("#sellerRequestForm").elements.imageFile.addEventListener("change", async (event) => {
-    const file = event.target.files[0];
+    const files = event.target.files;
     const message = $("#sellerFormMessage");
     setFormMessage(message, "");
-    if (!file) {
-      updateSellerImagePreview("");
+    if (!files.length) {
+      updateSellerImagePreview([]);
       return;
     }
     try {
-      const payload = await readImageFile(file);
-      updateSellerImagePreview(payload.imageDataUrl);
+      const payload = await readImageFiles(files);
+      updateSellerImagePreview(payload.images.map((image) => image.imageDataUrl));
     } catch (error) {
       event.target.value = "";
-      updateSellerImagePreview("");
+      updateSellerImagePreview([]);
       setFormMessage(message, error.message, true);
     }
   });
   $("#clearSellerImage").addEventListener("click", () => {
     const form = $("#sellerRequestForm");
     form.elements.imageFile.value = "";
-    updateSellerImagePreview("");
+    updateSellerImagePreview([]);
     setFormMessage($("#sellerFormMessage"), t("imageRemoved"));
   });
   $("#listingForm").addEventListener("submit", listingSubmit);
+  $("#locationCatalogForm").addEventListener("submit", locationCatalogSubmit);
+  $("#locationCatalogForm").elements.type.addEventListener("change", renderCatalogParentOptions);
   $("#resetListingForm").addEventListener("click", resetListingForm);
   $("#clearListingImage").addEventListener("click", () => {
     const form = $("#listingForm");
     form.elements.imageFile.value = "";
-    form.dataset.currentImage = "";
+    form.dataset.currentImages = "[]";
     form.dataset.removeImage = "true";
-    updateListingImagePreview("");
+    updateListingImagePreview([]);
     setFormMessage($("#listingFormMessage"), t("imageRemoved"));
   });
   $("#listingForm").elements.imageFile.addEventListener("change", async (event) => {
-    const file = event.target.files[0];
+    const files = event.target.files;
     const form = $("#listingForm");
     const message = $("#listingFormMessage");
     setFormMessage(message, "");
-    if (!file) {
-      updateListingImagePreview(form.dataset.removeImage === "true" ? "" : form.dataset.currentImage || "");
+    const currentImages = safeParseImages(form.dataset.currentImages);
+    if (!files.length) {
+      updateListingImagePreview(form.dataset.removeImage === "true" ? [] : currentImages);
       return;
     }
     try {
-      const payload = await readImageFile(file);
+      const payload = await readImageFiles(files);
       form.dataset.removeImage = "false";
-      updateListingImagePreview(payload.imageDataUrl);
+      updateListingImagePreview(payload.images.map((image) => image.imageDataUrl));
     } catch (error) {
       event.target.value = "";
-      updateListingImagePreview(form.dataset.removeImage === "true" ? "" : form.dataset.currentImage || "");
+      updateListingImagePreview(form.dataset.removeImage === "true" ? [] : currentImages);
       setFormMessage(message, error.message, true);
     }
   });
@@ -1789,6 +2084,11 @@ function bindEvents() {
       const target = document.getElementById(button.dataset.adminJump);
       if (target) target.scrollIntoView({ behavior: "smooth", block: "start" });
     });
+  });
+
+  document.addEventListener("change", (event) => {
+    const select = event.target.closest("[data-location-select]");
+    if (select) handleLocationSelectChange(select);
   });
 
   document.addEventListener("click", (event) => {
@@ -1812,10 +2112,13 @@ function bindEvents() {
 
     const remove = event.target.closest("[data-delete-listing]");
     if (remove) void deleteListing(remove.dataset.deleteListing);
+
+    const deleteLocation = event.target.closest("[data-delete-location]");
+    if (deleteLocation) void deleteLocationOption(deleteLocation.dataset.deleteLocation);
   });
 
   $("#whatsappButton").addEventListener("click", () => {
-    alert(t("whatsAppPending"));
+    openGeneralWhatsApp();
   });
 }
 
