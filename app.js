@@ -23,7 +23,9 @@ const fallbackIcons = {
   "circle-help": '<circle cx="12" cy="12" r="10"></circle><path d="M9.1 9a3 3 0 1 1 5.8 1c0 2-3 2-3 4"></path><path d="M12 17h.01"></path>',
   crosshair: '<circle cx="12" cy="12" r="10"></circle><line x1="22" x2="18" y1="12" y2="12"></line><line x1="6" x2="2" y1="12" y2="12"></line><line x1="12" x2="12" y1="6" y2="2"></line><line x1="12" x2="12" y1="22" y2="18"></line>',
   home: '<path d="m3 11 9-8 9 8"></path><path d="M5 10v10h14V10"></path><path d="M9 20v-6h6v6"></path>',
+  inbox: '<polyline points="22 12 16 12 14 15 10 15 8 12 2 12"></polyline><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11Z"></path>',
   "log-out": '<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><path d="M16 17l5-5-5-5"></path><path d="M21 12H9"></path>',
+  mail: '<rect width="20" height="16" x="2" y="4" rx="2"></rect><path d="m22 7-8.97 5.7a2 2 0 0 1-2.06 0L2 7"></path>',
   "map-pin": '<path d="M20 10c0 5-8 11-8 11S4 15 4 10a8 8 0 1 1 16 0Z"></path><circle cx="12" cy="10" r="3"></circle>',
   map: '<polygon points="3 6 9 3 15 6 21 3 21 18 15 21 9 18 3 21"></polygon><line x1="9" x2="9" y1="3" y2="18"></line><line x1="15" x2="15" y1="6" y2="21"></line>',
   menu: '<path d="M4 6h16"></path><path d="M4 12h16"></path><path d="M4 18h16"></path>',
@@ -234,13 +236,19 @@ const translations = {
     adminJumpCatalogs: "Catálogos",
     adminJumpNew: "Nueva propiedad",
     adminJumpPrompts: "Herramientas IA",
+    adminJumpLeads: "Asesorias",
     adminPromptLibraryTitle: "Herramientas IA internas para publicaciones y asesorías",
     adminPromptLibraryCopy:
       "Usa estos textos como apoyo interno para valorar, redactar y revisar propiedades antes de publicar. No son una sección pública.",
     adminPromptsEmpty: "No hay herramientas internas configuradas.",
+    adminLeadsTitle: "Solicitudes de asesoria",
+    adminLeadSummary: "solicitudes de asesoria",
+    adminLeadsHint: "Responde por WhatsApp o correo y marca cada solicitud como atendida.",
+    adminNoLeads: "No hay solicitudes de asesoria.",
     adminScrollableHint: "Desplaza dentro de esta lista para ver más.",
     adminListingsHint: "Edita, revisa y elimina publicaciones existentes.",
     adminInsightPending: "Pendientes por revisar",
+    adminInsightLeads: "Asesorias nuevas",
     adminInsightFeatured: "Propiedades destacadas",
     adminInsightAverage: "Precio promedio",
     adminInsightSearches: "Búsquedas registradas",
@@ -281,9 +289,26 @@ const translations = {
     listingDeleted: "Publicación eliminada.",
     requestApproved: "Solicitud aprobada y publicada.",
     requestRejected: "Solicitud rechazada.",
+    leadUpdated: "Solicitud de asesoria actualizada.",
+    leadDeleted: "Solicitud de asesoria eliminada.",
+    confirmDeleteLead: "Borrar esta solicitud de asesoria?",
+    leadStatusNew: "Nueva",
+    leadStatusContacted: "Atendida",
+    leadStatusClosed: "Cerrada",
+    leadTypeGeneral: "General",
+    leadTypeAiValidation: "Validacion de IA",
+    leadTypeValuation: "Valoracion",
+    leadTypeBuyer: "Compra",
+    leadTypeSeller: "Venta",
+    respondWhatsApp: "Responder WhatsApp",
+    respondEmail: "Responder correo",
+    markContacted: "Marcar atendida",
+    markClosed: "Cerrar",
+    noEmail: "Sin correo",
     whatsAppPending: "Abrir WhatsApp",
     statProperties: "Publicaciones",
     statRequests: "Solicitudes pendientes",
+    statLeads: "Asesorias nuevas",
     statUsers: "Cuentas vendedor",
     statVisits: "Visitas demo",
     edit: "Editar",
@@ -500,13 +525,19 @@ const translations = {
     adminJumpCatalogs: "Catalogs",
     adminJumpNew: "New property",
     adminJumpPrompts: "AI tools",
+    adminJumpLeads: "Advisory",
     adminPromptLibraryTitle: "Internal AI tools for listings and advisory",
     adminPromptLibraryCopy:
       "Use these texts as internal support to value, write, and review properties before publishing. This is not a public section.",
     adminPromptsEmpty: "No internal tools configured.",
+    adminLeadsTitle: "Advisor requests",
+    adminLeadSummary: "advisor requests",
+    adminLeadsHint: "Reply by WhatsApp or email and mark each request as handled.",
+    adminNoLeads: "No advisor requests.",
     adminScrollableHint: "Scroll inside this list to see more.",
     adminListingsHint: "Edit, review, and delete existing listings.",
     adminInsightPending: "Pending review",
+    adminInsightLeads: "New advisor requests",
     adminInsightFeatured: "Featured properties",
     adminInsightAverage: "Average price",
     adminInsightSearches: "Recorded searches",
@@ -547,9 +578,26 @@ const translations = {
     listingDeleted: "Listing deleted.",
     requestApproved: "Request approved and published.",
     requestRejected: "Request rejected.",
+    leadUpdated: "Advisor request updated.",
+    leadDeleted: "Advisor request deleted.",
+    confirmDeleteLead: "Delete this advisor request?",
+    leadStatusNew: "New",
+    leadStatusContacted: "Handled",
+    leadStatusClosed: "Closed",
+    leadTypeGeneral: "General",
+    leadTypeAiValidation: "AI validation",
+    leadTypeValuation: "Valuation",
+    leadTypeBuyer: "Buyer",
+    leadTypeSeller: "Seller",
+    respondWhatsApp: "Reply WhatsApp",
+    respondEmail: "Reply email",
+    markContacted: "Mark handled",
+    markClosed: "Close",
+    noEmail: "No email",
     whatsAppPending: "Open WhatsApp",
     statProperties: "Listings",
     statRequests: "Pending requests",
+    statLeads: "New advisory",
     statUsers: "Seller accounts",
     statVisits: "Demo visits",
     edit: "Edit",
@@ -578,11 +626,12 @@ const state = {
   session: null,
   properties: [],
   requests: [],
+  leads: [],
   adminPrompts: [],
   locationOptions: [],
   config: { googleClientId: "", googleMapsApiKey: "" },
   googleReady: false,
-  stats: { properties: 0, pendingRequests: 0, users: 0, visits: 0, searches: 0 },
+  stats: { properties: 0, pendingRequests: 0, newLeads: 0, users: 0, visits: 0, searches: 0 },
   filters: {
     text: "",
     type: "",
@@ -1300,10 +1349,162 @@ function renderAdminRequests() {
     .join("");
 }
 
+function leadStatusLabel(status) {
+  if (status === "contacted") return t("leadStatusContacted");
+  if (status === "closed") return t("leadStatusClosed");
+  return t("leadStatusNew");
+}
+
+function leadTypeLabel(type) {
+  const value = String(type || "").toLowerCase();
+  if (value.includes("validacion")) return t("leadTypeAiValidation");
+  if (value.includes("valuacion")) return t("leadTypeValuation");
+  if (value.includes("comprador")) return t("leadTypeBuyer");
+  if (value.includes("vendedor") || value.includes("seller")) return t("leadTypeSeller");
+  return t("leadTypeGeneral");
+}
+
+function leadPayloadLabel(key) {
+  const labels = {
+    operationType: t("operationType"),
+    zone: t("zone"),
+    propertyType: t("propertyType"),
+    aiResponse: t("aiResponseField"),
+    aiMessage: t("aiResponseField"),
+    budgetOrPrice: "Precio / presupuesto",
+    budget: "Presupuesto",
+    landSize: "m2 terreno",
+    builtSize: "m2 construccion",
+    bedrooms: t("bedrooms"),
+    bathrooms: t("bathrooms"),
+    amenities: "Amenidades",
+    age: "Antiguedad",
+    legalStatus: "Estado legal",
+    ownerEstimate: "Precio estimado",
+    usedAi: "Uso de IA",
+    goal: "Objetivo",
+    purchaseDate: "Fecha estimada",
+  };
+  return labels[key] || key.replace(/([A-Z])/g, " $1").replace(/^./, (letter) => letter.toUpperCase());
+}
+
+function renderLeadPayload(lead) {
+  const payload = lead.payload && typeof lead.payload === "object" ? lead.payload : {};
+  const entries = Object.entries(payload).filter(([, value]) => value !== undefined && value !== null && String(value).trim() !== "");
+  if (!entries.length) return "";
+  const rows = entries.map(([key, value]) => {
+    const text = Array.isArray(value) ? value.join(", ") : typeof value === "object" ? JSON.stringify(value) : String(value);
+    const isLong = text.length > 160;
+    return `
+      <div>
+        <span>${escapeHtml(leadPayloadLabel(key))}</span>
+        <strong>${escapeHtml(isLong ? truncateText(text, 160) : text)}</strong>
+      </div>
+    `;
+  });
+  const visible = rows.slice(0, 6).join("");
+  const hidden = rows.slice(6).join("");
+  return `
+    <div class="lead-payload">${visible}</div>
+    ${hidden ? `<details class="lead-more"><summary>${escapeHtml(t("showMore"))}</summary><div class="lead-payload">${hidden}</div></details>` : ""}
+  `;
+}
+
+function leadPhoneForWhatsApp(phone) {
+  const digits = String(phone || "").replace(/\D/g, "");
+  if (digits.length === 10) return `52${digits}`;
+  return digits;
+}
+
+function leadWhatsAppUrl(lead) {
+  const phone = leadPhoneForWhatsApp(lead.phone);
+  const message = [
+    `Hola ${lead.name || ""}, soy asesor de Puerto Cancun Center.`,
+    "Recibimos tu solicitud y quiero apoyarte con la informacion que enviaste.",
+    "",
+    `Tipo: ${leadTypeLabel(lead.leadType)}`,
+  ].join("\n");
+  return `https://wa.me/${phone}?text=${encodeURIComponent(message)}`;
+}
+
+function leadEmailUrl(lead) {
+  const subject = "Solicitud Puerto Cancun Center";
+  const body = [
+    `Hola ${lead.name || ""},`,
+    "",
+    "Recibimos tu solicitud en Puerto Cancun Center y queremos apoyarte con la informacion que enviaste.",
+    "",
+    `Tipo de solicitud: ${leadTypeLabel(lead.leadType)}`,
+    "",
+    "Quedamos atentos para continuar con la asesoria.",
+  ].join("\n");
+  return `mailto:${lead.email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+}
+
+function renderAdminLeads() {
+  const list = $("#adminLeads");
+  if (!list) return;
+  const summary = $("#adminLeadSummary");
+  const newCount = state.leads.filter((lead) => lead.status === "new").length;
+  if (summary) {
+    summary.textContent = `${state.leads.length} ${t("adminLeadSummary")} · ${newCount ? `${newCount} ${t("leadStatusNew")}` : t("adminNoPending")}`;
+  }
+  if (!state.leads.length) {
+    list.innerHTML = `<p class="empty-state">${escapeHtml(t("adminNoLeads"))}</p>`;
+    return;
+  }
+  list.innerHTML = state.leads
+    .map((lead) => {
+      const phoneUrl = leadPhoneForWhatsApp(lead.phone) ? leadWhatsAppUrl(lead) : "";
+      const source = lead.sourcePath ? `<small>${escapeHtml(lead.sourcePath)}</small>` : "";
+      return `
+        <article class="lead-admin-entry">
+          <div class="lead-header">
+            <div>
+              <span class="status ${escapeHtml(lead.status || "new")}">${escapeHtml(leadStatusLabel(lead.status))}</span>
+              <h3>${escapeHtml(lead.name || "")}</h3>
+              <p>${escapeHtml(leadTypeLabel(lead.leadType))} · ${escapeHtml(formatDate(lead.createdAt))}</p>
+              ${source}
+            </div>
+            <strong>${escapeHtml(lead.phone || "")}</strong>
+          </div>
+          <div class="lead-contact-grid">
+            <div>
+              <span>WhatsApp</span>
+              <strong>${escapeHtml(lead.phone || "")}</strong>
+            </div>
+            <div>
+              <span>${escapeHtml(t("email"))}</span>
+              <strong>${escapeHtml(lead.email || t("noEmail"))}</strong>
+            </div>
+          </div>
+          ${renderLeadPayload(lead)}
+          <div class="item-actions lead-actions">
+            ${
+              phoneUrl
+                ? `<a class="mini-button primary" href="${escapeHtml(phoneUrl)}" target="_blank" rel="noopener noreferrer">${escapeHtml(t("respondWhatsApp"))}</a>`
+                : ""
+            }
+            ${
+              lead.email
+                ? `<a class="mini-button" href="${escapeHtml(leadEmailUrl(lead))}">${escapeHtml(t("respondEmail"))}</a>`
+                : ""
+            }
+            <button class="mini-button" type="button" data-lead-id="${escapeHtml(lead.id)}" data-lead-status="contacted">${escapeHtml(t("markContacted"))}</button>
+            <button class="mini-button" type="button" data-lead-id="${escapeHtml(lead.id)}" data-lead-status="closed">${escapeHtml(t("markClosed"))}</button>
+            <button class="mini-button danger" type="button" data-delete-lead="${escapeHtml(lead.id)}">${escapeHtml(t("delete"))}</button>
+          </div>
+        </article>
+      `;
+    })
+    .join("");
+}
+
 function renderStats() {
   const stats = [
     [state.stats.properties, t("statProperties")],
     [state.stats.pendingRequests, t("statRequests")],
+    [state.stats.newLeads || 0, t("statLeads")],
     [state.stats.users, t("statUsers")],
     [state.stats.visits, t("statVisits")],
   ];
@@ -1317,6 +1518,7 @@ function renderAdminInsights() {
   if (!container) return;
   const properties = state.properties;
   const pending = state.requests.filter((request) => request.status === "pending").length;
+  const newLeads = state.leads.filter((lead) => lead.status === "new").length;
   const featured = properties.filter((property) => property.featured).length;
   const usdProperties = properties.filter((property) => property.priceUsd);
   const average =
@@ -1333,6 +1535,11 @@ function renderAdminInsights() {
       <span>${escapeHtml(t("adminInsightPending"))}</span>
       <strong>${pending}</strong>
       <p>${escapeHtml(pending ? t("adminRequestsTitle") : t("adminNoPending"))}</p>
+    </article>
+    <article class="insight-card priority">
+      <span>${escapeHtml(t("adminInsightLeads"))}</span>
+      <strong>${newLeads}</strong>
+      <p>${escapeHtml(newLeads ? t("adminLeadsTitle") : t("adminNoLeads"))}</p>
     </article>
     <article class="insight-card">
       <span>${escapeHtml(t("adminInsightFeatured"))}</span>
@@ -1542,20 +1749,23 @@ async function loadPublicData() {
 async function loadPanelData() {
   if (!state.session) return;
   if (state.session.role === "admin") {
-    const [statsData, requestsData, propertiesData, promptsData] = await Promise.all([
+    const [statsData, requestsData, propertiesData, promptsData, leadsData] = await Promise.all([
       api("/api/admin/stats"),
       api("/api/admin/requests"),
       api("/api/properties"),
       api("/api/admin/prompts"),
+      api("/api/admin/leads"),
     ]);
     state.stats = statsData;
     state.requests = requestsData.requests || [];
     state.properties = propertiesData.properties || [];
     state.adminPrompts = promptsData.prompts || [];
+    state.leads = leadsData.leads || [];
   } else {
     const requestsData = await api("/api/seller/requests");
     state.requests = requestsData.requests || [];
     state.adminPrompts = [];
+    state.leads = [];
   }
 }
 
@@ -1583,6 +1793,7 @@ async function renderPanel() {
     renderCatalogParentOptions();
     renderLocationCatalogs();
     renderAdminPrompts();
+    renderAdminLeads();
     renderAdminRequests();
     renderAdminListings();
   } else {
@@ -2042,6 +2253,30 @@ async function rejectRequest(id) {
   }
 }
 
+async function updateLeadStatus(id, status) {
+  try {
+    await api(`/api/admin/leads/${encodeURIComponent(id)}`, {
+      method: "PATCH",
+      body: { status },
+    });
+    await renderPanel();
+    alert(t("leadUpdated"));
+  } catch (error) {
+    alert(error.message);
+  }
+}
+
+async function deleteLead(id) {
+  if (!confirm(t("confirmDeleteLead"))) return;
+  try {
+    await api(`/api/admin/leads/${encodeURIComponent(id)}`, { method: "DELETE" });
+    await renderPanel();
+    alert(t("leadDeleted"));
+  } catch (error) {
+    alert(error.message);
+  }
+}
+
 async function handleSearch(event) {
   event.preventDefault();
   const text = $("#searchInput").value.trim();
@@ -2287,6 +2522,7 @@ function bindEvents() {
     await api("/api/auth/logout", { method: "POST" }).catch(() => null);
     state.session = null;
     state.requests = [];
+    state.leads = [];
     hidePanel();
   });
 
@@ -2387,6 +2623,12 @@ function bindEvents() {
 
     const deleteLocation = event.target.closest("[data-delete-location]");
     if (deleteLocation) void deleteLocationOption(deleteLocation.dataset.deleteLocation);
+
+    const leadStatus = event.target.closest("[data-lead-status]");
+    if (leadStatus) void updateLeadStatus(leadStatus.dataset.leadId, leadStatus.dataset.leadStatus);
+
+    const deleteLeadButton = event.target.closest("[data-delete-lead]");
+    if (deleteLeadButton) void deleteLead(deleteLeadButton.dataset.deleteLead);
   });
 
   $("#whatsappButton").addEventListener("click", () => {

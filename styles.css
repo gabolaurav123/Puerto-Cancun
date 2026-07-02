@@ -1218,6 +1218,9 @@ body[data-page="seo"] .home-only {
 }
 
 .mini-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   border: 1px solid var(--line);
   background: var(--white);
   color: var(--blue-900);
@@ -1951,12 +1954,16 @@ textarea {
 
 .admin-insights {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(5, 1fr);
   gap: 14px;
   margin-bottom: 22px;
 }
 
 .admin-prompts-card {
+  margin-bottom: 22px;
+}
+
+.admin-leads-card {
   margin-bottom: 22px;
 }
 
@@ -2161,12 +2168,14 @@ textarea {
 }
 
 .request-list,
+.lead-list,
 .admin-listings {
   display: grid;
   gap: 12px;
 }
 
 .admin-requests-card .request-list,
+.admin-leads-card .lead-list,
 .admin-listings-card .admin-listings {
   max-height: 720px;
   overflow: auto;
@@ -2185,6 +2194,84 @@ textarea {
 .request-admin-entry:last-child {
   border-bottom: 0;
   padding-bottom: 0;
+}
+
+.lead-admin-entry {
+  display: grid;
+  gap: 12px;
+  border: 1px solid var(--line);
+  background: #fbfcfd;
+  padding: 16px;
+}
+
+.lead-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 18px;
+}
+
+.lead-header h3 {
+  margin: 0 0 5px;
+  color: var(--ink);
+  font-size: 1.05rem;
+}
+
+.lead-header p,
+.lead-header small {
+  display: block;
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.84rem;
+}
+
+.lead-header > strong {
+  color: var(--blue-900);
+  white-space: nowrap;
+}
+
+.lead-contact-grid,
+.lead-payload {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.lead-contact-grid > div,
+.lead-payload > div {
+  min-width: 0;
+  padding: 10px;
+  background: #f4f7f9;
+}
+
+.lead-contact-grid span,
+.lead-payload span {
+  display: block;
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.lead-contact-grid strong,
+.lead-payload strong {
+  display: block;
+  min-width: 0;
+  margin-top: 4px;
+  overflow-wrap: anywhere;
+  color: var(--ink);
+  font-size: 0.88rem;
+}
+
+.lead-more summary {
+  cursor: pointer;
+  color: var(--blue-700);
+  font-size: 0.84rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.lead-actions a {
+  text-decoration: none;
 }
 
 .request-item,
@@ -2326,9 +2413,29 @@ textarea {
   color: #991b1b;
 }
 
+.status.new {
+  background: #e0f2fe;
+  color: #075985;
+}
+
+.status.contacted {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.status.closed {
+  background: #e5e7eb;
+  color: #374151;
+}
+
+.mini-button.danger {
+  border-color: #fecaca;
+  color: #991b1b;
+}
+
 .stats-grid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(5, 1fr);
   gap: 14px;
   margin-bottom: 22px;
 }
@@ -2528,6 +2635,7 @@ textarea {
   }
 
   .admin-requests-card .request-list,
+  .admin-leads-card .lead-list,
   .admin-listings-card .admin-listings {
     max-height: none;
     overflow: visible;
@@ -2622,6 +2730,8 @@ textarea {
   .form-row,
   .form-row:has(> label:nth-child(3)),
   .detail-grid,
+  .lead-contact-grid,
+  .lead-payload,
   .detailed-listing,
   .seo-grid,
   .zone-info-grid,
@@ -2666,6 +2776,7 @@ textarea {
 
   .request-item-header,
   .listing-heading,
+  .lead-header,
   .map-picker-copy,
   .seller-help-card {
     flex-direction: column;

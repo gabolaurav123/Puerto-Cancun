@@ -221,7 +221,7 @@ function PropertyValuationForm() {
   return `
     <form class="lead-form seo-form" data-lead-form>
       <input type="hidden" name="leadType" value="valuacion-inmobiliaria" />
-      <div class="form-row">${leadInput("Nombre", "name", "text", "required")}${leadInput("WhatsApp", "whatsapp", "tel", "required")}</div>
+      <div class="form-row">${leadInput("Nombre", "name", "text", "required")}${leadInput("WhatsApp", "whatsapp", "tel", "required")}${leadInput("Correo", "email", "email", "required")}</div>
       <div class="form-row">${leadSelect("Tipo de propiedad", "propertyType", ["Casa", "Departamento", "Terreno", "Comercial"])}${leadInput("Zona", "zone")}</div>
       <div class="form-row">${leadInput("m2 de terreno", "landSize", "number")}${leadInput("m2 de construccion", "builtSize", "number")}</div>
       <div class="form-row">${leadInput("Recamaras", "bedrooms", "number")}${leadInput("Banos", "bathrooms", "number")}</div>
@@ -239,7 +239,7 @@ function BuyerLeadForm() {
   return `
     <form class="lead-form seo-form" data-lead-form>
       <input type="hidden" name="leadType" value="comprador" />
-      <div class="form-row">${leadInput("Nombre", "name", "text", "required")}${leadInput("WhatsApp", "whatsapp", "tel", "required")}</div>
+      <div class="form-row">${leadInput("Nombre", "name", "text", "required")}${leadInput("WhatsApp", "whatsapp", "tel", "required")}${leadInput("Correo", "email", "email", "required")}</div>
       <div class="form-row">${leadInput("Presupuesto", "budget")}${leadSelect("Tipo de propiedad", "propertyType", ["Casa", "Departamento", "Terreno", "Preventa"])} </div>
       <div class="form-row">${leadInput("Zona de interes", "zone")}${leadSelect("Objetivo", "goal", ["Vivir", "Invertir", "Rentar"])} </div>
       <div class="form-row">${leadInput("Recamaras", "bedrooms", "number")}${leadInput("Fecha estimada de compra", "purchaseDate")}</div>
@@ -253,7 +253,7 @@ function AIValidationForm() {
   return `
     <form class="lead-form seo-form" data-lead-form>
       <input type="hidden" name="leadType" value="validacion-ia" />
-      <div class="form-row">${leadInput("Nombre", "name", "text", "required")}${leadInput("WhatsApp", "whatsapp", "tel", "required")}</div>
+      <div class="form-row">${leadInput("Nombre", "name", "text", "required")}${leadInput("WhatsApp", "whatsapp", "tel", "required")}${leadInput("Correo", "email", "email", "required")}</div>
       <div class="form-row">${leadSelect("Tipo de operacion", "operationType", ["Vender", "Comprar", "Invertir"])}${leadInput("Zona", "zone")}</div>
       <div class="form-row">${leadSelect("Tipo de propiedad", "propertyType", ["Casa", "Departamento", "Terreno", "Comercial"])}${leadInput("Presupuesto o precio estimado", "budgetOrPrice")}</div>
       ${leadTextarea("Mensaje o recomendacion que te dio la IA", "aiMessage", 6)}

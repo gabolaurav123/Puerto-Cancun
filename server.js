@@ -382,6 +382,30 @@ function toRequest(row) {
   };
 }
 
+function toLead(row) {
+  const payload =
+    row.payload && typeof row.payload === "object"
+      ? row.payload
+      : (() => {
+          try {
+            return JSON.parse(row.payload || "{}");
+          } catch {
+            return {};
+          }
+        })();
+  return {
+    id: row.id,
+    leadType: row.lead_type,
+    name: row.name,
+    phone: row.phone,
+    email: row.email || "",
+    sourcePath: row.source_path || "",
+    payload,
+    status: row.status,
+    createdAt: row.created_at,
+  };
+}
+
 function toLocationOption(row) {
   return {
     id: row.id,
@@ -1040,15 +1064,17 @@ app.post("/api/seller/requests", requireRole("seller"), async (req, res, next) =
 
 app.get("/api/admin/stats", requireRole("admin"), async (_req, res, next) => {
   try {
-    const [properties, pending, users, metrics] = await Promise.all([
+    const [properties, pending, leads, users, metrics] = await Promise.all([
       query("SELECT COUNT(*)::int AS count FROM properties"),
       query("SELECT COUNT(*)::int AS count FROM seller_requests WHERE status = 'pending'"),
+      query("SELECT COUNT(*)::int AS count FROM lead_requests WHERE status = 'new'"),
       query("SELECT COUNT(*)::int AS count FROM seller_accounts"),
       query("SELECT visits, searches FROM app_metrics WHERE id = 1"),
     ]);
     res.json({
       properties: properties.rows[0].count,
       pendingRequests: pending.rows[0].count,
+      newLeads: leads.rows[0].count,
       users: users.rows[0].count,
       visits: metrics.rows[0]?.visits || 0,
       searches: metrics.rows[0]?.searches || 0,
@@ -1097,6 +1123,39 @@ app.get("/api/admin/requests", requireRole("admin"), async (_req, res, next) => 
   try {
     const result = await query("SELECT * FROM seller_requests ORDER BY created_at DESC");
     res.json({ requests: result.rows.map(toRequest) });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.get("/api/admin/leads", requireRole("admin"), async (_req, res, next) => {
+  try {
+    const result = await query("SELECT * FROM lead_requests ORDER BY created_at DESC LIMIT 120");
+    res.json({ leads: result.rows.map(toLead) });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.patch("/api/admin/leads/:id", requireRole("admin"), async (req, res, next) => {
+  try {
+    const allowed = new Set(["new", "contacted", "closed"]);
+    const status = allowed.has(req.body?.status) ? req.body.status : "contacted";
+    const result = await query("UPDATE lead_requests SET status = $2 WHERE id = $1 RETURNING *", [req.params.id, status]);
+    if (!result.rows[0]) {
+      res.status(404).json({ error: "Lead not found" });
+      return;
+    }
+    res.json({ lead: toLead(result.rows[0]) });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.delete("/api/admin/leads/:id", requireRole("admin"), async (req, res, next) => {
+  try {
+    await query("DELETE FROM lead_requests WHERE id = $1", [req.params.id]);
+    res.json({ ok: true });
   } catch (error) {
     next(error);
   }

@@ -212,6 +212,10 @@
                   <span>WhatsApp</span>
                   <input name="whatsapp" type="tel" required />
                 </label>
+                <label>
+                  <span data-i18n="email">Direccion de correo</span>
+                  <input name="email" type="email" required />
+                </label>
               </div>
               <div class="form-row">
                 <label>
@@ -830,6 +834,10 @@
               <i data-lucide="map-pin"></i>
               <span data-i18n="adminJumpCatalogs">Catálogos</span>
             </button>
+            <button class="ghost-button" type="button" data-admin-jump="adminLeadsCard">
+              <i data-lucide="inbox"></i>
+              <span data-i18n="adminJumpLeads">Asesorias</span>
+            </button>
             <button class="primary-button" type="button" data-admin-jump="listingForm">
               <i data-lucide="plus"></i>
               <span data-i18n="adminJumpNew">Nueva propiedad</span>
@@ -841,6 +849,14 @@
           </div>
         </div>
         <div class="admin-insights" id="adminInsights"></div>
+        <article class="panel-card admin-leads-card" id="adminLeadsCard">
+          <h2 data-i18n="adminLeadsTitle">Solicitudes de asesoria</h2>
+          <div class="panel-card-subhead">
+            <span id="adminLeadSummary"></span>
+            <span data-i18n="adminLeadsHint">Responde por WhatsApp o correo y marca cada solicitud como atendida.</span>
+          </div>
+          <div class="lead-list" id="adminLeads"></div>
+        </article>
         <article class="panel-card admin-catalogs-card" id="adminCatalogsCard">
           <div class="admin-prompts-heading">
             <div>
