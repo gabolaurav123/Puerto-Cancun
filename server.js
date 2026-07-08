@@ -475,6 +475,15 @@ function toContact(row) {
 
 function propertyQuality(property) {
   const images = mergeLegacyImages(property.images, property.image);
+  const missing = [];
+  if (!images.length) missing.push("portada");
+  if (images.length < 5) missing.push("minimo 5 fotos");
+  if (!property.latitude || !property.longitude) missing.push("ubicacion precisa");
+  if (!property.price_usd && !property.price_mxn) missing.push("precio");
+  if (!String(property.description_es || "").trim()) missing.push("descripcion");
+  if (String(property.description_es || "").length < 220) missing.push("descripcion larga");
+  if (!property.zone) missing.push("zona");
+  if (!property.beds && !property.baths && !property.area) missing.push("caracteristicas");
   const parts = [
     Math.min(images.length, 8) / 8,
     property.latitude && property.longitude ? 1 : property.address ? 0.65 : 0,
@@ -485,7 +494,7 @@ function propertyQuality(property) {
   ];
   const score = Math.round((parts.reduce((sum, value) => sum + value, 0) / parts.length) * 100);
   const level = score >= 86 ? "premium" : score >= 70 ? "ready" : score >= 45 ? "needs_work" : "incomplete";
-  return { score, level };
+  return { score, level, missing };
 }
 
 function toProperty(row) {
@@ -521,12 +530,86 @@ function toProperty(row) {
     googleMapsUrl: row.google_maps_url || "",
     qualityScore: quality.score,
     qualityLevel: quality.level,
+    qualityMissing: quality.missing,
     badges: row.badges || [],
     createdAt: row.created_at,
     updatedAt: row.updated_at,
     descriptionEs: row.description_es,
     descriptionEn: row.description_en,
     sourceRequestId: row.source_request_id,
+  };
+}
+
+function numericOrNull(value) {
+  if (value === undefined || value === null || value === "") return null;
+  const number = Number(value);
+  return Number.isFinite(number) ? number : null;
+}
+
+function toValuation(row) {
+  return {
+    id: row.id,
+    requestId: row.request_id || "",
+    contactId: row.contact_id || "",
+    propertyId: row.property_id || "",
+    ownerName: row.owner_name || "",
+    phone: row.phone || "",
+    email: row.email || "",
+    zone: row.zone || "",
+    propertyType: row.property_type || "",
+    expectedPrice: row.expected_price === null ? null : Number(row.expected_price || 0),
+    suggestedPrice: row.suggested_price === null ? null : Number(row.suggested_price || 0),
+    lowRange: row.low_range === null ? null : Number(row.low_range || 0),
+    highRange: row.high_range === null ? null : Number(row.high_range || 0),
+    confidenceLevel: row.confidence_level || "manual",
+    comments: row.comments || "",
+    status: row.status || "new",
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}
+
+function valuationFromLead(row) {
+  const lead = toLead(row);
+  const payload = lead.payload || {};
+  return {
+    id: `lead-${lead.id}`,
+    requestId: lead.id,
+    contactId: lead.contactId || "",
+    propertyId: lead.propertyId || "",
+    ownerName: lead.name || "",
+    phone: lead.phone || "",
+    email: lead.email || "",
+    zone: payload.zone || "",
+    propertyType: payload.propertyType || "",
+    expectedPrice: numericOrNull(payload.budgetOrPrice || payload.ownerEstimate || payload.expectedPrice),
+    suggestedPrice: null,
+    lowRange: null,
+    highRange: null,
+    confidenceLevel: "pending",
+    comments: payload.aiResponse || payload.aiMessage || payload.message || "",
+    status: lead.status === "contacted" ? "in_analysis" : "new",
+    source: "lead_request",
+    leadScore: lead.leadScore,
+    priority: lead.priority,
+    createdAt: lead.createdAt,
+    updatedAt: lead.updatedAt,
+  };
+}
+
+function toTask(row) {
+  return {
+    id: row.id,
+    title: row.title,
+    description: row.description || "",
+    assignedTo: row.assigned_to || "",
+    status: row.status || "pending",
+    priority: row.priority || "medium",
+    dueDate: row.due_date,
+    relatedEntityType: row.related_entity_type || "",
+    relatedEntityId: row.related_entity_id || "",
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
   };
 }
 
@@ -878,6 +961,56 @@ async function initDatabase() {
       );
     `);
     await client.query(`
+      CREATE TABLE IF NOT EXISTS valuations (
+        id TEXT PRIMARY KEY,
+        request_id TEXT,
+        contact_id TEXT,
+        property_id TEXT,
+        owner_name TEXT NOT NULL,
+        phone TEXT,
+        email TEXT,
+        zone TEXT,
+        property_type TEXT,
+        expected_price NUMERIC,
+        suggested_price NUMERIC,
+        low_range NUMERIC,
+        high_range NUMERIC,
+        confidence_level TEXT NOT NULL DEFAULT 'manual',
+        comments TEXT,
+        status TEXT NOT NULL DEFAULT 'new',
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      );
+    `);
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS tasks (
+        id TEXT PRIMARY KEY,
+        title TEXT NOT NULL,
+        description TEXT,
+        assigned_to TEXT,
+        status TEXT NOT NULL DEFAULT 'pending',
+        priority TEXT NOT NULL DEFAULT 'medium',
+        due_date TIMESTAMPTZ,
+        related_entity_type TEXT,
+        related_entity_id TEXT,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      );
+    `);
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS property_matches (
+        id TEXT PRIMARY KEY,
+        property_id TEXT NOT NULL,
+        contact_id TEXT NOT NULL,
+        score INTEGER NOT NULL DEFAULT 0,
+        reason TEXT,
+        status TEXT NOT NULL DEFAULT 'suggested',
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        UNIQUE (property_id, contact_id)
+      );
+    `);
+    await client.query(`
       INSERT INTO app_metrics (id, visits, searches)
       VALUES (1, 0, 0)
       ON CONFLICT (id) DO NOTHING;
@@ -912,6 +1045,13 @@ async function initDatabase() {
     await client.query("ALTER TABLE location_options ADD COLUMN IF NOT EXISTS is_active BOOLEAN NOT NULL DEFAULT TRUE");
     await client.query("ALTER TABLE location_options ADD COLUMN IF NOT EXISTS sort_order INTEGER NOT NULL DEFAULT 0");
     await client.query("ALTER TABLE location_options ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()");
+    await client.query("ALTER TABLE valuations ADD COLUMN IF NOT EXISTS contact_id TEXT");
+    await client.query("ALTER TABLE valuations ADD COLUMN IF NOT EXISTS property_id TEXT");
+    await client.query("ALTER TABLE valuations ADD COLUMN IF NOT EXISTS confidence_level TEXT NOT NULL DEFAULT 'manual'");
+    await client.query("ALTER TABLE valuations ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()");
+    await client.query("ALTER TABLE tasks ADD COLUMN IF NOT EXISTS priority TEXT NOT NULL DEFAULT 'medium'");
+    await client.query("ALTER TABLE tasks ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()");
+    await client.query("ALTER TABLE property_matches ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()");
     for (const option of seedLocationOptions) {
       await client.query(
         `INSERT INTO location_options (id, type, name, parent_id, is_active)
@@ -1320,6 +1460,28 @@ app.post("/api/leads", async (req, res, next) => {
        RETURNING *`,
       [uuid("lead"), leadType, name, phone || null, email, sourcePath, propertyId, contact?.id || null, JSON.stringify(payload), priority, leadScore]
     );
+    const category = inferLeadCategory(leadType);
+    if (category === "valuation" || leadType.toLowerCase().includes("validar-precio")) {
+      await client.query(
+        `INSERT INTO valuations
+          (id, request_id, contact_id, property_id, owner_name, phone, email, zone, property_type, expected_price, comments, status)
+         VALUES
+          ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, 'new')`,
+        [
+          uuid("val"),
+          result.rows[0].id,
+          contact?.id || null,
+          propertyId,
+          name,
+          phone || null,
+          email,
+          payload.zone || "",
+          payload.propertyType || "",
+          numericOrNull(payload.budgetOrPrice || payload.ownerEstimate || payload.expectedPrice),
+          payload.aiResponse || payload.aiMessage || payload.message || "",
+        ]
+      );
+    }
     await client.query(
       `INSERT INTO notifications (id, type, title, message, related_entity_type, related_entity_id)
        VALUES ($1, $2, $3, $4, 'lead_request', $5)`,
@@ -1477,31 +1639,58 @@ app.post("/api/seller/requests", requireRole("seller"), async (req, res, next) =
 
 app.get("/api/admin/stats", requireRole("admin"), async (_req, res, next) => {
   try {
-    const [properties, activeProperties, disabledProperties, featuredProperties, pending, leads, valuationLeads, buyerLeads, users, contacts, metrics] =
+    const [
+      properties,
+      activeProperties,
+      disabledProperties,
+      incompleteProperties,
+      featuredProperties,
+      pending,
+      leads,
+      premiumLeads,
+      valuationLeads,
+      buyerLeads,
+      sellerLeads,
+      users,
+      contacts,
+      pendingTasks,
+      overdueTasks,
+      metrics,
+    ] =
       await Promise.all([
       query("SELECT COUNT(*)::int AS count FROM properties"),
       query("SELECT COUNT(*)::int AS count FROM properties WHERE status = 'active' AND is_public = TRUE"),
       query("SELECT COUNT(*)::int AS count FROM properties WHERE status IN ('disabled', 'archived', 'draft') OR is_public = FALSE"),
+      query("SELECT COUNT(*)::int AS count FROM properties WHERE images = '[]'::jsonb OR price_usd IS NULL OR description_es IS NULL OR LENGTH(description_es) < 120"),
       query("SELECT COUNT(*)::int AS count FROM properties WHERE featured = TRUE"),
       query("SELECT COUNT(*)::int AS count FROM seller_requests WHERE status = 'pending'"),
       query("SELECT COUNT(*)::int AS count FROM lead_requests WHERE status = 'new'"),
+      query("SELECT COUNT(*)::int AS count FROM lead_requests WHERE priority IN ('premium', 'urgent') OR lead_score = 'premium'"),
       query("SELECT COUNT(*)::int AS count FROM lead_requests WHERE lead_type ILIKE '%valuacion%' AND status IN ('new', 'contacted', 'in_review')"),
       query("SELECT COUNT(*)::int AS count FROM contacts WHERE contact_type = 'buyer'"),
+      query("SELECT COUNT(*)::int AS count FROM contacts WHERE contact_type = 'seller'"),
       query("SELECT COUNT(*)::int AS count FROM seller_accounts"),
       query("SELECT COUNT(*)::int AS count FROM contacts"),
+      query("SELECT COUNT(*)::int AS count FROM tasks WHERE status IN ('pending', 'in_progress')"),
+      query("SELECT COUNT(*)::int AS count FROM tasks WHERE status IN ('pending', 'in_progress') AND due_date < NOW()"),
       query("SELECT visits, searches FROM app_metrics WHERE id = 1"),
     ]);
     res.json({
       properties: properties.rows[0].count,
       activeProperties: activeProperties.rows[0].count,
       disabledProperties: disabledProperties.rows[0].count,
+      incompleteProperties: incompleteProperties.rows[0].count,
       featuredProperties: featuredProperties.rows[0].count,
       pendingRequests: pending.rows[0].count,
       newLeads: leads.rows[0].count,
+      premiumLeads: premiumLeads.rows[0].count,
       valuationLeads: valuationLeads.rows[0].count,
       buyerLeads: buyerLeads.rows[0].count,
+      sellerLeads: sellerLeads.rows[0].count,
       users: users.rows[0].count,
       contacts: contacts.rows[0].count,
+      pendingTasks: pendingTasks.rows[0].count,
+      overdueTasks: overdueTasks.rows[0].count,
       visits: metrics.rows[0]?.visits || 0,
       searches: metrics.rows[0]?.searches || 0,
     });
@@ -1512,6 +1701,257 @@ app.get("/api/admin/stats", requireRole("admin"), async (_req, res, next) => {
 
 app.get("/api/admin/prompts", requireRole("admin"), (_req, res) => {
   res.json({ prompts: adminPrompts });
+});
+
+app.get("/api/admin/valuations", requireRole("admin"), async (_req, res, next) => {
+  try {
+    const [valuationRows, valuationLeads] = await Promise.all([
+      query("SELECT * FROM valuations ORDER BY updated_at DESC, created_at DESC LIMIT 200"),
+      query(
+        `SELECT l.*
+         FROM lead_requests l
+         WHERE (l.lead_type ILIKE '%valuacion%' OR l.lead_type ILIKE '%validar-precio%')
+           AND NOT EXISTS (SELECT 1 FROM valuations v WHERE v.request_id = l.id)
+         ORDER BY l.created_at DESC
+         LIMIT 100`
+      ),
+    ]);
+    res.json({
+      valuations: [...valuationRows.rows.map(toValuation), ...valuationLeads.rows.map(valuationFromLead)],
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.post("/api/admin/valuations", requireRole("admin"), async (req, res, next) => {
+  try {
+    const body = req.body || {};
+    const ownerName = String(body.ownerName || body.name || "").trim();
+    if (!ownerName) {
+      res.status(400).json({ error: "Owner name is required" });
+      return;
+    }
+    const result = await query(
+      `INSERT INTO valuations
+        (id, request_id, contact_id, property_id, owner_name, phone, email, zone, property_type, expected_price, suggested_price, low_range, high_range, confidence_level, comments, status)
+       VALUES
+        ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
+       RETURNING *`,
+      [
+        uuid("val"),
+        String(body.requestId || "").trim() || null,
+        String(body.contactId || "").trim() || null,
+        String(body.propertyId || "").trim() || null,
+        ownerName,
+        String(body.phone || "").trim() || null,
+        String(body.email || "").trim().toLowerCase() || null,
+        String(body.zone || "").trim(),
+        String(body.propertyType || "").trim(),
+        numericOrNull(body.expectedPrice),
+        numericOrNull(body.suggestedPrice),
+        numericOrNull(body.lowRange),
+        numericOrNull(body.highRange),
+        String(body.confidenceLevel || "manual").trim(),
+        String(body.comments || "").trim(),
+        normalizeStatus(body.status, REQUEST_STATUSES, "new"),
+      ]
+    );
+    res.status(201).json({ valuation: toValuation(result.rows[0]) });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.patch("/api/admin/valuations/:id", requireRole("admin"), async (req, res, next) => {
+  try {
+    const body = req.body || {};
+    const result = await query(
+      `UPDATE valuations
+       SET suggested_price = COALESCE($2, suggested_price),
+           low_range = COALESCE($3, low_range),
+           high_range = COALESCE($4, high_range),
+           confidence_level = COALESCE($5, confidence_level),
+           comments = COALESCE($6, comments),
+           status = COALESCE($7, status),
+           updated_at = NOW()
+       WHERE id = $1
+       RETURNING *`,
+      [
+        req.params.id,
+        numericOrNull(body.suggestedPrice),
+        numericOrNull(body.lowRange),
+        numericOrNull(body.highRange),
+        body.confidenceLevel === undefined ? null : String(body.confidenceLevel || "manual").trim(),
+        body.comments === undefined ? null : String(body.comments || "").trim(),
+        body.status === undefined ? null : normalizeStatus(body.status, REQUEST_STATUSES, "in_review"),
+      ]
+    );
+    if (!result.rows[0]) {
+      res.status(404).json({ error: "Valuation not found" });
+      return;
+    }
+    res.json({ valuation: toValuation(result.rows[0]) });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.get("/api/admin/tasks", requireRole("admin"), async (_req, res, next) => {
+  try {
+    const result = await query("SELECT * FROM tasks ORDER BY due_date ASC NULLS LAST, created_at DESC LIMIT 300");
+    res.json({ tasks: result.rows.map(toTask) });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.post("/api/admin/tasks", requireRole("admin"), async (req, res, next) => {
+  try {
+    const body = req.body || {};
+    const title = String(body.title || "").trim();
+    if (!title) {
+      res.status(400).json({ error: "Task title is required" });
+      return;
+    }
+    const result = await query(
+      `INSERT INTO tasks
+        (id, title, description, assigned_to, status, priority, due_date, related_entity_type, related_entity_id)
+       VALUES
+        ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+       RETURNING *`,
+      [
+        uuid("task"),
+        title,
+        String(body.description || "").trim(),
+        String(body.assignedTo || "").trim() || null,
+        normalizeStatus(body.status, new Set(["pending", "in_progress", "completed", "overdue"]), "pending"),
+        normalizePriority(body.priority),
+        body.dueDate ? new Date(body.dueDate) : null,
+        String(body.relatedEntityType || "").trim() || null,
+        String(body.relatedEntityId || "").trim() || null,
+      ]
+    );
+    res.status(201).json({ task: toTask(result.rows[0]) });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.patch("/api/admin/tasks/:id", requireRole("admin"), async (req, res, next) => {
+  try {
+    const body = req.body || {};
+    const result = await query(
+      `UPDATE tasks
+       SET status = COALESCE($2, status),
+           priority = COALESCE($3, priority),
+           assigned_to = COALESCE($4, assigned_to),
+           due_date = COALESCE($5, due_date),
+           updated_at = NOW()
+       WHERE id = $1
+       RETURNING *`,
+      [
+        req.params.id,
+        body.status === undefined ? null : normalizeStatus(body.status, new Set(["pending", "in_progress", "completed", "overdue"]), "pending"),
+        body.priority === undefined ? null : normalizePriority(body.priority),
+        body.assignedTo === undefined ? null : String(body.assignedTo || "").trim(),
+        body.dueDate === undefined || body.dueDate === "" ? null : new Date(body.dueDate),
+      ]
+    );
+    if (!result.rows[0]) {
+      res.status(404).json({ error: "Task not found" });
+      return;
+    }
+    res.json({ task: toTask(result.rows[0]) });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.get("/api/admin/matches", requireRole("admin"), async (_req, res, next) => {
+  try {
+    const [contacts, properties] = await Promise.all([
+      query("SELECT * FROM contacts WHERE contact_type = 'buyer' ORDER BY lead_score DESC, updated_at DESC LIMIT 120"),
+      query("SELECT * FROM properties WHERE status = 'active' AND is_public = TRUE ORDER BY featured DESC, updated_at DESC LIMIT 160"),
+    ]);
+    const propertyItems = properties.rows.map(toProperty);
+    const matches = [];
+    for (const contact of contacts.rows.map(toContact)) {
+      const zones = Array.isArray(contact.preferredZones) ? contact.preferredZones : [];
+      for (const property of propertyItems) {
+        let score = 35;
+        const reasons = [];
+        if (zones.length && zones.includes(property.zone)) {
+          score += 25;
+          reasons.push(`zona ${property.zone}`);
+        }
+        if (contact.propertyType && property.type === contact.propertyType) {
+          score += 15;
+          reasons.push(`tipo ${property.type}`);
+        }
+        if (contact.budgetMax && property.priceUsd && Number(property.priceUsd) <= Number(contact.budgetMax) * 1.08) {
+          score += 18;
+          reasons.push("presupuesto compatible");
+        }
+        if (property.featured) {
+          score += 7;
+          reasons.push("publicacion destacada");
+        }
+        if (score >= 55) {
+          matches.push({
+            id: `${contact.id}-${property.id}`,
+            contactId: contact.id,
+            contactName: contact.name,
+            contactPhone: contact.phone,
+            propertyId: property.id,
+            propertyTitle: property.titleEs,
+            propertyZone: property.zone,
+            propertyType: property.type,
+            priceUsd: property.priceUsd,
+            score: Math.min(score, 100),
+            reason: reasons.length ? reasons.join(", ") : "interes general compatible",
+          });
+        }
+      }
+    }
+    matches.sort((a, b) => b.score - a.score);
+    res.json({ matches: matches.slice(0, 80) });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.get("/api/admin/analytics", requireRole("admin"), async (_req, res, next) => {
+  try {
+    const [eventsByType, propertyEvents, searchZones, leadSources] = await Promise.all([
+      query("SELECT event_type, COUNT(*)::int AS count FROM analytics_events GROUP BY event_type ORDER BY count DESC LIMIT 20"),
+      query(
+        `SELECT p.id, p.title_es, p.zone, COUNT(e.id)::int AS count
+         FROM analytics_events e
+         JOIN properties p ON p.id = e.property_id
+         GROUP BY p.id, p.title_es, p.zone
+         ORDER BY count DESC
+         LIMIT 10`
+      ),
+      query(
+        `SELECT COALESCE(payload->>'zone', 'Sin zona') AS zone, COUNT(*)::int AS count
+         FROM lead_requests
+         WHERE payload ? 'zone'
+         GROUP BY zone
+         ORDER BY count DESC
+         LIMIT 10`
+      ),
+      query("SELECT COALESCE(source_path, 'directo') AS source, COUNT(*)::int AS count FROM lead_requests GROUP BY source ORDER BY count DESC LIMIT 10"),
+    ]);
+    res.json({
+      eventsByType: eventsByType.rows,
+      propertyEvents: propertyEvents.rows,
+      searchZones: searchZones.rows,
+      leadSources: leadSources.rows,
+    });
+  } catch (error) {
+    next(error);
+  }
 });
 
 app.post("/api/admin/location-options", requireRole("admin"), async (req, res, next) => {

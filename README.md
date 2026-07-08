@@ -43,9 +43,9 @@ El servidor crea automaticamente las tablas necesarias y carga propiedades de ej
 - Registro e inicio de sesion para vendedores.
 - Inicio de sesion con Google/Gmail cuando `GOOGLE_CLIENT_ID` esta configurado.
 - Panel de vendedor para enviar solicitudes de venta.
-- Panel administrativo para aprobar/rechazar solicitudes y crear/editar/borrar publicaciones.
+- Panel administrativo tipo centro de operaciones con leads, solicitudes, valoraciones, publicaciones, CRM, catálogos, match comprador-propiedad, mapa, analítica y tareas.
 - Publicaciones con precio USD y precio MXN como campos independientes.
 - Catálogos de ubicacion, coordenadas y mapa para solicitudes/publicaciones.
-- Carga multiple de imagenes JPG, PNG o WEBP, maximo 8 archivos de 1.5 MB.
+- Carga multiple de imagenes JPG, PNG o WEBP, maximo 20 archivos optimizados antes de guardarse.
 - Botones de propiedad conectados a WhatsApp con mensaje automatico.
 - Persistencia en PostgreSQL para cuentas, solicitudes, publicaciones, metricas y sesiones.

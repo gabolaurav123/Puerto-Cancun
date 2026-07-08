@@ -1908,17 +1908,24 @@ textarea {
   padding-bottom: 60px;
 }
 
+#adminPanel.dashboard {
+  width: min(1600px, calc(100% - 28px));
+  max-width: none;
+}
+
 .admin-shell {
   display: grid;
-  grid-template-columns: 260px minmax(0, 1fr);
-  gap: 20px;
+  grid-template-columns: minmax(260px, 300px) minmax(0, 1fr);
+  gap: 24px;
   align-items: start;
 }
 
 .admin-sidebar {
   position: sticky;
-  top: 12px;
+  top: 14px;
   z-index: 12;
+  max-height: calc(100vh - 28px);
+  overflow: hidden;
   border: 1px solid rgba(255, 255, 255, 0.18);
   background: linear-gradient(180deg, var(--blue-900), #004d78);
   color: var(--white);
@@ -1954,6 +1961,10 @@ textarea {
   display: grid;
   gap: 4px;
   padding: 12px;
+  max-height: calc(100vh - 106px);
+  overflow: auto;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.45) rgba(255, 255, 255, 0.08);
 }
 
 .admin-sidebar-nav button {
@@ -1990,6 +2001,7 @@ textarea {
 
 .admin-main {
   min-width: 0;
+  width: 100%;
 }
 
 .admin-main [hidden],
@@ -2057,7 +2069,7 @@ textarea {
 
 .admin-insights {
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
   gap: 14px;
   margin-bottom: 22px;
 }
@@ -2118,7 +2130,7 @@ textarea {
 
 .catalog-form {
   display: grid;
-  grid-template-columns: 1fr 1fr 1.2fr 0.55fr auto auto;
+  grid-template-columns: minmax(160px, 1fr) minmax(180px, 1fr) minmax(220px, 1.2fr) 120px auto auto;
   gap: 12px;
   align-items: end;
 }
@@ -2250,7 +2262,8 @@ textarea {
 }
 
 .dashboard-grid.admin-layout {
-  grid-template-columns: minmax(360px, 0.82fr) minmax(560px, 1.4fr);
+  grid-template-columns: minmax(0, 1fr);
+  width: 100%;
 }
 
 .panel-card {
@@ -2258,6 +2271,10 @@ textarea {
   border: 1px solid var(--line);
   padding: 24px;
   box-shadow: 0 12px 30px rgba(0, 31, 55, 0.08);
+}
+
+#adminPanel .panel-card {
+  padding: clamp(22px, 2.2vw, 34px);
 }
 
 .panel-card h2 {
@@ -2518,14 +2535,17 @@ textarea {
 
 .detailed-listing {
   display: grid;
-  grid-template-columns: 156px minmax(0, 1fr);
-  gap: 14px;
+  grid-template-columns: minmax(190px, 260px) minmax(0, 1fr);
+  gap: 20px;
+  align-items: stretch;
 }
 
 .detailed-listing > img {
   width: 100%;
-  height: 126px;
-  object-fit: cover;
+  height: 100%;
+  min-height: 190px;
+  object-fit: contain;
+  background: #eef3f7;
 }
 
 .listing-content {
@@ -2560,6 +2580,201 @@ textarea {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
+}
+
+.admin-module-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+  margin-bottom: 18px;
+}
+
+.admin-module-heading h2 {
+  margin-bottom: 8px;
+}
+
+.admin-module-heading p {
+  max-width: 860px;
+  margin: 0;
+  color: var(--muted);
+}
+
+.valuation-form,
+.task-form {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 12px;
+  align-items: end;
+  padding: 16px;
+  margin-bottom: 16px;
+  border: 1px solid var(--line);
+  background: #f7fafc;
+}
+
+.task-form {
+  grid-template-columns: 2fr 180px 180px auto;
+}
+
+.wide-data-list {
+  display: grid;
+  gap: 12px;
+}
+
+.wide-row {
+  display: grid;
+  gap: 12px;
+  padding: 18px;
+  border: 1px solid var(--line);
+  background: #fbfcfd;
+}
+
+.wide-row-main {
+  min-width: 0;
+}
+
+.wide-row-main h3 {
+  margin: 6px 0 4px;
+  color: var(--blue-900);
+  font-size: 1.05rem;
+}
+
+.wide-row-main p,
+.wide-row > p {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.55;
+}
+
+.wide-row-metrics {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.wide-row-metrics div {
+  padding: 10px;
+  background: #eef3f7;
+}
+
+.wide-row-metrics span,
+.operation-card span,
+.analytics-card span {
+  display: block;
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.wide-row-metrics strong,
+.operation-card strong,
+.analytics-card strong {
+  display: block;
+  margin-top: 4px;
+  color: var(--blue-900);
+}
+
+.compact-row {
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+}
+
+.smart-map-grid {
+  display: grid;
+  grid-template-columns: minmax(420px, 1.2fr) minmax(320px, 0.8fr);
+  gap: 18px;
+}
+
+.smart-map-grid iframe {
+  width: 100%;
+  min-height: 520px;
+  border: 1px solid var(--line);
+}
+
+.analytics-grid,
+.operation-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+  gap: 14px;
+}
+
+.analytics-card,
+.operation-card {
+  padding: 18px;
+  border: 1px solid var(--line);
+  background: #fbfcfd;
+}
+
+.analytics-card h3 {
+  margin: 0 0 12px;
+  color: var(--blue-900);
+}
+
+.analytics-card div {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 9px 0;
+  border-top: 1px solid var(--line);
+}
+
+.operation-card strong {
+  font-family: "Playfair Display", Georgia, serif;
+  font-size: 2rem;
+  line-height: 1.1;
+}
+
+.operation-card p {
+  margin: 8px 0 0;
+  color: var(--muted);
+}
+
+.quality-missing {
+  margin: 8px 0 !important;
+  color: #8a5b00 !important;
+  font-weight: 700;
+}
+
+.listing-workspace {
+  display: grid;
+  grid-template-columns: minmax(0, 2.1fr) minmax(280px, 0.85fr);
+  gap: 20px;
+  align-items: start;
+}
+
+.listing-side-panel {
+  position: sticky;
+  top: 18px;
+  display: grid;
+  gap: 12px;
+}
+
+.listing-side-panel article {
+  display: grid;
+  gap: 10px;
+  padding: 16px;
+  border: 1px solid var(--line);
+  background: #f7fafc;
+}
+
+.listing-side-panel span {
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.listing-side-panel strong {
+  color: var(--blue-900);
+  font-family: "Playfair Display", Georgia, serif;
+  font-size: 2.1rem;
+  line-height: 1;
+}
+
+.listing-side-panel p {
+  margin: 0;
+  color: var(--muted);
 }
 
 .status {
@@ -2654,7 +2869,7 @@ textarea {
 
 .stats-grid {
   display: grid;
-  grid-template-columns: repeat(6, 1fr);
+  grid-template-columns: repeat(auto-fit, minmax(145px, 1fr));
   gap: 14px;
   margin-bottom: 22px;
 }
@@ -2686,6 +2901,43 @@ textarea {
 
 .seller-help-card-top {
   margin-bottom: 22px;
+}
+
+.seller-action-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+  margin-bottom: 22px;
+}
+
+.seller-action-card {
+  min-height: 180px;
+  padding: 18px;
+  border: 1px solid var(--line);
+  background: var(--white);
+  box-shadow: 0 12px 30px rgba(0, 31, 55, 0.06);
+}
+
+.seller-action-card span {
+  display: inline-grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  margin-bottom: 12px;
+  background: var(--gold);
+  color: #111;
+  font-weight: 900;
+}
+
+.seller-action-card h3 {
+  margin: 0 0 8px;
+  color: var(--blue-900);
+}
+
+.seller-action-card p {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.55;
 }
 
 @media (max-width: 1160px) {
@@ -2788,7 +3040,8 @@ textarea {
   .property-grid,
   .zone-grid,
   .type-grid,
-  .team-grid {
+  .team-grid,
+  .seller-action-grid {
     grid-template-columns: repeat(2, 1fr);
   }
 
@@ -2823,6 +3076,7 @@ textarea {
   .dashboard-grid,
   .dashboard-grid.admin-layout,
   .admin-shell,
+  .listing-workspace,
   .ai-home-grid,
   .validation-grid,
   .audience-grid,
@@ -2850,7 +3104,14 @@ textarea {
   }
 
   .catalog-form,
-  .location-catalog-list {
+  .location-catalog-list,
+  .valuation-form,
+  .task-form,
+  .smart-map-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .wide-row-metrics {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
@@ -2949,10 +3210,17 @@ textarea {
   .zone-grid,
   .type-grid,
   .team-grid,
+  .seller-action-grid,
   .more-grid,
   .catalog-form,
   .location-catalog-list,
+  .valuation-form,
+  .task-form,
+  .smart-map-grid,
+  .wide-row-metrics,
+  .compact-row,
   .admin-shell,
+  .listing-workspace,
   .resource-grid,
   .admin-insights,
   .stats-grid,
@@ -2985,6 +3253,14 @@ textarea {
   .admin-command-bar {
     position: static;
     padding: 16px;
+  }
+
+  #adminPanel.dashboard {
+    width: min(100% - 20px, 100%);
+  }
+
+  .smart-map-grid iframe {
+    min-height: 360px;
   }
 
   .admin-command-actions {

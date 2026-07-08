@@ -241,8 +241,72 @@ const translations = {
     adminJumpLeads: "Asesorias",
     adminJumpDashboard: "Dashboard",
     adminJumpContacts: "CRM / Contactos",
+    adminJumpValuations: "Valoraciones",
+    adminJumpBuyers: "Compradores",
+    adminJumpSellers: "Vendedores",
+    adminJumpMatches: "Match",
+    adminJumpMap: "Mapa inteligente",
+    adminJumpMarketing: "Marketing",
+    adminJumpPdf: "Fichas PDF",
+    adminJumpAnalytics: "Analitica",
+    adminJumpTasks: "Tareas",
+    adminJumpFiles: "Archivos",
+    adminJumpSettings: "Configuracion",
+    adminJumpRoles: "Roles",
     adminSidebarCollapse: "Contraer menu",
     adminSidebarExpand: "Expandir menu",
+    adminAttentionTitle: "Que necesita atencion hoy",
+    adminQuickActions: "Accesos rapidos",
+    adminOpsSubtitle: "Operacion comercial, publicaciones, contactos y seguimiento desde un solo lugar.",
+    leadCenterTitle: "Centro de Leads",
+    leadCenterHint: "Bandeja amplia con prioridad, score, datos de contacto y siguiente accion sugerida.",
+    valuationTitle: "Valoraciones inmobiliarias",
+    valuationHint: "Solicitudes y valoraciones manuales para revisar precio esperado, rango sugerido y respuesta profesional.",
+    noValuations: "No hay valoraciones pendientes.",
+    createValuation: "Crear valoracion manual",
+    suggestedPrice: "Precio sugerido",
+    lowRange: "Rango bajo",
+    highRange: "Rango alto",
+    confidenceLevel: "Confianza",
+    saveValuation: "Guardar valoracion",
+    taskTitle: "Tareas / Seguimiento",
+    taskHint: "Seguimientos comerciales para leads, contactos, propiedades y valoraciones.",
+    noTasks: "No hay tareas registradas.",
+    createTask: "Crear tarea",
+    taskDue: "Fecha limite",
+    taskCompleted: "Completada",
+    taskInProgress: "En proceso",
+    matchTitle: "Match comprador-propiedad",
+    matchHint: "Cruza compradores con propiedades activas por zona, tipo y presupuesto.",
+    noMatches: "No hay matches suficientes todavia.",
+    matchScore: "compatibilidad",
+    prepareMessage: "Preparar mensaje",
+    smartMapTitle: "Mapa inteligente",
+    smartMapHint: "Vista operativa por zonas, inventario y leads registrados.",
+    analyticsTitle: "Analitica comercial",
+    analyticsHint: "Eventos, busquedas, zonas solicitadas y propiedades con mayor actividad.",
+    marketingTitle: "Campanas / Marketing",
+    marketingHint: "Segmentos listos para contactar compradores, vendedores y propietarios en valoracion.",
+    pdfTitle: "Fichas PDF",
+    pdfHint: "Preparacion de fichas comerciales para propiedades y valoraciones.",
+    filesTitle: "Archivos",
+    filesHint: "Documentos, imagenes y respuestas adjuntas quedaran asociados a solicitudes y propiedades.",
+    settingsTitle: "Configuracion",
+    settingsHint: "Parametros de sitio, WhatsApp, moneda, SEO y avisos.",
+    rolesTitle: "Roles / usuarios internos",
+    rolesHint: "Base para super admin, administrador, asesor y editor.",
+    buyerPanelTitle: "Compradores",
+    sellerOpsTitle: "Vendedores / Propietarios",
+    tableLead: "Lead",
+    tableContact: "Contacto",
+    tableSource: "Fuente",
+    nextAction: "Siguiente accion",
+    propertyQualityMissing: "Faltan",
+    qualityPremium: "Premium",
+    qualityReady: "Lista",
+    qualityNeedsWork: "Mejorable",
+    qualityIncomplete: "Incompleta",
+    exportCsv: "Exportar CSV",
     adminPromptLibraryTitle: "Herramientas IA internas para publicaciones y asesorías",
     adminPromptLibraryCopy:
       "Usa estos textos como apoyo interno para valorar, redactar y revisar propiedades antes de publicar. No son una sección pública.",
@@ -356,8 +420,10 @@ const translations = {
     statProperties: "Publicaciones",
     statRequests: "Solicitudes pendientes",
     statLeads: "Asesorias nuevas",
+    statSearches: "Busquedas",
     statUsers: "Cuentas vendedor",
     statVisits: "Visitas demo",
+    priority: "Prioridad",
     edit: "Editar",
     delete: "Borrar",
     approve: "Aprobar",
@@ -575,8 +641,72 @@ const translations = {
     adminJumpLeads: "Advisory",
     adminJumpDashboard: "Dashboard",
     adminJumpContacts: "CRM / Contacts",
+    adminJumpValuations: "Valuations",
+    adminJumpBuyers: "Buyers",
+    adminJumpSellers: "Sellers",
+    adminJumpMatches: "Match",
+    adminJumpMap: "Smart map",
+    adminJumpMarketing: "Marketing",
+    adminJumpPdf: "PDF sheets",
+    adminJumpAnalytics: "Analytics",
+    adminJumpTasks: "Tasks",
+    adminJumpFiles: "Files",
+    adminJumpSettings: "Settings",
+    adminJumpRoles: "Roles",
     adminSidebarCollapse: "Collapse menu",
     adminSidebarExpand: "Expand menu",
+    adminAttentionTitle: "What needs attention today",
+    adminQuickActions: "Quick actions",
+    adminOpsSubtitle: "Sales operation, listings, contacts and follow-up in one place.",
+    leadCenterTitle: "Lead Center",
+    leadCenterHint: "Wide inbox with priority, score, contact data and suggested next action.",
+    valuationTitle: "Property valuations",
+    valuationHint: "Requests and manual valuations to review expected price, suggested range and professional response.",
+    noValuations: "No pending valuations.",
+    createValuation: "Create manual valuation",
+    suggestedPrice: "Suggested price",
+    lowRange: "Low range",
+    highRange: "High range",
+    confidenceLevel: "Confidence",
+    saveValuation: "Save valuation",
+    taskTitle: "Tasks / Follow-up",
+    taskHint: "Commercial follow-ups for leads, contacts, properties and valuations.",
+    noTasks: "No tasks yet.",
+    createTask: "Create task",
+    taskDue: "Due date",
+    taskCompleted: "Completed",
+    taskInProgress: "In progress",
+    matchTitle: "Buyer-property match",
+    matchHint: "Crosses buyers with active listings by zone, type and budget.",
+    noMatches: "No strong matches yet.",
+    matchScore: "compatibility",
+    prepareMessage: "Prepare message",
+    smartMapTitle: "Smart map",
+    smartMapHint: "Operational view by zones, inventory and registered leads.",
+    analyticsTitle: "Commercial analytics",
+    analyticsHint: "Events, searches, requested zones and properties with more activity.",
+    marketingTitle: "Campaigns / Marketing",
+    marketingHint: "Segments ready to contact buyers, sellers and owners in valuation.",
+    pdfTitle: "PDF sheets",
+    pdfHint: "Commercial sheet preparation for listings and valuations.",
+    filesTitle: "Files",
+    filesHint: "Documents, images and attached responses stay linked to requests and listings.",
+    settingsTitle: "Settings",
+    settingsHint: "Site, WhatsApp, currency, SEO and notice settings.",
+    rolesTitle: "Roles / internal users",
+    rolesHint: "Foundation for super admin, administrator, advisor and editor.",
+    buyerPanelTitle: "Buyers",
+    sellerOpsTitle: "Sellers / Owners",
+    tableLead: "Lead",
+    tableContact: "Contact",
+    tableSource: "Source",
+    nextAction: "Next action",
+    propertyQualityMissing: "Missing",
+    qualityPremium: "Premium",
+    qualityReady: "Ready",
+    qualityNeedsWork: "Needs work",
+    qualityIncomplete: "Incomplete",
+    exportCsv: "Export CSV",
     adminPromptLibraryTitle: "Internal AI tools for listings and advisory",
     adminPromptLibraryCopy:
       "Use these texts as internal support to value, write, and review properties before publishing. This is not a public section.",
@@ -690,8 +820,10 @@ const translations = {
     statProperties: "Listings",
     statRequests: "Pending requests",
     statLeads: "New advisory",
+    statSearches: "Searches",
     statUsers: "Seller accounts",
     statVisits: "Demo visits",
+    priority: "Priority",
     edit: "Edit",
     delete: "Delete",
     approve: "Approve",
@@ -720,6 +852,10 @@ const state = {
   requests: [],
   leads: [],
   contacts: [],
+  valuations: [],
+  tasks: [],
+  matches: [],
+  analytics: { eventsByType: [], propertyEvents: [], searchZones: [], leadSources: [] },
   adminPrompts: [],
   locationOptions: [],
   adminSection: "dashboard",
@@ -1653,6 +1789,14 @@ function renderAdminLeads() {
               <span>${escapeHtml(t("email"))}</span>
               <strong>${escapeHtml(lead.email || t("noEmail"))}</strong>
             </div>
+            <div>
+              <span>${escapeHtml(t("nextAction"))}</span>
+              <strong>${escapeHtml(nextActionForLead(lead))}</strong>
+            </div>
+            <div>
+              <span>Score</span>
+              <strong>${escapeHtml(scoreLabel(lead.leadScore))} · ${escapeHtml(lead.priority || "medium")}</strong>
+            </div>
           </div>
           ${renderLeadPayload(lead)}
           <div class="item-actions lead-actions">
@@ -1722,11 +1866,14 @@ function renderStats() {
   const stats = [
     [state.stats.properties, t("statProperties")],
     [state.stats.activeProperties || 0, t("statusActive")],
-    [state.stats.disabledProperties || 0, t("statusDisabled")],
+    [state.stats.incompleteProperties || 0, t("qualityIncomplete")],
     [state.stats.pendingRequests, t("statRequests")],
     [state.stats.newLeads || 0, t("statLeads")],
+    [state.stats.premiumLeads || 0, t("leadScorePremium")],
+    [state.stats.valuationLeads || 0, t("adminJumpValuations")],
+    [state.stats.pendingTasks || 0, t("adminJumpTasks")],
     [state.stats.contacts || 0, t("crmTitle")],
-    [state.stats.visits, t("statVisits")],
+    [state.stats.searches, t("statSearches")],
   ];
   $("#statsGrid").innerHTML = stats
     .map(([value, label]) => `<article class="stat-card"><strong>${value}</strong><span>${escapeHtml(label)}</span></article>`)
@@ -1739,6 +1886,9 @@ function renderAdminInsights() {
   const properties = state.properties;
   const pending = state.requests.filter((request) => request.status === "pending").length;
   const newLeads = state.leads.filter((lead) => lead.status === "new").length;
+  const premiumLeads = state.leads.filter((lead) => lead.priority === "premium" || lead.leadScore === "premium").length;
+  const incompleteProperties = properties.filter((property) => (property.qualityScore || 0) < 70).length;
+  const openTasks = state.tasks.filter((task) => ["pending", "in_progress"].includes(task.status)).length;
   const featured = properties.filter((property) => property.featured).length;
   const usdProperties = properties.filter((property) => property.priceUsd);
   const average =
@@ -1751,6 +1901,11 @@ function renderAdminInsights() {
   const operationCounts = countBy(properties, "operation");
 
   container.innerHTML = `
+    <article class="insight-card attention-card">
+      <span>${escapeHtml(t("adminAttentionTitle"))}</span>
+      <strong>${pending + newLeads + premiumLeads + incompleteProperties + openTasks}</strong>
+      <p>${escapeHtml(pending)} solicitudes · ${escapeHtml(newLeads)} leads · ${escapeHtml(openTasks)} tareas</p>
+    </article>
     <article class="insight-card priority">
       <span>${escapeHtml(t("adminInsightPending"))}</span>
       <strong>${pending}</strong>
@@ -1770,6 +1925,16 @@ function renderAdminInsights() {
       <span>${escapeHtml(t("adminInsightAverage"))}</span>
       <strong>${escapeHtml(average ? formatUsd(average) : "N/A")}</strong>
       <p>${escapeHtml(t("adminOperations"))}: ${escapeHtml(t("sale"))} ${operationCounts.sale || 0} · ${escapeHtml(t("rent"))} ${operationCounts.rent || 0}</p>
+    </article>
+    <article class="insight-card">
+      <span>${escapeHtml(t("leadScorePremium"))}</span>
+      <strong>${premiumLeads}</strong>
+      <p>${escapeHtml(t("nextAction"))}: WhatsApp / asesor</p>
+    </article>
+    <article class="insight-card">
+      <span>${escapeHtml(t("qualityIncomplete"))}</span>
+      <strong>${incompleteProperties}</strong>
+      <p>${escapeHtml(t("propertyQualityMissing"))}: fotos, SEO o precio</p>
     </article>
     <article class="insight-card">
       <span>${escapeHtml(t("adminTopZones"))}</span>
@@ -1986,8 +2151,13 @@ function renderAdminListings() {
               <span>${escapeHtml(property.baths || 0)} ${escapeHtml(t("bathShort"))}</span>
               <span>${escapeHtml(property.area || 0)} ${escapeHtml(t("sqmBuild"))}</span>
               <span>${escapeHtml(property.operation === "rent" ? t("rent") : t("sale"))}</span>
-              <span>${escapeHtml(t("qualityScore"))}: ${escapeHtml(property.qualityScore || 0)}%</span>
+              <span>${escapeHtml(t("qualityScore"))}: ${escapeHtml(property.qualityScore || 0)}% · ${escapeHtml(qualityLevelLabel(property.qualityLevel))}</span>
             </div>
+            ${
+              Array.isArray(property.qualityMissing) && property.qualityMissing.length
+                ? `<p class="quality-missing">${escapeHtml(t("propertyQualityMissing"))}: ${escapeHtml(property.qualityMissing.slice(0, 5).join(", "))}</p>`
+                : ""
+            }
             <p class="listing-excerpt">${escapeHtml(excerpt)}</p>
             ${
               hasMore
@@ -2008,6 +2178,350 @@ function renderAdminListings() {
     .join("");
 }
 
+function qualityLevelLabel(level) {
+  if (level === "premium") return t("qualityPremium");
+  if (level === "ready") return t("qualityReady");
+  if (level === "needs_work") return t("qualityNeedsWork");
+  return t("qualityIncomplete");
+}
+
+function nextActionForLead(lead) {
+  const payload = lead.payload || {};
+  if (!lead.phone && !lead.email) return state.lang === "en" ? "Request contact details" : "Pedir datos de contacto";
+  if (leadCategory(lead.leadType) === "valuation") return state.lang === "en" ? "Prepare valuation range" : "Preparar rango de valoracion";
+  if (leadCategory(lead.leadType) === "property_contact") return state.lang === "en" ? "Send property details" : "Enviar detalles de propiedad";
+  if (payload.zone && payload.propertyType) return state.lang === "en" ? "Match with active listings" : "Cruzar con propiedades activas";
+  return state.lang === "en" ? "Contact and qualify" : "Contactar y calificar";
+}
+
+function formatMaybePrice(value, currency = "USD") {
+  const number = Number(value || 0);
+  if (!number) return "-";
+  const locale = currency === "MXN" ? "es-MX" : "en-US";
+  return `${currency} $${new Intl.NumberFormat(locale, { maximumFractionDigits: 0 }).format(number)}`;
+}
+
+function valuationStatusLabel(status) {
+  if (status === "in_review" || status === "in_analysis") return state.lang === "en" ? "In analysis" : "En analisis";
+  if (status === "valuation_sent") return t("leadStatusContacted");
+  if (status === "closed") return t("leadStatusClosed");
+  return t("leadStatusNew");
+}
+
+function renderAdminValuations() {
+  const list = $("#adminValuations");
+  if (!list) return;
+  const valuations = [...state.valuations].sort((a, b) => new Date(b.updatedAt || b.createdAt) - new Date(a.updatedAt || a.createdAt));
+  if (!valuations.length) {
+    list.innerHTML = `<p class="empty-state">${escapeHtml(t("noValuations"))}</p>`;
+    return;
+  }
+  list.innerHTML = valuations
+    .map((valuation) => {
+      const range =
+        valuation.lowRange || valuation.highRange
+          ? `${formatMaybePrice(valuation.lowRange)} - ${formatMaybePrice(valuation.highRange)}`
+          : "-";
+      return `
+        <article class="wide-row valuation-row">
+          <div class="wide-row-main">
+            <span class="status ${escapeHtml(valuation.status || "new")}">${escapeHtml(valuationStatusLabel(valuation.status))}</span>
+            <h3>${escapeHtml(valuation.ownerName || "-")}</h3>
+            <p>${escapeHtml(valuation.zone || "-")} · ${escapeHtml(valuation.propertyType || "-")} · ${escapeHtml(formatDate(valuation.createdAt))}</p>
+          </div>
+          <div class="wide-row-metrics">
+            <div><span>${escapeHtml(t("price"))}</span><strong>${escapeHtml(formatMaybePrice(valuation.expectedPrice))}</strong></div>
+            <div><span>${escapeHtml(t("suggestedPrice"))}</span><strong>${escapeHtml(formatMaybePrice(valuation.suggestedPrice))}</strong></div>
+            <div><span>${escapeHtml(t("lowRange"))} / ${escapeHtml(t("highRange"))}</span><strong>${escapeHtml(range)}</strong></div>
+            <div><span>${escapeHtml(t("confidenceLevel"))}</span><strong>${escapeHtml(valuation.confidenceLevel || "manual")}</strong></div>
+          </div>
+          <p>${escapeHtml(truncateText(valuation.comments || "", 220))}</p>
+          <div class="item-actions">
+            ${valuation.phone ? `<a class="mini-button primary" href="https://wa.me/${leadPhoneForWhatsApp(valuation.phone)}" target="_blank" rel="noopener noreferrer">${escapeHtml(t("respondWhatsApp"))}</a>` : ""}
+            ${valuation.email ? `<a class="mini-button" href="mailto:${escapeHtml(valuation.email)}">${escapeHtml(t("respondEmail"))}</a>` : ""}
+            <button class="mini-button" type="button" data-task-from="valuation" data-task-title="${escapeHtml(`Seguimiento valoracion ${valuation.ownerName || ""}`)}" data-related-id="${escapeHtml(valuation.requestId || valuation.id)}">${escapeHtml(t("createTask"))}</button>
+          </div>
+        </article>
+      `;
+    })
+    .join("");
+}
+
+async function valuationSubmit(event) {
+  event.preventDefault();
+  const form = event.currentTarget;
+  const message = $("#valuationFormMessage");
+  setFormMessage(message, "");
+  try {
+    await api("/api/admin/valuations", {
+      method: "POST",
+      body: {
+        ownerName: form.ownerName.value.trim(),
+        phone: form.phone.value.trim(),
+        zone: form.zone.value.trim(),
+        propertyType: form.propertyType.value.trim(),
+        expectedPrice: form.expectedPrice.value,
+        suggestedPrice: form.suggestedPrice.value,
+        status: "in_review",
+      },
+    });
+    form.reset();
+    await renderPanel();
+    setFormMessage(message, t("requestSent"));
+  } catch (error) {
+    setFormMessage(message, error.message, true);
+  }
+}
+
+function renderAdminTasks() {
+  const list = $("#adminTasks");
+  if (!list) return;
+  if (!state.tasks.length) {
+    list.innerHTML = `<p class="empty-state">${escapeHtml(t("noTasks"))}</p>`;
+    return;
+  }
+  list.innerHTML = state.tasks
+    .map(
+      (task) => `
+        <article class="wide-row task-row">
+          <div class="wide-row-main">
+            <span class="status priority-${escapeHtml(task.priority || "medium")}">${escapeHtml(task.priority || "medium")}</span>
+            <span class="status ${escapeHtml(task.status || "pending")}">${escapeHtml(task.status === "completed" ? t("taskCompleted") : task.status === "in_progress" ? t("taskInProgress") : t("pending"))}</span>
+            <h3>${escapeHtml(task.title)}</h3>
+            <p>${escapeHtml(task.assignedTo || "Puerto Cancun Center")} · ${escapeHtml(task.dueDate ? formatDate(task.dueDate) : "-")}</p>
+          </div>
+          <p>${escapeHtml(task.description || "")}</p>
+          <div class="item-actions">
+            <button class="mini-button" type="button" data-task-status="${escapeHtml(task.id)}" data-task-status-value="in_progress">${escapeHtml(t("taskInProgress"))}</button>
+            <button class="mini-button primary" type="button" data-task-status="${escapeHtml(task.id)}" data-task-status-value="completed">${escapeHtml(t("taskCompleted"))}</button>
+          </div>
+        </article>
+      `
+    )
+    .join("");
+}
+
+async function taskSubmit(event) {
+  event.preventDefault();
+  const form = event.currentTarget;
+  const message = $("#taskFormMessage");
+  setFormMessage(message, "");
+  try {
+    await api("/api/admin/tasks", {
+      method: "POST",
+      body: {
+        title: form.title.value.trim(),
+        dueDate: form.dueDate.value,
+        priority: form.priority.value,
+        status: "pending",
+      },
+    });
+    form.reset();
+    await renderPanel();
+    setFormMessage(message, t("requestSent"));
+  } catch (error) {
+    setFormMessage(message, error.message, true);
+  }
+}
+
+async function updateTaskStatus(id, status) {
+  await api(`/api/admin/tasks/${encodeURIComponent(id)}`, { method: "PATCH", body: { status } });
+  await renderPanel();
+}
+
+async function createTaskFromButton(button) {
+  const title = button.dataset.taskTitle || t("createTask");
+  await api("/api/admin/tasks", {
+    method: "POST",
+    body: {
+      title,
+      priority: "high",
+      relatedEntityType: button.dataset.taskFrom || "",
+      relatedEntityId: button.dataset.relatedId || "",
+    },
+  });
+  await renderPanel();
+  setAdminSection("tasks");
+}
+
+function renderAdminMatches() {
+  const list = $("#adminMatches");
+  if (!list) return;
+  if (!state.matches.length) {
+    list.innerHTML = `<p class="empty-state">${escapeHtml(t("noMatches"))}</p>`;
+    return;
+  }
+  list.innerHTML = state.matches
+    .map(
+      (match) => `
+        <article class="wide-row match-row">
+          <div class="wide-row-main">
+            <span class="status score-${match.score >= 85 ? "premium" : match.score >= 70 ? "hot" : "warm"}">${escapeHtml(match.score)}% ${escapeHtml(t("matchScore"))}</span>
+            <h3>${escapeHtml(match.contactName)} → ${escapeHtml(match.propertyTitle)}</h3>
+            <p>${escapeHtml(match.propertyZone)} · ${escapeHtml(match.propertyType)} · ${escapeHtml(formatMaybePrice(match.priceUsd))}</p>
+          </div>
+          <p>${escapeHtml(match.reason)}</p>
+          <div class="item-actions">
+            ${match.contactPhone ? `<a class="mini-button primary" href="https://wa.me/${leadPhoneForWhatsApp(match.contactPhone)}" target="_blank" rel="noopener noreferrer">${escapeHtml(t("prepareMessage"))}</a>` : ""}
+            <button class="mini-button" type="button" data-task-from="match" data-task-title="${escapeHtml(`Seguimiento match ${match.contactName}`)}" data-related-id="${escapeHtml(match.id)}">${escapeHtml(t("createTask"))}</button>
+          </div>
+        </article>
+      `
+    )
+    .join("");
+}
+
+function renderAdminAnalytics() {
+  const container = $("#adminAnalytics");
+  if (!container) return;
+  const blocks = [
+    [t("analyticsTitle"), state.analytics.eventsByType || [], "event_type"],
+    [t("adminTopZones"), state.analytics.searchZones || [], "zone"],
+    [t("tableSource"), state.analytics.leadSources || [], "source"],
+    [t("adminJumpListings"), state.analytics.propertyEvents || [], "title_es"],
+  ];
+  container.innerHTML = blocks
+    .map(
+      ([title, rows, key]) => `
+        <article class="analytics-card">
+          <h3>${escapeHtml(title)}</h3>
+          ${
+            rows.length
+              ? rows
+                  .map((row) => `<div><span>${escapeHtml(row[key] || "-")}</span><strong>${escapeHtml(row.count || 0)}</strong></div>`)
+                  .join("")
+              : `<p class="empty-state">${escapeHtml(t("listingsEmpty"))}</p>`
+          }
+        </article>
+      `
+    )
+    .join("");
+}
+
+function renderAdminMap() {
+  const list = $("#adminMapSummary");
+  if (!list) return;
+  const zones = Object.entries(countBy(state.properties, "zone"))
+    .sort((a, b) => b[1] - a[1])
+    .map(([zone, inventory]) => {
+      const leads = state.leads.filter((lead) => (lead.payload?.zone || "") === zone).length;
+      return { zone, inventory, leads };
+    });
+  list.innerHTML = zones.length
+    ? zones
+        .map(
+          (item) => `
+            <article class="wide-row compact-row">
+              <div class="wide-row-main">
+                <h3>${escapeHtml(item.zone)}</h3>
+                <p>${escapeHtml(item.inventory)} ${escapeHtml(t("adminInventory"))} · ${escapeHtml(item.leads)} leads</p>
+              </div>
+            </article>
+          `
+        )
+        .join("")
+    : `<p class="empty-state">${escapeHtml(t("listingsEmpty"))}</p>`;
+}
+
+function renderAdminSegments() {
+  const buyers = $("#adminBuyers");
+  const sellers = $("#adminSellers");
+  const buyerContacts = state.contacts.filter((contact) => contact.contactType === "buyer");
+  const sellerContacts = state.contacts.filter((contact) => contact.contactType === "seller");
+  if (buyers) buyers.innerHTML = renderContactSegment(buyerContacts, t("buyerPanelTitle"));
+  if (sellers) sellers.innerHTML = renderContactSegment(sellerContacts, t("sellerOpsTitle"));
+}
+
+function renderContactSegment(contacts, emptyLabel) {
+  if (!contacts.length) return `<p class="empty-state">${escapeHtml(emptyLabel)}: ${escapeHtml(t("noContacts"))}</p>`;
+  return contacts
+    .map(
+      (contact) => `
+        <article class="wide-row compact-row">
+          <div class="wide-row-main">
+            <span class="status score-${escapeHtml(contact.leadScore || "cold")}">${escapeHtml(scoreLabel(contact.leadScore))}</span>
+            <h3>${escapeHtml(contact.name)}</h3>
+            <p>${escapeHtml(contact.phone || contact.email || "-")} · ${escapeHtml((contact.preferredZones || []).join(", ") || "-")}</p>
+          </div>
+          <div class="item-actions">
+            ${contact.phone ? `<a class="mini-button primary" href="https://wa.me/${leadPhoneForWhatsApp(contact.phone)}" target="_blank" rel="noopener noreferrer">${escapeHtml(t("respondWhatsApp"))}</a>` : ""}
+            <button class="mini-button" type="button" data-task-from="contact" data-task-title="${escapeHtml(`Seguimiento ${contact.name}`)}" data-related-id="${escapeHtml(contact.id)}">${escapeHtml(t("createTask"))}</button>
+          </div>
+        </article>
+      `
+    )
+    .join("");
+}
+
+function operationCard(title, value, copy) {
+  return `<article class="operation-card"><span>${escapeHtml(title)}</span><strong>${escapeHtml(value)}</strong><p>${escapeHtml(copy)}</p></article>`;
+}
+
+function renderOperationalModules() {
+  const marketing = $("#adminMarketing");
+  const pdf = $("#adminPdfTools");
+  const files = $("#adminFiles");
+  const settings = $("#adminSettings");
+  const roles = $("#adminRoles");
+  if (marketing) {
+    marketing.innerHTML = [
+      operationCard("Leads premium", state.stats.premiumLeads || 0, "Segmento para seguimiento comercial prioritario."),
+      operationCard("Compradores", state.stats.buyerLeads || 0, "Enviar propiedades compatibles por WhatsApp o correo."),
+      operationCard("Vendedores", state.stats.sellerLeads || 0, "Recontactar propietarios y solicitudes de valoracion."),
+    ].join("");
+  }
+  if (pdf) {
+    pdf.innerHTML = [
+      operationCard(t("adminJumpListings"), state.properties.length, "Generar ficha comercial desde cada publicacion."),
+      operationCard(t("valuationTitle"), state.valuations.length, "Preparar ficha de valoracion para propietarios."),
+      operationCard("Pendiente", "PDF", "La estructura queda lista para conectar generacion real."),
+    ].join("");
+  }
+  if (files) {
+    files.innerHTML = [
+      operationCard(t("imageUpload"), `${state.properties.reduce((sum, property) => sum + storedImages(property).length, 0)}`, "Imagenes asociadas a publicaciones."),
+      operationCard(t("adminJumpRequests"), state.requests.length, "Solicitudes con archivos de respuesta."),
+      operationCard(t("adminRespond"), "Adjuntos", "Las respuestas ya aceptan arreglo de archivos en backend."),
+    ].join("");
+  }
+  if (settings) {
+    settings.innerHTML = [
+      operationCard("WhatsApp", "998-216-6563", "Numero comercial usado por botones de contacto."),
+      operationCard("Google Maps", state.config.googleMapsApiKey ? "Activo" : "Pendiente", "Mapa interactivo cuando exista API key."),
+      operationCard("SEO", "Activo", "Sitemap, robots, llms y datos estructurados en propiedades."),
+    ].join("");
+  }
+  if (roles) {
+    roles.innerHTML = [
+      operationCard("Super admin", "Todo", "Base de permisos para control completo."),
+      operationCard("Asesor", "Leads", "Seguimiento, notas, tareas y respuestas."),
+      operationCard("Editor", "Publicaciones", "Crear y mejorar contenido sin borrar datos sensibles."),
+    ].join("");
+  }
+}
+
+function exportContactsCsv() {
+  const rows = [["Nombre", "Email", "Telefono", "Tipo", "Score", "Zonas"]];
+  state.contacts.forEach((contact) => {
+    rows.push([
+      contact.name || "",
+      contact.email || "",
+      contact.phone || "",
+      contact.contactType || "",
+      contact.leadScore || "",
+      Array.isArray(contact.preferredZones) ? contact.preferredZones.join(" | ") : "",
+    ]);
+  });
+  const csv = rows.map((row) => row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(",")).join("\n");
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = "puerto-cancun-contactos.csv";
+  link.click();
+  URL.revokeObjectURL(url);
+}
+
 async function loadPublicData() {
   const [propertiesData, sessionData, locationData, configData] = await Promise.all([
     api("/api/properties"),
@@ -2024,13 +2538,17 @@ async function loadPublicData() {
 async function loadPanelData() {
   if (!state.session) return;
   if (state.session.role === "admin") {
-    const [statsData, requestsData, propertiesData, promptsData, leadsData, contactsData] = await Promise.all([
+    const [statsData, requestsData, propertiesData, promptsData, leadsData, contactsData, valuationsData, tasksData, matchesData, analyticsData] = await Promise.all([
       api("/api/admin/stats"),
       api("/api/admin/requests"),
       api("/api/properties"),
       api("/api/admin/prompts"),
       api("/api/admin/leads"),
       api("/api/admin/contacts"),
+      api("/api/admin/valuations"),
+      api("/api/admin/tasks"),
+      api("/api/admin/matches"),
+      api("/api/admin/analytics"),
     ]);
     state.stats = statsData;
     state.requests = requestsData.requests || [];
@@ -2038,12 +2556,20 @@ async function loadPanelData() {
     state.adminPrompts = promptsData.prompts || [];
     state.leads = leadsData.leads || [];
     state.contacts = contactsData.contacts || [];
+    state.valuations = valuationsData.valuations || [];
+    state.tasks = tasksData.tasks || [];
+    state.matches = matchesData.matches || [];
+    state.analytics = analyticsData || state.analytics;
   } else {
     const requestsData = await api("/api/seller/requests");
     state.requests = requestsData.requests || [];
     state.adminPrompts = [];
     state.leads = [];
     state.contacts = [];
+    state.valuations = [];
+    state.tasks = [];
+    state.matches = [];
+    state.analytics = { eventsByType: [], propertyEvents: [], searchZones: [], leadSources: [] };
   }
 }
 
@@ -2068,8 +2594,12 @@ function updateAdminShell() {
   if (operationsGrid) operationsGrid.hidden = !["requests", "properties"].includes(section);
   const leadBadge = $("#sidebarLeadBadge");
   const requestBadge = $("#sidebarRequestBadge");
+  const valuationBadge = $("#sidebarValuationBadge");
+  const taskBadge = $("#sidebarTaskBadge");
   if (leadBadge) leadBadge.textContent = String(state.leads.filter((lead) => lead.status === "new").length);
   if (requestBadge) requestBadge.textContent = String(state.requests.filter((request) => request.status === "pending").length);
+  if (valuationBadge) valuationBadge.textContent = String(state.valuations.filter((valuation) => ["new", "in_review", "in_analysis"].includes(valuation.status)).length);
+  if (taskBadge) taskBadge.textContent = String(state.tasks.filter((task) => ["pending", "in_progress"].includes(task.status)).length);
   $("#adminPanel")?.classList.toggle("sidebar-collapsed", state.sidebarCollapsed);
 }
 
@@ -2099,6 +2629,13 @@ async function renderPanel() {
     renderAdminContacts();
     renderAdminRequests();
     renderAdminListings();
+    renderAdminValuations();
+    renderAdminTasks();
+    renderAdminMatches();
+    renderAdminAnalytics();
+    renderAdminMap();
+    renderAdminSegments();
+    renderOperationalModules();
     updateAdminShell();
   } else {
     prepareSellerForm();
@@ -2375,7 +2912,24 @@ function resetListingForm() {
   refreshLocationSelects();
   updateMapPickerForForm(form);
   updateListingImagePreview([]);
+  setListingQualityPreview(null);
   setFormMessage($("#listingFormMessage"), "");
+}
+
+function setListingQualityPreview(property) {
+  const score = $("#listingQualityPreview");
+  const copy = $(".listing-side-panel [data-i18n='propertyQualityMissing']")?.closest("p");
+  if (!score) return;
+  if (!property) {
+    score.textContent = "0%";
+    if (copy) copy.textContent = t("propertyQualityMissing");
+    return;
+  }
+  score.textContent = `${property.qualityScore || 0}%`;
+  if (copy) {
+    const missing = Array.isArray(property.qualityMissing) && property.qualityMissing.length ? property.qualityMissing.join(", ") : qualityLevelLabel(property.qualityLevel);
+    copy.textContent = `${t("propertyQualityMissing")}: ${missing}`;
+  }
 }
 
 function renderImagePreview(preview, images) {
@@ -2566,6 +3120,7 @@ function editListing(id) {
   form.area.value = property.area || "";
   form.featured.checked = Boolean(property.featured);
   form.description.value = localizedDescription(property);
+  setListingQualityPreview(property);
   form.scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
@@ -2970,6 +3525,9 @@ function bindEvents() {
   });
   $("#listingForm").addEventListener("submit", listingSubmit);
   $("#locationCatalogForm").addEventListener("submit", locationCatalogSubmit);
+  $("#valuationForm")?.addEventListener("submit", valuationSubmit);
+  $("#taskForm")?.addEventListener("submit", taskSubmit);
+  $("#exportContactsCsv")?.addEventListener("click", exportContactsCsv);
   $("#locationCatalogForm").elements.type.addEventListener("change", renderCatalogParentOptions);
   $("#resetCatalogForm")?.addEventListener("click", resetCatalogForm);
   $("#resetListingForm").addEventListener("click", resetListingForm);
@@ -3090,6 +3648,12 @@ function bindEvents() {
 
     const respondRequest = event.target.closest("[data-respond-request]");
     if (respondRequest) void respondToRequest("seller_request", respondRequest.dataset.respondRequest);
+
+    const taskStatus = event.target.closest("[data-task-status]");
+    if (taskStatus) void updateTaskStatus(taskStatus.dataset.taskStatus, taskStatus.dataset.taskStatusValue);
+
+    const taskFrom = event.target.closest("[data-task-from]");
+    if (taskFrom) void createTaskFromButton(taskFrom);
   });
 
   $("#whatsappButton").addEventListener("click", () => {

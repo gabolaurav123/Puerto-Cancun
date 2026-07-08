@@ -638,6 +638,28 @@
       </section>
 
       <section class="dashboard" id="sellerPanel" hidden>
+        <div class="seller-action-grid">
+          <article class="seller-action-card">
+            <span>1</span>
+            <h3 data-i18n="resourceSellHere">Vender mi propiedad aqui</h3>
+            <p data-i18n="sellerGuideCopy">Completa los datos principales, agrega una imagen clara y deja un mensaje para que el equipo pueda pedirte mas informacion antes de publicar.</p>
+          </article>
+          <article class="seller-action-card">
+            <span>2</span>
+            <h3 data-i18n="resourceValuation">Valoracion inmobiliaria</h3>
+            <p>Solicita revision de precio antes de publicar para evitar salir al mercado con un valor equivocado.</p>
+          </article>
+          <article class="seller-action-card">
+            <span>3</span>
+            <h3 data-i18n="heroValuationCta">Validar precio con asesor</h3>
+            <p>Pega una recomendacion de IA o un precio estimado y el equipo la revisa con criterio local.</p>
+          </article>
+          <article class="seller-action-card">
+            <span>4</span>
+            <h3 data-i18n="sellerHelpCta">Solicitar guia por WhatsApp</h3>
+            <p data-i18n="sellerHelpCopy">Un asesor puede ayudarte a preparar la informacion, fotos y ubicacion antes de enviar la solicitud.</p>
+          </article>
+        </div>
         <article class="panel-card seller-help-card seller-help-card-top">
           <div>
             <h2 data-i18n="sellerHelpTitle">Necesitas asesoria para llenar el formulario?</h2>
@@ -812,16 +834,6 @@
             <div class="request-list" id="sellerRequests"></div>
           </article>
         </div>
-        <article class="panel-card seller-help-card seller-help-card-bottom">
-          <div>
-            <h2 data-i18n="sellerHelpTitle">Necesitas asesoria para llenar el formulario?</h2>
-            <p data-i18n="sellerHelpCopy">Un asesor puede ayudarte a preparar la informacion, fotos y ubicacion antes de enviar la solicitud.</p>
-          </div>
-          <button class="primary-button" type="button" data-seller-help>
-            <i data-lucide="message-circle"></i>
-            <span data-i18n="sellerHelpCta">Solicitar guia por WhatsApp</span>
-          </button>
-        </article>
       </section>
 
       <section class="dashboard" id="adminPanel" hidden>
@@ -856,13 +868,63 @@
                 <i data-lucide="users"></i>
                 <span data-i18n="adminJumpContacts">CRM / Contactos</span>
               </button>
+              <button type="button" data-admin-section="valuations">
+                <i data-lucide="badge-dollar-sign"></i>
+                <span data-i18n="adminJumpValuations">Valoraciones</span>
+                <b id="sidebarValuationBadge">0</b>
+              </button>
+              <button type="button" data-admin-section="buyers">
+                <i data-lucide="user-search"></i>
+                <span data-i18n="adminJumpBuyers">Compradores</span>
+              </button>
+              <button type="button" data-admin-section="sellers">
+                <i data-lucide="handshake"></i>
+                <span data-i18n="adminJumpSellers">Vendedores</span>
+              </button>
+              <button type="button" data-admin-section="matches">
+                <i data-lucide="git-compare-arrows"></i>
+                <span data-i18n="adminJumpMatches">Match</span>
+              </button>
+              <button type="button" data-admin-section="smart-map">
+                <i data-lucide="map"></i>
+                <span data-i18n="adminJumpMap">Mapa inteligente</span>
+              </button>
               <button type="button" data-admin-section="catalogs">
                 <i data-lucide="map-pin"></i>
                 <span data-i18n="adminJumpCatalogs">Catálogos</span>
               </button>
+              <button type="button" data-admin-section="marketing">
+                <i data-lucide="megaphone"></i>
+                <span data-i18n="adminJumpMarketing">Marketing</span>
+              </button>
+              <button type="button" data-admin-section="pdf">
+                <i data-lucide="file-text"></i>
+                <span data-i18n="adminJumpPdf">Fichas PDF</span>
+              </button>
               <button type="button" data-admin-section="prompts">
                 <i data-lucide="message-circle"></i>
                 <span data-i18n="adminJumpPrompts">Herramientas IA</span>
+              </button>
+              <button type="button" data-admin-section="analytics">
+                <i data-lucide="chart-column"></i>
+                <span data-i18n="adminJumpAnalytics">Analitica</span>
+              </button>
+              <button type="button" data-admin-section="tasks">
+                <i data-lucide="list-checks"></i>
+                <span data-i18n="adminJumpTasks">Tareas</span>
+                <b id="sidebarTaskBadge">0</b>
+              </button>
+              <button type="button" data-admin-section="files">
+                <i data-lucide="folder-open"></i>
+                <span data-i18n="adminJumpFiles">Archivos</span>
+              </button>
+              <button type="button" data-admin-section="settings">
+                <i data-lucide="settings"></i>
+                <span data-i18n="adminJumpSettings">Configuracion</span>
+              </button>
+              <button type="button" data-admin-section="roles">
+                <i data-lucide="shield-check"></i>
+                <span data-i18n="adminJumpRoles">Roles</span>
               </button>
             </nav>
           </aside>
@@ -926,6 +988,84 @@
           </div>
           <div class="contact-list" id="adminContacts"></div>
         </article>
+        <article class="panel-card admin-valuations-card" id="adminValuationsCard" data-admin-section-panel="valuations">
+          <div class="admin-module-heading">
+            <div>
+              <h2 data-i18n="valuationTitle">Valoraciones inmobiliarias</h2>
+              <p data-i18n="valuationHint">Solicitudes y valoraciones manuales para revisar precio esperado, rango sugerido y respuesta profesional.</p>
+            </div>
+          </div>
+          <form id="valuationForm" class="valuation-form">
+            <input type="hidden" name="id" />
+            <label>
+              <span data-i18n="name">Nombre</span>
+              <input name="ownerName" />
+            </label>
+            <label>
+              <span data-i18n="phone">Telefono</span>
+              <input name="phone" />
+            </label>
+            <label>
+              <span data-i18n="zone">Zona</span>
+              <input name="zone" />
+            </label>
+            <label>
+              <span data-i18n="propertyType">Tipo de propiedad</span>
+              <input name="propertyType" />
+            </label>
+            <label>
+              <span data-i18n="price">Precio esperado</span>
+              <input name="expectedPrice" type="number" min="0" step="1000" />
+            </label>
+            <label>
+              <span data-i18n="suggestedPrice">Precio sugerido</span>
+              <input name="suggestedPrice" type="number" min="0" step="1000" />
+            </label>
+            <button class="primary-button" type="submit" data-i18n="saveValuation">Guardar valoracion</button>
+          </form>
+          <p class="form-message" id="valuationFormMessage"></p>
+          <div class="wide-data-list" id="adminValuations"></div>
+        </article>
+        <article class="panel-card admin-buyers-card" id="adminBuyersCard" data-admin-section-panel="buyers">
+          <div class="admin-module-heading">
+            <div>
+              <h2 data-i18n="buyerPanelTitle">Compradores</h2>
+              <p data-i18n="matchHint">Cruza compradores con propiedades activas por zona, tipo y presupuesto.</p>
+            </div>
+            <button class="ghost-button" type="button" id="exportContactsCsv" data-i18n="exportCsv">Exportar CSV</button>
+          </div>
+          <div class="wide-data-list" id="adminBuyers"></div>
+        </article>
+        <article class="panel-card admin-sellers-card" id="adminSellersCard" data-admin-section-panel="sellers">
+          <div class="admin-module-heading">
+            <div>
+              <h2 data-i18n="sellerOpsTitle">Vendedores / Propietarios</h2>
+              <p data-i18n="sellerAudienceCopy">Ayudamos a definir precio competitivo, preparar la propiedad y conectar con compradores reales.</p>
+            </div>
+          </div>
+          <div class="wide-data-list" id="adminSellers"></div>
+        </article>
+        <article class="panel-card admin-matches-card" id="adminMatchesCard" data-admin-section-panel="matches">
+          <div class="admin-module-heading">
+            <div>
+              <h2 data-i18n="matchTitle">Match comprador-propiedad</h2>
+              <p data-i18n="matchHint">Cruza compradores con propiedades activas por zona, tipo y presupuesto.</p>
+            </div>
+          </div>
+          <div class="wide-data-list" id="adminMatches"></div>
+        </article>
+        <article class="panel-card admin-map-card" id="adminSmartMapCard" data-admin-section-panel="smart-map">
+          <div class="admin-module-heading">
+            <div>
+              <h2 data-i18n="smartMapTitle">Mapa inteligente</h2>
+              <p data-i18n="smartMapHint">Vista operativa por zonas, inventario y leads registrados.</p>
+            </div>
+          </div>
+          <div class="smart-map-grid">
+            <iframe title="Mapa operativo Cancun" loading="lazy" referrerpolicy="no-referrer-when-downgrade" src="https://www.google.com/maps?q=Cancun%2C%20Quintana%20Roo&output=embed"></iframe>
+            <div class="wide-data-list" id="adminMapSummary"></div>
+          </div>
+        </article>
         <article class="panel-card admin-catalogs-card" id="adminCatalogsCard" data-admin-section-panel="catalogs">
           <div class="admin-prompts-heading">
             <div>
@@ -979,6 +1119,90 @@
           </div>
           <div class="admin-prompt-grid" id="adminPromptList"></div>
         </article>
+        <article class="panel-card admin-analytics-card" id="adminAnalyticsCard" data-admin-section-panel="analytics">
+          <div class="admin-module-heading">
+            <div>
+              <h2 data-i18n="analyticsTitle">Analitica comercial</h2>
+              <p data-i18n="analyticsHint">Eventos, busquedas, zonas solicitadas y propiedades con mayor actividad.</p>
+            </div>
+          </div>
+          <div class="analytics-grid" id="adminAnalytics"></div>
+        </article>
+        <article class="panel-card admin-tasks-card" id="adminTasksCard" data-admin-section-panel="tasks">
+          <div class="admin-module-heading">
+            <div>
+              <h2 data-i18n="taskTitle">Tareas / Seguimiento</h2>
+              <p data-i18n="taskHint">Seguimientos comerciales para leads, contactos, propiedades y valoraciones.</p>
+            </div>
+          </div>
+          <form id="taskForm" class="task-form">
+            <label>
+              <span data-i18n="createTask">Crear tarea</span>
+              <input name="title" required />
+            </label>
+            <label>
+              <span data-i18n="taskDue">Fecha limite</span>
+              <input name="dueDate" type="date" />
+            </label>
+            <label>
+              <span data-i18n="priority">Prioridad</span>
+              <select name="priority">
+                <option value="medium">Media</option>
+                <option value="high">Alta</option>
+                <option value="urgent">Urgente</option>
+                <option value="premium">Premium</option>
+              </select>
+            </label>
+            <button class="primary-button" type="submit" data-i18n="createTask">Crear tarea</button>
+          </form>
+          <p class="form-message" id="taskFormMessage"></p>
+          <div class="wide-data-list" id="adminTasks"></div>
+        </article>
+        <article class="panel-card admin-marketing-card" id="adminMarketingCard" data-admin-section-panel="marketing">
+          <div class="admin-module-heading">
+            <div>
+              <h2 data-i18n="marketingTitle">Campanas / Marketing</h2>
+              <p data-i18n="marketingHint">Segmentos listos para contactar compradores, vendedores y propietarios en valoracion.</p>
+            </div>
+          </div>
+          <div class="operation-cards" id="adminMarketing"></div>
+        </article>
+        <article class="panel-card admin-pdf-card" id="adminPdfCard" data-admin-section-panel="pdf">
+          <div class="admin-module-heading">
+            <div>
+              <h2 data-i18n="pdfTitle">Fichas PDF</h2>
+              <p data-i18n="pdfHint">Preparacion de fichas comerciales para propiedades y valoraciones.</p>
+            </div>
+          </div>
+          <div class="operation-cards" id="adminPdfTools"></div>
+        </article>
+        <article class="panel-card admin-files-card" id="adminFilesCard" data-admin-section-panel="files">
+          <div class="admin-module-heading">
+            <div>
+              <h2 data-i18n="filesTitle">Archivos</h2>
+              <p data-i18n="filesHint">Documentos, imagenes y respuestas adjuntas quedaran asociados a solicitudes y propiedades.</p>
+            </div>
+          </div>
+          <div class="operation-cards" id="adminFiles"></div>
+        </article>
+        <article class="panel-card admin-settings-card" id="adminSettingsCard" data-admin-section-panel="settings">
+          <div class="admin-module-heading">
+            <div>
+              <h2 data-i18n="settingsTitle">Configuracion</h2>
+              <p data-i18n="settingsHint">Parametros de sitio, WhatsApp, moneda, SEO y avisos.</p>
+            </div>
+          </div>
+          <div class="operation-cards" id="adminSettings"></div>
+        </article>
+        <article class="panel-card admin-roles-card" id="adminRolesCard" data-admin-section-panel="roles">
+          <div class="admin-module-heading">
+            <div>
+              <h2 data-i18n="rolesTitle">Roles / usuarios internos</h2>
+              <p data-i18n="rolesHint">Base para super admin, administrador, asesor y editor.</p>
+            </div>
+          </div>
+          <div class="operation-cards" id="adminRoles"></div>
+        </article>
         <div class="dashboard-grid admin-layout" id="adminOperationsGrid">
           <article class="panel-card admin-requests-card" id="adminRequestsCard" data-admin-section-panel="requests">
             <h2 data-i18n="adminRequestsTitle">Solicitudes de vendedores</h2>
@@ -991,6 +1215,7 @@
 
           <article class="panel-card admin-listings-card" id="adminListingsCard" data-admin-section-panel="properties">
             <h2 data-i18n="manageListings">Administrar publicaciones</h2>
+            <div class="listing-workspace">
             <form id="listingForm" class="stacked-form">
               <input type="hidden" name="id" />
               <div class="form-row">
@@ -1146,6 +1371,24 @@
                 <button class="ghost-button" type="button" id="resetListingForm" data-i18n="newListing">Nueva publicacion</button>
               </div>
             </form>
+            <aside class="listing-side-panel">
+              <article>
+                <span data-i18n="qualityScore">Calidad</span>
+                <strong id="listingQualityPreview">0%</strong>
+                <p data-i18n="propertyQualityMissing">Faltan</p>
+              </article>
+              <article>
+                <span data-i18n="adminJumpPrompts">Herramientas IA</span>
+                <button class="mini-button" type="button" data-admin-jump="adminPromptsCard">Mejorar descripcion</button>
+                <button class="mini-button" type="button" data-admin-jump="adminPromptsCard">Texto WhatsApp</button>
+              </article>
+              <article>
+                <span data-i18n="adminQuickActions">Accesos rapidos</span>
+                <button class="mini-button" type="button" data-admin-jump="adminListingsCard">Vista previa</button>
+                <button class="mini-button" type="button" data-admin-jump="adminPdfCard">Generar ficha PDF</button>
+              </article>
+            </aside>
+            </div>
             <div class="panel-card-subhead listings-subhead">
               <span id="adminListingSummary"></span>
               <span data-i18n="adminListingsHint">Edita, revisa y elimina publicaciones existentes.</span>

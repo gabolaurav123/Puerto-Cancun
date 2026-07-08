@@ -190,6 +190,53 @@ CREATE TABLE IF NOT EXISTS analytics_events (
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+CREATE TABLE IF NOT EXISTS valuations (
+  id TEXT PRIMARY KEY,
+  request_id TEXT,
+  contact_id TEXT,
+  property_id TEXT,
+  owner_name TEXT NOT NULL,
+  phone TEXT,
+  email TEXT,
+  zone TEXT,
+  property_type TEXT,
+  expected_price NUMERIC,
+  suggested_price NUMERIC,
+  low_range NUMERIC,
+  high_range NUMERIC,
+  confidence_level TEXT NOT NULL DEFAULT 'manual',
+  comments TEXT,
+  status TEXT NOT NULL DEFAULT 'new',
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS tasks (
+  id TEXT PRIMARY KEY,
+  title TEXT NOT NULL,
+  description TEXT,
+  assigned_to TEXT,
+  status TEXT NOT NULL DEFAULT 'pending',
+  priority TEXT NOT NULL DEFAULT 'medium',
+  due_date TIMESTAMPTZ,
+  related_entity_type TEXT,
+  related_entity_id TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS property_matches (
+  id TEXT PRIMARY KEY,
+  property_id TEXT NOT NULL,
+  contact_id TEXT NOT NULL,
+  score INTEGER NOT NULL DEFAULT 0,
+  reason TEXT,
+  status TEXT NOT NULL DEFAULT 'suggested',
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  UNIQUE (property_id, contact_id)
+);
+
 CREATE TABLE IF NOT EXISTS user_sessions (
   sid VARCHAR NOT NULL COLLATE "default",
   sess JSON NOT NULL,
