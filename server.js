@@ -39,8 +39,28 @@ const pool = new Pool({
 });
 
 const IMAGE_MAX_BYTES = 1.5 * 1024 * 1024;
-const IMAGE_MAX_COUNT = 8;
+const IMAGE_MAX_COUNT = 20;
 const IMAGE_TYPES = new Set(["image/jpeg", "image/jpg", "image/png", "image/webp"]);
+const PUBLIC_PROPERTY_STATUSES = new Set(["active", "featured"]);
+const PROPERTY_STATUSES = new Set(["draft", "pending", "active", "disabled", "sold", "rented", "archived", "rejected"]);
+const REQUEST_STATUSES = new Set([
+  "new",
+  "pending",
+  "contacted",
+  "in_review",
+  "waiting_client",
+  "missing_data",
+  "valuation_process",
+  "valuation_sent",
+  "converted",
+  "negotiation",
+  "closed",
+  "lost",
+  "archived",
+  "rejected",
+  "approved",
+]);
+const REQUEST_PRIORITIES = new Set(["low", "medium", "high", "premium", "urgent"]);
 const adminUser = (process.env.ADMIN_USER || "admin prueba").trim().toLowerCase();
 const adminPassword = process.env.ADMIN_PASSWORD || "";
 const googleClientId = (process.env.GOOGLE_CLIENT_ID || "").trim();
@@ -315,8 +335,162 @@ function mergeLegacyImages(images, image) {
   return list.slice(0, IMAGE_MAX_COUNT);
 }
 
+function normalizeStatus(value, allowed, fallback) {
+  const normalized = String(value || "").trim().toLowerCase();
+  return allowed.has(normalized) ? normalized : fallback;
+}
+
+function normalizePriority(value, fallback = "medium") {
+  return normalizeStatus(value, REQUEST_PRIORITIES, fallback);
+}
+
+function inferLeadCategory(leadType) {
+  const value = String(leadType || "").toLowerCase();
+  if (value.includes("valuacion")) return "valuation";
+  if (value.includes("validacion") || value.includes("ia")) return "ai_validation";
+  if (value.includes("comprador") || value.includes("buyer")) return "buyer";
+  if (value.includes("vendedor") || value.includes("seller") || value.includes("venta")) return "seller";
+  if (value.includes("propiedad") || value.includes("contacto")) return "property_contact";
+  if (value.includes("whatsapp") || value.includes("ayuda") || value.includes("guia")) return "whatsapp_help";
+  if (value.includes("busqueda")) return "search";
+  return "general";
+}
+
+function leadScoreFromData({ leadType, phone, email, payload = {}, propertyId = "" }) {
+  let score = 0;
+  if (phone) score += 18;
+  if (email) score += 12;
+  if (payload.zone) score += 12;
+  if (payload.propertyType) score += 8;
+  if (payload.budget || payload.budgetOrPrice || payload.ownerEstimate || payload.expectedPrice) score += 12;
+  if (payload.aiResponse || payload.aiMessage) score += 8;
+  if (propertyId) score += 12;
+  const category = inferLeadCategory(leadType);
+  if (["valuation", "seller", "property_contact"].includes(category)) score += 15;
+  if (["Puerto Cancun", "Puerto Cancún", "Zona Hotelera", "Punta Sam / Playa Mujeres"].includes(payload.zone)) score += 10;
+  if (score >= 70) return "premium";
+  if (score >= 48) return "hot";
+  if (score >= 26) return "warm";
+  return "cold";
+}
+
+function contactTypeFromLead(leadType) {
+  const category = inferLeadCategory(leadType);
+  if (category === "buyer" || category === "property_contact") return "buyer";
+  if (category === "seller" || category === "valuation") return "seller";
+  if (category === "ai_validation") return "unclassified";
+  return "unclassified";
+}
+
+async function upsertContact(client, contact) {
+  const email = String(contact.email || "").trim().toLowerCase();
+  const phone = String(contact.phone || "").trim();
+  if (!email && !phone) return null;
+  const existing = await client.query(
+    `SELECT * FROM contacts
+     WHERE ($1 <> '' AND lower(email) = lower($1))
+        OR ($2 <> '' AND phone = $2)
+     ORDER BY updated_at DESC
+     LIMIT 1`,
+    [email, phone]
+  );
+  const zones = JSON.stringify(contact.preferredZones || []);
+  if (existing.rows[0]) {
+    const result = await client.query(
+      `UPDATE contacts
+       SET name = COALESCE(NULLIF($2, ''), name),
+           email = COALESCE(NULLIF($3, ''), email),
+           phone = COALESCE(NULLIF($4, ''), phone),
+           contact_type = COALESCE(NULLIF($5, ''), contact_type),
+           source = COALESCE(NULLIF($6, ''), source),
+           preferred_zones = CASE WHEN $7::jsonb = '[]'::jsonb THEN preferred_zones ELSE $7::jsonb END,
+           property_type = COALESCE(NULLIF($8, ''), property_type),
+           budget_min = COALESCE($9, budget_min),
+           budget_max = COALESCE($10, budget_max),
+           lead_score = COALESCE(NULLIF($11, ''), lead_score),
+           last_activity_at = NOW(),
+           updated_at = NOW()
+       WHERE id = $1
+       RETURNING *`,
+      [
+        existing.rows[0].id,
+        contact.name || "",
+        email,
+        phone,
+        contact.contactType || "",
+        contact.source || "",
+        zones,
+        contact.propertyType || "",
+        contact.budgetMin ?? null,
+        contact.budgetMax ?? null,
+        contact.leadScore || "",
+      ]
+    );
+    return result.rows[0];
+  }
+  const result = await client.query(
+    `INSERT INTO contacts
+      (id, name, email, phone, contact_type, source, preferred_zones, property_type, budget_min, budget_max, lead_score, consent_contact, last_activity_at)
+     VALUES
+      ($1, $2, $3, $4, $5, $6, $7::jsonb, $8, $9, $10, $11, true, NOW())
+     RETURNING *`,
+    [
+      uuid("contact"),
+      contact.name || "Contacto web",
+      email || null,
+      phone || null,
+      contact.contactType || "unclassified",
+      contact.source || "web",
+      zones,
+      contact.propertyType || null,
+      contact.budgetMin ?? null,
+      contact.budgetMax ?? null,
+      contact.leadScore || "cold",
+    ]
+  );
+  return result.rows[0];
+}
+
+function toContact(row) {
+  return {
+    id: row.id,
+    name: row.name,
+    email: row.email || "",
+    phone: row.phone || "",
+    contactType: row.contact_type,
+    source: row.source || "",
+    preferredZones: safeJsonArray(row.preferred_zones),
+    budgetMin: row.budget_min === null ? null : Number(row.budget_min || 0),
+    budgetMax: row.budget_max === null ? null : Number(row.budget_max || 0),
+    propertyType: row.property_type || "",
+    notes: row.notes || "",
+    leadScore: row.lead_score || "cold",
+    assignedTo: row.assigned_to || "",
+    consentContact: Boolean(row.consent_contact),
+    lastActivityAt: row.last_activity_at,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}
+
+function propertyQuality(property) {
+  const images = mergeLegacyImages(property.images, property.image);
+  const parts = [
+    Math.min(images.length, 8) / 8,
+    property.latitude && property.longitude ? 1 : property.address ? 0.65 : 0,
+    property.price_usd || property.price_mxn ? 1 : 0,
+    String(property.description_es || "").length > 220 ? 1 : String(property.description_es || "").length > 80 ? 0.55 : 0,
+    property.beds || property.baths || property.area ? 1 : 0.25,
+    property.featured || Number(property.price_usd || 0) >= 1000000 ? 1 : 0.6,
+  ];
+  const score = Math.round((parts.reduce((sum, value) => sum + value, 0) / parts.length) * 100);
+  const level = score >= 86 ? "premium" : score >= 70 ? "ready" : score >= 45 ? "needs_work" : "incomplete";
+  return { score, level };
+}
+
 function toProperty(row) {
   const images = mergeLegacyImages(row.images, row.image);
+  const quality = propertyQuality(row);
   return {
     id: row.id,
     titleEs: row.title_es,
@@ -341,8 +515,15 @@ function toProperty(row) {
     image: row.image || images[0] || null,
     images,
     featured: Boolean(row.featured),
+    status: row.status || "active",
+    isPublic: row.is_public !== false,
+    locationPrecision: row.location_precision || "approximate",
+    googleMapsUrl: row.google_maps_url || "",
+    qualityScore: quality.score,
+    qualityLevel: quality.level,
     badges: row.badges || [],
     createdAt: row.created_at,
+    updatedAt: row.updated_at,
     descriptionEs: row.description_es,
     descriptionEn: row.description_en,
     sourceRequestId: row.source_request_id,
@@ -377,7 +558,12 @@ function toRequest(row) {
     image: row.image || images[0] || null,
     images,
     status: row.status,
+    priority: row.priority || "medium",
+    adminResponse: row.admin_response || "",
+    responseFiles: safeJsonArray(row.response_files),
+    internalNotes: row.internal_notes || "",
     createdAt: row.created_at,
+    updatedAt: row.updated_at,
     reviewedAt: row.reviewed_at,
   };
 }
@@ -400,9 +586,17 @@ function toLead(row) {
     phone: row.phone,
     email: row.email || "",
     sourcePath: row.source_path || "",
+    propertyId: row.property_id || "",
     payload,
     status: row.status,
+    priority: row.priority || "medium",
+    assignedTo: row.assigned_to || "",
+    lastResponse: row.last_response || "",
+    internalNotes: row.internal_notes || "",
+    leadScore: row.lead_score || "cold",
+    contactId: row.contact_id || "",
     createdAt: row.created_at,
+    updatedAt: row.updated_at,
   };
 }
 
@@ -412,7 +606,10 @@ function toLocationOption(row) {
     type: row.type,
     name: row.name,
     parentId: row.parent_id || null,
+    isActive: row.is_active !== false,
+    sortOrder: Number(row.sort_order || 0),
     createdAt: row.created_at,
+    updatedAt: row.updated_at,
   };
 }
 
@@ -598,8 +795,85 @@ async function initDatabase() {
         phone TEXT NOT NULL,
         email TEXT,
         source_path TEXT,
+        property_id TEXT,
+        contact_id TEXT,
         payload JSONB NOT NULL DEFAULT '{}'::jsonb,
         status TEXT NOT NULL DEFAULT 'new',
+        priority TEXT NOT NULL DEFAULT 'medium',
+        assigned_to TEXT,
+        last_response TEXT,
+        internal_notes TEXT,
+        lead_score TEXT NOT NULL DEFAULT 'cold',
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      );
+    `);
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS contacts (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        email TEXT,
+        phone TEXT,
+        contact_type TEXT NOT NULL DEFAULT 'unclassified',
+        source TEXT,
+        preferred_zones JSONB NOT NULL DEFAULT '[]'::jsonb,
+        budget_min NUMERIC,
+        budget_max NUMERIC,
+        property_type TEXT,
+        notes TEXT,
+        consent_contact BOOLEAN NOT NULL DEFAULT TRUE,
+        lead_score TEXT NOT NULL DEFAULT 'cold',
+        assigned_to TEXT,
+        last_activity_at TIMESTAMPTZ,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      );
+    `);
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS request_messages (
+        id TEXT PRIMARY KEY,
+        request_table TEXT NOT NULL,
+        request_id TEXT NOT NULL,
+        sender_type TEXT NOT NULL,
+        sender_name TEXT,
+        message TEXT NOT NULL,
+        attachments JSONB NOT NULL DEFAULT '[]'::jsonb,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      );
+    `);
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS notifications (
+        id TEXT PRIMARY KEY,
+        user_id TEXT,
+        type TEXT NOT NULL,
+        title TEXT NOT NULL,
+        message TEXT NOT NULL,
+        related_entity_type TEXT,
+        related_entity_id TEXT,
+        is_read BOOLEAN NOT NULL DEFAULT FALSE,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      );
+    `);
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS activity_logs (
+        id TEXT PRIMARY KEY,
+        user_id TEXT,
+        action TEXT NOT NULL,
+        entity_type TEXT NOT NULL,
+        entity_id TEXT NOT NULL,
+        old_value JSONB,
+        new_value JSONB,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      );
+    `);
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS analytics_events (
+        id TEXT PRIMARY KEY,
+        event_type TEXT NOT NULL,
+        user_id TEXT,
+        contact_id TEXT,
+        property_id TEXT,
+        metadata JSONB NOT NULL DEFAULT '{}'::jsonb,
         created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
       );
     `);
@@ -608,10 +882,40 @@ async function initDatabase() {
       VALUES (1, 0, 0)
       ON CONFLICT (id) DO NOTHING;
     `);
+    await client.query("ALTER TABLE lead_requests ALTER COLUMN phone DROP NOT NULL");
+    await client.query("ALTER TABLE lead_requests ADD COLUMN IF NOT EXISTS property_id TEXT");
+    await client.query("ALTER TABLE lead_requests ADD COLUMN IF NOT EXISTS contact_id TEXT");
+    await client.query("ALTER TABLE lead_requests ADD COLUMN IF NOT EXISTS priority TEXT NOT NULL DEFAULT 'medium'");
+    await client.query("ALTER TABLE lead_requests ADD COLUMN IF NOT EXISTS assigned_to TEXT");
+    await client.query("ALTER TABLE lead_requests ADD COLUMN IF NOT EXISTS last_response TEXT");
+    await client.query("ALTER TABLE lead_requests ADD COLUMN IF NOT EXISTS internal_notes TEXT");
+    await client.query("ALTER TABLE lead_requests ADD COLUMN IF NOT EXISTS lead_score TEXT NOT NULL DEFAULT 'cold'");
+    await client.query("ALTER TABLE lead_requests ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()");
+    await client.query("ALTER TABLE seller_requests DROP CONSTRAINT IF EXISTS seller_requests_status_check");
+    await client.query("ALTER TABLE seller_requests ADD COLUMN IF NOT EXISTS priority TEXT NOT NULL DEFAULT 'medium'");
+    await client.query("ALTER TABLE seller_requests ADD COLUMN IF NOT EXISTS admin_response TEXT");
+    await client.query("ALTER TABLE seller_requests ADD COLUMN IF NOT EXISTS response_files JSONB NOT NULL DEFAULT '[]'::jsonb");
+    await client.query("ALTER TABLE seller_requests ADD COLUMN IF NOT EXISTS internal_notes TEXT");
+    await client.query("ALTER TABLE seller_requests ADD COLUMN IF NOT EXISTS location_precision TEXT NOT NULL DEFAULT 'approximate'");
+    await client.query("ALTER TABLE seller_requests ADD COLUMN IF NOT EXISTS google_maps_url TEXT");
+    await client.query("ALTER TABLE seller_requests ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()");
+    await client.query("ALTER TABLE properties ADD COLUMN IF NOT EXISTS status TEXT NOT NULL DEFAULT 'active'");
+    await client.query("ALTER TABLE properties ADD COLUMN IF NOT EXISTS is_public BOOLEAN NOT NULL DEFAULT TRUE");
+    await client.query("ALTER TABLE properties ADD COLUMN IF NOT EXISTS location_precision TEXT NOT NULL DEFAULT 'approximate'");
+    await client.query("ALTER TABLE properties ADD COLUMN IF NOT EXISTS google_maps_url TEXT");
+    await client.query("ALTER TABLE properties ADD COLUMN IF NOT EXISTS published_at TIMESTAMPTZ");
+    await client.query("ALTER TABLE properties ADD COLUMN IF NOT EXISTS disabled_at TIMESTAMPTZ");
+    await client.query("ALTER TABLE properties ADD COLUMN IF NOT EXISTS sold_at TIMESTAMPTZ");
+    await client.query("ALTER TABLE properties ADD COLUMN IF NOT EXISTS archived_at TIMESTAMPTZ");
+    await client.query("ALTER TABLE properties ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()");
+    await client.query("UPDATE properties SET status = 'active', is_public = TRUE WHERE status IS NULL");
+    await client.query("ALTER TABLE location_options ADD COLUMN IF NOT EXISTS is_active BOOLEAN NOT NULL DEFAULT TRUE");
+    await client.query("ALTER TABLE location_options ADD COLUMN IF NOT EXISTS sort_order INTEGER NOT NULL DEFAULT 0");
+    await client.query("ALTER TABLE location_options ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()");
     for (const option of seedLocationOptions) {
       await client.query(
-        `INSERT INTO location_options (id, type, name, parent_id)
-         VALUES ($1, $2, $3, $4)
+        `INSERT INTO location_options (id, type, name, parent_id, is_active)
+         VALUES ($1, $2, $3, $4, true)
          ON CONFLICT (id) DO NOTHING`,
         [option.id, option.type, option.name, option.parentId]
       );
@@ -906,16 +1210,27 @@ app.get("/api/properties", async (req, res, next) => {
       req.session.visited = true;
       await query("UPDATE app_metrics SET visits = visits + 1 WHERE id = 1");
     }
-    const result = await query("SELECT * FROM properties ORDER BY created_at DESC");
+    const isAdmin = req.session.user?.role === "admin";
+    const result = await query(
+      isAdmin
+        ? "SELECT * FROM properties ORDER BY created_at DESC"
+        : "SELECT * FROM properties WHERE is_public = TRUE AND status = ANY($1::text[]) ORDER BY created_at DESC",
+      isAdmin ? [] : [Array.from(PUBLIC_PROPERTY_STATUSES)]
+    );
     res.json({ properties: result.rows.map(toProperty) });
   } catch (error) {
     next(error);
   }
 });
 
-app.get("/api/location-options", async (_req, res, next) => {
+app.get("/api/location-options", async (req, res, next) => {
   try {
-    const result = await query("SELECT * FROM location_options ORDER BY type, name");
+    const isAdmin = req.session.user?.role === "admin";
+    const result = await query(
+      isAdmin
+        ? "SELECT * FROM location_options ORDER BY type, sort_order, name"
+        : "SELECT * FROM location_options WHERE is_active = TRUE ORDER BY type, sort_order, name"
+    );
     res.json({ options: result.rows.map(toLocationOption) });
   } catch (error) {
     next(error);
@@ -931,17 +1246,45 @@ app.post("/api/metrics/search", async (_req, res, next) => {
   }
 });
 
-app.post("/api/leads", async (req, res, next) => {
+app.post("/api/analytics/events", async (req, res, next) => {
   try {
+    const eventType = String(req.body.eventType || "").trim().slice(0, 80);
+    if (!eventType) {
+      res.status(400).json({ error: "Missing event type" });
+      return;
+    }
+    await query(
+      `INSERT INTO analytics_events (id, event_type, user_id, property_id, metadata)
+       VALUES ($1, $2, $3, $4, $5::jsonb)`,
+      [
+        uuid("evt"),
+        eventType,
+        req.session.user?.id || null,
+        String(req.body.propertyId || "").trim() || null,
+        JSON.stringify(req.body.metadata || {}),
+      ]
+    );
+    res.json({ ok: true });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.post("/api/leads", async (req, res, next) => {
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
     const body = req.body || {};
     const leadType = String(body.leadType || "general").trim().slice(0, 80);
-    const name = String(body.name || body.firstName || "").trim();
+    const name = String(body.name || body.firstName || "Visitante web").trim();
     const phone = String(body.whatsapp || body.phone || "").trim();
     const email = String(body.email || "").trim().toLowerCase() || null;
     const sourcePath = String(body.sourcePath || "").trim().slice(0, 220) || null;
+    const propertyId = String(body.propertyId || "").trim() || null;
 
-    if (!name || !phone) {
-      res.status(400).json({ error: "Nombre y WhatsApp son obligatorios." });
+    if (!name && !phone && !email) {
+      await client.query("ROLLBACK");
+      res.status(400).json({ error: "Agrega al menos un dato de contacto." });
       return;
     }
 
@@ -953,18 +1296,48 @@ app.post("/api/leads", async (req, res, next) => {
     delete payload.phone;
     delete payload.email;
     delete payload.sourcePath;
+    delete payload.propertyId;
 
-    const result = await query(
+    const leadScore = leadScoreFromData({ leadType, phone, email, payload, propertyId });
+    const priority = leadScore === "premium" ? "premium" : leadScore === "hot" ? "high" : "medium";
+    const contact = await upsertContact(client, {
+      name,
+      email,
+      phone,
+      contactType: contactTypeFromLead(leadType),
+      source: sourcePath || "web",
+      preferredZones: payload.zone ? [payload.zone] : [],
+      propertyType: payload.propertyType || "",
+      budgetMax: Number(payload.budget || payload.budgetOrPrice || payload.ownerEstimate || 0) || null,
+      leadScore,
+    });
+
+    const result = await client.query(
       `INSERT INTO lead_requests
-        (id, lead_type, name, phone, email, source_path, payload)
+        (id, lead_type, name, phone, email, source_path, property_id, contact_id, payload, priority, lead_score)
        VALUES
-        ($1, $2, $3, $4, $5, $6, $7::jsonb)
-       RETURNING id, lead_type, created_at`,
-      [uuid("lead"), leadType, name, phone, email, sourcePath, JSON.stringify(payload)]
+        ($1, $2, $3, $4, $5, $6, $7, $8, $9::jsonb, $10, $11)
+       RETURNING *`,
+      [uuid("lead"), leadType, name, phone || null, email, sourcePath, propertyId, contact?.id || null, JSON.stringify(payload), priority, leadScore]
     );
-    res.status(201).json({ lead: result.rows[0] });
+    await client.query(
+      `INSERT INTO notifications (id, type, title, message, related_entity_type, related_entity_id)
+       VALUES ($1, $2, $3, $4, 'lead_request', $5)`,
+      [
+        uuid("notif"),
+        "lead_created",
+        "Nueva solicitud de asesoria",
+        `${name} envio ${inferLeadCategory(leadType).replace("_", " ")}`,
+        result.rows[0].id,
+      ]
+    );
+    await client.query("COMMIT");
+    res.status(201).json({ lead: toLead(result.rows[0]) });
   } catch (error) {
+    await client.query("ROLLBACK");
     next(error);
+  } finally {
+    client.release();
   }
 });
 
@@ -974,6 +1347,22 @@ app.get("/api/seller/requests", requireRole("seller"), async (req, res, next) =>
       req.session.user.id,
     ]);
     res.json({ requests: result.rows.map(toRequest) });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.get("/api/seller/messages", requireRole("seller"), async (req, res, next) => {
+  try {
+    const result = await query(
+      `SELECT m.*
+       FROM request_messages m
+       JOIN seller_requests r ON r.id = m.request_id
+       WHERE m.request_table = 'seller_request' AND r.seller_id = $1
+       ORDER BY m.created_at DESC`,
+      [req.session.user.id]
+    );
+    res.json({ messages: result.rows });
   } catch (error) {
     next(error);
   }
@@ -999,6 +1388,8 @@ app.post("/api/seller/requests", requireRole("seller"), async (req, res, next) =
       latitude: parseOptionalCoordinate(body.latitude, "latitude", -90, 90),
       longitude: parseOptionalCoordinate(body.longitude, "longitude", -180, 180),
       mapPlace: String(body.mapPlace || "").trim().slice(0, 260),
+      locationPrecision: ["exact", "approximate", "hidden"].includes(body.locationPrecision) ? body.locationPrecision : "approximate",
+      googleMapsUrl: String(body.googleMapsUrl || "").trim().slice(0, 500),
       beds: Number(body.beds || 0),
       baths: Number(body.baths || 0),
       area: Number(body.area || 0),
@@ -1025,9 +1416,9 @@ app.post("/api/seller/requests", requireRole("seller"), async (req, res, next) =
 
     const result = await query(
       `INSERT INTO seller_requests
-        (id, seller_id, seller_name, email, phone, preferred_contact, title, type, state, city, zone, neighborhood, latitude, longitude, map_place, price, currency, address, beds, baths, area, description, image, images)
+        (id, seller_id, seller_name, email, phone, preferred_contact, title, type, state, city, zone, neighborhood, latitude, longitude, map_place, location_precision, google_maps_url, price, currency, address, beds, baths, area, description, image, images, priority)
        VALUES
-        ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24::jsonb)
+        ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26::jsonb, $27)
        RETURNING *`,
       [
         id,
@@ -1045,6 +1436,8 @@ app.post("/api/seller/requests", requireRole("seller"), async (req, res, next) =
         request.latitude,
         request.longitude,
         request.mapPlace,
+        request.locationPrecision,
+        request.googleMapsUrl,
         request.price,
         request.currency,
         request.address,
@@ -1054,7 +1447,27 @@ app.post("/api/seller/requests", requireRole("seller"), async (req, res, next) =
         request.description,
         request.image,
         JSON.stringify(request.images),
+        request.images.length >= 5 || request.price >= 1000000 ? "high" : "medium",
       ]
+    );
+    await upsertContact(
+      { query },
+      {
+        name: req.session.user.name,
+        email,
+        phone,
+        contactType: "seller",
+        source: "seller_panel",
+        preferredZones: [request.zone].filter(Boolean),
+        propertyType: request.type,
+        budgetMax: request.price,
+        leadScore: request.images.length >= 5 || request.price >= 1000000 ? "hot" : "warm",
+      }
+    );
+    await query(
+      `INSERT INTO notifications (id, type, title, message, related_entity_type, related_entity_id)
+       VALUES ($1, 'seller_request_created', 'Nueva solicitud de venta', $2, 'seller_request', $3)`,
+      [uuid("notif"), `${req.session.user.name} envio ${request.title}`, id]
     );
     res.status(201).json({ request: toRequest(result.rows[0]) });
   } catch (error) {
@@ -1064,18 +1477,31 @@ app.post("/api/seller/requests", requireRole("seller"), async (req, res, next) =
 
 app.get("/api/admin/stats", requireRole("admin"), async (_req, res, next) => {
   try {
-    const [properties, pending, leads, users, metrics] = await Promise.all([
+    const [properties, activeProperties, disabledProperties, featuredProperties, pending, leads, valuationLeads, buyerLeads, users, contacts, metrics] =
+      await Promise.all([
       query("SELECT COUNT(*)::int AS count FROM properties"),
+      query("SELECT COUNT(*)::int AS count FROM properties WHERE status = 'active' AND is_public = TRUE"),
+      query("SELECT COUNT(*)::int AS count FROM properties WHERE status IN ('disabled', 'archived', 'draft') OR is_public = FALSE"),
+      query("SELECT COUNT(*)::int AS count FROM properties WHERE featured = TRUE"),
       query("SELECT COUNT(*)::int AS count FROM seller_requests WHERE status = 'pending'"),
       query("SELECT COUNT(*)::int AS count FROM lead_requests WHERE status = 'new'"),
+      query("SELECT COUNT(*)::int AS count FROM lead_requests WHERE lead_type ILIKE '%valuacion%' AND status IN ('new', 'contacted', 'in_review')"),
+      query("SELECT COUNT(*)::int AS count FROM contacts WHERE contact_type = 'buyer'"),
       query("SELECT COUNT(*)::int AS count FROM seller_accounts"),
+      query("SELECT COUNT(*)::int AS count FROM contacts"),
       query("SELECT visits, searches FROM app_metrics WHERE id = 1"),
     ]);
     res.json({
       properties: properties.rows[0].count,
+      activeProperties: activeProperties.rows[0].count,
+      disabledProperties: disabledProperties.rows[0].count,
+      featuredProperties: featuredProperties.rows[0].count,
       pendingRequests: pending.rows[0].count,
       newLeads: leads.rows[0].count,
+      valuationLeads: valuationLeads.rows[0].count,
+      buyerLeads: buyerLeads.rows[0].count,
       users: users.rows[0].count,
+      contacts: contacts.rows[0].count,
       visits: metrics.rows[0]?.visits || 0,
       searches: metrics.rows[0]?.searches || 0,
     });
@@ -1093,18 +1519,71 @@ app.post("/api/admin/location-options", requireRole("admin"), async (req, res, n
     const type = String(req.body.type || "").trim();
     const name = String(req.body.name || "").trim();
     const parentId = String(req.body.parentId || "").trim() || null;
+    const sortOrder = Number(req.body.sortOrder || 0);
+    const isActive = req.body.isActive !== false && req.body.isActive !== "false";
     if (!["state", "city", "zone", "neighborhood"].includes(type) || !name) {
       res.status(400).json({ error: "Missing required location fields" });
       return;
     }
     const result = await query(
-      `INSERT INTO location_options (id, type, name, parent_id)
-       VALUES ($1, $2, $3, $4)
-       ON CONFLICT (type, name, parent_id) DO UPDATE SET name = EXCLUDED.name
+      `INSERT INTO location_options (id, type, name, parent_id, sort_order, is_active)
+       VALUES ($1, $2, $3, $4, $5, $6)
+       ON CONFLICT (type, name, parent_id) DO UPDATE SET name = EXCLUDED.name, sort_order = EXCLUDED.sort_order, is_active = EXCLUDED.is_active, updated_at = NOW()
        RETURNING *`,
-      [uuid("loc"), type, name, parentId]
+      [uuid("loc"), type, name, parentId, Number.isFinite(sortOrder) ? sortOrder : 0, isActive]
     );
     res.status(201).json({ option: toLocationOption(result.rows[0]) });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.put("/api/admin/location-options/:id", requireRole("admin"), async (req, res, next) => {
+  try {
+    const type = String(req.body.type || "").trim();
+    const name = String(req.body.name || "").trim();
+    const parentId = String(req.body.parentId || "").trim() || null;
+    const sortOrder = Number(req.body.sortOrder || 0);
+    const isActive = req.body.isActive !== false && req.body.isActive !== "false";
+    if (!["state", "city", "zone", "neighborhood"].includes(type) || !name) {
+      res.status(400).json({ error: "Missing required location fields" });
+      return;
+    }
+    const result = await query(
+      `UPDATE location_options
+       SET type = $2, name = $3, parent_id = $4, sort_order = $5, is_active = $6, updated_at = NOW()
+       WHERE id = $1
+       RETURNING *`,
+      [req.params.id, type, name, parentId, Number.isFinite(sortOrder) ? sortOrder : 0, isActive]
+    );
+    if (!result.rows[0]) {
+      res.status(404).json({ error: "Location option not found" });
+      return;
+    }
+    res.json({ option: toLocationOption(result.rows[0]) });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.patch("/api/admin/location-options/:id", requireRole("admin"), async (req, res, next) => {
+  try {
+    const result = await query(
+      `UPDATE location_options
+       SET is_active = COALESCE($2, is_active), sort_order = COALESCE($3, sort_order), updated_at = NOW()
+       WHERE id = $1
+       RETURNING *`,
+      [
+        req.params.id,
+        req.body.isActive === undefined ? null : req.body.isActive !== false && req.body.isActive !== "false",
+        req.body.sortOrder === undefined || req.body.sortOrder === "" ? null : Number(req.body.sortOrder),
+      ]
+    );
+    if (!result.rows[0]) {
+      res.status(404).json({ error: "Location option not found" });
+      return;
+    }
+    res.json({ option: toLocationOption(result.rows[0]) });
   } catch (error) {
     next(error);
   }
@@ -1114,6 +1593,33 @@ app.delete("/api/admin/location-options/:id", requireRole("admin"), async (req, 
   try {
     await query("DELETE FROM location_options WHERE id = $1", [req.params.id]);
     res.json({ ok: true });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.get("/api/admin/contacts", requireRole("admin"), async (req, res, next) => {
+  try {
+    const type = String(req.query.type || "").trim();
+    const score = String(req.query.score || "").trim();
+    const conditions = [];
+    const params = [];
+    if (type) {
+      params.push(type);
+      conditions.push(`contact_type = $${params.length}`);
+    }
+    if (score) {
+      params.push(score);
+      conditions.push(`lead_score = $${params.length}`);
+    }
+    const result = await query(
+      `SELECT * FROM contacts
+       ${conditions.length ? `WHERE ${conditions.join(" AND ")}` : ""}
+       ORDER BY last_activity_at DESC NULLS LAST, created_at DESC
+       LIMIT 300`,
+      params
+    );
+    res.json({ contacts: result.rows.map(toContact) });
   } catch (error) {
     next(error);
   }
@@ -1139,9 +1645,21 @@ app.get("/api/admin/leads", requireRole("admin"), async (_req, res, next) => {
 
 app.patch("/api/admin/leads/:id", requireRole("admin"), async (req, res, next) => {
   try {
-    const allowed = new Set(["new", "contacted", "closed"]);
-    const status = allowed.has(req.body?.status) ? req.body.status : "contacted";
-    const result = await query("UPDATE lead_requests SET status = $2 WHERE id = $1 RETURNING *", [req.params.id, status]);
+    const status = normalizeStatus(req.body?.status, REQUEST_STATUSES, "contacted");
+    const priority = req.body?.priority === undefined ? null : normalizePriority(req.body.priority);
+    const internalNotes = req.body?.internalNotes === undefined ? null : String(req.body.internalNotes || "").trim();
+    const assignedTo = req.body?.assignedTo === undefined ? null : String(req.body.assignedTo || "").trim();
+    const result = await query(
+      `UPDATE lead_requests
+       SET status = $2,
+           priority = COALESCE($3, priority),
+           internal_notes = COALESCE($4, internal_notes),
+           assigned_to = COALESCE($5, assigned_to),
+           updated_at = NOW()
+       WHERE id = $1
+       RETURNING *`,
+      [req.params.id, status, priority, internalNotes, assignedTo]
+    );
     if (!result.rows[0]) {
       res.status(404).json({ error: "Lead not found" });
       return;
@@ -1156,6 +1674,52 @@ app.delete("/api/admin/leads/:id", requireRole("admin"), async (req, res, next) 
   try {
     await query("DELETE FROM lead_requests WHERE id = $1", [req.params.id]);
     res.json({ ok: true });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.get("/api/admin/messages/:requestTable/:requestId", requireRole("admin"), async (req, res, next) => {
+  try {
+    const table = req.params.requestTable === "seller_request" ? "seller_request" : "lead_request";
+    const result = await query(
+      "SELECT * FROM request_messages WHERE request_table = $1 AND request_id = $2 ORDER BY created_at ASC",
+      [table, req.params.requestId]
+    );
+    res.json({ messages: result.rows });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.post("/api/admin/messages", requireRole("admin"), async (req, res, next) => {
+  try {
+    const table = req.body.requestTable === "seller_request" ? "seller_request" : "lead_request";
+    const requestId = String(req.body.requestId || "").trim();
+    const message = String(req.body.message || "").trim();
+    const attachments = Array.isArray(req.body.attachments) ? req.body.attachments : [];
+    if (!requestId || !message) {
+      res.status(400).json({ error: "Message is required" });
+      return;
+    }
+    const result = await query(
+      `INSERT INTO request_messages (id, request_table, request_id, sender_type, sender_name, message, attachments)
+       VALUES ($1, $2, $3, 'admin', $4, $5, $6::jsonb)
+       RETURNING *`,
+      [uuid("msg"), table, requestId, req.session.user.name || "Admin", message, JSON.stringify(attachments)]
+    );
+    if (table === "seller_request") {
+      await query(
+        "UPDATE seller_requests SET admin_response = $2, response_files = $3::jsonb, updated_at = NOW() WHERE id = $1",
+        [requestId, message, JSON.stringify(attachments)]
+      );
+    } else {
+      await query("UPDATE lead_requests SET last_response = $2, status = 'contacted', updated_at = NOW() WHERE id = $1", [
+        requestId,
+        message,
+      ]);
+    }
+    res.status(201).json({ message: result.rows[0] });
   } catch (error) {
     next(error);
   }
@@ -1248,9 +1812,9 @@ app.post("/api/admin/properties", requireRole("admin"), async (req, res, next) =
     const property = normalizePropertyInput(req.body, uuid("prop"));
     const result = await query(
       `INSERT INTO properties
-        (id, title_es, title_en, type, state, city, zone, neighborhood, address, latitude, longitude, map_place, operation, price_usd, price_mxn, beds, baths, area, lot, mls, image, images, featured, badges, description_es, description_en)
+        (id, title_es, title_en, type, state, city, zone, neighborhood, address, latitude, longitude, map_place, location_precision, google_maps_url, operation, price_usd, price_mxn, beds, baths, area, lot, mls, image, images, featured, status, is_public, badges, description_es, description_en, published_at)
        VALUES
-        ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22::jsonb, $23, $24::jsonb, $25, $26)
+        ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24::jsonb, $25, $26, $27, $28::jsonb, $29, $30, CASE WHEN $26 = 'active' AND $27 = TRUE THEN NOW() ELSE NULL END)
        RETURNING *`,
       [
         property.id,
@@ -1265,6 +1829,8 @@ app.post("/api/admin/properties", requireRole("admin"), async (req, res, next) =
         property.latitude,
         property.longitude,
         property.mapPlace,
+        property.locationPrecision,
+        property.googleMapsUrl,
         property.operation,
         property.priceUsd,
         property.priceMxn,
@@ -1276,6 +1842,8 @@ app.post("/api/admin/properties", requireRole("admin"), async (req, res, next) =
         property.image,
         JSON.stringify(property.images),
         property.featured,
+        property.status,
+        property.isPublic,
         JSON.stringify(property.badges),
         property.descriptionEs,
         property.descriptionEn,
@@ -1299,9 +1867,15 @@ app.put("/api/admin/properties/:id", requireRole("admin"), async (req, res, next
     const result = await query(
       `UPDATE properties
        SET title_es = $2, title_en = $3, type = $4, state = $5, city = $6, zone = $7, neighborhood = $8, address = $9,
-           latitude = $10, longitude = $11, map_place = $12, operation = $13, price_usd = $14, price_mxn = $15,
-           beds = $16, baths = $17, area = $18, lot = $19, mls = $20, image = $21, images = $22::jsonb,
-           featured = $23, badges = $24::jsonb, description_es = $25, description_en = $26
+           latitude = $10, longitude = $11, map_place = $12, location_precision = $13, google_maps_url = $14,
+           operation = $15, price_usd = $16, price_mxn = $17,
+           beds = $18, baths = $19, area = $20, lot = $21, mls = $22, image = $23, images = $24::jsonb,
+           featured = $25, status = $26, is_public = $27, badges = $28::jsonb, description_es = $29, description_en = $30,
+           published_at = CASE WHEN $26 = 'active' AND $27 = TRUE AND published_at IS NULL THEN NOW() ELSE published_at END,
+           disabled_at = CASE WHEN $26 = 'disabled' OR $27 = FALSE THEN NOW() ELSE disabled_at END,
+           sold_at = CASE WHEN $26 IN ('sold', 'rented') THEN NOW() ELSE sold_at END,
+           archived_at = CASE WHEN $26 = 'archived' THEN NOW() ELSE archived_at END,
+           updated_at = NOW()
        WHERE id = $1
        RETURNING *`,
       [
@@ -1317,6 +1891,8 @@ app.put("/api/admin/properties/:id", requireRole("admin"), async (req, res, next
         property.latitude,
         property.longitude,
         property.mapPlace,
+        property.locationPrecision,
+        property.googleMapsUrl,
         property.operation,
         property.priceUsd,
         property.priceMxn,
@@ -1328,6 +1904,8 @@ app.put("/api/admin/properties/:id", requireRole("admin"), async (req, res, next
         property.image,
         JSON.stringify(property.images),
         property.featured,
+        property.status,
+        property.isPublic,
         JSON.stringify(property.badges),
         property.descriptionEs,
         property.descriptionEn,
@@ -1347,6 +1925,33 @@ app.delete("/api/admin/properties/:id", requireRole("admin"), async (req, res, n
   try {
     await query("DELETE FROM properties WHERE id = $1", [req.params.id]);
     res.json({ ok: true });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.patch("/api/admin/properties/:id/status", requireRole("admin"), async (req, res, next) => {
+  try {
+    const status = normalizeStatus(req.body.status, PROPERTY_STATUSES, "active");
+    const isPublic = req.body.isPublic === undefined ? status === "active" : req.body.isPublic !== false && req.body.isPublic !== "false";
+    const result = await query(
+      `UPDATE properties
+       SET status = $2,
+           is_public = $3,
+           disabled_at = CASE WHEN $2 = 'disabled' OR $3 = FALSE THEN NOW() ELSE disabled_at END,
+           sold_at = CASE WHEN $2 IN ('sold', 'rented') THEN NOW() ELSE sold_at END,
+           archived_at = CASE WHEN $2 = 'archived' THEN NOW() ELSE archived_at END,
+           published_at = CASE WHEN $2 = 'active' AND $3 = TRUE AND published_at IS NULL THEN NOW() ELSE published_at END,
+           updated_at = NOW()
+       WHERE id = $1
+       RETURNING *`,
+      [req.params.id, status, isPublic]
+    );
+    if (!result.rows[0]) {
+      res.status(404).json({ error: "Property not found" });
+      return;
+    }
+    res.json({ property: toProperty(result.rows[0]) });
   } catch (error) {
     next(error);
   }
@@ -1435,10 +2040,14 @@ function normalizePropertyInput(body, id, existingImages = []) {
   const latitude = parseOptionalCoordinate(body.latitude, "latitude", -90, 90);
   const longitude = parseOptionalCoordinate(body.longitude, "longitude", -180, 180);
   const mapPlace = String(body.mapPlace || "").trim().slice(0, 260);
+  const locationPrecision = ["exact", "approximate", "hidden"].includes(body.locationPrecision) ? body.locationPrecision : "approximate";
+  const googleMapsUrl = String(body.googleMapsUrl || "").trim().slice(0, 500);
   const operation = body.operation === "rent" ? "rent" : "sale";
   const priceUsd = parseOptionalPrice(body.priceUsd, "priceUsd");
   const priceMxn = parseOptionalPrice(body.priceMxn, "priceMxn");
   const images = parseUploadedImages(body, existingImages);
+  const status = normalizeStatus(body.status, PROPERTY_STATUSES, "active");
+  const isPublic = body.isPublic === undefined ? status === "active" : body.isPublic !== false && body.isPublic !== "false";
 
   if (!title || !type || !state || !city || !zone || (priceUsd === null && priceMxn === null)) {
     const error = new Error("Missing required property fields");
@@ -1459,6 +2068,8 @@ function normalizePropertyInput(body, id, existingImages = []) {
     latitude,
     longitude,
     mapPlace,
+    locationPrecision,
+    googleMapsUrl,
     operation,
     priceUsd,
     priceMxn,
@@ -1470,6 +2081,8 @@ function normalizePropertyInput(body, id, existingImages = []) {
     image: images[0] || null,
     images,
     featured: Boolean(body.featured),
+    status,
+    isPublic,
     badges: Array.isArray(body.badges) ? body.badges : ["new"],
     descriptionEs: String(body.description || body.descriptionEs || "").trim() || "Propiedad publicada por administracion.",
     descriptionEn: String(body.descriptionEn || body.description || "").trim() || "Property published by administration.",

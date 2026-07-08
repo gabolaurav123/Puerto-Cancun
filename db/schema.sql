@@ -27,6 +27,8 @@ CREATE TABLE IF NOT EXISTS seller_requests (
   latitude NUMERIC,
   longitude NUMERIC,
   map_place TEXT,
+  location_precision TEXT NOT NULL DEFAULT 'approximate',
+  google_maps_url TEXT,
   price NUMERIC NOT NULL,
   currency TEXT NOT NULL CHECK (currency IN ('USD', 'MXN')),
   address TEXT NOT NULL,
@@ -36,8 +38,13 @@ CREATE TABLE IF NOT EXISTS seller_requests (
   description TEXT NOT NULL,
   image TEXT,
   images JSONB NOT NULL DEFAULT '[]'::jsonb,
-  status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'approved', 'rejected')),
+  status TEXT NOT NULL DEFAULT 'pending',
+  priority TEXT NOT NULL DEFAULT 'medium',
+  admin_response TEXT,
+  response_files JSONB NOT NULL DEFAULT '[]'::jsonb,
+  internal_notes TEXT,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   reviewed_at TIMESTAMPTZ
 );
 
@@ -54,6 +61,8 @@ CREATE TABLE IF NOT EXISTS properties (
   latitude NUMERIC,
   longitude NUMERIC,
   map_place TEXT,
+  location_precision TEXT NOT NULL DEFAULT 'approximate',
+  google_maps_url TEXT,
   operation TEXT NOT NULL CHECK (operation IN ('sale', 'rent')),
   price_usd NUMERIC,
   price_mxn NUMERIC,
@@ -65,8 +74,15 @@ CREATE TABLE IF NOT EXISTS properties (
   image TEXT,
   images JSONB NOT NULL DEFAULT '[]'::jsonb,
   featured BOOLEAN NOT NULL DEFAULT FALSE,
+  status TEXT NOT NULL DEFAULT 'active',
+  is_public BOOLEAN NOT NULL DEFAULT TRUE,
   badges JSONB NOT NULL DEFAULT '[]'::jsonb,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  published_at TIMESTAMPTZ,
+  disabled_at TIMESTAMPTZ,
+  sold_at TIMESTAMPTZ,
+  archived_at TIMESTAMPTZ,
   description_es TEXT NOT NULL,
   description_en TEXT NOT NULL,
   source_request_id TEXT UNIQUE
@@ -77,7 +93,10 @@ CREATE TABLE IF NOT EXISTS location_options (
   type TEXT NOT NULL CHECK (type IN ('state', 'city', 'zone', 'neighborhood')),
   name TEXT NOT NULL,
   parent_id TEXT REFERENCES location_options(id) ON DELETE SET NULL,
+  is_active BOOLEAN NOT NULL DEFAULT TRUE,
+  sort_order INTEGER NOT NULL DEFAULT 0,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   UNIQUE (type, name, parent_id)
 );
 
@@ -91,11 +110,83 @@ CREATE TABLE IF NOT EXISTS lead_requests (
   id TEXT PRIMARY KEY,
   lead_type TEXT NOT NULL,
   name TEXT NOT NULL,
-  phone TEXT NOT NULL,
+  phone TEXT,
   email TEXT,
   source_path TEXT,
+  property_id TEXT,
+  contact_id TEXT,
   payload JSONB NOT NULL DEFAULT '{}'::jsonb,
   status TEXT NOT NULL DEFAULT 'new',
+  priority TEXT NOT NULL DEFAULT 'medium',
+  assigned_to TEXT,
+  last_response TEXT,
+  internal_notes TEXT,
+  lead_score TEXT NOT NULL DEFAULT 'cold',
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS contacts (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  email TEXT,
+  phone TEXT,
+  contact_type TEXT NOT NULL DEFAULT 'unclassified',
+  source TEXT,
+  preferred_zones JSONB NOT NULL DEFAULT '[]'::jsonb,
+  budget_min NUMERIC,
+  budget_max NUMERIC,
+  property_type TEXT,
+  notes TEXT,
+  consent_contact BOOLEAN NOT NULL DEFAULT TRUE,
+  lead_score TEXT NOT NULL DEFAULT 'cold',
+  assigned_to TEXT,
+  last_activity_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS request_messages (
+  id TEXT PRIMARY KEY,
+  request_table TEXT NOT NULL,
+  request_id TEXT NOT NULL,
+  sender_type TEXT NOT NULL,
+  sender_name TEXT,
+  message TEXT NOT NULL,
+  attachments JSONB NOT NULL DEFAULT '[]'::jsonb,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS notifications (
+  id TEXT PRIMARY KEY,
+  user_id TEXT,
+  type TEXT NOT NULL,
+  title TEXT NOT NULL,
+  message TEXT NOT NULL,
+  related_entity_type TEXT,
+  related_entity_id TEXT,
+  is_read BOOLEAN NOT NULL DEFAULT FALSE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS activity_logs (
+  id TEXT PRIMARY KEY,
+  user_id TEXT,
+  action TEXT NOT NULL,
+  entity_type TEXT NOT NULL,
+  entity_id TEXT NOT NULL,
+  old_value JSONB,
+  new_value JSONB,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS analytics_events (
+  id TEXT PRIMARY KEY,
+  event_type TEXT NOT NULL,
+  user_id TEXT,
+  contact_id TEXT,
+  property_id TEXT,
+  metadata JSONB NOT NULL DEFAULT '{}'::jsonb,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 

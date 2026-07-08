@@ -1,5 +1,5 @@
 const IMAGE_MAX_BYTES = 1.5 * 1024 * 1024;
-const IMAGE_MAX_COUNT = 8;
+const IMAGE_MAX_COUNT = 20;
 const IMAGE_TYPES = new Set(["image/jpeg", "image/jpg", "image/png", "image/webp"]);
 const WHATSAPP_NUMBER = "5219982166563";
 const LOCATION_FIELD_ORDER = ["state", "city", "zone", "neighborhood"];
@@ -24,6 +24,7 @@ const fallbackIcons = {
   crosshair: '<circle cx="12" cy="12" r="10"></circle><line x1="22" x2="18" y1="12" y2="12"></line><line x1="6" x2="2" y1="12" y2="12"></line><line x1="12" x2="12" y1="6" y2="2"></line><line x1="12" x2="12" y1="22" y2="18"></line>',
   home: '<path d="m3 11 9-8 9 8"></path><path d="M5 10v10h14V10"></path><path d="M9 20v-6h6v6"></path>',
   inbox: '<polyline points="22 12 16 12 14 15 10 15 8 12 2 12"></polyline><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11Z"></path>',
+  "layout-dashboard": '<rect width="7" height="9" x="3" y="3" rx="1"></rect><rect width="7" height="5" x="14" y="3" rx="1"></rect><rect width="7" height="9" x="14" y="12" rx="1"></rect><rect width="7" height="5" x="3" y="16" rx="1"></rect>',
   "log-out": '<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><path d="M16 17l5-5-5-5"></path><path d="M21 12H9"></path>',
   mail: '<rect width="20" height="16" x="2" y="4" rx="2"></rect><path d="m22 7-8.97 5.7a2 2 0 0 1-2.06 0L2 7"></path>',
   "map-pin": '<path d="M20 10c0 5-8 11-8 11S4 15 4 10a8 8 0 1 1 16 0Z"></path><circle cx="12" cy="10" r="3"></circle>',
@@ -33,6 +34,7 @@ const fallbackIcons = {
     '<path d="M21 11.5a8.4 8.4 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.4 8.4 0 0 1-3.8-.9L3 21l1.9-5.7a8.4 8.4 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.4 8.4 0 0 1 3.8-.9h.5a8.5 8.5 0 0 1 8 8v.5Z"></path>',
   plus: '<path d="M5 12h14"></path><path d="M12 5v14"></path>',
   search: '<circle cx="11" cy="11" r="8"></circle><path d="m21 21-4.3-4.3"></path>',
+  users: '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M22 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path>',
   x: '<path d="M18 6 6 18"></path><path d="m6 6 12 12"></path>',
 };
 
@@ -187,13 +189,13 @@ const translations = {
     priceUsd: "Precio USD",
     priceMxn: "Precio MXN",
     imageUpload: "Imagenes de la propiedad",
-    imageHelp: "JPG, PNG o WEBP. Maximo 8 imagenes de 1.5 MB cada una.",
+    imageHelp: "JPG, PNG o WEBP. Maximo 20 imagenes. Se optimizan antes de guardarse.",
     currentImage: "Imagen actual",
     selectedImage: "Imagenes seleccionadas",
     removeImage: "Quitar imagenes",
     imageRemoved: "Imagenes quitadas. Puedes seleccionar otras antes de guardar.",
     imageTooLarge: "La imagen no debe superar 1.5 MB.",
-    tooManyImages: "Solo puedes cargar hasta 8 imagenes por publicacion.",
+    tooManyImages: "Solo puedes cargar hasta 20 imagenes por publicacion.",
     invalidImageType: "La imagen debe ser JPG, JPEG, PNG o WEBP.",
     missingPrice: "Agrega al menos un precio: USD o MXN.",
     markFeatured: "Marcar como destacada",
@@ -237,6 +239,10 @@ const translations = {
     adminJumpNew: "Nueva propiedad",
     adminJumpPrompts: "Herramientas IA",
     adminJumpLeads: "Asesorias",
+    adminJumpDashboard: "Dashboard",
+    adminJumpContacts: "CRM / Contactos",
+    adminSidebarCollapse: "Contraer menu",
+    adminSidebarExpand: "Expandir menu",
     adminPromptLibraryTitle: "Herramientas IA internas para publicaciones y asesorías",
     adminPromptLibraryCopy:
       "Usa estos textos como apoyo interno para valorar, redactar y revisar propiedades antes de publicar. No son una sección pública.",
@@ -245,6 +251,39 @@ const translations = {
     adminLeadSummary: "solicitudes de asesoria",
     adminLeadsHint: "Responde por WhatsApp o correo y marca cada solicitud como atendida.",
     adminNoLeads: "No hay solicitudes de asesoria.",
+    leadFilterAll: "Todas",
+    leadFilterSeller: "Vender",
+    leadFilterValuation: "Valoracion",
+    leadFilterAi: "Validar IA",
+    leadFilterBuyer: "Compradores",
+    leadFilterProperty: "Propiedad",
+    leadFilterWhatsApp: "WhatsApp / ayuda",
+    crmTitle: "CRM / Contactos",
+    crmSummary: "contactos registrados",
+    crmHint: "Contactos generados desde formularios, vendedor, comprador y WhatsApp.",
+    noContacts: "No hay contactos registrados.",
+    contactTypeBuyer: "Comprador",
+    contactTypeSeller: "Vendedor",
+    contactTypeUnclassified: "Sin clasificar",
+    leadScoreCold: "Frio",
+    leadScoreWarm: "Tibio",
+    leadScoreHot: "Caliente",
+    leadScorePremium: "Premium",
+    listingStatus: "Estado de publicacion",
+    publicListing: "Visible en web publica",
+    statusDraft: "Borrador",
+    statusPending: "Pendiente",
+    statusActive: "Activa",
+    statusDisabled: "Deshabilitada",
+    statusSold: "Vendida",
+    statusRented: "Rentada",
+    statusArchived: "Archivada",
+    statusRejected: "Rechazada",
+    qualityScore: "Calidad",
+    markActive: "Activar",
+    markDisabled: "Deshabilitar",
+    markSold: "Vendida",
+    duplicateListing: "Duplicar",
     adminScrollableHint: "Desplaza dentro de esta lista para ver más.",
     adminListingsHint: "Edita, revisa y elimina publicaciones existentes.",
     adminInsightPending: "Pendientes por revisar",
@@ -266,11 +305,17 @@ const translations = {
     catalogType: "Tipo",
     catalogParent: "Pertenece a",
     catalogName: "Nombre",
+    catalogSortOrder: "Orden",
+    catalogActive: "Activo",
     catalogState: "Estado",
     catalogCity: "Ciudad / municipio",
     catalogZone: "Zona",
     catalogNeighborhood: "Colonia / desarrollo",
     saveCatalog: "Guardar catálogo",
+    newCatalog: "Nuevo catalogo",
+    editCatalog: "Editar",
+    disableCatalog: "Desactivar",
+    enableCatalog: "Activar",
     catalogSaved: "Catálogo guardado.",
     catalogDeleted: "Catálogo eliminado.",
     catalogEmpty: "No hay opciones registradas.",
@@ -304,6 +349,8 @@ const translations = {
     respondEmail: "Responder correo",
     markContacted: "Marcar atendida",
     markClosed: "Cerrar",
+    adminRespond: "Responder",
+    responsePrompt: "Escribe la respuesta interna/para cliente:",
     noEmail: "Sin correo",
     whatsAppPending: "Abrir WhatsApp",
     statProperties: "Publicaciones",
@@ -476,13 +523,13 @@ const translations = {
     priceUsd: "USD price",
     priceMxn: "MXN price",
     imageUpload: "Property images",
-    imageHelp: "JPG, PNG or WEBP. Up to 8 images, 1.5 MB each.",
+    imageHelp: "JPG, PNG or WEBP. Up to 20 images. They are optimized before saving.",
     currentImage: "Current image",
     selectedImage: "Selected images",
     removeImage: "Remove images",
     imageRemoved: "Images removed. You can select others before saving.",
     imageTooLarge: "Image must not exceed 1.5 MB.",
-    tooManyImages: "You can upload up to 8 images per listing.",
+    tooManyImages: "You can upload up to 20 images per listing.",
     invalidImageType: "Image must be JPG, JPEG, PNG, or WEBP.",
     missingPrice: "Add at least one price: USD or MXN.",
     markFeatured: "Mark as featured",
@@ -526,6 +573,10 @@ const translations = {
     adminJumpNew: "New property",
     adminJumpPrompts: "AI tools",
     adminJumpLeads: "Advisory",
+    adminJumpDashboard: "Dashboard",
+    adminJumpContacts: "CRM / Contacts",
+    adminSidebarCollapse: "Collapse menu",
+    adminSidebarExpand: "Expand menu",
     adminPromptLibraryTitle: "Internal AI tools for listings and advisory",
     adminPromptLibraryCopy:
       "Use these texts as internal support to value, write, and review properties before publishing. This is not a public section.",
@@ -534,6 +585,39 @@ const translations = {
     adminLeadSummary: "advisor requests",
     adminLeadsHint: "Reply by WhatsApp or email and mark each request as handled.",
     adminNoLeads: "No advisor requests.",
+    leadFilterAll: "All",
+    leadFilterSeller: "Seller",
+    leadFilterValuation: "Valuation",
+    leadFilterAi: "Validate AI",
+    leadFilterBuyer: "Buyers",
+    leadFilterProperty: "Property",
+    leadFilterWhatsApp: "WhatsApp / help",
+    crmTitle: "CRM / Contacts",
+    crmSummary: "registered contacts",
+    crmHint: "Contacts generated from forms, sellers, buyers, and WhatsApp.",
+    noContacts: "No contacts registered.",
+    contactTypeBuyer: "Buyer",
+    contactTypeSeller: "Seller",
+    contactTypeUnclassified: "Unclassified",
+    leadScoreCold: "Cold",
+    leadScoreWarm: "Warm",
+    leadScoreHot: "Hot",
+    leadScorePremium: "Premium",
+    listingStatus: "Listing status",
+    publicListing: "Visible on public site",
+    statusDraft: "Draft",
+    statusPending: "Pending",
+    statusActive: "Active",
+    statusDisabled: "Disabled",
+    statusSold: "Sold",
+    statusRented: "Rented",
+    statusArchived: "Archived",
+    statusRejected: "Rejected",
+    qualityScore: "Quality",
+    markActive: "Activate",
+    markDisabled: "Disable",
+    markSold: "Sold",
+    duplicateListing: "Duplicate",
     adminScrollableHint: "Scroll inside this list to see more.",
     adminListingsHint: "Edit, review, and delete existing listings.",
     adminInsightPending: "Pending review",
@@ -555,11 +639,17 @@ const translations = {
     catalogType: "Type",
     catalogParent: "Belongs to",
     catalogName: "Name",
+    catalogSortOrder: "Order",
+    catalogActive: "Active",
     catalogState: "State",
     catalogCity: "City / municipality",
     catalogZone: "Area",
     catalogNeighborhood: "Neighborhood / development",
     saveCatalog: "Save catalog",
+    newCatalog: "New catalog",
+    editCatalog: "Edit",
+    disableCatalog: "Disable",
+    enableCatalog: "Enable",
     catalogSaved: "Catalog saved.",
     catalogDeleted: "Catalog deleted.",
     catalogEmpty: "No options registered.",
@@ -593,6 +683,8 @@ const translations = {
     respondEmail: "Reply email",
     markContacted: "Mark handled",
     markClosed: "Close",
+    adminRespond: "Reply",
+    responsePrompt: "Write the internal/client response:",
     noEmail: "No email",
     whatsAppPending: "Open WhatsApp",
     statProperties: "Listings",
@@ -627,11 +719,26 @@ const state = {
   properties: [],
   requests: [],
   leads: [],
+  contacts: [],
   adminPrompts: [],
   locationOptions: [],
+  adminSection: "dashboard",
+  leadFilter: "all",
+  sidebarCollapsed: false,
   config: { googleClientId: "", googleMapsApiKey: "" },
   googleReady: false,
-  stats: { properties: 0, pendingRequests: 0, newLeads: 0, users: 0, visits: 0, searches: 0 },
+  stats: {
+    properties: 0,
+    activeProperties: 0,
+    disabledProperties: 0,
+    featuredProperties: 0,
+    pendingRequests: 0,
+    newLeads: 0,
+    contacts: 0,
+    users: 0,
+    visits: 0,
+    searches: 0,
+  },
   filters: {
     text: "",
     type: "",
@@ -851,11 +958,22 @@ async function enhanceMapPicker(picker) {
     streetViewControl: false,
     fullscreenControl: false,
   });
-  const marker = new google.maps.Marker({ map, position: center });
+  const geocoder = new google.maps.Geocoder();
+  const marker = new google.maps.Marker({ map, position: center, draggable: true });
+  const updateFromLatLng = (latLng) => {
+    marker.setPosition(latLng);
+    setMapCoordinates(picker, latLng.lat(), latLng.lng());
+    geocoder.geocode({ location: latLng }, (results, status) => {
+      if (status === "OK" && results?.[0]?.formatted_address && form?.elements.address && !form.elements.address.dataset.locked) {
+        form.elements.address.value = results[0].formatted_address;
+        updateMapPicker(picker);
+      }
+    });
+  };
   map.addListener("click", (event) => {
-    marker.setPosition(event.latLng);
-    setMapCoordinates(picker, event.latLng.lat(), event.latLng.lng());
+    updateFromLatLng(event.latLng);
   });
+  marker.addListener("dragend", (event) => updateFromLatLng(event.latLng));
   googleMapInstances.set(picker, { map, marker });
   picker.classList.add("has-google-map");
 }
@@ -1106,6 +1224,7 @@ function renderCategoryPage() {
 }
 
 function propertyMatches(property) {
+  if (property.isPublic === false || !["active", "featured", undefined, null, ""].includes(property.status)) return false;
   const filters = state.filters;
   if (filters.type && property.type !== filters.type) return false;
   if (filters.zone && property.zone !== filters.zone) return false;
@@ -1212,13 +1331,14 @@ function propertySchemaType(property) {
 function updatePropertyJsonLd() {
   const existing = document.getElementById("property-jsonld");
   if (existing) existing.remove();
-  if (!state.properties.length) return;
+  const publicProperties = state.properties.filter((property) => property.isPublic !== false && ["active", "featured", undefined, null, ""].includes(property.status));
+  if (!publicProperties.length) return;
 
   const itemList = {
     "@context": "https://schema.org",
     "@type": "ItemList",
     name: "Propiedades en venta y renta en Cancun",
-    itemListElement: state.properties.slice(0, 24).map((property, index) => {
+    itemListElement: publicProperties.slice(0, 24).map((property, index) => {
       const price = selectedPrice(property);
       const url = `${window.location.origin}/#property-${encodeURIComponent(property.id)}`;
       const listing = {
@@ -1308,6 +1428,7 @@ function renderRequestItem(request) {
         </div>
       </div>
       <p class="request-description">${escapeHtml(request.description || "")}</p>
+      ${request.adminResponse ? `<p class="request-response"><strong>${escapeHtml(t("adminRespond"))}:</strong> ${escapeHtml(request.adminResponse)}</p>` : ""}
       <p class="request-date">${escapeHtml(t("adminRequestMeta"))}: ${escapeHtml(formatDate(request.createdAt))}</p>
     </div>
   `;
@@ -1342,8 +1463,9 @@ function renderAdminRequests() {
           ? `<div class="item-actions">
               <button class="mini-button primary" type="button" data-approve="${escapeHtml(request.id)}">${escapeHtml(t("approve"))}</button>
               <button class="mini-button" type="button" data-reject="${escapeHtml(request.id)}">${escapeHtml(t("reject"))}</button>
+              <button class="mini-button" type="button" data-respond-request="${escapeHtml(request.id)}">${escapeHtml(t("adminRespond"))}</button>
             </div>`
-          : "";
+          : `<div class="item-actions"><button class="mini-button" type="button" data-respond-request="${escapeHtml(request.id)}">${escapeHtml(t("adminRespond"))}</button></div>`;
       return `<div class="request-admin-entry">${renderRequestItem(request)}${actions}</div>`;
     })
     .join("");
@@ -1351,6 +1473,14 @@ function renderAdminRequests() {
 
 function leadStatusLabel(status) {
   if (status === "contacted") return t("leadStatusContacted");
+  if (status === "in_review") return state.lang === "en" ? "In review" : "En revision";
+  if (status === "waiting_client") return state.lang === "en" ? "Waiting client" : "Esperando cliente";
+  if (status === "missing_data") return state.lang === "en" ? "Missing data" : "Faltan datos";
+  if (status === "valuation_process") return state.lang === "en" ? "Valuation" : "Valoracion";
+  if (status === "valuation_sent") return state.lang === "en" ? "Valuation sent" : "Valoracion enviada";
+  if (status === "negotiation") return state.lang === "en" ? "Negotiation" : "Negociacion";
+  if (status === "lost") return state.lang === "en" ? "Lost" : "Perdido";
+  if (status === "archived") return state.lang === "en" ? "Archived" : "Archivado";
   if (status === "closed") return t("leadStatusClosed");
   return t("leadStatusNew");
 }
@@ -1362,6 +1492,45 @@ function leadTypeLabel(type) {
   if (value.includes("comprador")) return t("leadTypeBuyer");
   if (value.includes("vendedor") || value.includes("seller")) return t("leadTypeSeller");
   return t("leadTypeGeneral");
+}
+
+function leadCategory(type) {
+  const value = String(type || "").toLowerCase();
+  if (value.includes("valuacion")) return "valuation";
+  if (value.includes("validacion") || value.includes("ia")) return "ai_validation";
+  if (value.includes("comprador") || value.includes("buyer")) return "buyer";
+  if (value.includes("vendedor") || value.includes("seller") || value.includes("venta")) return "seller";
+  if (value.includes("propiedad") || value.includes("contacto")) return "property_contact";
+  if (value.includes("whatsapp") || value.includes("ayuda") || value.includes("guia")) return "whatsapp_help";
+  if (value.includes("busqueda")) return "search";
+  return "general";
+}
+
+function scoreLabel(score) {
+  if (score === "premium") return t("leadScorePremium");
+  if (score === "hot") return t("leadScoreHot");
+  if (score === "warm") return t("leadScoreWarm");
+  return t("leadScoreCold");
+}
+
+function contactTypeLabel(type) {
+  if (type === "buyer") return t("contactTypeBuyer");
+  if (type === "seller") return t("contactTypeSeller");
+  return t("contactTypeUnclassified");
+}
+
+function propertyStatusLabel(status) {
+  const labels = {
+    draft: t("statusDraft"),
+    pending: t("statusPending"),
+    active: t("statusActive"),
+    disabled: t("statusDisabled"),
+    sold: t("statusSold"),
+    rented: t("statusRented"),
+    archived: t("statusArchived"),
+    rejected: t("statusRejected"),
+  };
+  return labels[status] || labels.active;
 }
 
 function leadPayloadLabel(key) {
@@ -1444,16 +1613,21 @@ function leadEmailUrl(lead) {
 function renderAdminLeads() {
   const list = $("#adminLeads");
   if (!list) return;
+  $$("[data-lead-filter]").forEach((button) => {
+    button.classList.toggle("active", button.dataset.leadFilter === state.leadFilter);
+  });
   const summary = $("#adminLeadSummary");
   const newCount = state.leads.filter((lead) => lead.status === "new").length;
+  const leads =
+    state.leadFilter === "all" ? state.leads : state.leads.filter((lead) => leadCategory(lead.leadType) === state.leadFilter);
   if (summary) {
-    summary.textContent = `${state.leads.length} ${t("adminLeadSummary")} · ${newCount ? `${newCount} ${t("leadStatusNew")}` : t("adminNoPending")}`;
+    summary.textContent = `${leads.length} ${t("adminLeadSummary")} · ${newCount ? `${newCount} ${t("leadStatusNew")}` : t("adminNoPending")}`;
   }
-  if (!state.leads.length) {
+  if (!leads.length) {
     list.innerHTML = `<p class="empty-state">${escapeHtml(t("adminNoLeads"))}</p>`;
     return;
   }
-  list.innerHTML = state.leads
+  list.innerHTML = leads
     .map((lead) => {
       const phoneUrl = leadPhoneForWhatsApp(lead.phone) ? leadWhatsAppUrl(lead) : "";
       const source = lead.sourcePath ? `<small>${escapeHtml(lead.sourcePath)}</small>` : "";
@@ -1462,6 +1636,8 @@ function renderAdminLeads() {
           <div class="lead-header">
             <div>
               <span class="status ${escapeHtml(lead.status || "new")}">${escapeHtml(leadStatusLabel(lead.status))}</span>
+              <span class="status priority-${escapeHtml(lead.priority || "medium")}">${escapeHtml(lead.priority || "medium")}</span>
+              <span class="status score-${escapeHtml(lead.leadScore || "cold")}">${escapeHtml(scoreLabel(lead.leadScore))}</span>
               <h3>${escapeHtml(lead.name || "")}</h3>
               <p>${escapeHtml(leadTypeLabel(lead.leadType))} · ${escapeHtml(formatDate(lead.createdAt))}</p>
               ${source}
@@ -1490,6 +1666,7 @@ function renderAdminLeads() {
                 ? `<a class="mini-button" href="${escapeHtml(leadEmailUrl(lead))}">${escapeHtml(t("respondEmail"))}</a>`
                 : ""
             }
+            <button class="mini-button" type="button" data-respond-lead="${escapeHtml(lead.id)}">${escapeHtml(t("adminRespond"))}</button>
             <button class="mini-button" type="button" data-lead-id="${escapeHtml(lead.id)}" data-lead-status="contacted">${escapeHtml(t("markContacted"))}</button>
             <button class="mini-button" type="button" data-lead-id="${escapeHtml(lead.id)}" data-lead-status="closed">${escapeHtml(t("markClosed"))}</button>
             <button class="mini-button danger" type="button" data-delete-lead="${escapeHtml(lead.id)}">${escapeHtml(t("delete"))}</button>
@@ -1500,12 +1677,55 @@ function renderAdminLeads() {
     .join("");
 }
 
+function renderAdminContacts() {
+  const list = $("#adminContacts");
+  if (!list) return;
+  const summary = $("#adminContactSummary");
+  if (summary) summary.textContent = `${state.contacts.length} ${t("crmSummary")}`;
+  if (!state.contacts.length) {
+    list.innerHTML = `<p class="empty-state">${escapeHtml(t("noContacts"))}</p>`;
+    return;
+  }
+  list.innerHTML = state.contacts
+    .map((contact) => {
+      const zones = Array.isArray(contact.preferredZones) ? contact.preferredZones.join(", ") : "";
+      const phoneUrl = leadPhoneForWhatsApp(contact.phone)
+        ? `https://wa.me/${leadPhoneForWhatsApp(contact.phone)}?text=${encodeURIComponent("Hola, soy asesor de Puerto Cancun Center. Quiero dar seguimiento a tu solicitud.")}`
+        : "";
+      return `
+        <article class="contact-entry">
+          <div class="contact-main">
+            <div>
+              <span class="status score-${escapeHtml(contact.leadScore || "cold")}">${escapeHtml(scoreLabel(contact.leadScore))}</span>
+              <h3>${escapeHtml(contact.name || "")}</h3>
+              <p>${escapeHtml(contactTypeLabel(contact.contactType))} · ${escapeHtml(contact.source || "")}</p>
+            </div>
+            <strong>${escapeHtml(contact.phone || contact.email || "")}</strong>
+          </div>
+          <div class="lead-contact-grid">
+            <div><span>WhatsApp</span><strong>${escapeHtml(contact.phone || "")}</strong></div>
+            <div><span>${escapeHtml(t("email"))}</span><strong>${escapeHtml(contact.email || t("noEmail"))}</strong></div>
+            <div><span>${escapeHtml(t("zone"))}</span><strong>${escapeHtml(zones || "-")}</strong></div>
+            <div><span>${escapeHtml(t("propertyType"))}</span><strong>${escapeHtml(contact.propertyType || "-")}</strong></div>
+          </div>
+          <div class="item-actions">
+            ${phoneUrl ? `<a class="mini-button primary" href="${escapeHtml(phoneUrl)}" target="_blank" rel="noopener noreferrer">${escapeHtml(t("respondWhatsApp"))}</a>` : ""}
+            ${contact.email ? `<a class="mini-button" href="mailto:${escapeHtml(contact.email)}">${escapeHtml(t("respondEmail"))}</a>` : ""}
+          </div>
+        </article>
+      `;
+    })
+    .join("");
+}
+
 function renderStats() {
   const stats = [
     [state.stats.properties, t("statProperties")],
+    [state.stats.activeProperties || 0, t("statusActive")],
+    [state.stats.disabledProperties || 0, t("statusDisabled")],
     [state.stats.pendingRequests, t("statRequests")],
     [state.stats.newLeads || 0, t("statLeads")],
-    [state.stats.users, t("statUsers")],
+    [state.stats.contacts || 0, t("crmTitle")],
     [state.stats.visits, t("statVisits")],
   ];
   $("#statsGrid").innerHTML = stats
@@ -1609,8 +1829,12 @@ function renderLocationCatalogs() {
                   .map(
                     (option) => `
                       <div class="catalog-entry">
-                        <span>${escapeHtml(option.name)}</span>
-                        <button class="text-button danger" type="button" data-delete-location="${escapeHtml(option.id)}">${escapeHtml(t("delete"))}</button>
+                        <span>${escapeHtml(option.name)} ${option.isActive ? "" : "· off"}</span>
+                        <div class="catalog-actions">
+                          <button class="text-button" type="button" data-edit-location="${escapeHtml(option.id)}">${escapeHtml(t("editCatalog"))}</button>
+                          <button class="text-button" type="button" data-toggle-location="${escapeHtml(option.id)}">${escapeHtml(option.isActive ? t("disableCatalog") : t("enableCatalog"))}</button>
+                          <button class="text-button danger" type="button" data-delete-location="${escapeHtml(option.id)}">${escapeHtml(t("delete"))}</button>
+                        </div>
                       </div>
                     `
                   )
@@ -1654,20 +1878,66 @@ async function locationCatalogSubmit(event) {
   const message = $("#catalogFormMessage");
   setFormMessage(message, "");
   try {
-    await api("/api/admin/location-options", {
-      method: "POST",
+    const id = form.elements.id.value;
+    await api(id ? `/api/admin/location-options/${encodeURIComponent(id)}` : "/api/admin/location-options", {
+      method: id ? "PUT" : "POST",
       body: {
         type: form.type.value,
         parentId: form.parentId.value,
         name: form.name.value.trim(),
+        sortOrder: Number(form.sortOrder.value || 0),
+        isActive: form.isActive.checked,
       },
     });
-    form.name.value = "";
+    form.reset();
+    form.elements.id.value = "";
+    form.elements.isActive.checked = true;
+    form.elements.sortOrder.value = "0";
     await refreshLocationOptions();
     setFormMessage(message, t("catalogSaved"));
   } catch (error) {
     setFormMessage(message, error.message, true);
   }
+}
+
+function editLocationOption(id) {
+  const option = state.locationOptions.find((item) => item.id === id);
+  const form = $("#locationCatalogForm");
+  if (!option || !form) return;
+  form.elements.id.value = option.id;
+  form.elements.type.value = option.type;
+  renderCatalogParentOptions();
+  form.elements.parentId.value = option.parentId || "";
+  form.elements.name.value = option.name;
+  form.elements.sortOrder.value = option.sortOrder || 0;
+  form.elements.isActive.checked = option.isActive !== false;
+  form.scrollIntoView({ behavior: "smooth", block: "center" });
+}
+
+async function toggleLocationOption(id) {
+  const option = state.locationOptions.find((item) => item.id === id);
+  if (!option) return;
+  try {
+    await api(`/api/admin/location-options/${encodeURIComponent(id)}`, {
+      method: "PATCH",
+      body: { isActive: !option.isActive },
+    });
+    await refreshLocationOptions();
+    setFormMessage($("#catalogFormMessage"), t("catalogSaved"));
+  } catch (error) {
+    setFormMessage($("#catalogFormMessage"), error.message, true);
+  }
+}
+
+function resetCatalogForm() {
+  const form = $("#locationCatalogForm");
+  if (!form) return;
+  form.reset();
+  form.elements.id.value = "";
+  form.elements.isActive.checked = true;
+  form.elements.sortOrder.value = "0";
+  renderCatalogParentOptions();
+  setFormMessage($("#catalogFormMessage"), "");
 }
 
 async function deleteLocationOption(id) {
@@ -1705,6 +1975,7 @@ function renderAdminListings() {
             <div class="listing-heading">
               <div>
                 <span class="status ${property.featured ? "approved" : ""}">${escapeHtml(property.featured ? t("navFeatured") : displayType(property.type))}</span>
+                <span class="status status-${escapeHtml(property.status || "active")}">${escapeHtml(propertyStatusLabel(property.status))}</span>
                 <h3>${escapeHtml(localizedTitle(property))}</h3>
               </div>
               <strong>${escapeHtml(formatPriceSummary(property))}</strong>
@@ -1715,6 +1986,7 @@ function renderAdminListings() {
               <span>${escapeHtml(property.baths || 0)} ${escapeHtml(t("bathShort"))}</span>
               <span>${escapeHtml(property.area || 0)} ${escapeHtml(t("sqmBuild"))}</span>
               <span>${escapeHtml(property.operation === "rent" ? t("rent") : t("sale"))}</span>
+              <span>${escapeHtml(t("qualityScore"))}: ${escapeHtml(property.qualityScore || 0)}%</span>
             </div>
             <p class="listing-excerpt">${escapeHtml(excerpt)}</p>
             ${
@@ -1724,6 +1996,9 @@ function renderAdminListings() {
             }
             <div class="item-actions">
               <button class="mini-button primary" type="button" data-edit-listing="${escapeHtml(property.id)}">${escapeHtml(t("edit"))}</button>
+              <button class="mini-button" type="button" data-status-listing="${escapeHtml(property.id)}" data-status-value="active">${escapeHtml(t("markActive"))}</button>
+              <button class="mini-button" type="button" data-status-listing="${escapeHtml(property.id)}" data-status-value="disabled">${escapeHtml(t("markDisabled"))}</button>
+              <button class="mini-button" type="button" data-status-listing="${escapeHtml(property.id)}" data-status-value="sold">${escapeHtml(t("markSold"))}</button>
               <button class="mini-button" type="button" data-delete-listing="${escapeHtml(property.id)}">${escapeHtml(t("delete"))}</button>
             </div>
           </div>
@@ -1749,23 +2024,26 @@ async function loadPublicData() {
 async function loadPanelData() {
   if (!state.session) return;
   if (state.session.role === "admin") {
-    const [statsData, requestsData, propertiesData, promptsData, leadsData] = await Promise.all([
+    const [statsData, requestsData, propertiesData, promptsData, leadsData, contactsData] = await Promise.all([
       api("/api/admin/stats"),
       api("/api/admin/requests"),
       api("/api/properties"),
       api("/api/admin/prompts"),
       api("/api/admin/leads"),
+      api("/api/admin/contacts"),
     ]);
     state.stats = statsData;
     state.requests = requestsData.requests || [];
     state.properties = propertiesData.properties || [];
     state.adminPrompts = promptsData.prompts || [];
     state.leads = leadsData.leads || [];
+    state.contacts = contactsData.contacts || [];
   } else {
     const requestsData = await api("/api/seller/requests");
     state.requests = requestsData.requests || [];
     state.adminPrompts = [];
     state.leads = [];
+    state.contacts = [];
   }
 }
 
@@ -1775,6 +2053,30 @@ function prepareSellerForm() {
   if (!form.email.value) form.email.value = state.session.email || "";
   if (!form.phone.value) form.phone.value = state.session.phone || "";
   form.preferredContact.value = state.session.preferredContact || "email";
+}
+
+function updateAdminShell() {
+  if (!$("#adminPanel")) return;
+  const section = state.adminSection || "dashboard";
+  $$("[data-admin-section]").forEach((button) => {
+    button.classList.toggle("active", button.dataset.adminSection === section);
+  });
+  $$("[data-admin-section-panel]").forEach((panel) => {
+    panel.hidden = panel.dataset.adminSectionPanel !== section;
+  });
+  const operationsGrid = $("#adminOperationsGrid");
+  if (operationsGrid) operationsGrid.hidden = !["requests", "properties"].includes(section);
+  const leadBadge = $("#sidebarLeadBadge");
+  const requestBadge = $("#sidebarRequestBadge");
+  if (leadBadge) leadBadge.textContent = String(state.leads.filter((lead) => lead.status === "new").length);
+  if (requestBadge) requestBadge.textContent = String(state.requests.filter((request) => request.status === "pending").length);
+  $("#adminPanel")?.classList.toggle("sidebar-collapsed", state.sidebarCollapsed);
+}
+
+function setAdminSection(section) {
+  state.adminSection = section || "dashboard";
+  updateAdminShell();
+  $("#adminPanel")?.scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
 async function renderPanel() {
@@ -1794,8 +2096,10 @@ async function renderPanel() {
     renderLocationCatalogs();
     renderAdminPrompts();
     renderAdminLeads();
+    renderAdminContacts();
     renderAdminRequests();
     renderAdminListings();
+    updateAdminShell();
   } else {
     prepareSellerForm();
     renderSellerRequests();
@@ -2049,7 +2353,7 @@ async function leadFormSubmit(event) {
       method: "POST",
       body: {
         ...payload,
-        sourcePath: window.location.pathname,
+        sourcePath: `${window.location.pathname}${window.location.hash || ""}`,
       },
     });
     form.reset();
@@ -2066,6 +2370,8 @@ function resetListingForm() {
   form.elements.id.value = "";
   form.dataset.currentImages = "[]";
   form.dataset.removeImage = "false";
+  if (form.status) form.status.value = "active";
+  if (form.isPublic) form.isPublic.checked = true;
   refreshLocationSelects();
   updateMapPickerForForm(form);
   updateListingImagePreview([]);
@@ -2100,24 +2406,63 @@ function validateImageFile(file) {
   if (!IMAGE_TYPES.has(file.type)) {
     throw new Error(t("invalidImageType"));
   }
-  if (file.size > IMAGE_MAX_BYTES) {
+  if (file.size > IMAGE_MAX_BYTES * 8) {
     throw new Error(t("imageTooLarge"));
   }
 }
 
-function readImageFile(file) {
+function blobToDataUrl(blob) {
   return new Promise((resolve, reject) => {
-    validateImageFile(file);
     const reader = new FileReader();
-    reader.onload = () =>
-      resolve({
-        imageDataUrl: reader.result,
-        imageType: file.type,
-        imageSize: file.size,
-      });
+    reader.onload = () => resolve(reader.result);
     reader.onerror = () => reject(new Error(t("apiError")));
-    reader.readAsDataURL(file);
+    reader.readAsDataURL(blob);
   });
+}
+
+function loadImageElement(file) {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file);
+    const image = new Image();
+    image.onload = () => {
+      URL.revokeObjectURL(url);
+      resolve(image);
+    };
+    image.onerror = () => {
+      URL.revokeObjectURL(url);
+      reject(new Error(t("invalidImageType")));
+    };
+    image.src = url;
+  });
+}
+
+async function compressImageFile(file) {
+  validateImageFile(file);
+  const image = await loadImageElement(file);
+  const maxSide = 1800;
+  const ratio = Math.min(1, maxSide / Math.max(image.width, image.height));
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.max(1, Math.round(image.width * ratio));
+  canvas.height = Math.max(1, Math.round(image.height * ratio));
+  const context = canvas.getContext("2d");
+  context.fillStyle = "#ffffff";
+  context.fillRect(0, 0, canvas.width, canvas.height);
+  context.drawImage(image, 0, 0, canvas.width, canvas.height);
+  const blob = await new Promise((resolve) => canvas.toBlob(resolve, "image/webp", 0.82));
+  if (!blob) throw new Error(t("apiError"));
+  if (blob.size <= IMAGE_MAX_BYTES) return blob;
+  const smallerBlob = await new Promise((resolve) => canvas.toBlob(resolve, "image/webp", 0.68));
+  if (!smallerBlob || smallerBlob.size > IMAGE_MAX_BYTES) throw new Error(t("imageTooLarge"));
+  return smallerBlob;
+}
+
+async function readImageFile(file) {
+  const blob = await compressImageFile(file);
+  return {
+    imageDataUrl: await blobToDataUrl(blob),
+    imageType: blob.type || "image/webp",
+    imageSize: blob.size,
+  };
 }
 
 async function readImageFiles(files) {
@@ -2168,6 +2513,8 @@ async function listingSubmit(event) {
     longitude: form.longitude.value,
     mapPlace: form.mapPlace.value,
     operation: form.operation.value,
+    status: form.status.value,
+    isPublic: form.isPublic.checked,
     priceUsd,
     priceMxn,
     beds: Number(form.beds.value || 0),
@@ -2201,6 +2548,8 @@ function editListing(id) {
   form.type.value = property.type;
   setLocationFormValues(form, property);
   form.operation.value = property.operation;
+  form.status.value = property.status || "active";
+  form.isPublic.checked = property.isPublic !== false;
   form.priceUsd.value = property.priceUsd || "";
   form.priceMxn.value = property.priceMxn || "";
   form.address.value = property.address || "";
@@ -2227,6 +2576,20 @@ async function deleteListing(id) {
     await renderPanel();
     renderProperties();
     alert(t("listingDeleted"));
+  } catch (error) {
+    alert(error.message);
+  }
+}
+
+async function updateListingStatus(id, status) {
+  try {
+    await api(`/api/admin/properties/${encodeURIComponent(id)}/status`, {
+      method: "PATCH",
+      body: { status, isPublic: status === "active" },
+    });
+    await renderPanel();
+    renderProperties();
+    alert(t("listingSaved"));
   } catch (error) {
     alert(error.message);
   }
@@ -2277,6 +2640,21 @@ async function deleteLead(id) {
   }
 }
 
+async function respondToRequest(requestTable, requestId) {
+  const message = prompt(t("responsePrompt"));
+  if (!message || !message.trim()) return;
+  try {
+    await api("/api/admin/messages", {
+      method: "POST",
+      body: { requestTable, requestId, message: message.trim(), attachments: [] },
+    });
+    await renderPanel();
+    alert(t("leadUpdated"));
+  } catch (error) {
+    alert(error.message);
+  }
+}
+
 async function handleSearch(event) {
   event.preventDefault();
   const text = $("#searchInput").value.trim();
@@ -2285,6 +2663,17 @@ async function handleSearch(event) {
   $("#searchInput").value = text;
   try {
     await api("/api/metrics/search", { method: "POST" });
+    if (text) {
+      void api("/api/leads", {
+        method: "POST",
+        body: {
+          leadType: "busqueda",
+          name: "Busqueda web",
+          sourcePath: window.location.pathname,
+          query: text,
+        },
+      }).catch(() => null);
+    }
   } catch {
     // Search still works client-side if the metric cannot be recorded.
   }
@@ -2400,6 +2789,23 @@ function renderPropertyDetail(property) {
 }
 
 function openPropertyWhatsApp(property) {
+  void api("/api/leads", {
+    method: "POST",
+    body: {
+      leadType: "contacto-propiedad",
+      name: "Contacto por propiedad",
+      sourcePath: window.location.pathname,
+      propertyId: property.id,
+      propertyTitle: localizedTitle(property),
+      zone: property.zone,
+      propertyType: property.type,
+      budgetOrPrice: formatPriceSummary(property),
+    },
+  }).catch(() => null);
+  void api("/api/analytics/events", {
+    method: "POST",
+    body: { eventType: "property_contact_clicked", propertyId: property.id, metadata: { title: localizedTitle(property) } },
+  }).catch(() => null);
   const message = [
     "Hola, estoy interesado/a en esta propiedad:",
     "",
@@ -2417,6 +2823,18 @@ function openPropertyWhatsApp(property) {
 }
 
 function openGeneralWhatsApp() {
+  void api("/api/leads", {
+    method: "POST",
+    body: {
+      leadType: "solicitud-whatsapp-ayuda",
+      name: "Solicitud WhatsApp",
+      sourcePath: window.location.pathname,
+    },
+  }).catch(() => null);
+  void api("/api/analytics/events", {
+    method: "POST",
+    body: { eventType: "whatsapp_clicked", metadata: { path: window.location.pathname } },
+  }).catch(() => null);
   const message = "Hola, quiero recibir informacion de Puerto Cancun Center.";
   window.open(`https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(message)}`, "_blank", "noopener,noreferrer");
 }
@@ -2553,6 +2971,7 @@ function bindEvents() {
   $("#listingForm").addEventListener("submit", listingSubmit);
   $("#locationCatalogForm").addEventListener("submit", locationCatalogSubmit);
   $("#locationCatalogForm").elements.type.addEventListener("change", renderCatalogParentOptions);
+  $("#resetCatalogForm")?.addEventListener("click", resetCatalogForm);
   $("#resetListingForm").addEventListener("click", resetListingForm);
   $("#clearListingImage").addEventListener("click", () => {
     const form = $("#listingForm");
@@ -2589,8 +3008,35 @@ function bindEvents() {
 
   $$("[data-admin-jump]").forEach((button) => {
     button.addEventListener("click", () => {
+      const sectionMap = {
+        adminRequestsCard: "requests",
+        adminListingsCard: "properties",
+        adminCatalogsCard: "catalogs",
+        adminPromptsCard: "prompts",
+        adminLeadsCard: "leads",
+        listingForm: "properties",
+      };
+      if (sectionMap[button.dataset.adminJump]) {
+        setAdminSection(sectionMap[button.dataset.adminJump]);
+      }
       const target = document.getElementById(button.dataset.adminJump);
       if (target) target.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+  });
+
+  $$("[data-admin-section]").forEach((button) => {
+    button.addEventListener("click", () => setAdminSection(button.dataset.adminSection));
+  });
+
+  $("#adminSidebarToggle")?.addEventListener("click", () => {
+    state.sidebarCollapsed = !state.sidebarCollapsed;
+    updateAdminShell();
+  });
+
+  $$("[data-lead-filter]").forEach((button) => {
+    button.addEventListener("click", () => {
+      state.leadFilter = button.dataset.leadFilter;
+      renderAdminLeads();
     });
   });
 
@@ -2621,14 +3067,29 @@ function bindEvents() {
     const remove = event.target.closest("[data-delete-listing]");
     if (remove) void deleteListing(remove.dataset.deleteListing);
 
+    const statusListing = event.target.closest("[data-status-listing]");
+    if (statusListing) void updateListingStatus(statusListing.dataset.statusListing, statusListing.dataset.statusValue);
+
     const deleteLocation = event.target.closest("[data-delete-location]");
     if (deleteLocation) void deleteLocationOption(deleteLocation.dataset.deleteLocation);
+
+    const editLocation = event.target.closest("[data-edit-location]");
+    if (editLocation) editLocationOption(editLocation.dataset.editLocation);
+
+    const toggleLocation = event.target.closest("[data-toggle-location]");
+    if (toggleLocation) void toggleLocationOption(toggleLocation.dataset.toggleLocation);
 
     const leadStatus = event.target.closest("[data-lead-status]");
     if (leadStatus) void updateLeadStatus(leadStatus.dataset.leadId, leadStatus.dataset.leadStatus);
 
     const deleteLeadButton = event.target.closest("[data-delete-lead]");
     if (deleteLeadButton) void deleteLead(deleteLeadButton.dataset.deleteLead);
+
+    const respondLead = event.target.closest("[data-respond-lead]");
+    if (respondLead) void respondToRequest("lead_request", respondLead.dataset.respondLead);
+
+    const respondRequest = event.target.closest("[data-respond-request]");
+    if (respondRequest) void respondToRequest("seller_request", respondRequest.dataset.respondRequest);
   });
 
   $("#whatsappButton").addEventListener("click", () => {

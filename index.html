@@ -638,6 +638,16 @@
       </section>
 
       <section class="dashboard" id="sellerPanel" hidden>
+        <article class="panel-card seller-help-card seller-help-card-top">
+          <div>
+            <h2 data-i18n="sellerHelpTitle">Necesitas asesoria para llenar el formulario?</h2>
+            <p data-i18n="sellerHelpCopy">Un asesor puede ayudarte a preparar la informacion, fotos y ubicacion antes de enviar la solicitud.</p>
+          </div>
+          <button class="primary-button" type="button" data-seller-help>
+            <i data-lucide="message-circle"></i>
+            <span data-i18n="sellerHelpCta">Solicitar guia por WhatsApp</span>
+          </button>
+        </article>
         <div class="dashboard-grid">
           <article class="panel-card">
             <h2 data-i18n="sellerRequestTitle">Enviar solicitud de venta</h2>
@@ -783,7 +793,7 @@
               <label class="file-field">
                 <span data-i18n="imageUpload">Imagenes de la propiedad</span>
                 <input name="imageFile" type="file" accept="image/jpeg,image/jpg,image/png,image/webp" multiple />
-                <small data-i18n="imageHelp">JPG, PNG o WEBP. Maximo 8 imagenes de 1.5 MB cada una.</small>
+                <small data-i18n="imageHelp">JPG, PNG o WEBP. Maximo 20 imagenes. Se optimizan antes de guardarse.</small>
               </label>
               <div class="image-preview" id="sellerImagePreview" hidden>
                 <div class="image-preview-header">
@@ -802,7 +812,7 @@
             <div class="request-list" id="sellerRequests"></div>
           </article>
         </div>
-        <article class="panel-card seller-help-card">
+        <article class="panel-card seller-help-card seller-help-card-bottom">
           <div>
             <h2 data-i18n="sellerHelpTitle">Necesitas asesoria para llenar el formulario?</h2>
             <p data-i18n="sellerHelpCopy">Un asesor puede ayudarte a preparar la informacion, fotos y ubicacion antes de enviar la solicitud.</p>
@@ -815,8 +825,50 @@
       </section>
 
       <section class="dashboard" id="adminPanel" hidden>
-        <div class="stats-grid" id="statsGrid"></div>
-        <div class="admin-command-bar">
+        <div class="admin-shell">
+          <aside class="admin-sidebar" id="adminSidebar">
+            <div class="admin-sidebar-brand">
+              <strong>Puerto Cancún Center</strong>
+              <button class="icon-button" type="button" id="adminSidebarToggle" title="Contraer menu">
+                <i data-lucide="menu"></i>
+              </button>
+            </div>
+            <nav class="admin-sidebar-nav">
+              <button type="button" data-admin-section="dashboard" class="active">
+                <i data-lucide="layout-dashboard"></i>
+                <span data-i18n="adminJumpDashboard">Dashboard</span>
+              </button>
+              <button type="button" data-admin-section="leads">
+                <i data-lucide="inbox"></i>
+                <span data-i18n="adminJumpLeads">Asesorias</span>
+                <b id="sidebarLeadBadge">0</b>
+              </button>
+              <button type="button" data-admin-section="requests">
+                <i data-lucide="message-circle"></i>
+                <span data-i18n="adminJumpRequests">Solicitudes</span>
+                <b id="sidebarRequestBadge">0</b>
+              </button>
+              <button type="button" data-admin-section="properties">
+                <i data-lucide="home"></i>
+                <span data-i18n="adminJumpListings">Publicaciones</span>
+              </button>
+              <button type="button" data-admin-section="contacts">
+                <i data-lucide="users"></i>
+                <span data-i18n="adminJumpContacts">CRM / Contactos</span>
+              </button>
+              <button type="button" data-admin-section="catalogs">
+                <i data-lucide="map-pin"></i>
+                <span data-i18n="adminJumpCatalogs">Catálogos</span>
+              </button>
+              <button type="button" data-admin-section="prompts">
+                <i data-lucide="message-circle"></i>
+                <span data-i18n="adminJumpPrompts">Herramientas IA</span>
+              </button>
+            </nav>
+          </aside>
+          <div class="admin-main">
+        <div class="stats-grid" id="statsGrid" data-admin-section-panel="dashboard"></div>
+        <div class="admin-command-bar" data-admin-section-panel="dashboard">
           <div>
             <h2 data-i18n="adminWorkspaceTitle">Centro de control</h2>
             <p data-i18n="adminWorkspaceCopy">Revisa solicitudes, publicaciones, precios, zonas y actividad desde un solo panel.</p>
@@ -848,16 +900,33 @@
             </button>
           </div>
         </div>
-        <div class="admin-insights" id="adminInsights"></div>
-        <article class="panel-card admin-leads-card" id="adminLeadsCard">
+        <div class="admin-insights" id="adminInsights" data-admin-section-panel="dashboard"></div>
+        <article class="panel-card admin-leads-card" id="adminLeadsCard" data-admin-section-panel="leads">
           <h2 data-i18n="adminLeadsTitle">Solicitudes de asesoria</h2>
           <div class="panel-card-subhead">
             <span id="adminLeadSummary"></span>
             <span data-i18n="adminLeadsHint">Responde por WhatsApp o correo y marca cada solicitud como atendida.</span>
           </div>
+          <div class="lead-filter-tabs">
+            <button class="active" type="button" data-lead-filter="all" data-i18n="leadFilterAll">Todas</button>
+            <button type="button" data-lead-filter="seller" data-i18n="leadFilterSeller">Vender</button>
+            <button type="button" data-lead-filter="valuation" data-i18n="leadFilterValuation">Valoracion</button>
+            <button type="button" data-lead-filter="ai_validation" data-i18n="leadFilterAi">Validar IA</button>
+            <button type="button" data-lead-filter="buyer" data-i18n="leadFilterBuyer">Compradores</button>
+            <button type="button" data-lead-filter="property_contact" data-i18n="leadFilterProperty">Propiedad</button>
+            <button type="button" data-lead-filter="whatsapp_help" data-i18n="leadFilterWhatsApp">WhatsApp / ayuda</button>
+          </div>
           <div class="lead-list" id="adminLeads"></div>
         </article>
-        <article class="panel-card admin-catalogs-card" id="adminCatalogsCard">
+        <article class="panel-card admin-contacts-card" id="adminContactsCard" data-admin-section-panel="contacts">
+          <h2 data-i18n="crmTitle">CRM / Contactos</h2>
+          <div class="panel-card-subhead">
+            <span id="adminContactSummary"></span>
+            <span data-i18n="crmHint">Contactos generados desde formularios, vendedor, comprador y WhatsApp.</span>
+          </div>
+          <div class="contact-list" id="adminContacts"></div>
+        </article>
+        <article class="panel-card admin-catalogs-card" id="adminCatalogsCard" data-admin-section-panel="catalogs">
           <div class="admin-prompts-heading">
             <div>
               <h2 data-i18n="locationCatalogTitle">Catálogos de ubicación</h2>
@@ -867,6 +936,7 @@
             </div>
           </div>
           <form id="locationCatalogForm" class="catalog-form">
+            <input type="hidden" name="id" />
             <label>
               <span data-i18n="catalogType">Tipo</span>
               <select name="type">
@@ -884,12 +954,21 @@
               <span data-i18n="catalogName">Nombre</span>
               <input name="name" required />
             </label>
+            <label>
+              <span data-i18n="catalogSortOrder">Orden</span>
+              <input name="sortOrder" type="number" min="0" step="1" value="0" />
+            </label>
+            <label class="checkbox-row catalog-active-row">
+              <input name="isActive" type="checkbox" checked />
+              <span data-i18n="catalogActive">Activo</span>
+            </label>
             <button class="primary-button" type="submit" data-i18n="saveCatalog">Guardar catálogo</button>
+            <button class="ghost-button" type="button" id="resetCatalogForm" data-i18n="newCatalog">Nuevo catalogo</button>
           </form>
           <p class="form-message" id="catalogFormMessage"></p>
           <div class="location-catalog-list" id="locationCatalogList"></div>
         </article>
-        <article class="panel-card admin-prompts-card" id="adminPromptsCard">
+        <article class="panel-card admin-prompts-card" id="adminPromptsCard" data-admin-section-panel="prompts">
           <div class="admin-prompts-heading">
             <div>
               <h2 data-i18n="adminPromptLibraryTitle">Herramientas IA internas para publicaciones y asesorias</h2>
@@ -900,8 +979,8 @@
           </div>
           <div class="admin-prompt-grid" id="adminPromptList"></div>
         </article>
-        <div class="dashboard-grid admin-layout">
-          <article class="panel-card admin-requests-card" id="adminRequestsCard">
+        <div class="dashboard-grid admin-layout" id="adminOperationsGrid">
+          <article class="panel-card admin-requests-card" id="adminRequestsCard" data-admin-section-panel="requests">
             <h2 data-i18n="adminRequestsTitle">Solicitudes de vendedores</h2>
             <div class="panel-card-subhead">
               <span id="adminRequestSummary"></span>
@@ -910,7 +989,7 @@
             <div class="request-list" id="adminRequests"></div>
           </article>
 
-          <article class="panel-card admin-listings-card" id="adminListingsCard">
+          <article class="panel-card admin-listings-card" id="adminListingsCard" data-admin-section-panel="properties">
             <h2 data-i18n="manageListings">Administrar publicaciones</h2>
             <form id="listingForm" class="stacked-form">
               <input type="hidden" name="id" />
@@ -955,6 +1034,18 @@
                   <select name="operation">
                     <option value="sale" data-i18n="sale">Venta</option>
                     <option value="rent" data-i18n="rent">Renta</option>
+                  </select>
+                </label>
+                <label>
+                  <span data-i18n="listingStatus">Estado de publicacion</span>
+                  <select name="status">
+                    <option value="draft" data-i18n="statusDraft">Borrador</option>
+                    <option value="pending" data-i18n="statusPending">Pendiente</option>
+                    <option value="active" data-i18n="statusActive" selected>Activa</option>
+                    <option value="disabled" data-i18n="statusDisabled">Deshabilitada</option>
+                    <option value="sold" data-i18n="statusSold">Vendida</option>
+                    <option value="rented" data-i18n="statusRented">Rentada</option>
+                    <option value="archived" data-i18n="statusArchived">Archivada</option>
                   </select>
                 </label>
               </div>
@@ -1014,7 +1105,7 @@
               <label class="file-field">
                 <span data-i18n="imageUpload">Imagenes de la propiedad</span>
                 <input name="imageFile" type="file" accept="image/jpeg,image/jpg,image/png,image/webp" multiple />
-                <small data-i18n="imageHelp">JPG, PNG o WEBP. Máximo 8 imagenes de 1.5 MB cada una.</small>
+                <small data-i18n="imageHelp">JPG, PNG o WEBP. Maximo 20 imagenes. Se optimizan antes de guardarse.</small>
               </label>
               <div class="image-preview" id="listingImagePreview" hidden>
                 <div class="image-preview-header">
@@ -1042,6 +1133,10 @@
                 <input name="featured" type="checkbox" />
                 <span data-i18n="markFeatured">Marcar como destacada</span>
               </label>
+              <label class="checkbox-row">
+                <input name="isPublic" type="checkbox" checked />
+                <span data-i18n="publicListing">Visible en web publica</span>
+              </label>
               <label>
                 <span data-i18n="description">Descripcion</span>
                 <textarea name="description" rows="3"></textarea>
@@ -1057,6 +1152,8 @@
             </div>
             <div class="admin-listings" id="adminListings"></div>
           </article>
+        </div>
+          </div>
         </div>
       </section>
     </main>
