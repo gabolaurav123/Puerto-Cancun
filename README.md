@@ -1,8 +1,8 @@
-# Puerto Cancun Center
+# Puerto Cancún Center
 
-Sitio inmobiliario con frontend, panel de vendedores, panel administrativo y backend conectado a PostgreSQL/Neon.
+Plataforma inmobiliaria con portal público, panel de propietarios y centro de operaciones administrativo conectado a PostgreSQL/Neon.
 
-## Configuracion
+## Configuración
 
 1. Instala dependencias:
 
@@ -24,8 +24,8 @@ GOOGLE_MAPS_API_KEY=tu-api-key-de-google-maps
 PORT=3000
 ```
 
-No subas `.env` al repositorio. La URL real de Neon y la contrasena del administrador deben quedar como variables de entorno.
-`GOOGLE_CLIENT_ID` activa el boton para iniciar sesion con Gmail. `GOOGLE_MAPS_API_KEY` activa el mapa clicable; sin esa clave la web conserva el mapa embebido, geolocalizacion y coordenadas manuales.
+No subas `.env` al repositorio. La URL real de Neon y la contraseña del administrador deben quedar como variables de entorno.
+`GOOGLE_CLIENT_ID` activa el inicio con Gmail. `GOOGLE_MAPS_API_KEY` activa el mapa clicable; sin esa clave se conservan el mapa embebido, geolocalización y coordenadas manuales.
 
 ## Ejecutar
 
@@ -33,19 +33,27 @@ No subas `.env` al repositorio. La URL real de Neon y la contrasena del administ
 npm start
 ```
 
-El servidor crea automaticamente las tablas necesarias y carga propiedades de ejemplo si la tabla esta vacia.
+El servidor crea automáticamente las tablas necesarias y carga propiedades de ejemplo si la tabla está vacía.
 
 ## Funcionalidad
 
-- Selector de moneda USD/MXN.
-- Cambio de idioma Espanol/Ingles.
-- Busqueda y filtros por tipo, zona, venta/renta y destacadas.
-- Registro e inicio de sesion para vendedores.
-- Inicio de sesion con Google/Gmail cuando `GOOGLE_CLIENT_ID` esta configurado.
-- Panel de vendedor para enviar solicitudes de venta.
-- Panel administrativo tipo centro de operaciones con leads, solicitudes, valoraciones, publicaciones, CRM, catálogos, match comprador-propiedad, mapa, analítica y tareas.
-- Publicaciones con precio USD y precio MXN como campos independientes.
-- Catálogos de ubicacion, coordenadas y mapa para solicitudes/publicaciones.
-- Carga multiple de imagenes JPG, PNG o WEBP, maximo 20 archivos optimizados antes de guardarse.
-- Botones de propiedad conectados a WhatsApp con mensaje automatico.
-- Persistencia en PostgreSQL para cuentas, solicitudes, publicaciones, metricas y sesiones.
+- Selector USD/MXN e idioma Español/Inglés.
+- Búsqueda guiada, filtros, favoritos, comparación y alertas.
+- Panel del propietario con venta, valoración, validación de precio, validación de IA, respuestas y notificaciones.
+- Solicitudes con modal de respuesta, historial, adjuntos, responsables, prioridades y tareas.
+- CRM, compradores, preparación para venta, match y mapa operativo.
+- Campañas segmentadas, exportación CSV, herramientas IA editables y analítica.
+- Biblioteca de archivos, usuarios internos, roles y configuración persistente.
+- Fichas PDF reales para propiedades y valoraciones.
+- Publicaciones con estados, score, ubicación jerárquica y hasta 20 imágenes.
+- Persistencia PostgreSQL para operación, documentos, archivos, campañas, métricas y sesiones.
+
+## Integraciones
+
+Las campañas preparan y registran mensajes; no realizan envío masivo sin un proveedor autorizado. Las herramientas IA internas generan borradores determinísticos y requieren aprobación humana. Google OAuth, Google Maps avanzado, correo, WhatsApp Business y un proveedor LLM se habilitan mediante credenciales externas.
+
+## Verificación
+
+```bash
+npm run check
+```

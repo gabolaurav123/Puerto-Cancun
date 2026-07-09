@@ -7,6 +7,7 @@ const express = require("express");
 const session = require("express-session");
 const PgSession = require("connect-pg-simple")(session);
 const bcrypt = require("bcryptjs");
+const PDFDocument = require("pdfkit");
 const { Pool } = require("pg");
 const {
   DEFAULT_SITE_URL,
@@ -466,6 +467,11 @@ function toContact(row) {
     notes: row.notes || "",
     leadScore: row.lead_score || "cold",
     assignedTo: row.assigned_to || "",
+    objective: row.objective || "",
+    urgency: row.urgency || "medium",
+    status: row.status || "active",
+    bedrooms: Number(row.bedrooms || 0),
+    bathrooms: Number(row.bathrooms || 0),
     consentContact: Boolean(row.consent_contact),
     lastActivityAt: row.last_activity_at,
     createdAt: row.created_at,
@@ -613,6 +619,138 @@ function toTask(row) {
   };
 }
 
+function toInternalUser(row) {
+  return {
+    id: row.id,
+    name: row.name,
+    email: row.email,
+    role: row.role,
+    status: row.status,
+    permissions: safeJsonArray(row.permissions),
+    lastLoginAt: row.last_login_at,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}
+
+function toBuyerProfile(row) {
+  return {
+    id: row.id,
+    contactId: row.contact_id,
+    contactName: row.contact_name || "",
+    email: row.email || "",
+    phone: row.phone || "",
+    leadScore: row.lead_score || "cold",
+    assignedTo: row.assigned_to || "",
+    budgetMin: numericOrNull(row.budget_min),
+    budgetMax: numericOrNull(row.budget_max),
+    preferredZones: safeJsonArray(row.preferred_zones),
+    propertyTypes: safeJsonArray(row.property_types),
+    operation: row.operation || "sale",
+    bedrooms: Number(row.bedrooms || 0),
+    bathrooms: Number(row.bathrooms || 0),
+    objective: row.objective || "",
+    urgency: row.urgency || "medium",
+    status: row.status || "active",
+    notes: row.notes || "",
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}
+
+function toMediaFile(row, includeContent = false) {
+  const item = {
+    id: row.id,
+    name: row.name,
+    mimeType: row.mime_type,
+    sizeBytes: Number(row.size_bytes || 0),
+    category: row.category,
+    relatedEntityType: row.related_entity_type || "",
+    relatedEntityId: row.related_entity_id || "",
+    uploadedBy: row.uploaded_by || "",
+    metadata: row.metadata || {},
+    createdAt: row.created_at,
+  };
+  if (includeContent) item.content = row.content;
+  return item;
+}
+
+function toDocument(row, includeContent = false) {
+  const item = {
+    id: row.id,
+    documentType: row.document_type,
+    title: row.title,
+    propertyId: row.property_id || "",
+    valuationId: row.valuation_id || "",
+    contactId: row.contact_id || "",
+    fileName: row.file_name,
+    mimeType: row.mime_type,
+    options: row.options || {},
+    createdBy: row.created_by || "",
+    createdAt: row.created_at,
+  };
+  if (includeContent) item.contentBase64 = row.content_base64;
+  return item;
+}
+
+function toCampaign(row) {
+  return {
+    id: row.id,
+    name: row.name,
+    objective: row.objective,
+    segment: row.segment,
+    channel: row.channel,
+    template: row.template || "",
+    message: row.message,
+    propertyId: row.property_id || "",
+    scheduledAt: row.scheduled_at,
+    status: row.status,
+    createdBy: row.created_by || "",
+    sentAt: row.sent_at,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}
+
+function parseDataUrl(value) {
+  const input = String(value || "");
+  const match = input.match(/^data:([^;,]+);base64,([A-Za-z0-9+/=]+)$/);
+  if (!match) return null;
+  const buffer = Buffer.from(match[2], "base64");
+  return { mimeType: match[1].toLowerCase(), buffer, content: input };
+}
+
+function pdfBuffer(build) {
+  return new Promise((resolve, reject) => {
+    const document = new PDFDocument({ size: "A4", margin: 48, info: { Producer: "Puerto Cancún Center" } });
+    const chunks = [];
+    document.on("data", (chunk) => chunks.push(chunk));
+    document.on("end", () => resolve(Buffer.concat(chunks)));
+    document.on("error", reject);
+    build(document);
+    document.end();
+  });
+}
+
+function addPdfHeader(document, subtitle) {
+  document.fillColor("#005c83").font("Times-Bold").fontSize(24).text("PUERTO CANCÚN CENTER");
+  document.moveDown(0.25).fillColor("#526476").font("Helvetica").fontSize(10).text(subtitle.toUpperCase());
+  document.moveDown(0.6).strokeColor("#0f87b8").lineWidth(2).moveTo(48, document.y).lineTo(547, document.y).stroke();
+  document.moveDown(1);
+}
+
+function addPdfField(document, label, value) {
+  if (value === undefined || value === null || value === "") return;
+  document.fillColor("#607386").font("Helvetica-Bold").fontSize(8).text(label.toUpperCase());
+  document.fillColor("#102d3d").font("Helvetica").fontSize(11).text(String(value));
+  document.moveDown(0.45);
+}
+
+function formatPdfMoney(value, currency = "USD") {
+  const number = Number(value || 0);
+  return number ? `${currency} ${new Intl.NumberFormat("es-MX", { maximumFractionDigits: 0 }).format(number)}` : "Precio a consultar";
+}
+
 function toRequest(row) {
   const images = mergeLegacyImages(row.images, row.image);
   return {
@@ -645,6 +783,8 @@ function toRequest(row) {
     adminResponse: row.admin_response || "",
     responseFiles: safeJsonArray(row.response_files),
     internalNotes: row.internal_notes || "",
+    assignedTo: row.assigned_to || "",
+    nextAction: row.next_action || "",
     createdAt: row.created_at,
     updatedAt: row.updated_at,
     reviewedAt: row.reviewed_at,
@@ -691,6 +831,7 @@ function toLocationOption(row) {
     parentId: row.parent_id || null,
     isActive: row.is_active !== false,
     sortOrder: Number(row.sort_order || 0),
+    propertyCount: Number(row.property_count || 0),
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -705,6 +846,8 @@ function publicUser(user) {
     email: user.email,
     phone: user.phone,
     preferredContact: user.preferredContact,
+    internalRole: user.internalRole,
+    permissions: user.permissions || [],
   };
 }
 
@@ -1011,6 +1154,96 @@ async function initDatabase() {
       );
     `);
     await client.query(`
+      CREATE TABLE IF NOT EXISTS internal_users (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        email TEXT NOT NULL UNIQUE,
+        password_hash TEXT NOT NULL,
+        role TEXT NOT NULL DEFAULT 'advisor',
+        status TEXT NOT NULL DEFAULT 'active',
+        permissions JSONB NOT NULL DEFAULT '[]'::jsonb,
+        last_login_at TIMESTAMPTZ,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      );
+    `);
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS buyer_profiles (
+        id TEXT PRIMARY KEY,
+        contact_id TEXT NOT NULL UNIQUE REFERENCES contacts(id) ON DELETE CASCADE,
+        budget_min NUMERIC,
+        budget_max NUMERIC,
+        preferred_zones JSONB NOT NULL DEFAULT '[]'::jsonb,
+        property_types JSONB NOT NULL DEFAULT '[]'::jsonb,
+        operation TEXT NOT NULL DEFAULT 'sale',
+        bedrooms INTEGER NOT NULL DEFAULT 0,
+        bathrooms INTEGER NOT NULL DEFAULT 0,
+        objective TEXT,
+        urgency TEXT NOT NULL DEFAULT 'medium',
+        status TEXT NOT NULL DEFAULT 'active',
+        notes TEXT,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      );
+    `);
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS media_files (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        mime_type TEXT NOT NULL,
+        size_bytes INTEGER NOT NULL DEFAULT 0,
+        content TEXT NOT NULL,
+        category TEXT NOT NULL DEFAULT 'document',
+        related_entity_type TEXT,
+        related_entity_id TEXT,
+        uploaded_by TEXT,
+        metadata JSONB NOT NULL DEFAULT '{}'::jsonb,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      );
+    `);
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS generated_documents (
+        id TEXT PRIMARY KEY,
+        document_type TEXT NOT NULL,
+        title TEXT NOT NULL,
+        property_id TEXT,
+        valuation_id TEXT,
+        contact_id TEXT,
+        file_name TEXT NOT NULL,
+        mime_type TEXT NOT NULL DEFAULT 'application/pdf',
+        content_base64 TEXT NOT NULL,
+        options JSONB NOT NULL DEFAULT '{}'::jsonb,
+        created_by TEXT,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      );
+    `);
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS campaigns (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        objective TEXT NOT NULL,
+        segment TEXT NOT NULL,
+        channel TEXT NOT NULL,
+        template TEXT,
+        message TEXT NOT NULL,
+        property_id TEXT,
+        scheduled_at TIMESTAMPTZ,
+        status TEXT NOT NULL DEFAULT 'draft',
+        created_by TEXT,
+        sent_at TIMESTAMPTZ,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      );
+    `);
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS app_settings (
+        key TEXT PRIMARY KEY,
+        value JSONB NOT NULL DEFAULT '{}'::jsonb,
+        updated_by TEXT,
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      );
+    `);
+    await client.query(`
       INSERT INTO app_metrics (id, visits, searches)
       VALUES (1, 0, 0)
       ON CONFLICT (id) DO NOTHING;
@@ -1052,6 +1285,24 @@ async function initDatabase() {
     await client.query("ALTER TABLE tasks ADD COLUMN IF NOT EXISTS priority TEXT NOT NULL DEFAULT 'medium'");
     await client.query("ALTER TABLE tasks ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()");
     await client.query("ALTER TABLE property_matches ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()");
+    await client.query("ALTER TABLE contacts ADD COLUMN IF NOT EXISTS objective TEXT");
+    await client.query("ALTER TABLE contacts ADD COLUMN IF NOT EXISTS urgency TEXT NOT NULL DEFAULT 'medium'");
+    await client.query("ALTER TABLE contacts ADD COLUMN IF NOT EXISTS status TEXT NOT NULL DEFAULT 'active'");
+    await client.query("ALTER TABLE contacts ADD COLUMN IF NOT EXISTS bedrooms INTEGER NOT NULL DEFAULT 0");
+    await client.query("ALTER TABLE contacts ADD COLUMN IF NOT EXISTS bathrooms INTEGER NOT NULL DEFAULT 0");
+    await client.query("ALTER TABLE seller_requests ADD COLUMN IF NOT EXISTS assigned_to TEXT");
+    await client.query("ALTER TABLE seller_requests ADD COLUMN IF NOT EXISTS next_action TEXT");
+    await client.query("ALTER TABLE notifications ADD COLUMN IF NOT EXISTS read_at TIMESTAMPTZ");
+    await client.query(
+      `INSERT INTO app_settings (key, value)
+       VALUES
+         ('site', '{"siteName":"Puerto Cancún Center","phone":"998-216-6563","whatsapp":"5219982166563","email":"","currencyPrimary":"USD","currencySecondary":"MXN","exchangeRate":18.5,"language":"es"}'::jsonb),
+         ('seo', '{"metaTitle":"Puerto Cancún Center | Propiedades en Cancún","metaDescription":"Compra, vende y valora propiedades en Cancún con asesoría local.","structuredData":true,"sitemap":true,"robots":true}'::jsonb),
+         ('forms', '{"requiredPhone":true,"requiredEmail":true,"successMessage":"Recibimos tu solicitud. Un asesor la revisará.","autoAssignment":false}'::jsonb),
+         ('pdf', '{"showPrice":true,"showExactAddress":false,"disclaimer":"Información sujeta a disponibilidad y cambios sin previo aviso.","advisorName":"Puerto Cancún Center"}'::jsonb),
+         ('ai', '{"brandTone":"Profesional, claro y local.","enabledTools":["listing","improve","missing","summary","next_action","whatsapp","campaign","price"]}'::jsonb)
+       ON CONFLICT (key) DO NOTHING`
+    );
     for (const option of seedLocationOptions) {
       await client.query(
         `INSERT INTO location_options (id, type, name, parent_id, is_active)
@@ -1203,6 +1454,25 @@ app.post("/api/auth/login", async (req, res, next) => {
         role: "admin",
         name: "Admin Prueba",
         email: "admin@puertocancuncenter.test",
+      };
+      res.json({ user: publicUser(req.session.user) });
+      return;
+    }
+
+    const internalResult = await query(
+      "SELECT * FROM internal_users WHERE lower(email) = lower($1) AND status = 'active'",
+      [username]
+    );
+    const internalAccount = internalResult.rows[0];
+    if (internalAccount && (await bcrypt.compare(password, internalAccount.password_hash))) {
+      await query("UPDATE internal_users SET last_login_at = NOW(), updated_at = NOW() WHERE id = $1", [internalAccount.id]);
+      req.session.user = {
+        id: internalAccount.id,
+        role: "admin",
+        internalRole: internalAccount.role,
+        permissions: safeJsonArray(internalAccount.permissions),
+        name: internalAccount.name,
+        email: internalAccount.email,
       };
       res.json({ user: publicUser(req.session.user) });
       return;
@@ -1368,7 +1638,14 @@ app.get("/api/location-options", async (req, res, next) => {
     const isAdmin = req.session.user?.role === "admin";
     const result = await query(
       isAdmin
-        ? "SELECT * FROM location_options ORDER BY type, sort_order, name"
+        ? `SELECT lo.*,
+             (SELECT COUNT(*)::int FROM properties p WHERE
+               (lo.type = 'state' AND p.state = lo.name) OR
+               (lo.type = 'city' AND p.city = lo.name) OR
+               (lo.type = 'zone' AND p.zone = lo.name) OR
+               (lo.type = 'neighborhood' AND p.neighborhood = lo.name)
+             ) AS property_count
+           FROM location_options lo ORDER BY type, sort_order, name`
         : "SELECT * FROM location_options WHERE is_active = TRUE ORDER BY type, sort_order, name"
     );
     res.json({ options: result.rows.map(toLocationOption) });
@@ -1519,14 +1796,219 @@ app.get("/api/seller/messages", requireRole("seller"), async (req, res, next) =>
     const result = await query(
       `SELECT m.*
        FROM request_messages m
-       JOIN seller_requests r ON r.id = m.request_id
-       WHERE m.request_table = 'seller_request' AND r.seller_id = $1
+       WHERE (
+         m.request_table = 'seller_request'
+         AND EXISTS (SELECT 1 FROM seller_requests r WHERE r.id = m.request_id AND r.seller_id = $1)
+       ) OR (
+         m.request_table = 'lead_request'
+         AND EXISTS (SELECT 1 FROM lead_requests l WHERE l.id = m.request_id AND l.payload->>'sellerAccountId' = $1)
+       )
        ORDER BY m.created_at DESC`,
       [req.session.user.id]
     );
     res.json({ messages: result.rows });
   } catch (error) {
     next(error);
+  }
+});
+
+app.post("/api/seller/messages", requireRole("seller"), async (req, res, next) => {
+  try {
+    const requestId = String(req.body.requestId || "").trim();
+    const message = String(req.body.message || "").trim();
+    const requestTable = req.body.requestTable === "lead_request" ? "lead_request" : "seller_request";
+    if (!requestId || !message) {
+      res.status(400).json({ error: "Escribe un mensaje." });
+      return;
+    }
+    const owner =
+      requestTable === "lead_request"
+        ? await query("SELECT id FROM lead_requests WHERE id = $1 AND payload->>'sellerAccountId' = $2", [
+            requestId,
+            req.session.user.id,
+          ])
+        : await query("SELECT id FROM seller_requests WHERE id = $1 AND seller_id = $2", [requestId, req.session.user.id]);
+    if (!owner.rows[0]) {
+      res.status(404).json({ error: "Solicitud no encontrada." });
+      return;
+    }
+    const result = await query(
+      `INSERT INTO request_messages (id, request_table, request_id, sender_type, sender_name, message, attachments)
+       VALUES ($1, $2, $3, 'seller', $4, $5, '[]'::jsonb)
+       RETURNING *`,
+      [uuid("msg"), requestTable, requestId, req.session.user.name, message]
+    );
+    await query(
+      `INSERT INTO notifications (id, type, title, message, related_entity_type, related_entity_id)
+       VALUES ($1, 'seller_reply', 'Respuesta del propietario', $2, $3, $4)`,
+      [uuid("notif"), `${req.session.user.name}: ${message.slice(0, 140)}`, requestTable, requestId]
+    );
+    res.status(201).json({ message: result.rows[0] });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.get("/api/seller/notifications", requireRole("seller"), async (req, res, next) => {
+  try {
+    const result = await query(
+      `SELECT n.*
+       FROM notifications n
+       WHERE n.user_id = $1
+          OR (
+            n.related_entity_type = 'seller_request'
+            AND EXISTS (
+              SELECT 1 FROM seller_requests r
+              WHERE r.id = n.related_entity_id AND r.seller_id = $1
+            )
+          )
+       ORDER BY n.created_at DESC
+       LIMIT 120`,
+      [req.session.user.id]
+    );
+    res.json({ notifications: result.rows });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.patch("/api/seller/notifications/:id/read", requireRole("seller"), async (req, res, next) => {
+  try {
+    await query("UPDATE notifications SET is_read = TRUE, read_at = NOW() WHERE id = $1", [req.params.id]);
+    res.json({ ok: true });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.get("/api/seller/documents/:id/download", requireRole("seller"), async (req, res, next) => {
+  try {
+    const attachmentKey = `document:${req.params.id}`;
+    const access = await query(
+      `SELECT 1
+       FROM request_messages m
+       WHERE m.attachments ? $1
+         AND (
+           (m.request_table = 'seller_request' AND EXISTS (
+             SELECT 1 FROM seller_requests r WHERE r.id = m.request_id AND r.seller_id = $2
+           ))
+           OR
+           (m.request_table = 'lead_request' AND EXISTS (
+             SELECT 1 FROM lead_requests l WHERE l.id = m.request_id AND l.payload->>'sellerAccountId' = $2
+           ))
+         )
+       LIMIT 1`,
+      [attachmentKey, req.session.user.id]
+    );
+    if (!access.rows[0]) {
+      res.status(403).json({ error: "No tienes acceso a este documento." });
+      return;
+    }
+    const result = await query("SELECT * FROM generated_documents WHERE id = $1", [req.params.id]);
+    const document = result.rows[0];
+    if (!document) {
+      res.status(404).json({ error: "Documento no encontrado." });
+      return;
+    }
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader("Content-Disposition", `attachment; filename="${document.file_name}"`);
+    res.send(Buffer.from(document.content_base64, "base64"));
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.get("/api/seller/service-requests", requireRole("seller"), async (req, res, next) => {
+  try {
+    const result = await query(
+      `SELECT * FROM lead_requests
+       WHERE payload->>'sellerAccountId' = $1
+       ORDER BY created_at DESC`,
+      [req.session.user.id]
+    );
+    res.json({ requests: result.rows.map(toLead) });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.post("/api/seller/service-requests", requireRole("seller"), async (req, res, next) => {
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+    const flow = String(req.body.flow || "").trim();
+    if (!["valuation", "price_validation", "ai_validation"].includes(flow)) {
+      await client.query("ROLLBACK");
+      res.status(400).json({ error: "Selecciona un tipo de solicitud válido." });
+      return;
+    }
+    const payload = {
+      ...req.body,
+      sellerAccountId: req.session.user.id,
+    };
+    delete payload.flow;
+    const contact = await upsertContact(client, {
+      name: req.session.user.name,
+      email: req.session.user.email,
+      phone: req.session.user.phone,
+      contactType: "seller",
+      source: "seller_panel",
+      preferredZones: payload.zone ? [payload.zone] : [],
+      propertyType: payload.propertyType || "",
+      budgetMax: numericOrNull(payload.expectedPrice || payload.priceToValidate),
+      leadScore: "hot",
+    });
+    const result = await client.query(
+      `INSERT INTO lead_requests
+        (id, lead_type, name, phone, email, source_path, contact_id, payload, priority, lead_score)
+       VALUES ($1, $2, $3, $4, $5, '/panel-propietario', $6, $7::jsonb, 'high', 'hot')
+       RETURNING *`,
+      [
+        uuid("lead"),
+        flow,
+        req.session.user.name,
+        req.session.user.phone || null,
+        req.session.user.email || null,
+        contact?.id || null,
+        JSON.stringify(payload),
+      ]
+    );
+    if (flow === "valuation") {
+      await client.query(
+        `INSERT INTO valuations
+          (id, request_id, contact_id, owner_name, phone, email, zone, property_type, expected_price, comments, status)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 'new')`,
+        [
+          uuid("val"),
+          result.rows[0].id,
+          contact?.id || null,
+          req.session.user.name,
+          req.session.user.phone || null,
+          req.session.user.email || null,
+          String(payload.zone || ""),
+          String(payload.propertyType || ""),
+          numericOrNull(payload.expectedPrice),
+          String(payload.comments || ""),
+        ]
+      );
+    }
+    await client.query(
+      `INSERT INTO notifications (id, type, title, message, related_entity_type, related_entity_id)
+       VALUES ($1, 'seller_service_request', $2, $3, 'lead_request', $4)`,
+      [
+        uuid("notif"),
+        flow === "valuation" ? "Nueva valoración" : flow === "price_validation" ? "Nueva validación de precio" : "Nueva validación de IA",
+        `${req.session.user.name} envió una solicitud desde su panel.`,
+        result.rows[0].id,
+      ]
+    );
+    await client.query("COMMIT");
+    res.status(201).json({ request: toLead(result.rows[0]) });
+  } catch (error) {
+    await client.query("ROLLBACK");
+    next(error);
+  } finally {
+    client.release();
   }
 });
 
@@ -1656,6 +2138,12 @@ app.get("/api/admin/stats", requireRole("admin"), async (_req, res, next) => {
       pendingTasks,
       overdueTasks,
       metrics,
+      documents,
+      whatsappClicks,
+      formsReceived,
+      withoutCover,
+      averageResponse,
+      campaigns,
     ] =
       await Promise.all([
       query("SELECT COUNT(*)::int AS count FROM properties"),
@@ -1674,6 +2162,20 @@ app.get("/api/admin/stats", requireRole("admin"), async (_req, res, next) => {
       query("SELECT COUNT(*)::int AS count FROM tasks WHERE status IN ('pending', 'in_progress')"),
       query("SELECT COUNT(*)::int AS count FROM tasks WHERE status IN ('pending', 'in_progress') AND due_date < NOW()"),
       query("SELECT visits, searches FROM app_metrics WHERE id = 1"),
+      query("SELECT COUNT(*)::int AS count FROM generated_documents"),
+      query("SELECT COUNT(*)::int AS count FROM analytics_events WHERE event_type ILIKE '%whatsapp%'"),
+      query("SELECT COUNT(*)::int AS count FROM seller_requests"),
+      query("SELECT COUNT(*)::int AS count FROM properties WHERE image IS NULL OR images = '[]'::jsonb"),
+      query(
+        `SELECT COALESCE(ROUND(AVG(EXTRACT(EPOCH FROM (m.created_at - r.created_at)) / 3600)::numeric, 1), 0) AS hours
+         FROM seller_requests r
+         JOIN LATERAL (
+           SELECT created_at FROM request_messages
+           WHERE request_table = 'seller_request' AND request_id = r.id AND sender_type = 'admin'
+           ORDER BY created_at ASC LIMIT 1
+         ) m ON TRUE`
+      ),
+      query("SELECT COUNT(*)::int AS count FROM campaigns"),
     ]);
     res.json({
       properties: properties.rows[0].count,
@@ -1693,6 +2195,12 @@ app.get("/api/admin/stats", requireRole("admin"), async (_req, res, next) => {
       overdueTasks: overdueTasks.rows[0].count,
       visits: metrics.rows[0]?.visits || 0,
       searches: metrics.rows[0]?.searches || 0,
+      generatedDocuments: documents.rows[0].count,
+      whatsappClicks: whatsappClicks.rows[0].count,
+      formsReceived: formsReceived.rows[0].count,
+      propertiesWithoutCover: withoutCover.rows[0].count,
+      averageResponseHours: Number(averageResponse.rows[0]?.hours || 0),
+      campaigns: campaigns.rows[0].count,
     });
   } catch (error) {
     next(error);
@@ -1870,34 +2378,51 @@ app.patch("/api/admin/tasks/:id", requireRole("admin"), async (req, res, next) =
 
 app.get("/api/admin/matches", requireRole("admin"), async (_req, res, next) => {
   try {
-    const [contacts, properties] = await Promise.all([
+    const [contacts, properties, buyerProfiles] = await Promise.all([
       query("SELECT * FROM contacts WHERE contact_type = 'buyer' ORDER BY lead_score DESC, updated_at DESC LIMIT 120"),
       query("SELECT * FROM properties WHERE status = 'active' AND is_public = TRUE ORDER BY featured DESC, updated_at DESC LIMIT 160"),
+      query("SELECT * FROM buyer_profiles"),
     ]);
     const propertyItems = properties.rows.map(toProperty);
+    const profiles = new Map(buyerProfiles.rows.map((profile) => [profile.contact_id, profile]));
     const matches = [];
     for (const contact of contacts.rows.map(toContact)) {
-      const zones = Array.isArray(contact.preferredZones) ? contact.preferredZones : [];
+      const profile = profiles.get(contact.id);
+      const zones = profile ? safeJsonArray(profile.preferred_zones) : Array.isArray(contact.preferredZones) ? contact.preferredZones : [];
+      const propertyTypes = profile ? safeJsonArray(profile.property_types) : [contact.propertyType].filter(Boolean);
+      const budgetMax = Number(profile?.budget_max || contact.budgetMax || 0);
       for (const property of propertyItems) {
-        let score = 35;
+        let score = 24;
         const reasons = [];
         if (zones.length && zones.includes(property.zone)) {
           score += 25;
           reasons.push(`zona ${property.zone}`);
         }
-        if (contact.propertyType && property.type === contact.propertyType) {
+        if (propertyTypes.length && propertyTypes.includes(property.type)) {
           score += 15;
           reasons.push(`tipo ${property.type}`);
         }
-        if (contact.budgetMax && property.priceUsd && Number(property.priceUsd) <= Number(contact.budgetMax) * 1.08) {
+        if (budgetMax && property.priceUsd && Number(property.priceUsd) <= budgetMax * 1.08 && Number(property.priceUsd) >= Number(profile?.budget_min || 0) * 0.75) {
           score += 18;
           reasons.push("presupuesto compatible");
         }
+        if (profile?.operation && property.operation === profile.operation) {
+          score += 8;
+          reasons.push(profile.operation === "rent" ? "busca renta" : "busca compra");
+        }
+        if (Number(profile?.bedrooms || 0) && property.beds >= Number(profile.bedrooms)) {
+          score += 6;
+          reasons.push(`${property.beds} recámaras`);
+        }
+        if (Number(profile?.bathrooms || 0) && property.baths >= Number(profile.bathrooms)) {
+          score += 4;
+          reasons.push(`${property.baths} baños`);
+        }
         if (property.featured) {
-          score += 7;
+          score += 5;
           reasons.push("publicacion destacada");
         }
-        if (score >= 55) {
+        if (score >= 50) {
           matches.push({
             id: `${contact.id}-${property.id}`,
             contactId: contact.id,
@@ -1915,6 +2440,14 @@ app.get("/api/admin/matches", requireRole("admin"), async (_req, res, next) => {
       }
     }
     matches.sort((a, b) => b.score - a.score);
+    for (const match of matches.slice(0, 80)) {
+      await query(
+        `INSERT INTO property_matches (id, property_id, contact_id, score, reason, status)
+         VALUES ($1, $2, $3, $4, $5, 'suggested')
+         ON CONFLICT (property_id, contact_id) DO UPDATE SET score = EXCLUDED.score, reason = EXCLUDED.reason, updated_at = NOW()`,
+        [uuid("match"), match.propertyId, match.contactId, match.score, match.reason]
+      );
+    }
     res.json({ matches: matches.slice(0, 80) });
   } catch (error) {
     next(error);
@@ -1923,7 +2456,7 @@ app.get("/api/admin/matches", requireRole("admin"), async (_req, res, next) => {
 
 app.get("/api/admin/analytics", requireRole("admin"), async (_req, res, next) => {
   try {
-    const [eventsByType, propertyEvents, searchZones, leadSources] = await Promise.all([
+    const [eventsByType, propertyEvents, searchZones, leadSources, propertyStatus, zoneInventory, taskStatus, campaignStatus, leadTypes] = await Promise.all([
       query("SELECT event_type, COUNT(*)::int AS count FROM analytics_events GROUP BY event_type ORDER BY count DESC LIMIT 20"),
       query(
         `SELECT p.id, p.title_es, p.zone, COUNT(e.id)::int AS count
@@ -1942,12 +2475,22 @@ app.get("/api/admin/analytics", requireRole("admin"), async (_req, res, next) =>
          LIMIT 10`
       ),
       query("SELECT COALESCE(source_path, 'directo') AS source, COUNT(*)::int AS count FROM lead_requests GROUP BY source ORDER BY count DESC LIMIT 10"),
+      query("SELECT status, COUNT(*)::int AS count FROM properties GROUP BY status ORDER BY count DESC"),
+      query("SELECT zone, COUNT(*)::int AS count FROM properties GROUP BY zone ORDER BY count DESC"),
+      query("SELECT status, COUNT(*)::int AS count FROM tasks GROUP BY status ORDER BY count DESC"),
+      query("SELECT status, COUNT(*)::int AS count FROM campaigns GROUP BY status ORDER BY count DESC"),
+      query("SELECT lead_type, COUNT(*)::int AS count FROM lead_requests GROUP BY lead_type ORDER BY count DESC LIMIT 15"),
     ]);
     res.json({
       eventsByType: eventsByType.rows,
       propertyEvents: propertyEvents.rows,
       searchZones: searchZones.rows,
       leadSources: leadSources.rows,
+      propertyStatus: propertyStatus.rows,
+      zoneInventory: zoneInventory.rows,
+      taskStatus: taskStatus.rows,
+      campaignStatus: campaignStatus.rows,
+      leadTypes: leadTypes.rows,
     });
   } catch (error) {
     next(error);
@@ -2031,6 +2574,24 @@ app.patch("/api/admin/location-options/:id", requireRole("admin"), async (req, r
 
 app.delete("/api/admin/location-options/:id", requireRole("admin"), async (req, res, next) => {
   try {
+    const optionResult = await query("SELECT * FROM location_options WHERE id = $1", [req.params.id]);
+    const option = optionResult.rows[0];
+    if (!option) {
+      res.status(404).json({ error: "Catálogo no encontrado." });
+      return;
+    }
+    const column = option.type === "state" ? "state" : option.type === "city" ? "city" : option.type === "zone" ? "zone" : "neighborhood";
+    const usage = await query(`SELECT COUNT(*)::int AS count FROM properties WHERE ${column} = $1`, [option.name]);
+    const children = await query("SELECT COUNT(*)::int AS count FROM location_options WHERE parent_id = $1", [option.id]);
+    if (usage.rows[0].count > 0 || children.rows[0].count > 0) {
+      res.status(409).json({
+        error:
+          usage.rows[0].count > 0
+            ? `No puedes borrarlo porque tiene ${usage.rows[0].count} propiedades asociadas. Puedes desactivarlo.`
+            : "No puedes borrarlo porque contiene catálogos dependientes. Puedes desactivarlo.",
+      });
+      return;
+    }
     await query("DELETE FROM location_options WHERE id = $1", [req.params.id]);
     res.json({ ok: true });
   } catch (error) {
@@ -2062,6 +2623,181 @@ app.get("/api/admin/contacts", requireRole("admin"), async (req, res, next) => {
     res.json({ contacts: result.rows.map(toContact) });
   } catch (error) {
     next(error);
+  }
+});
+
+app.post("/api/admin/contacts", requireRole("admin"), async (req, res, next) => {
+  try {
+    const body = req.body || {};
+    const name = String(body.name || "").trim();
+    const email = String(body.email || "").trim().toLowerCase() || null;
+    const phone = String(body.phone || "").trim() || null;
+    if (!name || (!email && !phone)) {
+      res.status(400).json({ error: "Agrega nombre y al menos correo o teléfono." });
+      return;
+    }
+    const result = await query(
+      `INSERT INTO contacts
+        (id, name, email, phone, contact_type, source, preferred_zones, budget_min, budget_max, property_type,
+         notes, lead_score, assigned_to, objective, urgency, status, bedrooms, bathrooms, last_activity_at)
+       VALUES
+        ($1, $2, $3, $4, $5, 'manual', $6::jsonb, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, NOW())
+       RETURNING *`,
+      [
+        uuid("contact"),
+        name,
+        email,
+        phone,
+        String(body.contactType || "unclassified"),
+        JSON.stringify(Array.isArray(body.preferredZones) ? body.preferredZones : []),
+        numericOrNull(body.budgetMin),
+        numericOrNull(body.budgetMax),
+        String(body.propertyType || "").trim() || null,
+        String(body.notes || "").trim(),
+        String(body.leadScore || "warm"),
+        String(body.assignedTo || "").trim() || null,
+        String(body.objective || "").trim() || null,
+        String(body.urgency || "medium"),
+        String(body.status || "active"),
+        Number(body.bedrooms || 0),
+        Number(body.bathrooms || 0),
+      ]
+    );
+    res.status(201).json({ contact: toContact(result.rows[0]) });
+  } catch (error) {
+    if (error.code === "23505") {
+      res.status(409).json({ error: "Ya existe un contacto con esos datos." });
+      return;
+    }
+    next(error);
+  }
+});
+
+app.patch("/api/admin/contacts/:id", requireRole("admin"), async (req, res, next) => {
+  try {
+    const body = req.body || {};
+    const result = await query(
+      `UPDATE contacts SET
+         name = COALESCE($2, name),
+         email = COALESCE($3, email),
+         phone = COALESCE($4, phone),
+         contact_type = COALESCE($5, contact_type),
+         preferred_zones = COALESCE($6::jsonb, preferred_zones),
+         budget_min = COALESCE($7, budget_min),
+         budget_max = COALESCE($8, budget_max),
+         property_type = COALESCE($9, property_type),
+         notes = COALESCE($10, notes),
+         lead_score = COALESCE($11, lead_score),
+         assigned_to = COALESCE($12, assigned_to),
+         objective = COALESCE($13, objective),
+         urgency = COALESCE($14, urgency),
+         status = COALESCE($15, status),
+         bedrooms = COALESCE($16, bedrooms),
+         bathrooms = COALESCE($17, bathrooms),
+         updated_at = NOW(), last_activity_at = NOW()
+       WHERE id = $1
+       RETURNING *`,
+      [
+        req.params.id,
+        body.name === undefined ? null : String(body.name || "").trim(),
+        body.email === undefined ? null : String(body.email || "").trim().toLowerCase(),
+        body.phone === undefined ? null : String(body.phone || "").trim(),
+        body.contactType === undefined ? null : String(body.contactType || "unclassified"),
+        body.preferredZones === undefined ? null : JSON.stringify(body.preferredZones || []),
+        body.budgetMin === undefined ? null : numericOrNull(body.budgetMin),
+        body.budgetMax === undefined ? null : numericOrNull(body.budgetMax),
+        body.propertyType === undefined ? null : String(body.propertyType || "").trim(),
+        body.notes === undefined ? null : String(body.notes || "").trim(),
+        body.leadScore === undefined ? null : String(body.leadScore || "warm"),
+        body.assignedTo === undefined ? null : String(body.assignedTo || "").trim(),
+        body.objective === undefined ? null : String(body.objective || "").trim(),
+        body.urgency === undefined ? null : String(body.urgency || "medium"),
+        body.status === undefined ? null : String(body.status || "active"),
+        body.bedrooms === undefined ? null : Number(body.bedrooms || 0),
+        body.bathrooms === undefined ? null : Number(body.bathrooms || 0),
+      ]
+    );
+    if (!result.rows[0]) {
+      res.status(404).json({ error: "Contacto no encontrado." });
+      return;
+    }
+    res.json({ contact: toContact(result.rows[0]) });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.get("/api/admin/buyers", requireRole("admin"), async (_req, res, next) => {
+  try {
+    const result = await query(
+      `SELECT b.*, c.name AS contact_name, c.email, c.phone, c.lead_score, c.assigned_to
+       FROM buyer_profiles b
+       JOIN contacts c ON c.id = b.contact_id
+       ORDER BY b.updated_at DESC`
+    );
+    res.json({ buyers: result.rows.map(toBuyerProfile) });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.post("/api/admin/buyers", requireRole("admin"), async (req, res, next) => {
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+    const body = req.body || {};
+    const contact = await upsertContact(client, {
+      name: String(body.name || "").trim(),
+      email: String(body.email || "").trim().toLowerCase(),
+      phone: String(body.phone || "").trim(),
+      contactType: "buyer",
+      source: "admin",
+      preferredZones: body.preferredZones || [],
+      propertyType: Array.isArray(body.propertyTypes) ? body.propertyTypes[0] : "",
+      budgetMin: numericOrNull(body.budgetMin),
+      budgetMax: numericOrNull(body.budgetMax),
+      leadScore: String(body.leadScore || "hot"),
+    });
+    if (!contact) {
+      await client.query("ROLLBACK");
+      res.status(400).json({ error: "Agrega correo o teléfono del comprador." });
+      return;
+    }
+    const result = await client.query(
+      `INSERT INTO buyer_profiles
+        (id, contact_id, budget_min, budget_max, preferred_zones, property_types, operation, bedrooms, bathrooms, objective, urgency, status, notes)
+       VALUES ($1, $2, $3, $4, $5::jsonb, $6::jsonb, $7, $8, $9, $10, $11, $12, $13)
+       ON CONFLICT (contact_id) DO UPDATE SET
+         budget_min = EXCLUDED.budget_min, budget_max = EXCLUDED.budget_max,
+         preferred_zones = EXCLUDED.preferred_zones, property_types = EXCLUDED.property_types,
+         operation = EXCLUDED.operation, bedrooms = EXCLUDED.bedrooms, bathrooms = EXCLUDED.bathrooms,
+         objective = EXCLUDED.objective, urgency = EXCLUDED.urgency, status = EXCLUDED.status,
+         notes = EXCLUDED.notes, updated_at = NOW()
+       RETURNING *`,
+      [
+        uuid("buyer"),
+        contact.id,
+        numericOrNull(body.budgetMin),
+        numericOrNull(body.budgetMax),
+        JSON.stringify(body.preferredZones || []),
+        JSON.stringify(body.propertyTypes || []),
+        String(body.operation || "sale"),
+        Number(body.bedrooms || 0),
+        Number(body.bathrooms || 0),
+        String(body.objective || "").trim(),
+        String(body.urgency || "medium"),
+        String(body.status || "active"),
+        String(body.notes || "").trim(),
+      ]
+    );
+    await client.query("COMMIT");
+    const joined = { ...result.rows[0], contact_name: contact.name, email: contact.email, phone: contact.phone, lead_score: contact.lead_score };
+    res.status(201).json({ buyer: toBuyerProfile(joined) });
+  } catch (error) {
+    await client.query("ROLLBACK");
+    next(error);
+  } finally {
+    client.release();
   }
 });
 
@@ -2133,35 +2869,89 @@ app.get("/api/admin/messages/:requestTable/:requestId", requireRole("admin"), as
 });
 
 app.post("/api/admin/messages", requireRole("admin"), async (req, res, next) => {
+  const client = await pool.connect();
   try {
+    await client.query("BEGIN");
     const table = req.body.requestTable === "seller_request" ? "seller_request" : "lead_request";
     const requestId = String(req.body.requestId || "").trim();
     const message = String(req.body.message || "").trim();
     const attachments = Array.isArray(req.body.attachments) ? req.body.attachments : [];
+    const status = normalizeStatus(req.body.status, REQUEST_STATUSES, "contacted");
+    const priority = normalizePriority(req.body.priority);
+    const assignedTo = String(req.body.assignedTo || "").trim() || null;
+    const notifyUser = req.body.notifyUser !== false;
     if (!requestId || !message) {
+      await client.query("ROLLBACK");
       res.status(400).json({ error: "Message is required" });
       return;
     }
-    const result = await query(
+    const result = await client.query(
       `INSERT INTO request_messages (id, request_table, request_id, sender_type, sender_name, message, attachments)
        VALUES ($1, $2, $3, 'admin', $4, $5, $6::jsonb)
        RETURNING *`,
       [uuid("msg"), table, requestId, req.session.user.name || "Admin", message, JSON.stringify(attachments)]
     );
+    let sellerId = null;
     if (table === "seller_request") {
-      await query(
-        "UPDATE seller_requests SET admin_response = $2, response_files = $3::jsonb, updated_at = NOW() WHERE id = $1",
-        [requestId, message, JSON.stringify(attachments)]
+      const requestResult = await client.query(
+        `UPDATE seller_requests
+         SET admin_response = $2, response_files = $3::jsonb, status = $4, priority = $5,
+             assigned_to = COALESCE($6, assigned_to), next_action = $7, updated_at = NOW()
+         WHERE id = $1
+         RETURNING seller_id`,
+        [requestId, message, JSON.stringify(attachments), status, priority, assignedTo, String(req.body.nextAction || "").trim()]
       );
+      sellerId = requestResult.rows[0]?.seller_id || null;
     } else {
-      await query("UPDATE lead_requests SET last_response = $2, status = 'contacted', updated_at = NOW() WHERE id = $1", [
+      const leadResult = await client.query(
+        `UPDATE lead_requests
+         SET last_response = $2, status = $3, priority = $4,
+             assigned_to = COALESCE($5, assigned_to), updated_at = NOW()
+         WHERE id = $1`,
+        [requestId, message, status, priority, assignedTo]
+      );
+      const ownerResult = await client.query("SELECT payload->>'sellerAccountId' AS seller_id FROM lead_requests WHERE id = $1", [
         requestId,
-        message,
       ]);
+      sellerId = ownerResult.rows[0]?.seller_id || null;
     }
+    if (req.body.createTask) {
+      await client.query(
+        `INSERT INTO tasks
+          (id, title, description, assigned_to, status, priority, due_date, related_entity_type, related_entity_id)
+         VALUES ($1, $2, $3, $4, 'pending', $5, $6, $7, $8)`,
+        [
+          uuid("task"),
+          String(req.body.taskTitle || "Dar seguimiento a respuesta").trim(),
+          message.slice(0, 300),
+          assignedTo,
+          priority,
+          req.body.dueDate ? new Date(req.body.dueDate) : null,
+          table,
+          requestId,
+        ]
+      );
+    }
+    if (notifyUser && sellerId) {
+      await client.query(
+        `INSERT INTO notifications
+          (id, user_id, type, title, message, related_entity_type, related_entity_id)
+         VALUES ($1, $2, 'advisor_response', 'Nueva respuesta de tu asesor', $3, $4, $5)`,
+        [uuid("notif"), sellerId, message.slice(0, 240), table, requestId]
+      );
+    }
+    await client.query(
+      `INSERT INTO activity_logs (id, user_id, action, entity_type, entity_id, new_value)
+       VALUES ($1, $2, 'response_sent', $3, $4, $5::jsonb)`,
+      [uuid("activity"), req.session.user.id, table, requestId, JSON.stringify({ status, priority, assignedTo, attachments })]
+    );
+    await client.query("COMMIT");
     res.status(201).json({ message: result.rows[0] });
   } catch (error) {
+    await client.query("ROLLBACK");
     next(error);
+  } finally {
+    client.release();
   }
 });
 
@@ -2370,6 +3160,48 @@ app.delete("/api/admin/properties/:id", requireRole("admin"), async (req, res, n
   }
 });
 
+app.post("/api/admin/properties/:id/duplicate", requireRole("admin"), async (req, res, next) => {
+  try {
+    const source = await query("SELECT * FROM properties WHERE id = $1", [req.params.id]);
+    const property = source.rows[0];
+    if (!property) {
+      res.status(404).json({ error: "Property not found" });
+      return;
+    }
+    const result = await query(
+      `INSERT INTO properties
+        (id, title_es, title_en, type, state, city, zone, neighborhood, address, latitude, longitude, map_place,
+         location_precision, google_maps_url, operation, price_usd, price_mxn, beds, baths, area, lot, mls,
+         image, images, featured, status, is_public, badges, description_es, description_en)
+       SELECT $2, title_es || ' (copia)', title_en || ' (copy)', type, state, city, zone, neighborhood, address,
+         latitude, longitude, map_place, location_precision, google_maps_url, operation, price_usd, price_mxn,
+         beds, baths, area, lot, $3, image, images, FALSE, 'draft', FALSE, badges, description_es, description_en
+       FROM properties WHERE id = $1
+       RETURNING *`,
+      [req.params.id, uuid("prop"), String(Math.floor(2000 + Math.random() * 8000))]
+    );
+    res.status(201).json({ property: toProperty(result.rows[0]) });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.patch("/api/admin/properties/:id/featured", requireRole("admin"), async (req, res, next) => {
+  try {
+    const result = await query(
+      "UPDATE properties SET featured = $2, updated_at = NOW() WHERE id = $1 RETURNING *",
+      [req.params.id, req.body.featured !== false && req.body.featured !== "false"]
+    );
+    if (!result.rows[0]) {
+      res.status(404).json({ error: "Property not found" });
+      return;
+    }
+    res.json({ property: toProperty(result.rows[0]) });
+  } catch (error) {
+    next(error);
+  }
+});
+
 app.patch("/api/admin/properties/:id/status", requireRole("admin"), async (req, res, next) => {
   try {
     const status = normalizeStatus(req.body.status, PROPERTY_STATUSES, "active");
@@ -2392,6 +3224,505 @@ app.patch("/api/admin/properties/:id/status", requireRole("admin"), async (req, 
       return;
     }
     res.json({ property: toProperty(result.rows[0]) });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.get("/api/admin/notifications", requireRole("admin"), async (_req, res, next) => {
+  try {
+    const result = await query("SELECT * FROM notifications WHERE user_id IS NULL ORDER BY created_at DESC LIMIT 150");
+    res.json({ notifications: result.rows });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.patch("/api/admin/notifications/:id/read", requireRole("admin"), async (req, res, next) => {
+  try {
+    await query("UPDATE notifications SET is_read = TRUE, read_at = NOW() WHERE id = $1", [req.params.id]);
+    res.json({ ok: true });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.get("/api/admin/users", requireRole("admin"), async (_req, res, next) => {
+  try {
+    const result = await query("SELECT * FROM internal_users ORDER BY status, name");
+    res.json({ users: result.rows.map(toInternalUser) });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.post("/api/admin/users", requireRole("admin"), async (req, res, next) => {
+  try {
+    const body = req.body || {};
+    const name = String(body.name || "").trim();
+    const email = String(body.email || "").trim().toLowerCase();
+    const password = String(body.password || "");
+    if (!name || !email || password.length < 8) {
+      res.status(400).json({ error: "Nombre, correo y contraseña de al menos 8 caracteres son obligatorios." });
+      return;
+    }
+    const passwordHash = await bcrypt.hash(password, 10);
+    const result = await query(
+      `INSERT INTO internal_users (id, name, email, password_hash, role, status, permissions)
+       VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb)
+       RETURNING *`,
+      [
+        uuid("staff"),
+        name,
+        email,
+        passwordHash,
+        String(body.role || "advisor"),
+        String(body.status || "active"),
+        JSON.stringify(body.permissions || []),
+      ]
+    );
+    res.status(201).json({ user: toInternalUser(result.rows[0]) });
+  } catch (error) {
+    if (error.code === "23505") {
+      res.status(409).json({ error: "Ya existe un usuario interno con ese correo." });
+      return;
+    }
+    next(error);
+  }
+});
+
+app.patch("/api/admin/users/:id", requireRole("admin"), async (req, res, next) => {
+  try {
+    const body = req.body || {};
+    const passwordHash = body.password ? await bcrypt.hash(String(body.password), 10) : null;
+    const result = await query(
+      `UPDATE internal_users SET
+         name = COALESCE($2, name), email = COALESCE($3, email), role = COALESCE($4, role),
+         status = COALESCE($5, status), permissions = COALESCE($6::jsonb, permissions),
+         password_hash = COALESCE($7, password_hash), updated_at = NOW()
+       WHERE id = $1
+       RETURNING *`,
+      [
+        req.params.id,
+        body.name === undefined ? null : String(body.name || "").trim(),
+        body.email === undefined ? null : String(body.email || "").trim().toLowerCase(),
+        body.role === undefined ? null : String(body.role || "advisor"),
+        body.status === undefined ? null : String(body.status || "active"),
+        body.permissions === undefined ? null : JSON.stringify(body.permissions || []),
+        passwordHash,
+      ]
+    );
+    if (!result.rows[0]) {
+      res.status(404).json({ error: "Usuario interno no encontrado." });
+      return;
+    }
+    res.json({ user: toInternalUser(result.rows[0]) });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.get("/api/admin/settings", requireRole("admin"), async (_req, res, next) => {
+  try {
+    const result = await query("SELECT key, value, updated_at FROM app_settings ORDER BY key");
+    res.json({ settings: Object.fromEntries(result.rows.map((row) => [row.key, row.value])) });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.put("/api/admin/settings/:key", requireRole("admin"), async (req, res, next) => {
+  try {
+    const key = String(req.params.key || "").trim();
+    if (!["site", "maps", "seo", "forms", "whatsapp", "images", "pdf", "ai"].includes(key)) {
+      res.status(400).json({ error: "Sección de configuración no válida." });
+      return;
+    }
+    const result = await query(
+      `INSERT INTO app_settings (key, value, updated_by)
+       VALUES ($1, $2::jsonb, $3)
+       ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_by = EXCLUDED.updated_by, updated_at = NOW()
+       RETURNING *`,
+      [key, JSON.stringify(req.body || {}), req.session.user.id]
+    );
+    res.json({ key: result.rows[0].key, value: result.rows[0].value });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.get("/api/admin/files", requireRole("admin"), async (req, res, next) => {
+  try {
+    const category = String(req.query.category || "").trim();
+    const relatedType = String(req.query.relatedType || "").trim();
+    const params = [];
+    const where = [];
+    if (category) {
+      params.push(category);
+      where.push(`category = $${params.length}`);
+    }
+    if (relatedType) {
+      params.push(relatedType);
+      where.push(`related_entity_type = $${params.length}`);
+    }
+    const result = await query(
+      `SELECT id, name, mime_type, size_bytes, category, related_entity_type, related_entity_id, uploaded_by, metadata, created_at
+       FROM media_files ${where.length ? `WHERE ${where.join(" AND ")}` : ""}
+       ORDER BY created_at DESC LIMIT 300`,
+      params
+    );
+    res.json({ files: result.rows.map((row) => toMediaFile(row)) });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.post("/api/admin/files", requireRole("admin"), async (req, res, next) => {
+  try {
+    const parsed = parseDataUrl(req.body.content);
+    if (!parsed || parsed.buffer.length > 5 * 1024 * 1024) {
+      res.status(400).json({ error: "Archivo inválido o mayor a 5 MB." });
+      return;
+    }
+    const allowed = parsed.mimeType.startsWith("image/") || parsed.mimeType === "application/pdf" || parsed.mimeType.startsWith("text/");
+    if (!allowed) {
+      res.status(400).json({ error: "Solo se permiten imágenes, PDF y archivos de texto." });
+      return;
+    }
+    const result = await query(
+      `INSERT INTO media_files
+        (id, name, mime_type, size_bytes, content, category, related_entity_type, related_entity_id, uploaded_by, metadata)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10::jsonb)
+       RETURNING *`,
+      [
+        uuid("file"),
+        String(req.body.name || "archivo").trim().slice(0, 180),
+        parsed.mimeType,
+        parsed.buffer.length,
+        parsed.content,
+        String(req.body.category || (parsed.mimeType.startsWith("image/") ? "property_image" : "document")),
+        String(req.body.relatedEntityType || "").trim() || null,
+        String(req.body.relatedEntityId || "").trim() || null,
+        req.session.user.id,
+        JSON.stringify(req.body.metadata || {}),
+      ]
+    );
+    res.status(201).json({ file: toMediaFile(result.rows[0]) });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.get("/api/admin/files/:id/download", requireRole("admin"), async (req, res, next) => {
+  try {
+    const result = await query("SELECT * FROM media_files WHERE id = $1", [req.params.id]);
+    const file = result.rows[0];
+    if (!file) {
+      res.status(404).json({ error: "Archivo no encontrado." });
+      return;
+    }
+    const parsed = parseDataUrl(file.content);
+    if (!parsed) {
+      res.status(422).json({ error: "Contenido de archivo inválido." });
+      return;
+    }
+    res.setHeader("Content-Type", file.mime_type);
+    res.setHeader("Content-Disposition", `attachment; filename="${String(file.name).replace(/"/g, "")}"`);
+    res.send(parsed.buffer);
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.delete("/api/admin/files/:id", requireRole("admin"), async (req, res, next) => {
+  try {
+    await query("DELETE FROM media_files WHERE id = $1", [req.params.id]);
+    res.json({ ok: true });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.get("/api/admin/documents", requireRole("admin"), async (_req, res, next) => {
+  try {
+    const result = await query(
+      `SELECT id, document_type, title, property_id, valuation_id, contact_id, file_name, mime_type, options, created_by, created_at
+       FROM generated_documents ORDER BY created_at DESC LIMIT 200`
+    );
+    res.json({ documents: result.rows.map((row) => toDocument(row)) });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.post("/api/admin/documents/generate", requireRole("admin"), async (req, res, next) => {
+  try {
+    const documentType = req.body.documentType === "valuation" ? "valuation" : "property";
+    const options = req.body.options || {};
+    let entity;
+    if (documentType === "property") {
+      const result = await query("SELECT * FROM properties WHERE id = $1", [String(req.body.propertyId || "")]);
+      entity = result.rows[0] ? toProperty(result.rows[0]) : null;
+    } else {
+      const result = await query("SELECT * FROM valuations WHERE id = $1", [String(req.body.valuationId || "")]);
+      entity = result.rows[0] ? toValuation(result.rows[0]) : null;
+    }
+    if (!entity) {
+      res.status(404).json({ error: "Selecciona un registro válido para generar la ficha." });
+      return;
+    }
+    const pdf = await pdfBuffer((document) => {
+      addPdfHeader(document, documentType === "property" ? "Ficha comercial de propiedad" : "Valoración inmobiliaria");
+      if (documentType === "property") {
+        document.fillColor("#003f5c").font("Times-Bold").fontSize(22).text(entity.titleEs);
+        document.moveDown(0.6);
+        addPdfField(document, "Ubicación", [entity.zone, entity.city, entity.state].filter(Boolean).join(", "));
+        addPdfField(document, "Tipo / operación", `${entity.type} · ${entity.operation === "rent" ? "Renta" : "Venta"}`);
+        if (options.showPrice !== false) addPdfField(document, "Precio", formatPdfMoney(entity.priceUsd || entity.priceMxn, entity.priceUsd ? "USD" : "MXN"));
+        addPdfField(document, "Características", `${entity.beds} recámaras · ${entity.baths} baños · ${entity.area} m²`);
+        addPdfField(document, "MLS", entity.mls);
+        document.moveDown(0.4).fillColor("#102d3d").font("Helvetica").fontSize(11).text(entity.descriptionEs || "", { align: "justify" });
+        if (options.showAddress && entity.address) {
+          document.moveDown().fillColor("#526476").fontSize(9).text(`Dirección: ${entity.address}`);
+        }
+      } else {
+        document.fillColor("#003f5c").font("Times-Bold").fontSize(22).text(`Valoración para ${entity.ownerName}`);
+        document.moveDown(0.6);
+        addPdfField(document, "Zona / tipo", `${entity.zone || "Sin zona"} · ${entity.propertyType || "Sin tipo"}`);
+        addPdfField(document, "Precio esperado", formatPdfMoney(entity.expectedPrice));
+        addPdfField(document, "Precio sugerido", formatPdfMoney(entity.suggestedPrice));
+        addPdfField(document, "Rango estimado", `${formatPdfMoney(entity.lowRange)} - ${formatPdfMoney(entity.highRange)}`);
+        addPdfField(document, "Nivel de confianza", entity.confidenceLevel);
+        document.moveDown(0.4).fillColor("#102d3d").font("Helvetica").fontSize(11).text(entity.comments || "Requiere revisión y validación comercial del asesor.", { align: "justify" });
+      }
+      document.moveDown(2).strokeColor("#d9e3e8").moveTo(48, document.y).lineTo(547, document.y).stroke();
+      document.moveDown(0.6).fillColor("#526476").fontSize(8).text(
+        String(options.disclaimer || "Información preparada por Puerto Cancún Center. Sujeta a validación, disponibilidad y cambios sin previo aviso.")
+      );
+      document.moveDown(0.5).text(`Generado: ${new Intl.DateTimeFormat("es-MX", { dateStyle: "long" }).format(new Date())}`);
+    });
+    const id = uuid("doc");
+    const title = documentType === "property" ? entity.titleEs : `Valoración - ${entity.ownerName}`;
+    const fileName = `${documentType === "property" ? "ficha" : "valoracion"}-${id.slice(-8)}.pdf`;
+    const result = await query(
+      `INSERT INTO generated_documents
+        (id, document_type, title, property_id, valuation_id, contact_id, file_name, content_base64, options, created_by)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9::jsonb, $10)
+       RETURNING *`,
+      [
+        id,
+        documentType,
+        title,
+        documentType === "property" ? entity.id : null,
+        documentType === "valuation" ? entity.id : null,
+        documentType === "valuation" ? entity.contactId || null : null,
+        fileName,
+        pdf.toString("base64"),
+        JSON.stringify(options),
+        req.session.user.id,
+      ]
+    );
+    res.status(201).json({ document: toDocument(result.rows[0]), downloadUrl: `/api/admin/documents/${id}/download` });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.get("/api/admin/documents/:id/download", requireRole("admin"), async (req, res, next) => {
+  try {
+    const result = await query("SELECT * FROM generated_documents WHERE id = $1", [req.params.id]);
+    const document = result.rows[0];
+    if (!document) {
+      res.status(404).json({ error: "Ficha no encontrada." });
+      return;
+    }
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader("Content-Disposition", `attachment; filename="${document.file_name}"`);
+    res.send(Buffer.from(document.content_base64, "base64"));
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.delete("/api/admin/documents/:id", requireRole("admin"), async (req, res, next) => {
+  try {
+    await query("DELETE FROM generated_documents WHERE id = $1", [req.params.id]);
+    res.json({ ok: true });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.get("/api/admin/campaigns", requireRole("admin"), async (_req, res, next) => {
+  try {
+    const result = await query("SELECT * FROM campaigns ORDER BY scheduled_at ASC NULLS LAST, created_at DESC");
+    res.json({ campaigns: result.rows.map(toCampaign) });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.post("/api/admin/campaigns", requireRole("admin"), async (req, res, next) => {
+  try {
+    const body = req.body || {};
+    if (!String(body.name || "").trim() || !String(body.message || "").trim()) {
+      res.status(400).json({ error: "Nombre y mensaje son obligatorios." });
+      return;
+    }
+    const result = await query(
+      `INSERT INTO campaigns
+        (id, name, objective, segment, channel, template, message, property_id, scheduled_at, status, created_by)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+       RETURNING *`,
+      [
+        uuid("campaign"),
+        String(body.name).trim(),
+        String(body.objective || "promote_property"),
+        String(body.segment || "all"),
+        String(body.channel || "whatsapp"),
+        String(body.template || "").trim(),
+        String(body.message).trim(),
+        String(body.propertyId || "").trim() || null,
+        body.scheduledAt ? new Date(body.scheduledAt) : null,
+        String(body.status || "draft"),
+        req.session.user.id,
+      ]
+    );
+    res.status(201).json({ campaign: toCampaign(result.rows[0]) });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.patch("/api/admin/campaigns/:id", requireRole("admin"), async (req, res, next) => {
+  try {
+    const body = req.body || {};
+    const status = body.status === undefined ? null : String(body.status);
+    const result = await query(
+      `UPDATE campaigns SET
+         name = COALESCE($2, name), objective = COALESCE($3, objective), segment = COALESCE($4, segment),
+         channel = COALESCE($5, channel), message = COALESCE($6, message), status = COALESCE($7, status),
+         scheduled_at = COALESCE($8, scheduled_at),
+         sent_at = CASE WHEN $7 = 'sent' THEN NOW() ELSE sent_at END,
+         updated_at = NOW()
+       WHERE id = $1 RETURNING *`,
+      [
+        req.params.id,
+        body.name === undefined ? null : String(body.name || "").trim(),
+        body.objective === undefined ? null : String(body.objective),
+        body.segment === undefined ? null : String(body.segment),
+        body.channel === undefined ? null : String(body.channel),
+        body.message === undefined ? null : String(body.message || "").trim(),
+        status,
+        body.scheduledAt ? new Date(body.scheduledAt) : null,
+      ]
+    );
+    if (!result.rows[0]) {
+      res.status(404).json({ error: "Campaña no encontrada." });
+      return;
+    }
+    res.json({ campaign: toCampaign(result.rows[0]) });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.delete("/api/admin/campaigns/:id", requireRole("admin"), async (req, res, next) => {
+  try {
+    await query("DELETE FROM campaigns WHERE id = $1", [req.params.id]);
+    res.json({ ok: true });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.get("/api/admin/campaigns/:id/export", requireRole("admin"), async (req, res, next) => {
+  try {
+    const campaignResult = await query("SELECT * FROM campaigns WHERE id = $1", [req.params.id]);
+    const campaign = campaignResult.rows[0];
+    if (!campaign) {
+      res.status(404).json({ error: "Campaña no encontrada." });
+      return;
+    }
+    let where = "1=1";
+    if (campaign.segment === "buyers") where = "contact_type = 'buyer'";
+    if (campaign.segment === "sellers") where = "contact_type = 'seller'";
+    if (campaign.segment === "premium") where = "lead_score = 'premium'";
+    if (campaign.segment === "unanswered") where = "last_activity_at IS NULL OR last_activity_at < NOW() - INTERVAL '7 days'";
+    const contacts = await query(`SELECT name, email, phone, contact_type, lead_score FROM contacts WHERE ${where} ORDER BY name`);
+    const csv = [
+      ["Nombre", "Correo", "WhatsApp", "Tipo", "Score", "Campaña"],
+      ...contacts.rows.map((contact) => [contact.name, contact.email || "", contact.phone || "", contact.contact_type, contact.lead_score, campaign.name]),
+    ]
+      .map((row) => row.map((value) => `"${String(value).replace(/"/g, '""')}"`).join(","))
+      .join("\n");
+    res.type("text/csv").setHeader("Content-Disposition", `attachment; filename="campana-${campaign.id}.csv"`);
+    res.send(`\uFEFF${csv}`);
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.post("/api/admin/ai/generate", requireRole("admin"), async (req, res, next) => {
+  try {
+    const tool = String(req.body.tool || "summary");
+    const input = String(req.body.input || "").trim();
+    const propertyId = String(req.body.propertyId || "").trim();
+    const requestId = String(req.body.requestId || "").trim();
+    let context = input;
+    let property = null;
+    let lead = null;
+    if (propertyId) {
+      const result = await query("SELECT * FROM properties WHERE id = $1", [propertyId]);
+      property = result.rows[0] ? toProperty(result.rows[0]) : null;
+      if (property) context = `${property.titleEs}. ${property.zone}. ${property.type}. ${property.descriptionEs}`;
+    }
+    if (requestId) {
+      const result = await query("SELECT * FROM lead_requests WHERE id = $1", [requestId]);
+      lead = result.rows[0] ? toLead(result.rows[0]) : null;
+      if (lead) context = `${lead.name}. ${lead.leadType}. ${JSON.stringify(lead.payload)}`;
+    }
+    const missing = property ? property.qualityMissing : [];
+    const outputs = {
+      listing: {
+        title: property?.titleEs || "Propiedad seleccionada en Cancún",
+        short: `${property?.type || "Propiedad"} en ${property?.zone || "Cancún"} con atributos pensados para compradores que buscan valor y ubicación.`,
+        long: `${context || "Propiedad en Cancún"}. Puerto Cancún Center acompaña la revisión de precio, documentación y condiciones para presentar una oportunidad clara y profesional.`,
+        whatsapp: `Hola, te comparto ${property?.titleEs || "una propiedad disponible"} en ${property?.zone || "Cancún"}. ¿Te gustaría recibir la ficha completa?`,
+        seoTitle: `${property?.titleEs || "Propiedad en Cancún"} | Puerto Cancún Center`,
+        seoDescription: `Conoce precio, ubicación y características de ${property?.titleEs || "esta propiedad"} con asesoría local.`,
+      },
+      improve: {
+        premium: `${context} Destaca por su ubicación, distribución y potencial dentro del mercado inmobiliario de Cancún. Agenda una revisión personalizada con Puerto Cancún Center.`,
+        short: `${context.slice(0, 220)}.`,
+        commercial: `${context} Solicita disponibilidad, ficha y acompañamiento de un asesor local.`,
+      },
+      missing: { missing, complete: missing.length === 0, next: missing[0] ? `Completar ${missing[0]}` : "Lista para revisión editorial" },
+      summary: {
+        request: lead ? `${lead.name} solicita ${lead.leadType}.` : context.slice(0, 320),
+        provided: lead ? Object.keys(lead.payload || {}) : [],
+        missing: lead ? ["Confirmar presupuesto", "Confirmar ubicación", "Definir siguiente contacto"].filter((_, index) => index > Object.keys(lead.payload || {}).length / 4) : [],
+        next: lead?.phone ? "Contactar por WhatsApp y registrar resultado" : "Solicitar teléfono y datos faltantes",
+      },
+      next_action: { action: missing.length ? `Solicitar ${missing[0]}` : lead?.lastResponse ? "Programar seguimiento" : "Enviar primer contacto", priority: lead?.priority || "medium" },
+      whatsapp: {
+        firstContact: `Hola ${lead?.name || ""}, soy asesor de Puerto Cancún Center. Recibimos tu solicitud y quiero confirmar algunos datos para ayudarte mejor.`,
+        missingData: `Para continuar necesitamos confirmar: ${missing.join(", ") || "ubicación, presupuesto y disponibilidad"}.`,
+        followUp: "Doy seguimiento a tu solicitud. Puedo compartirte opciones y próximos pasos cuando me confirmes disponibilidad.",
+      },
+      campaign: {
+        whatsapp: `Nueva oportunidad en ${property?.zone || "Cancún"}: ${property?.titleEs || context}. Solicita ficha y disponibilidad.`,
+        emailSubject: `${property?.titleEs || "Nueva propiedad disponible"} en Puerto Cancún Center`,
+        emailBody: `Conoce ${property?.titleEs || context}. Nuestro equipo puede ayudarte a revisar precio, ubicación y condiciones.`,
+        social: `${property?.titleEs || context}\nAsesoría local, información clara y seguimiento profesional.`,
+      },
+      price: {
+        result: property ? `Precio publicado: ${formatPdfMoney(property.priceUsd || property.priceMxn, property.priceUsd ? "USD" : "MXN")}.` : "Se requiere seleccionar una propiedad.",
+        recommendation: "Comparar con inventario activo de la misma zona, tipo y rango de superficie antes de responder al cliente.",
+        confidence: property ? "media" : "baja",
+      },
+    };
+    res.json({ tool, result: outputs[tool] || outputs.summary, provider: "internal-rules", requiresApproval: true });
   } catch (error) {
     next(error);
   }

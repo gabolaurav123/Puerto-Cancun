@@ -43,6 +43,8 @@ CREATE TABLE IF NOT EXISTS seller_requests (
   admin_response TEXT,
   response_files JSONB NOT NULL DEFAULT '[]'::jsonb,
   internal_notes TEXT,
+  assigned_to TEXT,
+  next_action TEXT,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   reviewed_at TIMESTAMPTZ
@@ -141,6 +143,11 @@ CREATE TABLE IF NOT EXISTS contacts (
   consent_contact BOOLEAN NOT NULL DEFAULT TRUE,
   lead_score TEXT NOT NULL DEFAULT 'cold',
   assigned_to TEXT,
+  objective TEXT,
+  urgency TEXT NOT NULL DEFAULT 'medium',
+  status TEXT NOT NULL DEFAULT 'active',
+  bedrooms INTEGER NOT NULL DEFAULT 0,
+  bathrooms INTEGER NOT NULL DEFAULT 0,
   last_activity_at TIMESTAMPTZ,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
@@ -166,6 +173,7 @@ CREATE TABLE IF NOT EXISTS notifications (
   related_entity_type TEXT,
   related_entity_id TEXT,
   is_read BOOLEAN NOT NULL DEFAULT FALSE,
+  read_at TIMESTAMPTZ,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
@@ -235,6 +243,90 @@ CREATE TABLE IF NOT EXISTS property_matches (
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   UNIQUE (property_id, contact_id)
+);
+
+CREATE TABLE IF NOT EXISTS internal_users (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  email TEXT NOT NULL UNIQUE,
+  password_hash TEXT NOT NULL,
+  role TEXT NOT NULL DEFAULT 'advisor',
+  status TEXT NOT NULL DEFAULT 'active',
+  permissions JSONB NOT NULL DEFAULT '[]'::jsonb,
+  last_login_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS buyer_profiles (
+  id TEXT PRIMARY KEY,
+  contact_id TEXT NOT NULL UNIQUE REFERENCES contacts(id) ON DELETE CASCADE,
+  budget_min NUMERIC,
+  budget_max NUMERIC,
+  preferred_zones JSONB NOT NULL DEFAULT '[]'::jsonb,
+  property_types JSONB NOT NULL DEFAULT '[]'::jsonb,
+  operation TEXT NOT NULL DEFAULT 'sale',
+  bedrooms INTEGER NOT NULL DEFAULT 0,
+  bathrooms INTEGER NOT NULL DEFAULT 0,
+  objective TEXT,
+  urgency TEXT NOT NULL DEFAULT 'medium',
+  status TEXT NOT NULL DEFAULT 'active',
+  notes TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS media_files (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  mime_type TEXT NOT NULL,
+  size_bytes INTEGER NOT NULL DEFAULT 0,
+  content TEXT NOT NULL,
+  category TEXT NOT NULL DEFAULT 'document',
+  related_entity_type TEXT,
+  related_entity_id TEXT,
+  uploaded_by TEXT,
+  metadata JSONB NOT NULL DEFAULT '{}'::jsonb,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS generated_documents (
+  id TEXT PRIMARY KEY,
+  document_type TEXT NOT NULL,
+  title TEXT NOT NULL,
+  property_id TEXT,
+  valuation_id TEXT,
+  contact_id TEXT,
+  file_name TEXT NOT NULL,
+  mime_type TEXT NOT NULL DEFAULT 'application/pdf',
+  content_base64 TEXT NOT NULL,
+  options JSONB NOT NULL DEFAULT '{}'::jsonb,
+  created_by TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS campaigns (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  objective TEXT NOT NULL,
+  segment TEXT NOT NULL,
+  channel TEXT NOT NULL,
+  template TEXT,
+  message TEXT NOT NULL,
+  property_id TEXT,
+  scheduled_at TIMESTAMPTZ,
+  status TEXT NOT NULL DEFAULT 'draft',
+  created_by TEXT,
+  sent_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS app_settings (
+  key TEXT PRIMARY KEY,
+  value JSONB NOT NULL DEFAULT '{}'::jsonb,
+  updated_by TEXT,
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 CREATE TABLE IF NOT EXISTS user_sessions (

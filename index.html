@@ -419,6 +419,19 @@
 
         <section class="properties-section home-only" id="properties">
           <div class="content-wrap">
+            <form class="guided-search" id="guidedSearchForm">
+              <div>
+                <span class="eyebrow">BÚSQUEDA GUIADA</span>
+                <h2>Encuentra tu propiedad ideal</h2>
+              </div>
+              <label><span>Comprar o rentar</span><select name="operation"><option value="">Ambas</option><option value="sale">Comprar</option><option value="rent">Rentar</option></select></label>
+              <label><span>Presupuesto máximo USD</span><input name="budget" type="number" min="0" step="50000" /></label>
+              <label><span>Zona</span><select name="zone" data-location-select="zone"><option value="">Todas</option></select></label>
+              <label><span>Tipo</span><select name="type"><option value="">Todos</option><option>Casa</option><option>Departamento</option><option>Terreno</option><option>Preventa</option></select></label>
+              <label><span>Recámaras</span><input name="beds" type="number" min="0" /></label>
+              <label><span>Objetivo</span><select name="objective"><option value="live">Vivir</option><option value="invest">Invertir</option><option value="vacation">Vacacionar</option><option value="rent">Generar renta</option></select></label>
+              <button class="primary-button" type="submit"><i data-lucide="search"></i> Ver propiedades</button>
+            </form>
             <div class="properties-title-row">
               <div>
                 <h2 data-i18n="allProperties">Todas las propiedades</h2>
@@ -477,6 +490,28 @@
               <span class="result-count" id="resultCount"></span>
             </div>
             <div class="property-grid" id="propertyGrid"></div>
+            <aside class="compare-tray" id="compareTray" hidden>
+              <div>
+                <span class="eyebrow">COMPARADOR</span>
+                <strong id="compareCount">0 propiedades</strong>
+              </div>
+              <div id="compareItems"></div>
+              <button class="primary-button" type="button" id="openCompare">Comparar</button>
+              <button class="ghost-button" type="button" id="clearCompare">Limpiar</button>
+            </aside>
+            <form class="property-alert-form" id="propertyAlertForm" data-lead-form>
+              <div>
+                <span class="eyebrow">ALERTA DE PROPIEDADES</span>
+                <h3>Recibe opciones compatibles</h3>
+                <p>Registraremos tu zona, tipo y presupuesto para que un asesor pueda avisarte.</p>
+              </div>
+              <label><span>Nombre</span><input name="name" required /></label>
+              <label><span>WhatsApp</span><input name="phone" required /></label>
+              <label><span>Correo</span><input name="email" type="email" /></label>
+              <button class="primary-button" type="submit">Crear alerta</button>
+              <input type="hidden" name="leadType" value="alerta-busqueda-comprador" />
+              <p class="form-message" data-lead-message></p>
+            </form>
           </div>
         </section>
 
@@ -631,35 +666,61 @@
           <h1 id="panelTitle"></h1>
           <p id="panelSubtitle"></p>
         </div>
-        <button class="outline-light" type="button" id="logoutButton">
-          <i data-lucide="log-out"></i>
-          <span data-i18n="logout">Cerrar sesion</span>
-        </button>
+        <div class="panel-hero-actions">
+          <button class="notification-button" type="button" id="sellerNotificationButton" title="Notificaciones" hidden>
+            <i data-lucide="bell"></i>
+            <b id="sellerNotificationCount">0</b>
+          </button>
+          <button class="notification-button" type="button" id="adminNotificationButton" title="Notificaciones" hidden>
+            <i data-lucide="bell"></i>
+            <b id="adminNotificationCount">0</b>
+          </button>
+          <button class="outline-light" type="button" id="logoutButton">
+            <i data-lucide="log-out"></i>
+            <span data-i18n="logout">Cerrar sesión</span>
+          </button>
+        </div>
       </section>
 
       <section class="dashboard" id="sellerPanel" hidden>
         <div class="seller-action-grid">
           <article class="seller-action-card">
             <span>1</span>
-            <h3 data-i18n="resourceSellHere">Vender mi propiedad aqui</h3>
-            <p data-i18n="sellerGuideCopy">Completa los datos principales, agrega una imagen clara y deja un mensaje para que el equipo pueda pedirte mas informacion antes de publicar.</p>
+            <h3>Vender mi propiedad</h3>
+            <p>Envía el expediente completo para revisión y posible publicación.</p>
+            <button class="text-button" type="button" data-seller-flow="sale">Abrir formulario</button>
           </article>
           <article class="seller-action-card">
             <span>2</span>
-            <h3 data-i18n="resourceValuation">Valoracion inmobiliaria</h3>
-            <p>Solicita revision de precio antes de publicar para evitar salir al mercado con un valor equivocado.</p>
+            <h3>Solicitar valoración</h3>
+            <p>Recibe un rango orientativo antes de decidir si publicas.</p>
+            <button class="text-button" type="button" data-seller-flow="valuation">Solicitar valoración</button>
           </article>
           <article class="seller-action-card">
             <span>3</span>
-            <h3 data-i18n="heroValuationCta">Validar precio con asesor</h3>
-            <p>Pega una recomendacion de IA o un precio estimado y el equipo la revisa con criterio local.</p>
+            <h3>Validar precio</h3>
+            <p>Confirma si el precio que tienes en mente parece competitivo.</p>
+            <button class="text-button" type="button" data-seller-flow="price_validation">Validar precio</button>
           </article>
           <article class="seller-action-card">
             <span>4</span>
-            <h3 data-i18n="sellerHelpCta">Solicitar guia por WhatsApp</h3>
-            <p data-i18n="sellerHelpCopy">Un asesor puede ayudarte a preparar la informacion, fotos y ubicacion antes de enviar la solicitud.</p>
+            <h3>Validar respuesta de IA</h3>
+            <p>Pega una recomendación de ChatGPT, Gemini o Claude para revisión local.</p>
+            <button class="text-button" type="button" data-seller-flow="ai_validation">Validar respuesta</button>
           </article>
         </div>
+        <aside class="seller-notification-drawer" id="sellerNotificationDrawer" hidden>
+          <div class="drawer-heading">
+            <div>
+              <span class="eyebrow">ACTUALIZACIONES</span>
+              <h2>Notificaciones</h2>
+            </div>
+            <button class="icon-button" type="button" id="closeSellerNotifications" title="Cerrar">
+              <i data-lucide="x"></i>
+            </button>
+          </div>
+          <div id="sellerNotifications" class="notification-list"></div>
+        </aside>
         <article class="panel-card seller-help-card seller-help-card-top">
           <div>
             <h2 data-i18n="sellerHelpTitle">Necesitas asesoria para llenar el formulario?</h2>
@@ -670,7 +731,65 @@
             <span data-i18n="sellerHelpCta">Solicitar guia por WhatsApp</span>
           </button>
         </article>
-        <div class="dashboard-grid">
+        <article class="panel-card seller-service-card" id="sellerServiceCard" hidden>
+          <div class="admin-module-heading">
+            <div>
+              <span class="eyebrow">SERVICIO DEL ASESOR</span>
+              <h2 id="sellerServiceTitle">Solicitar valoración</h2>
+              <p id="sellerServiceHint">Este flujo se registra por separado de una solicitud de venta.</p>
+            </div>
+            <button class="icon-button" type="button" id="closeSellerService" title="Cerrar">
+              <i data-lucide="x"></i>
+            </button>
+          </div>
+          <form id="sellerServiceForm" class="module-form-grid">
+            <input type="hidden" name="flow" value="valuation" />
+            <label>
+              <span>Zona</span>
+              <select name="zone" data-location-select="zone" required></select>
+            </label>
+            <label>
+              <span>Tipo de propiedad</span>
+              <select name="propertyType" required>
+                <option>Casa</option>
+                <option>Departamento</option>
+                <option>Terreno</option>
+                <option>Comercial</option>
+                <option>Preventa</option>
+              </select>
+            </label>
+            <label>
+              <span>M² de construcción</span>
+              <input name="area" type="number" min="0" />
+            </label>
+            <label>
+              <span>Recámaras</span>
+              <input name="bedrooms" type="number" min="0" />
+            </label>
+            <label>
+              <span>Baños</span>
+              <input name="bathrooms" type="number" min="0" />
+            </label>
+            <label data-service-field="expectedPrice">
+              <span id="sellerServicePriceLabel">Precio esperado</span>
+              <input name="expectedPrice" type="number" min="0" step="1000" />
+            </label>
+            <label class="span-2" data-service-field="aiResponse" hidden>
+              <span>Respuesta de ChatGPT, Gemini o Claude</span>
+              <textarea name="aiResponse" rows="7"></textarea>
+            </label>
+            <label class="span-2">
+              <span id="sellerServiceCommentLabel">Comentario o duda principal</span>
+              <textarea name="comments" rows="4"></textarea>
+            </label>
+            <div class="form-actions span-2">
+              <button class="primary-button" type="submit">Enviar al asesor</button>
+              <button class="ghost-button" type="button" data-seller-help>Necesito ayuda por WhatsApp</button>
+            </div>
+          </form>
+          <p class="form-message" id="sellerServiceMessage"></p>
+        </article>
+        <div class="dashboard-grid" id="sellerSaleWorkspace">
           <article class="panel-card">
             <h2 data-i18n="sellerRequestTitle">Enviar solicitud de venta</h2>
             <div class="seller-guide">
@@ -830,8 +949,14 @@
           </article>
 
           <article class="panel-card">
-            <h2 data-i18n="myRequests">Mis solicitudes</h2>
+            <div class="admin-module-heading">
+              <div>
+                <h2>Mis solicitudes y respuestas</h2>
+                <p>Consulta estado, siguiente paso, archivos y mensajes del asesor.</p>
+              </div>
+            </div>
             <div class="request-list" id="sellerRequests"></div>
+            <div class="request-list" id="sellerServiceRequests"></div>
           </article>
         </div>
       </section>
@@ -960,6 +1085,22 @@
               <i data-lucide="message-circle"></i>
               <span data-i18n="adminJumpPrompts">Herramientas IA</span>
             </button>
+            <button class="ghost-button" type="button" data-admin-jump="adminContactsCard">
+              <i data-lucide="user-plus"></i>
+              <span>Crear contacto</span>
+            </button>
+            <button class="ghost-button" type="button" data-admin-jump="adminPdfCard">
+              <i data-lucide="file-down"></i>
+              <span>Generar PDF</span>
+            </button>
+            <button class="ghost-button" type="button" data-admin-jump="adminMarketingCard">
+              <i data-lucide="megaphone"></i>
+              <span>Crear campaña</span>
+            </button>
+            <button class="ghost-button" type="button" data-admin-jump="adminRolesCard">
+              <i data-lucide="user-cog"></i>
+              <span>Crear usuario</span>
+            </button>
           </div>
         </div>
         <div class="admin-insights" id="adminInsights" data-admin-section-panel="dashboard"></div>
@@ -981,11 +1122,48 @@
           <div class="lead-list" id="adminLeads"></div>
         </article>
         <article class="panel-card admin-contacts-card" id="adminContactsCard" data-admin-section-panel="contacts">
-          <h2 data-i18n="crmTitle">CRM / Contactos</h2>
-          <div class="panel-card-subhead">
-            <span id="adminContactSummary"></span>
-            <span data-i18n="crmHint">Contactos generados desde formularios, vendedor, comprador y WhatsApp.</span>
+          <div class="admin-module-heading">
+            <div>
+              <h2>CRM / Contactos</h2>
+              <p>Centraliza compradores, vendedores, propietarios, inversionistas y seguimientos.</p>
+            </div>
+            <div class="inline-actions">
+              <input id="contactSearch" type="search" placeholder="Buscar nombre, correo o teléfono" />
+              <select id="contactTypeFilter">
+                <option value="">Todos los tipos</option>
+                <option value="buyer">Compradores</option>
+                <option value="seller">Vendedores</option>
+                <option value="investor">Inversionistas</option>
+                <option value="unclassified">Sin clasificar</option>
+              </select>
+              <button class="ghost-button" type="button" id="exportContactsCsv">Exportar CSV</button>
+            </div>
           </div>
+          <form id="contactForm" class="module-form-grid compact-form">
+            <label><span>Nombre</span><input name="name" required /></label>
+            <label><span>Correo</span><input name="email" type="email" /></label>
+            <label><span>WhatsApp</span><input name="phone" /></label>
+            <label>
+              <span>Tipo</span>
+              <select name="contactType">
+                <option value="buyer">Comprador</option>
+                <option value="seller">Vendedor / propietario</option>
+                <option value="investor">Inversionista</option>
+                <option value="agent">Agente</option>
+                <option value="unclassified">Sin clasificar</option>
+              </select>
+            </label>
+            <label><span>Zona de interés</span><select name="zone" data-location-select="zone"></select></label>
+            <label><span>Presupuesto máximo USD</span><input name="budgetMax" type="number" min="0" /></label>
+            <label><span>Responsable</span><select name="assignedTo" data-staff-select><option value="">Sin asignar</option></select></label>
+            <label><span>Score</span><select name="leadScore"><option value="warm">Medio</option><option value="hot">Alto</option><option value="premium">Premium</option><option value="cold">Bajo</option></select></label>
+            <label class="span-2"><span>Notas</span><textarea name="notes" rows="2"></textarea></label>
+            <div class="form-actions span-2">
+              <button class="primary-button" type="submit">Crear contacto</button>
+            </div>
+          </form>
+          <p class="form-message" id="contactFormMessage"></p>
+          <div class="panel-card-subhead"><span id="adminContactSummary"></span></div>
           <div class="contact-list" id="adminContacts"></div>
         </article>
         <article class="panel-card admin-valuations-card" id="adminValuationsCard" data-admin-section-panel="valuations">
@@ -1021,6 +1199,26 @@
               <span data-i18n="suggestedPrice">Precio sugerido</span>
               <input name="suggestedPrice" type="number" min="0" step="1000" />
             </label>
+            <label>
+              <span>Rango bajo</span>
+              <input name="lowRange" type="number" min="0" step="1000" />
+            </label>
+            <label>
+              <span>Rango alto</span>
+              <input name="highRange" type="number" min="0" step="1000" />
+            </label>
+            <label>
+              <span>Nivel de confianza</span>
+              <select name="confidenceLevel"><option value="low">Bajo</option><option value="medium">Medio</option><option value="high">Alto</option><option value="manual">Revisión manual</option></select>
+            </label>
+            <label>
+              <span>Estado</span>
+              <select name="status"><option value="new">Nueva</option><option value="in_review">En revisión</option><option value="missing_data">Faltan datos</option><option value="valuation_sent">Enviada</option><option value="converted">Convertida</option><option value="archived">Archivada</option></select>
+            </label>
+            <label class="span-2">
+              <span>Comentarios y recomendación</span>
+              <textarea name="comments" rows="4"></textarea>
+            </label>
             <button class="primary-button" type="submit" data-i18n="saveValuation">Guardar valoracion</button>
           </form>
           <p class="form-message" id="valuationFormMessage"></p>
@@ -1032,7 +1230,28 @@
               <h2 data-i18n="buyerPanelTitle">Compradores</h2>
               <p data-i18n="matchHint">Cruza compradores con propiedades activas por zona, tipo y presupuesto.</p>
             </div>
-            <button class="ghost-button" type="button" id="exportContactsCsv" data-i18n="exportCsv">Exportar CSV</button>
+            <button class="primary-button" type="button" id="toggleBuyerForm"><i data-lucide="plus"></i> Crear comprador</button>
+          </div>
+          <form id="buyerForm" class="module-form-grid" hidden>
+            <label><span>Nombre</span><input name="name" required /></label>
+            <label><span>WhatsApp</span><input name="phone" required /></label>
+            <label><span>Correo</span><input name="email" type="email" /></label>
+            <label><span>Presupuesto mínimo USD</span><input name="budgetMin" type="number" min="0" /></label>
+            <label><span>Presupuesto máximo USD</span><input name="budgetMax" type="number" min="0" required /></label>
+            <label><span>Zona deseada</span><select name="zone" data-location-select="zone" required></select></label>
+            <label><span>Tipo</span><select name="propertyType"><option>Casa</option><option>Departamento</option><option>Terreno</option><option>Preventa</option></select></label>
+            <label><span>Compra / renta</span><select name="operation"><option value="sale">Compra</option><option value="rent">Renta</option></select></label>
+            <label><span>Recámaras</span><input name="bedrooms" type="number" min="0" /></label>
+            <label><span>Baños</span><input name="bathrooms" type="number" min="0" /></label>
+            <label><span>Objetivo</span><select name="objective"><option value="live">Vivir</option><option value="invest">Invertir</option><option value="vacation">Vacacionar</option><option value="rent">Generar renta</option></select></label>
+            <label><span>Urgencia</span><select name="urgency"><option value="high">Alta</option><option value="medium">Media</option><option value="low">Baja</option></select></label>
+            <label class="span-2"><span>Notas</span><textarea name="notes" rows="3"></textarea></label>
+            <div class="form-actions span-2"><button class="primary-button" type="submit">Guardar perfil comprador</button><button class="ghost-button" type="button" id="cancelBuyerForm">Cancelar</button></div>
+          </form>
+          <p class="form-message" id="buyerFormMessage"></p>
+          <div class="buyer-filters">
+            <input id="buyerSearch" type="search" placeholder="Buscar comprador" />
+            <select id="buyerUrgencyFilter"><option value="">Toda urgencia</option><option value="high">Alta</option><option value="medium">Media</option><option value="low">Baja</option></select>
           </div>
           <div class="wide-data-list" id="adminBuyers"></div>
         </article>
@@ -1042,6 +1261,10 @@
               <h2 data-i18n="sellerOpsTitle">Vendedores / Propietarios</h2>
               <p data-i18n="sellerAudienceCopy">Ayudamos a definir precio competitivo, preparar la propiedad y conectar con compradores reales.</p>
             </div>
+          </div>
+          <div class="seller-readiness-legend">
+            <strong>Preparación para venta</strong>
+            <span>Se calcula con fotos, ubicación, precio, descripción y avance de la solicitud.</span>
           </div>
           <div class="wide-data-list" id="adminSellers"></div>
         </article>
@@ -1061,9 +1284,18 @@
               <p data-i18n="smartMapHint">Vista operativa por zonas, inventario y leads registrados.</p>
             </div>
           </div>
+          <div class="map-intelligence-toolbar">
+            <select id="smartMapLayer"><option value="properties">Inventario</option><option value="leads">Demanda / leads</option><option value="valuations">Valoraciones</option></select>
+            <select id="smartMapZone" data-location-select="zone"><option value="">Todas las zonas</option></select>
+            <select id="smartMapStatus"><option value="">Todos los estados</option><option value="active">Activas</option><option value="disabled">Deshabilitadas</option><option value="pending">Pendientes</option></select>
+            <select id="smartMapType"><option value="">Todos los tipos</option><option>Casa</option><option>Departamento</option><option>Terreno</option><option>Preventa</option></select>
+          </div>
           <div class="smart-map-grid">
-            <iframe title="Mapa operativo Cancun" loading="lazy" referrerpolicy="no-referrer-when-downgrade" src="https://www.google.com/maps?q=Cancun%2C%20Quintana%20Roo&output=embed"></iframe>
-            <div class="wide-data-list" id="adminMapSummary"></div>
+            <iframe id="adminMapFrame" title="Mapa operativo Cancún" loading="lazy" referrerpolicy="no-referrer-when-downgrade" src="https://www.google.com/maps?q=Cancun%2C%20Quintana%20Roo&output=embed"></iframe>
+            <div>
+              <div class="wide-data-list" id="adminMapSummary"></div>
+              <div class="wide-data-list map-property-list" id="adminMapPropertyList"></div>
+            </div>
           </div>
         </article>
         <article class="panel-card admin-catalogs-card" id="adminCatalogsCard" data-admin-section-panel="catalogs">
@@ -1117,7 +1349,53 @@
               </p>
             </div>
           </div>
-          <div class="admin-prompt-grid" id="adminPromptList"></div>
+          <div class="ai-workspace">
+            <form id="aiToolForm" class="ai-tool-sidebar">
+              <label>
+                <span>Herramienta</span>
+                <select name="tool">
+                  <option value="listing">Redactar publicación</option>
+                  <option value="improve">Mejorar descripción</option>
+                  <option value="missing">Detectar datos faltantes</option>
+                  <option value="summary">Resumir solicitud</option>
+                  <option value="next_action">Siguiente mejor acción</option>
+                  <option value="whatsapp">Mensajes de WhatsApp</option>
+                  <option value="campaign">Generar campaña</option>
+                  <option value="price">Analizar precio interno</option>
+                </select>
+              </label>
+              <label>
+                <span>Propiedad</span>
+                <select name="propertyId" id="aiPropertySelect"><option value="">Sin propiedad</option></select>
+              </label>
+              <label>
+                <span>Solicitud</span>
+                <select name="requestId" id="aiRequestSelect"><option value="">Sin solicitud</option></select>
+              </label>
+              <label>
+                <span>Información adicional</span>
+                <textarea name="input" rows="9" placeholder="Pega texto, características o instrucciones"></textarea>
+              </label>
+              <button class="primary-button" type="submit"><i data-lucide="sparkles"></i> Generar borrador</button>
+              <small>El resultado requiere revisión y aprobación humana antes de usarse.</small>
+            </form>
+            <section class="ai-result-panel">
+              <div class="drawer-heading">
+                <div><span class="eyebrow">RESULTADO EDITABLE</span><h3>Asistente interno</h3></div>
+                <button class="ghost-button" type="button" id="copyAiResult">Copiar</button>
+              </div>
+              <textarea id="aiResult" rows="18" placeholder="Aquí aparecerá el resultado generado"></textarea>
+              <div class="form-actions">
+                <button class="primary-button" type="button" id="applyAiResult">Aplicar a descripción</button>
+                <button class="ghost-button" type="button" id="saveAiNote">Guardar como nota</button>
+              </div>
+              <p class="form-message" id="aiToolMessage"></p>
+            </section>
+          </div>
+          <details class="prompt-reference">
+            <summary>Ver biblioteca de prompts base</summary>
+            <div class="admin-prompt-grid" id="adminPromptList"></div>
+          </details>
         </article>
         <article class="panel-card admin-analytics-card" id="adminAnalyticsCard" data-admin-section-panel="analytics">
           <div class="admin-module-heading">
@@ -1125,6 +1403,11 @@
               <h2 data-i18n="analyticsTitle">Analitica comercial</h2>
               <p data-i18n="analyticsHint">Eventos, busquedas, zonas solicitadas y propiedades con mayor actividad.</p>
             </div>
+          </div>
+          <div class="analytics-filters">
+            <label><span>Periodo</span><select id="analyticsPeriod"><option value="30">Últimos 30 días</option><option value="7">Últimos 7 días</option><option value="90">Últimos 90 días</option><option value="all">Todo</option></select></label>
+            <label><span>Zona</span><select id="analyticsZone" data-location-select="zone"><option value="">Todas</option></select></label>
+            <button class="ghost-button" type="button" id="refreshAnalytics"><i data-lucide="refresh-cw"></i> Actualizar</button>
           </div>
           <div class="analytics-grid" id="adminAnalytics"></div>
         </article>
@@ -1153,55 +1436,172 @@
                 <option value="premium">Premium</option>
               </select>
             </label>
+            <label>
+              <span>Responsable</span>
+              <select name="assignedTo" data-staff-select><option value="">Sin asignar</option></select>
+            </label>
+            <label>
+              <span>Relacionado con</span>
+              <select name="relatedEntityType"><option value="">General</option><option value="contact">Contacto</option><option value="property">Propiedad</option><option value="seller_request">Solicitud</option><option value="valuation">Valoración</option></select>
+            </label>
+            <label>
+              <span>ID relacionado</span>
+              <input name="relatedEntityId" />
+            </label>
+            <label class="span-2">
+              <span>Descripción</span>
+              <textarea name="description" rows="2"></textarea>
+            </label>
             <button class="primary-button" type="submit" data-i18n="createTask">Crear tarea</button>
           </form>
           <p class="form-message" id="taskFormMessage"></p>
+          <div class="lead-filter-tabs" id="taskFilters">
+            <button class="active" type="button" data-task-filter="all">Todas</button>
+            <button type="button" data-task-filter="today">Hoy</button>
+            <button type="button" data-task-filter="overdue">Vencidas</button>
+            <button type="button" data-task-filter="week">Esta semana</button>
+            <button type="button" data-task-filter="completed">Completadas</button>
+          </div>
           <div class="wide-data-list" id="adminTasks"></div>
         </article>
         <article class="panel-card admin-marketing-card" id="adminMarketingCard" data-admin-section-panel="marketing">
           <div class="admin-module-heading">
             <div>
-              <h2 data-i18n="marketingTitle">Campanas / Marketing</h2>
-              <p data-i18n="marketingHint">Segmentos listos para contactar compradores, vendedores y propietarios en valoracion.</p>
+              <h2>Campañas / Marketing</h2>
+              <p>Prepara, segmenta, programa, exporta y registra campañas comerciales.</p>
             </div>
           </div>
-          <div class="operation-cards" id="adminMarketing"></div>
+          <div class="marketing-kpis" id="adminMarketing"></div>
+          <div class="module-split">
+            <form id="campaignForm" class="module-form-grid">
+              <h3 class="span-2">Crear campaña</h3>
+              <label><span>Nombre</span><input name="name" required /></label>
+              <label><span>Objetivo</span><select name="objective"><option value="promote_property">Promocionar propiedad</option><option value="buyers_followup">Recontactar compradores</option><option value="sellers_followup">Recontactar vendedores</option><option value="valuation">Enviar valoración</option><option value="zone">Promocionar zona</option><option value="presale">Preventa</option></select></label>
+              <label><span>Segmento</span><select name="segment"><option value="all">Todos los contactos</option><option value="buyers">Compradores</option><option value="sellers">Vendedores</option><option value="premium">Leads premium</option><option value="unanswered">Sin seguimiento reciente</option></select></label>
+              <label><span>Canal</span><select name="channel"><option value="whatsapp">WhatsApp</option><option value="email">Correo</option><option value="social">Redes</option><option value="csv">Exportar CSV</option></select></label>
+              <label><span>Propiedad</span><select name="propertyId" id="campaignPropertySelect"><option value="">Sin propiedad</option></select></label>
+              <label><span>Programar</span><input name="scheduledAt" type="datetime-local" /></label>
+              <label class="span-2"><span>Mensaje</span><textarea name="message" rows="7" required></textarea></label>
+              <div class="form-actions span-2"><button class="primary-button" type="submit">Guardar campaña</button><button class="ghost-button" type="button" id="generateCampaignCopy">Generar texto con IA</button></div>
+              <p class="form-message span-2" id="campaignFormMessage"></p>
+            </form>
+            <section>
+              <h3>Campañas preparadas</h3>
+              <div class="wide-data-list" id="campaignList"></div>
+            </section>
+          </div>
         </article>
         <article class="panel-card admin-pdf-card" id="adminPdfCard" data-admin-section-panel="pdf">
           <div class="admin-module-heading">
             <div>
               <h2 data-i18n="pdfTitle">Fichas PDF</h2>
-              <p data-i18n="pdfHint">Preparacion de fichas comerciales para propiedades y valoraciones.</p>
+              <p>Genera, descarga y conserva fichas comerciales y valoraciones en PDF real.</p>
             </div>
           </div>
-          <div class="operation-cards" id="adminPdfTools"></div>
+          <div class="pdf-workspace">
+            <form id="pdfForm" class="module-form-grid">
+              <label>
+                <span>Tipo de ficha</span>
+                <select name="documentType" id="pdfDocumentType">
+                  <option value="property">Ficha de propiedad</option>
+                  <option value="valuation">Ficha de valoración</option>
+                </select>
+              </label>
+              <label data-pdf-target="property"><span>Propiedad</span><select name="propertyId" id="pdfPropertySelect"></select></label>
+              <label data-pdf-target="valuation" hidden><span>Valoración</span><select name="valuationId" id="pdfValuationSelect"></select></label>
+              <label><span>Moneda</span><select name="currency"><option>USD</option><option>MXN</option></select></label>
+              <label class="checkbox-row"><input name="showPrice" type="checkbox" checked /><span>Mostrar precio</span></label>
+              <label class="checkbox-row"><input name="showAddress" type="checkbox" /><span>Mostrar dirección exacta</span></label>
+              <label class="span-2"><span>Disclaimer</span><textarea name="disclaimer" rows="3">Información sujeta a disponibilidad y cambios sin previo aviso.</textarea></label>
+              <div class="form-actions span-2">
+                <button class="ghost-button" type="button" id="previewPdf">Vista previa</button>
+                <button class="primary-button" type="submit"><i data-lucide="file-down"></i> Generar PDF</button>
+              </div>
+              <p class="form-message span-2" id="pdfFormMessage"></p>
+            </form>
+            <section class="pdf-preview" id="pdfPreview">
+              <span class="eyebrow">VISTA PREVIA</span>
+              <h3>Selecciona una propiedad o valoración</h3>
+              <p>La vista previa mostrará el contenido antes de generar el archivo.</p>
+            </section>
+          </div>
+          <div class="table-heading"><h3>Historial de fichas</h3><span id="pdfHistoryCount"></span></div>
+          <div class="wide-data-list" id="pdfHistory"></div>
         </article>
         <article class="panel-card admin-files-card" id="adminFilesCard" data-admin-section-panel="files">
           <div class="admin-module-heading">
             <div>
               <h2 data-i18n="filesTitle">Archivos</h2>
-              <p data-i18n="filesHint">Documentos, imagenes y respuestas adjuntas quedaran asociados a solicitudes y propiedades.</p>
+              <p>Sube, busca, filtra, descarga y reutiliza imágenes, PDF y documentos.</p>
             </div>
           </div>
-          <div class="operation-cards" id="adminFiles"></div>
+          <form id="mediaUploadForm" class="media-toolbar">
+            <label class="file-field"><span>Seleccionar archivo</span><input name="file" type="file" accept="image/*,application/pdf,text/plain" required /></label>
+            <label><span>Categoría</span><select name="category"><option value="property_image">Imagen de propiedad</option><option value="valuation">Valoración</option><option value="response_attachment">Respuesta adjunta</option><option value="document">Documento</option></select></label>
+            <label><span>Asociar a</span><select name="relatedEntityType"><option value="">Sin asociación</option><option value="property">Propiedad</option><option value="seller_request">Solicitud</option><option value="valuation">Valoración</option><option value="contact">Contacto</option></select></label>
+            <label><span>ID relacionado</span><input name="relatedEntityId" placeholder="Opcional" /></label>
+            <button class="primary-button" type="submit"><i data-lucide="upload"></i> Subir</button>
+          </form>
+          <p class="form-message" id="mediaFormMessage"></p>
+          <div class="library-filters">
+            <input id="mediaSearch" type="search" placeholder="Buscar archivo" />
+            <select id="mediaTypeFilter"><option value="">Todos los tipos</option><option value="image">Imágenes</option><option value="pdf">PDF</option><option value="document">Documentos</option></select>
+          </div>
+          <div class="media-library" id="adminFiles"></div>
         </article>
         <article class="panel-card admin-settings-card" id="adminSettingsCard" data-admin-section-panel="settings">
           <div class="admin-module-heading">
             <div>
-              <h2 data-i18n="settingsTitle">Configuracion</h2>
-              <p data-i18n="settingsHint">Parametros de sitio, WhatsApp, moneda, SEO y avisos.</p>
+              <h2>Configuración</h2>
+              <p>Administra sitio, contacto, moneda, mapas, SEO, formularios, imágenes, PDF e IA.</p>
             </div>
           </div>
-          <div class="operation-cards" id="adminSettings"></div>
+          <div class="settings-tabs">
+            <button class="active" type="button" data-settings-tab="site">Sitio</button>
+            <button type="button" data-settings-tab="maps">Google Maps</button>
+            <button type="button" data-settings-tab="seo">SEO</button>
+            <button type="button" data-settings-tab="forms">Formularios</button>
+            <button type="button" data-settings-tab="pdf">PDF</button>
+            <button type="button" data-settings-tab="ai">IA</button>
+          </div>
+          <form id="settingsForm" class="module-form-grid settings-form">
+            <input type="hidden" name="section" value="site" />
+            <div id="settingsFields" class="settings-fields span-2"></div>
+            <div class="form-actions span-2"><button class="primary-button" type="submit">Guardar configuración</button></div>
+          </form>
+          <p class="form-message" id="settingsFormMessage"></p>
         </article>
         <article class="panel-card admin-roles-card" id="adminRolesCard" data-admin-section-panel="roles">
           <div class="admin-module-heading">
             <div>
               <h2 data-i18n="rolesTitle">Roles / usuarios internos</h2>
-              <p data-i18n="rolesHint">Base para super admin, administrador, asesor y editor.</p>
+              <p>Crea usuarios internos, asigna roles, permisos y controla su acceso.</p>
             </div>
+            <button class="primary-button" type="button" id="toggleUserForm"><i data-lucide="user-plus"></i> Crear usuario</button>
           </div>
-          <div class="operation-cards" id="adminRoles"></div>
+          <form id="internalUserForm" class="module-form-grid" hidden>
+            <input type="hidden" name="id" />
+            <label><span>Nombre</span><input name="name" required /></label>
+            <label><span>Correo</span><input name="email" type="email" required /></label>
+            <label><span>Contraseña temporal</span><input name="password" type="password" minlength="8" /></label>
+            <label><span>Rol</span><select name="role"><option value="super_admin">Super admin</option><option value="administrator">Administrador</option><option value="advisor">Asesor</option><option value="editor">Editor</option><option value="marketing">Marketing</option><option value="viewer">Solo lectura</option></select></label>
+            <label><span>Estado</span><select name="status"><option value="active">Activo</option><option value="inactive">Inactivo</option></select></label>
+            <fieldset class="permission-grid span-2">
+              <legend>Permisos</legend>
+              <label><input type="checkbox" name="permissions" value="requests:view" /> Ver solicitudes</label>
+              <label><input type="checkbox" name="permissions" value="requests:reply" /> Responder solicitudes</label>
+              <label><input type="checkbox" name="permissions" value="properties:write" /> Gestionar publicaciones</label>
+              <label><input type="checkbox" name="permissions" value="crm:view" /> Ver CRM</label>
+              <label><input type="checkbox" name="permissions" value="contacts:export" /> Exportar contactos</label>
+              <label><input type="checkbox" name="permissions" value="analytics:view" /> Ver analítica</label>
+              <label><input type="checkbox" name="permissions" value="catalogs:write" /> Gestionar catálogos</label>
+              <label><input type="checkbox" name="permissions" value="settings:write" /> Gestionar configuración</label>
+              <label><input type="checkbox" name="permissions" value="users:write" /> Gestionar usuarios</label>
+            </fieldset>
+            <div class="form-actions span-2"><button class="primary-button" type="submit">Guardar usuario</button><button class="ghost-button" type="button" id="cancelUserForm">Cancelar</button></div>
+          </form>
+          <p class="form-message" id="internalUserFormMessage"></p>
+          <div class="wide-data-list" id="adminRoles"></div>
         </article>
         <div class="dashboard-grid admin-layout" id="adminOperationsGrid">
           <article class="panel-card admin-requests-card" id="adminRequestsCard" data-admin-section-panel="requests">
@@ -1401,6 +1801,135 @@
       </section>
     </main>
 
+    <div class="modal-backdrop response-modal-backdrop" id="responseModal" hidden>
+      <section class="response-modal" role="dialog" aria-modal="true" aria-labelledby="responseModalTitle">
+        <div class="response-modal-header">
+          <div>
+            <span class="eyebrow">GESTIÓN DE SOLICITUD</span>
+            <h2 id="responseModalTitle">Responder solicitud</h2>
+            <p id="responseModalSubtitle"></p>
+          </div>
+          <button class="modal-close static-close" type="button" id="responseModalClose" aria-label="Cerrar">
+            <i data-lucide="x"></i>
+          </button>
+        </div>
+        <div class="response-modal-body">
+          <aside class="request-context-panel">
+            <div id="responseRequestContext"></div>
+            <h3>Historial</h3>
+            <div class="message-timeline" id="responseMessageHistory"></div>
+          </aside>
+          <form id="responseForm" class="response-form">
+            <input type="hidden" name="requestTable" />
+            <input type="hidden" name="requestId" />
+            <label>
+              <span>Tipo de respuesta</span>
+              <select name="responseType">
+                <option value="message">Mensaje al cliente</option>
+                <option value="missing_data">Pedir más datos</option>
+                <option value="valuation_sent">Enviar valoración</option>
+                <option value="pdf_sent">Enviar ficha PDF</option>
+                <option value="rejected">Rechazar solicitud</option>
+                <option value="converted">Convertir en publicación</option>
+                <option value="contacted">Marcar como contactado</option>
+              </select>
+            </label>
+            <label>
+              <span>Mensaje</span>
+              <textarea name="message" rows="8" required placeholder="Escribe la respuesta que verá el cliente"></textarea>
+            </label>
+            <label>
+              <span>Adjuntar desde archivos o fichas</span>
+              <select name="attachmentId" id="responseAttachmentSelect"><option value="">Sin adjunto</option></select>
+            </label>
+            <div class="form-row">
+              <label>
+                <span>Estado</span>
+                <select name="status">
+                  <option value="contacted">Contactado</option>
+                  <option value="waiting_client">Esperando cliente</option>
+                  <option value="missing_data">Faltan datos</option>
+                  <option value="in_review">En revisión</option>
+                  <option value="valuation_process">En valoración</option>
+                  <option value="valuation_sent">Valoración enviada</option>
+                  <option value="approved">Aprobada</option>
+                  <option value="rejected">Rechazada</option>
+                  <option value="archived">Archivada</option>
+                </select>
+              </label>
+              <label>
+                <span>Prioridad</span>
+                <select name="priority">
+                  <option value="low">Baja</option>
+                  <option value="medium">Media</option>
+                  <option value="high">Alta</option>
+                  <option value="premium">Premium</option>
+                  <option value="urgent">Urgente</option>
+                </select>
+              </label>
+            </div>
+            <label>
+              <span>Asignar asesor</span>
+              <select name="assignedTo" data-staff-select><option value="">Sin asignar</option></select>
+            </label>
+            <label>
+              <span>Próxima acción</span>
+              <input name="nextAction" placeholder="Ej. Pedir escritura y fotos exteriores" />
+            </label>
+            <div class="followup-fields">
+              <label class="checkbox-row"><input name="createTask" type="checkbox" /><span>Crear tarea de seguimiento</span></label>
+              <label><span>Fecha límite</span><input name="dueDate" type="date" /></label>
+            </div>
+            <label class="checkbox-row"><input name="notifyUser" type="checkbox" checked /><span>Notificar al propietario</span></label>
+            <div class="form-actions">
+              <button class="primary-button" type="submit">Guardar y enviar respuesta</button>
+              <button class="ghost-button" type="button" id="cancelResponse">Cancelar</button>
+            </div>
+            <p class="form-message" id="responseFormMessage"></p>
+          </form>
+        </div>
+      </section>
+    </div>
+
+    <div class="modal-backdrop confirm-modal-backdrop" id="confirmModal" hidden>
+      <section class="confirm-modal" role="dialog" aria-modal="true" aria-labelledby="confirmModalTitle">
+        <span class="confirm-icon"><i data-lucide="triangle-alert"></i></span>
+        <h2 id="confirmModalTitle">Confirmar acción</h2>
+        <p id="confirmModalMessage"></p>
+        <div class="form-actions">
+          <button class="danger-button" type="button" id="confirmModalAccept">Confirmar</button>
+          <button class="ghost-button" type="button" id="confirmModalCancel">Cancelar</button>
+        </div>
+      </section>
+    </div>
+
+    <div class="modal-backdrop" id="sellerReplyModal" hidden>
+      <section class="confirm-modal seller-reply-modal" role="dialog" aria-modal="true" aria-labelledby="sellerReplyTitle">
+        <h2 id="sellerReplyTitle">Responder al asesor</h2>
+        <p>Tu mensaje quedará asociado a la solicitud y notificará al equipo administrativo.</p>
+        <form id="sellerReplyForm" class="response-form">
+          <input type="hidden" name="requestTable" />
+          <input type="hidden" name="requestId" />
+          <label><span>Mensaje</span><textarea name="message" rows="6" required></textarea></label>
+          <div class="form-actions">
+            <button class="primary-button" type="submit">Enviar respuesta</button>
+            <button class="ghost-button" type="button" id="cancelSellerReply">Cancelar</button>
+          </div>
+          <p class="form-message" id="sellerReplyMessage"></p>
+        </form>
+      </section>
+    </div>
+
+    <aside class="admin-notification-drawer" id="adminNotificationDrawer" hidden>
+      <div class="drawer-heading">
+        <div><span class="eyebrow">CENTRO DE ALERTAS</span><h2>Notificaciones</h2></div>
+        <button class="icon-button" type="button" id="closeAdminNotifications"><i data-lucide="x"></i></button>
+      </div>
+      <div id="adminNotifications" class="notification-list"></div>
+    </aside>
+
+    <div class="toast-stack" id="toastStack" aria-live="polite"></div>
+
     <div class="modal-backdrop" id="authModal" hidden>
       <section class="auth-modal" role="dialog" aria-modal="true" aria-labelledby="authTitle">
         <button class="modal-close" type="button" id="authClose" aria-label="Close">
@@ -1474,6 +2003,14 @@
           <i data-lucide="x"></i>
         </button>
         <div id="propertyDetailContent"></div>
+      </section>
+    </div>
+
+    <div class="modal-backdrop" id="compareModal" hidden>
+      <section class="property-detail-modal compare-modal" role="dialog" aria-modal="true" aria-labelledby="compareModalTitle">
+        <button class="modal-close" type="button" id="compareModalClose" aria-label="Cerrar"><i data-lucide="x"></i></button>
+        <h2 id="compareModalTitle">Comparar propiedades</h2>
+        <div class="compare-table-wrap" id="compareContent"></div>
       </section>
     </div>
 

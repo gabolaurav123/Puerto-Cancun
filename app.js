@@ -7,6 +7,8 @@ const LOCATION_FIELD_ORDER = ["state", "city", "zone", "neighborhood"];
 const keys = {
   lang: "pcc.lang",
   currency: "pcc.currency",
+  favorites: "pcc.favorites",
+  compare: "pcc.compare",
 };
 
 const fallbackImage =
@@ -165,7 +167,7 @@ const translations = {
     price: "Precio",
     currency: "Moneda",
     address: "Dirección",
-    mapPickerTitle: "Ubicacion en mapa",
+    mapPickerTitle: "Ubicación en mapa",
     mapPickerCopy: "Selecciona o confirma la ubicacion aproximada del inmueble.",
     mapPickerHelp:
       "Si no ves el mapa interactivo, escribe la direccion o pega coordenadas; al guardar quedaran vinculadas a la propiedad.",
@@ -173,7 +175,7 @@ const translations = {
     openGoogleMaps: "Abrir Google Maps",
     latitudeField: "Latitud",
     longitudeField: "Longitud",
-    locationDetected: "Ubicacion detectada. Revisa el mapa antes de guardar.",
+    locationDetected: "Ubicación detectada. Revisa el mapa antes de guardar.",
     locationUnavailable: "No se pudo obtener tu ubicacion. Puedes escribir las coordenadas manualmente.",
     bedrooms: "Recámaras",
     bathrooms: "Baños",
@@ -248,10 +250,10 @@ const translations = {
     adminJumpMap: "Mapa inteligente",
     adminJumpMarketing: "Marketing",
     adminJumpPdf: "Fichas PDF",
-    adminJumpAnalytics: "Analitica",
+    adminJumpAnalytics: "Analítica",
     adminJumpTasks: "Tareas",
     adminJumpFiles: "Archivos",
-    adminJumpSettings: "Configuracion",
+    adminJumpSettings: "Configuración",
     adminJumpRoles: "Roles",
     adminSidebarCollapse: "Contraer menu",
     adminSidebarExpand: "Expandir menu",
@@ -263,12 +265,12 @@ const translations = {
     valuationTitle: "Valoraciones inmobiliarias",
     valuationHint: "Solicitudes y valoraciones manuales para revisar precio esperado, rango sugerido y respuesta profesional.",
     noValuations: "No hay valoraciones pendientes.",
-    createValuation: "Crear valoracion manual",
+    createValuation: "Crear valoración manual",
     suggestedPrice: "Precio sugerido",
     lowRange: "Rango bajo",
     highRange: "Rango alto",
     confidenceLevel: "Confianza",
-    saveValuation: "Guardar valoracion",
+    saveValuation: "Guardar valoración",
     taskTitle: "Tareas / Seguimiento",
     taskHint: "Seguimientos comerciales para leads, contactos, propiedades y valoraciones.",
     noTasks: "No hay tareas registradas.",
@@ -283,15 +285,15 @@ const translations = {
     prepareMessage: "Preparar mensaje",
     smartMapTitle: "Mapa inteligente",
     smartMapHint: "Vista operativa por zonas, inventario y leads registrados.",
-    analyticsTitle: "Analitica comercial",
+    analyticsTitle: "Analítica comercial",
     analyticsHint: "Eventos, busquedas, zonas solicitadas y propiedades con mayor actividad.",
-    marketingTitle: "Campanas / Marketing",
-    marketingHint: "Segmentos listos para contactar compradores, vendedores y propietarios en valoracion.",
+    marketingTitle: "Campañas / Marketing",
+    marketingHint: "Segmentos listos para contactar compradores, vendedores y propietarios en valoración.",
     pdfTitle: "Fichas PDF",
-    pdfHint: "Preparacion de fichas comerciales para propiedades y valoraciones.",
+    pdfHint: "Preparación de fichas comerciales para propiedades y valoraciones.",
     filesTitle: "Archivos",
     filesHint: "Documentos, imagenes y respuestas adjuntas quedaran asociados a solicitudes y propiedades.",
-    settingsTitle: "Configuracion",
+    settingsTitle: "Configuración",
     settingsHint: "Parametros de sitio, WhatsApp, moneda, SEO y avisos.",
     rolesTitle: "Roles / usuarios internos",
     rolesHint: "Base para super admin, administrador, asesor y editor.",
@@ -376,7 +378,7 @@ const translations = {
     catalogZone: "Zona",
     catalogNeighborhood: "Colonia / desarrollo",
     saveCatalog: "Guardar catálogo",
-    newCatalog: "Nuevo catalogo",
+    newCatalog: "Nuevo catálogo",
     editCatalog: "Editar",
     disableCatalog: "Desactivar",
     enableCatalog: "Activar",
@@ -855,11 +857,21 @@ const state = {
   valuations: [],
   tasks: [],
   matches: [],
+  buyers: [],
+  serviceRequests: [],
+  notifications: [],
+  internalUsers: [],
+  files: [],
+  documents: [],
+  campaigns: [],
+  settings: {},
+  messages: [],
   analytics: { eventsByType: [], propertyEvents: [], searchZones: [], leadSources: [] },
   adminPrompts: [],
   locationOptions: [],
   adminSection: "dashboard",
   leadFilter: "all",
+  taskFilter: "all",
   sidebarCollapsed: false,
   config: { googleClientId: "", googleMapsApiKey: "" },
   googleReady: false,
@@ -883,12 +895,24 @@ const state = {
     featured: false,
   },
   detailPropertyId: null,
+  favorites: safeParseStoredIds(keys.favorites),
+  compare: safeParseStoredIds(keys.compare).slice(0, 3),
+  guided: { budget: 0, beds: 0 },
 };
 
 const $ = (selector) => document.querySelector(selector);
 const $$ = (selector) => Array.from(document.querySelectorAll(selector));
 const googleMapInstances = new WeakMap();
 let lastScrollY = 0;
+
+function safeParseStoredIds(key) {
+  try {
+    const value = JSON.parse(localStorage.getItem(key) || "[]");
+    return Array.isArray(value) ? value.filter(Boolean) : [];
+  } catch {
+    return [];
+  }
+}
 
 function t(key) {
   return translations[state.lang][key] || translations.es[key] || key;
@@ -1170,6 +1194,62 @@ async function api(path, options = {}) {
   return data;
 }
 
+function showToast(message, type = "success") {
+  const stack = $("#toastStack");
+  if (!stack) return;
+  const toast = document.createElement("div");
+  toast.className = `app-toast ${type === "error" ? "error" : ""}`;
+  toast.innerHTML = `<i data-lucide="${type === "error" ? "circle-alert" : "circle-check"}"></i><span>${escapeHtml(message)}</span>`;
+  stack.append(toast);
+  refreshIcons();
+  window.setTimeout(() => toast.remove(), 4200);
+}
+
+function setButtonLoading(button, loading, label = "Procesando...") {
+  if (!button) return;
+  if (loading) {
+    button.dataset.originalText = button.textContent;
+    button.disabled = true;
+    button.textContent = label;
+    return;
+  }
+  button.disabled = false;
+  button.textContent = button.dataset.originalText || button.textContent;
+  delete button.dataset.originalText;
+  refreshIcons();
+}
+
+function confirmAction(message, title = "Confirmar acción") {
+  const modal = $("#confirmModal");
+  if (!modal) return Promise.resolve(false);
+  $("#confirmModalTitle").textContent = title;
+  $("#confirmModalMessage").textContent = message;
+  modal.hidden = false;
+  document.body.classList.add("modal-open");
+  return new Promise((resolve) => {
+    const accept = $("#confirmModalAccept");
+    const cancel = $("#confirmModalCancel");
+    const finish = (result) => {
+      modal.hidden = true;
+      document.body.classList.remove("modal-open");
+      accept.onclick = null;
+      cancel.onclick = null;
+      resolve(result);
+    };
+    accept.onclick = () => finish(true);
+    cancel.onclick = () => finish(false);
+  });
+}
+
+function fileToDataUrl(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
 function localizedTitle(property) {
   return state.lang === "en" ? property.titleEn || property.titleEs || property.title : property.titleEs || property.title;
 }
@@ -1268,6 +1348,7 @@ function formatUsd(value) {
 
 function resetFilters() {
   state.filters = { text: "", type: "", zone: "", operation: "", featured: false };
+  state.guided = { budget: 0, beds: 0 };
   const searchInput = $("#searchInput");
   if (searchInput) searchInput.value = "";
   syncFilterControls();
@@ -1366,6 +1447,8 @@ function propertyMatches(property) {
   if (filters.zone && property.zone !== filters.zone) return false;
   if (filters.operation && property.operation !== filters.operation) return false;
   if (filters.featured && !property.featured) return false;
+  if (state.guided.budget && property.priceUsd && Number(property.priceUsd) > Number(state.guided.budget)) return false;
+  if (state.guided.beds && Number(property.beds || 0) < Number(state.guided.beds)) return false;
   if (filters.text) {
     const haystack = [
       localizedTitle(property),
@@ -1438,6 +1521,10 @@ function renderProperties() {
           <div class="property-image">
             <img src="${escapeHtml(primaryImage(property))}" alt="${escapeHtml(localizedTitle(property))}" loading="lazy" onerror="this.onerror=null;this.src='${escapeHtml(fallbackImage)}';" />
             <div class="badge-row">${badgeHtml}</div>
+            <div class="property-save-actions">
+              <button class="${state.favorites.includes(property.id) ? "active" : ""}" type="button" data-favorite="${escapeHtml(property.id)}" title="Guardar favorito" aria-label="Guardar favorito"><i data-lucide="heart"></i></button>
+              <button class="${state.compare.includes(property.id) ? "active" : ""}" type="button" data-compare="${escapeHtml(property.id)}" title="Comparar" aria-label="Comparar"><i data-lucide="git-compare-arrows"></i></button>
+            </div>
           </div>
           <div class="property-body">
             <p class="property-price">${escapeHtml(formatPriceSummary(property))}</p>
@@ -1454,8 +1541,107 @@ function renderProperties() {
       `;
     })
     .join("");
+  renderCompareTray();
   refreshIcons();
   updatePropertyJsonLd();
+}
+
+function toggleFavorite(id) {
+  state.favorites = state.favorites.includes(id)
+    ? state.favorites.filter((item) => item !== id)
+    : [...state.favorites, id];
+  localStorage.setItem(keys.favorites, JSON.stringify(state.favorites));
+  renderProperties();
+  showToast(state.favorites.includes(id) ? "Propiedad guardada en favoritos." : "Propiedad eliminada de favoritos.");
+}
+
+function toggleCompare(id) {
+  if (state.compare.includes(id)) {
+    state.compare = state.compare.filter((item) => item !== id);
+  } else {
+    if (state.compare.length >= 3) {
+      showToast("Puedes comparar hasta tres propiedades.", "error");
+      return;
+    }
+    state.compare.push(id);
+  }
+  localStorage.setItem(keys.compare, JSON.stringify(state.compare));
+  renderProperties();
+}
+
+function renderCompareTray() {
+  const tray = $("#compareTray");
+  if (!tray) return;
+  const properties = state.compare
+    .map((id) => state.properties.find((property) => property.id === id))
+    .filter(Boolean);
+  tray.hidden = properties.length === 0;
+  $("#compareCount").textContent = `${properties.length} ${properties.length === 1 ? "propiedad" : "propiedades"}`;
+  $("#compareItems").innerHTML = properties
+    .map(
+      (property) => `
+        <button type="button" data-compare="${escapeHtml(property.id)}" title="Quitar">
+          <img src="${escapeHtml(primaryImage(property))}" alt="" />
+          <span>${escapeHtml(property.titleEs)}</span>
+          <i data-lucide="x"></i>
+        </button>
+      `
+    )
+    .join("");
+}
+
+function openCompareModal() {
+  const properties = state.compare
+    .map((id) => state.properties.find((property) => property.id === id))
+    .filter(Boolean);
+  if (properties.length < 2) {
+    showToast("Selecciona al menos dos propiedades para comparar.", "error");
+    return;
+  }
+  const rows = [
+    ["Precio", (property) => formatPriceSummary(property)],
+    ["Zona", (property) => displayLocation(property)],
+    ["Tipo", (property) => property.type],
+    ["Operación", (property) => (property.operation === "rent" ? "Renta" : "Venta")],
+    ["Recámaras", (property) => property.beds || 0],
+    ["Baños", (property) => property.baths || 0],
+    ["Construcción", (property) => `${property.area || 0} m²`],
+    ["MLS", (property) => property.mls || "-"],
+  ];
+  $("#compareContent").innerHTML = `
+    <table class="data-table compare-table">
+      <thead><tr><th>Característica</th>${properties.map((property) => `<th><img src="${escapeHtml(primaryImage(property))}" alt="" /><strong>${escapeHtml(property.titleEs)}</strong></th>`).join("")}</tr></thead>
+      <tbody>${rows.map(([label, value]) => `<tr><th>${escapeHtml(label)}</th>${properties.map((property) => `<td>${escapeHtml(value(property))}</td>`).join("")}</tr>`).join("")}</tbody>
+    </table>
+  `;
+  $("#compareModal").hidden = false;
+  document.body.classList.add("modal-open");
+}
+
+function guidedSearchSubmit(event) {
+  event.preventDefault();
+  const form = event.currentTarget;
+  state.filters.operation = form.operation.value;
+  state.filters.zone = form.zone.value;
+  state.filters.type = form.type.value;
+  state.guided.budget = Number(form.budget.value || 0);
+  state.guided.beds = Number(form.beds.value || 0);
+  renderProperties();
+  void api("/api/leads", {
+    method: "POST",
+    body: {
+      leadType: "busqueda-guiada-comprador",
+      name: "Búsqueda guiada",
+      operation: form.operation.value,
+      zone: form.zone.value,
+      propertyType: form.type.value,
+      budget: form.budget.value,
+      bedrooms: form.beds.value,
+      objective: form.objective.value,
+      sourcePath: window.location.pathname,
+    },
+  }).catch(() => null);
+  $("#propertyGrid").scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
 function propertySchemaType(property) {
@@ -1577,7 +1763,223 @@ function renderSellerRequests() {
     list.innerHTML = `<p class="empty-state">${escapeHtml(t("noRequests"))}</p>`;
     return;
   }
-  list.innerHTML = state.requests.map(renderRequestItem).join("");
+  list.innerHTML = state.requests
+    .map((request) => {
+      const messages = state.messages.filter(
+        (message) => message.request_table === "seller_request" && message.request_id === request.id
+      );
+      const files = Array.isArray(request.responseFiles) ? request.responseFiles : [];
+      return `
+        <article class="seller-request-entry">
+          ${renderRequestItem(request)}
+          <div class="seller-request-next">
+            <strong>Próximo paso:</strong> ${escapeHtml(request.nextAction || (request.status === "missing_data" ? "Completar los datos solicitados" : "Esperar revisión del asesor"))}
+          </div>
+          ${
+            messages.length
+              ? `<div class="message-timeline">${messages
+                  .map(
+                    (message) => `
+                      <article class="timeline-message ${escapeHtml(message.sender_type)}">
+                        <small>${escapeHtml(message.sender_name || message.sender_type)} · ${escapeHtml(formatDate(message.created_at))}</small>
+                        <p>${escapeHtml(message.message)}</p>
+                      </article>
+                    `
+                  )
+                  .join("")}</div>`
+              : ""
+          }
+          <div class="item-actions">
+            <button class="mini-button" type="button" data-seller-reply="${escapeHtml(request.id)}" data-request-table="seller_request">Responder al asesor</button>
+            ${files
+              .map((file, index) => {
+                const value = String(file);
+                return value.startsWith("document:")
+                  ? `<a class="mini-button" href="/api/seller/documents/${encodeURIComponent(value.slice(9))}/download">Descargar PDF ${index + 1}</a>`
+                  : `<span class="status">Adjunto ${index + 1}: ${escapeHtml(value)}</span>`;
+              })
+              .join("")}
+          </div>
+        </article>
+      `;
+    })
+    .join("");
+}
+
+function renderSellerServiceRequests() {
+  const list = $("#sellerServiceRequests");
+  if (!list) return;
+  const requests = Array.isArray(state.serviceRequests) ? state.serviceRequests : [];
+  if (!requests.length) {
+    list.innerHTML = "";
+    return;
+  }
+  list.innerHTML = `
+    <div class="table-heading"><h3>Valoraciones y validaciones</h3><span>${requests.length}</span></div>
+    ${requests
+      .map((request) => {
+        const messages = state.messages.filter(
+          (message) => message.request_table === "lead_request" && message.request_id === request.id
+        );
+        const response = request.lastResponse
+          ? `<p class="request-response"><strong>Respuesta del asesor:</strong> ${escapeHtml(request.lastResponse)}</p>`
+          : `<p class="empty-state compact">Aún no hay respuesta. El equipo la tiene en revisión.</p>`;
+        return `
+          <article class="wide-row">
+            <div class="wide-row-main">
+              <span class="status ${escapeHtml(request.status || "new")}">${escapeHtml(leadStatusLabel(request.status))}</span>
+              <h3>${escapeHtml(leadTypeLabel(request.leadType))}</h3>
+              <p>${escapeHtml(request.payload?.zone || "-")} · ${escapeHtml(request.payload?.propertyType || "-")} · ${escapeHtml(formatDate(request.createdAt))}</p>
+            </div>
+            ${response}
+            ${
+              messages.length
+                ? `<div class="message-timeline">${messages
+                    .map(
+                      (message) => `
+                        <article class="timeline-message ${escapeHtml(message.sender_type)}">
+                          <small>${escapeHtml(message.sender_name || message.sender_type)} · ${escapeHtml(formatDate(message.created_at))}</small>
+                          <p>${escapeHtml(message.message)}</p>
+                          ${(message.attachments || [])
+                            .map((attachment) =>
+                              String(attachment).startsWith("document:")
+                                ? `<a class="mini-button" href="/api/seller/documents/${encodeURIComponent(String(attachment).slice(9))}/download">Descargar PDF</a>`
+                                : ""
+                            )
+                            .join("")}
+                        </article>
+                      `
+                    )
+                    .join("")}</div>`
+                : ""
+            }
+            <div class="item-actions">
+              <button class="mini-button" type="button" data-seller-reply="${escapeHtml(request.id)}" data-request-table="lead_request">Responder al asesor</button>
+            </div>
+          </article>
+        `;
+      })
+      .join("")}
+  `;
+}
+
+function renderSellerNotifications() {
+  const list = $("#sellerNotifications");
+  const button = $("#sellerNotificationButton");
+  if (!list || !button) return;
+  const notifications = state.notifications || [];
+  const unread = notifications.filter((notification) => !notification.is_read && !notification.isRead).length;
+  $("#sellerNotificationCount").textContent = String(unread);
+  $("#sellerNotificationCount").hidden = unread === 0;
+  list.innerHTML = notifications.length
+    ? notifications
+        .map(
+          (notification) => `
+            <button class="notification-item ${notification.is_read || notification.isRead ? "" : "unread"}" type="button" data-read-seller-notification="${escapeHtml(notification.id)}">
+              <i data-lucide="bell-ring"></i>
+              <span>
+                <h3>${escapeHtml(notification.title || "Actualización")}</h3>
+                <p>${escapeHtml(notification.message || "")}</p>
+                <time>${escapeHtml(formatDate(notification.created_at || notification.createdAt))}</time>
+              </span>
+            </button>
+          `
+        )
+        .join("")
+    : `<p class="empty-state">No tienes notificaciones nuevas.</p>`;
+}
+
+function openSellerFlow(flow) {
+  if (flow === "sale") {
+    $("#sellerServiceCard").hidden = true;
+    $("#sellerSaleWorkspace").scrollIntoView({ behavior: "smooth", block: "start" });
+    return;
+  }
+  const form = $("#sellerServiceForm");
+  const card = $("#sellerServiceCard");
+  if (!form || !card) return;
+  form.reset();
+  form.flow.value = flow;
+  const aiField = form.querySelector('[data-service-field="aiResponse"]');
+  const priceField = form.querySelector('[data-service-field="expectedPrice"]');
+  aiField.hidden = flow !== "ai_validation";
+  priceField.hidden = flow === "ai_validation";
+  const config = {
+    valuation: ["Solicitar valoración", "Comparte los datos principales para que un asesor prepare un rango y próximos pasos.", "Precio esperado"],
+    price_validation: ["Validar precio con asesor", "Revisaremos si tu precio parece bajo, competitivo o alto frente al inventario interno.", "Precio que quieres validar"],
+    ai_validation: ["Validar respuesta de IA", "Pega la respuesta externa. Un asesor revisará qué está bien, qué falta y qué debe validarse localmente.", ""],
+  }[flow];
+  $("#sellerServiceTitle").textContent = config[0];
+  $("#sellerServiceHint").textContent = config[1];
+  $("#sellerServicePriceLabel").textContent = config[2];
+  card.hidden = false;
+  refreshLocationSelects();
+  card.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+async function sellerServiceSubmit(event) {
+  event.preventDefault();
+  const form = event.currentTarget;
+  const button = form.querySelector('[type="submit"]');
+  setButtonLoading(button, true, "Enviando...");
+  try {
+    const body = Object.fromEntries(new FormData(form).entries());
+    await api("/api/seller/service-requests", { method: "POST", body });
+    form.reset();
+    $("#sellerServiceCard").hidden = true;
+    await renderPanel();
+    showToast("Solicitud enviada al equipo de asesores.");
+  } catch (error) {
+    setFormMessage($("#sellerServiceMessage"), error.message, true);
+    showToast(error.message, "error");
+  } finally {
+    setButtonLoading(button, false);
+  }
+}
+
+async function readSellerNotification(id) {
+  await api(`/api/seller/notifications/${encodeURIComponent(id)}/read`, { method: "PATCH" });
+  const notification = state.notifications.find((item) => item.id === id);
+  if (notification) notification.is_read = true;
+  renderSellerNotifications();
+}
+
+function sellerReplyToAdvisor(requestTable, requestId) {
+  const form = $("#sellerReplyForm");
+  form.reset();
+  form.requestTable.value = requestTable;
+  form.requestId.value = requestId;
+  $("#sellerReplyModal").hidden = false;
+  document.body.classList.add("modal-open");
+}
+
+function closeSellerReply() {
+  $("#sellerReplyModal").hidden = true;
+  document.body.classList.remove("modal-open");
+}
+
+async function sellerReplySubmit(event) {
+  event.preventDefault();
+  const form = event.currentTarget;
+  const button = form.querySelector('[type="submit"]');
+  setButtonLoading(button, true, "Enviando...");
+  try {
+    await api("/api/seller/messages", {
+      method: "POST",
+      body: {
+        requestTable: form.requestTable.value,
+        requestId: form.requestId.value,
+        message: form.message.value.trim(),
+      },
+    });
+    closeSellerReply();
+    await renderPanel();
+    showToast("Respuesta enviada al asesor.");
+  } catch (error) {
+    setFormMessage($("#sellerReplyMessage"), error.message, true);
+  } finally {
+    setButtonLoading(button, false);
+  }
 }
 
 function renderAdminRequests() {
@@ -1752,6 +2154,12 @@ function renderAdminLeads() {
   $$("[data-lead-filter]").forEach((button) => {
     button.classList.toggle("active", button.dataset.leadFilter === state.leadFilter);
   });
+  $$("[data-task-filter]").forEach((button) => {
+    button.addEventListener("click", () => {
+      state.taskFilter = button.dataset.taskFilter;
+      renderAdminTasks();
+    });
+  });
   const summary = $("#adminLeadSummary");
   const newCount = state.leads.filter((lead) => lead.status === "new").length;
   const leads =
@@ -1824,13 +2232,21 @@ function renderAdminLeads() {
 function renderAdminContacts() {
   const list = $("#adminContacts");
   if (!list) return;
+  const search = ($("#contactSearch")?.value || "").trim().toLowerCase();
+  const typeFilter = $("#contactTypeFilter")?.value || "";
+  const contacts = state.contacts.filter((contact) => {
+    const matchesSearch =
+      !search || `${contact.name} ${contact.email} ${contact.phone}`.toLowerCase().includes(search);
+    const matchesType = !typeFilter || contact.contactType === typeFilter;
+    return matchesSearch && matchesType;
+  });
   const summary = $("#adminContactSummary");
-  if (summary) summary.textContent = `${state.contacts.length} ${t("crmSummary")}`;
-  if (!state.contacts.length) {
-    list.innerHTML = `<p class="empty-state">${escapeHtml(t("noContacts"))}</p>`;
+  if (summary) summary.textContent = `${contacts.length} de ${state.contacts.length} contactos`;
+  if (!contacts.length) {
+    list.innerHTML = `<p class="empty-state">Aquí aparecerán los contactos generados desde formularios, solicitudes de venta, valoraciones, compradores interesados y WhatsApp.</p>`;
     return;
   }
-  list.innerHTML = state.contacts
+  list.innerHTML = contacts
     .map((contact) => {
       const zones = Array.isArray(contact.preferredZones) ? contact.preferredZones.join(", ") : "";
       const phoneUrl = leadPhoneForWhatsApp(contact.phone)
@@ -1874,6 +2290,10 @@ function renderStats() {
     [state.stats.pendingTasks || 0, t("adminJumpTasks")],
     [state.stats.contacts || 0, t("crmTitle")],
     [state.stats.searches, t("statSearches")],
+    [state.stats.propertiesWithoutCover || 0, "Sin portada"],
+    [state.stats.averageResponseHours ? `${state.stats.averageResponseHours} h` : "N/D", "Respuesta promedio"],
+    [state.stats.generatedDocuments || 0, "Fichas PDF"],
+    [state.stats.whatsappClicks || 0, "Clicks WhatsApp"],
   ];
   $("#statsGrid").innerHTML = stats
     .map(([value, label]) => `<article class="stat-card"><strong>${value}</strong><span>${escapeHtml(label)}</span></article>`)
@@ -1994,7 +2414,7 @@ function renderLocationCatalogs() {
                   .map(
                     (option) => `
                       <div class="catalog-entry">
-                        <span>${escapeHtml(option.name)} ${option.isActive ? "" : "· off"}</span>
+                        <span>${escapeHtml(option.name)} · ${escapeHtml(option.propertyCount || 0)} propiedades ${option.isActive ? "" : "· inactivo"}</span>
                         <div class="catalog-actions">
                           <button class="text-button" type="button" data-edit-location="${escapeHtml(option.id)}">${escapeHtml(t("editCatalog"))}</button>
                           <button class="text-button" type="button" data-toggle-location="${escapeHtml(option.id)}">${escapeHtml(option.isActive ? t("disableCatalog") : t("enableCatalog"))}</button>
@@ -2169,7 +2589,11 @@ function renderAdminListings() {
               <button class="mini-button" type="button" data-status-listing="${escapeHtml(property.id)}" data-status-value="active">${escapeHtml(t("markActive"))}</button>
               <button class="mini-button" type="button" data-status-listing="${escapeHtml(property.id)}" data-status-value="disabled">${escapeHtml(t("markDisabled"))}</button>
               <button class="mini-button" type="button" data-status-listing="${escapeHtml(property.id)}" data-status-value="sold">${escapeHtml(t("markSold"))}</button>
-              <button class="mini-button" type="button" data-delete-listing="${escapeHtml(property.id)}">${escapeHtml(t("delete"))}</button>
+              <button class="mini-button" type="button" data-feature-listing="${escapeHtml(property.id)}" data-feature-value="${property.featured ? "false" : "true"}">${property.featured ? "Quitar destacada" : "Destacar"}</button>
+              <button class="mini-button" type="button" data-duplicate-listing="${escapeHtml(property.id)}">Duplicar</button>
+              <button class="mini-button" type="button" data-pdf-property="${escapeHtml(property.id)}">Ficha PDF</button>
+              <button class="mini-button" type="button" data-detail="${escapeHtml(property.id)}">Ver detalle público</button>
+              <button class="mini-button danger" type="button" data-delete-listing="${escapeHtml(property.id)}">${escapeHtml(t("delete"))}</button>
             </div>
           </div>
         </div>
@@ -2240,6 +2664,8 @@ function renderAdminValuations() {
             ${valuation.phone ? `<a class="mini-button primary" href="https://wa.me/${leadPhoneForWhatsApp(valuation.phone)}" target="_blank" rel="noopener noreferrer">${escapeHtml(t("respondWhatsApp"))}</a>` : ""}
             ${valuation.email ? `<a class="mini-button" href="mailto:${escapeHtml(valuation.email)}">${escapeHtml(t("respondEmail"))}</a>` : ""}
             <button class="mini-button" type="button" data-task-from="valuation" data-task-title="${escapeHtml(`Seguimiento valoracion ${valuation.ownerName || ""}`)}" data-related-id="${escapeHtml(valuation.requestId || valuation.id)}">${escapeHtml(t("createTask"))}</button>
+            ${!String(valuation.id).startsWith("lead-") ? `<button class="mini-button" type="button" data-pdf-valuation="${escapeHtml(valuation.id)}">Generar PDF</button>` : ""}
+            ${valuation.requestId ? `<button class="mini-button" type="button" data-respond-lead="${escapeHtml(valuation.requestId)}">Responder</button>` : ""}
           </div>
         </article>
       `;
@@ -2262,7 +2688,11 @@ async function valuationSubmit(event) {
         propertyType: form.propertyType.value.trim(),
         expectedPrice: form.expectedPrice.value,
         suggestedPrice: form.suggestedPrice.value,
-        status: "in_review",
+        lowRange: form.lowRange.value,
+        highRange: form.highRange.value,
+        confidenceLevel: form.confidenceLevel.value,
+        comments: form.comments.value.trim(),
+        status: form.status.value,
       },
     });
     form.reset();
@@ -2276,11 +2706,23 @@ async function valuationSubmit(event) {
 function renderAdminTasks() {
   const list = $("#adminTasks");
   if (!list) return;
-  if (!state.tasks.length) {
+  const now = new Date();
+  const week = new Date(now);
+  week.setDate(now.getDate() + 7);
+  const tasks = state.tasks.filter((task) => {
+    const due = task.dueDate ? new Date(task.dueDate) : null;
+    if (state.taskFilter === "completed") return task.status === "completed";
+    if (state.taskFilter === "overdue") return due && due < now && task.status !== "completed";
+    if (state.taskFilter === "today") return due && due.toDateString() === now.toDateString();
+    if (state.taskFilter === "week") return due && due >= now && due <= week && task.status !== "completed";
+    return true;
+  });
+  $$("[data-task-filter]").forEach((button) => button.classList.toggle("active", button.dataset.taskFilter === state.taskFilter));
+  if (!tasks.length) {
     list.innerHTML = `<p class="empty-state">${escapeHtml(t("noTasks"))}</p>`;
     return;
   }
-  list.innerHTML = state.tasks
+  list.innerHTML = tasks
     .map(
       (task) => `
         <article class="wide-row task-row">
@@ -2311,8 +2753,12 @@ async function taskSubmit(event) {
       method: "POST",
       body: {
         title: form.title.value.trim(),
+        description: form.description.value.trim(),
         dueDate: form.dueDate.value,
         priority: form.priority.value,
+        assignedTo: form.assignedTo.value,
+        relatedEntityType: form.relatedEntityType.value,
+        relatedEntityId: form.relatedEntityId.value.trim(),
         status: "pending",
       },
     });
@@ -2379,6 +2825,11 @@ function renderAdminAnalytics() {
     [t("adminTopZones"), state.analytics.searchZones || [], "zone"],
     [t("tableSource"), state.analytics.leadSources || [], "source"],
     [t("adminJumpListings"), state.analytics.propertyEvents || [], "title_es"],
+    ["Propiedades por estado", state.analytics.propertyStatus || [], "status"],
+    ["Inventario por zona", state.analytics.zoneInventory || [], "zone"],
+    ["Tareas por estado", state.analytics.taskStatus || [], "status"],
+    ["Campañas por estado", state.analytics.campaignStatus || [], "status"],
+    ["Solicitudes por tipo", state.analytics.leadTypes || [], "lead_type"],
   ];
   container.innerHTML = blocks
     .map(
@@ -2400,7 +2851,12 @@ function renderAdminAnalytics() {
 
 function renderAdminMap() {
   const list = $("#adminMapSummary");
-  if (!list) return;
+  const propertyList = $("#adminMapPropertyList");
+  if (!list || !propertyList) return;
+  const selectedZone = $("#smartMapZone")?.value || "";
+  const selectedStatus = $("#smartMapStatus")?.value || "";
+  const selectedType = $("#smartMapType")?.value || "";
+  const layer = $("#smartMapLayer")?.value || "properties";
   const zones = Object.entries(countBy(state.properties, "zone"))
     .sort((a, b) => b[1] - a[1])
     .map(([zone, inventory]) => {
@@ -2421,15 +2877,128 @@ function renderAdminMap() {
         )
         .join("")
     : `<p class="empty-state">${escapeHtml(t("listingsEmpty"))}</p>`;
+  const properties = state.properties.filter(
+    (property) =>
+      (!selectedZone || property.zone === selectedZone) &&
+      (!selectedStatus || property.status === selectedStatus) &&
+      (!selectedType || property.type === selectedType)
+  );
+  if (layer === "properties") {
+    propertyList.innerHTML = properties.length
+      ? properties
+          .slice(0, 30)
+          .map(
+            (property) => `
+              <button class="wide-row compact-row map-result-button" type="button" data-map-property="${escapeHtml(property.id)}">
+                <div class="wide-row-main">
+                  <h3>${escapeHtml(property.titleEs)}</h3>
+                  <p>${escapeHtml(displayLocation(property))} · ${escapeHtml(formatPriceSummary(property))}</p>
+                </div>
+                <span class="status ${escapeHtml(property.status)}">${escapeHtml(property.status)}</span>
+              </button>
+            `
+          )
+          .join("")
+      : `<p class="empty-state">No hay propiedades con estos filtros.</p>`;
+  } else {
+    const records =
+      layer === "valuations"
+        ? state.valuations.filter((item) => !selectedZone || item.zone === selectedZone)
+        : state.leads.filter((item) => !selectedZone || item.payload?.zone === selectedZone);
+    propertyList.innerHTML = records.length
+      ? records
+          .slice(0, 30)
+          .map(
+            (item) => `
+              <article class="wide-row compact-row">
+                <div class="wide-row-main"><h3>${escapeHtml(item.ownerName || item.name || "Contacto")}</h3><p>${escapeHtml(item.zone || item.payload?.zone || "Sin zona")} · ${escapeHtml(item.propertyType || item.payload?.propertyType || "")}</p></div>
+              </article>
+            `
+          )
+          .join("")
+      : `<p class="empty-state">No hay registros para esta capa.</p>`;
+  }
+}
+
+function focusMapProperty(id) {
+  const property = state.properties.find((item) => item.id === id);
+  if (!property) return;
+  const query = property.latitude && property.longitude ? `${property.latitude},${property.longitude}` : displayLocation(property);
+  $("#adminMapFrame").src = `https://www.google.com/maps?q=${encodeURIComponent(query || "Cancun, Quintana Roo")}&output=embed`;
 }
 
 function renderAdminSegments() {
   const buyers = $("#adminBuyers");
   const sellers = $("#adminSellers");
-  const buyerContacts = state.contacts.filter((contact) => contact.contactType === "buyer");
   const sellerContacts = state.contacts.filter((contact) => contact.contactType === "seller");
-  if (buyers) buyers.innerHTML = renderContactSegment(buyerContacts, t("buyerPanelTitle"));
-  if (sellers) sellers.innerHTML = renderContactSegment(sellerContacts, t("sellerOpsTitle"));
+  if (buyers) {
+    buyers.innerHTML = state.buyers.length
+      ? state.buyers
+          .map((buyer) => {
+            const compatible = state.matches.filter((match) => match.contactId === buyer.contactId);
+            const best = compatible[0];
+            return `
+              <article class="wide-row">
+                <div class="wide-row-main">
+                  <span class="status score-${escapeHtml(buyer.leadScore || "warm")}">${escapeHtml(scoreLabel(buyer.leadScore))}</span>
+                  <h3>${escapeHtml(buyer.contactName)}</h3>
+                  <p>${escapeHtml(buyer.phone || buyer.email || "-")} · ${escapeHtml((buyer.preferredZones || []).join(", ") || "Sin zona")}</p>
+                </div>
+                <div class="wide-row-metrics">
+                  <div><span>Presupuesto</span><strong>${escapeHtml(formatMaybePrice(buyer.budgetMax))}</strong></div>
+                  <div><span>Operación</span><strong>${escapeHtml(buyer.operation === "rent" ? "Renta" : "Compra")}</strong></div>
+                  <div><span>Urgencia</span><strong>${escapeHtml(buyer.urgency || "media")}</strong></div>
+                  <div><span>Radar</span><strong>${escapeHtml(best ? `${best.score}%` : "Sin match")}</strong></div>
+                </div>
+                ${best ? `<p><strong>Mejor coincidencia:</strong> ${escapeHtml(best.propertyTitle)}. ${escapeHtml(best.reason)}</p>` : `<p>Completa zona, tipo y presupuesto para generar coincidencias.</p>`}
+                <div class="item-actions">
+                  ${buyer.phone ? `<a class="mini-button primary" href="https://wa.me/${leadPhoneForWhatsApp(buyer.phone)}" target="_blank" rel="noopener">Preparar WhatsApp</a>` : ""}
+                  <button class="mini-button" type="button" data-task-from="buyer" data-task-title="${escapeHtml(`Seguimiento comprador ${buyer.contactName}`)}" data-related-id="${escapeHtml(buyer.contactId)}">Crear tarea</button>
+                  <button class="mini-button" type="button" data-admin-section-link="matches">Ver radar</button>
+                </div>
+              </article>
+            `;
+          })
+          .join("")
+      : `<p class="empty-state">Crea un perfil comprador para registrar presupuesto, zonas, objetivo y generar su radar de propiedades.</p>`;
+  }
+  if (sellers) {
+    sellers.innerHTML = sellerContacts.length
+      ? sellerContacts
+          .map((contact) => {
+            const requests = state.requests.filter((request) => request.email === contact.email || request.phone === contact.phone);
+            const valuations = state.valuations.filter((valuation) => valuation.contactId === contact.id);
+            const bestRequest = requests[0];
+            let readiness = 20;
+            if (bestRequest?.price) readiness += 15;
+            if (bestRequest?.zone) readiness += 15;
+            if ((bestRequest?.images || []).length >= 5) readiness += 20;
+            if (bestRequest?.description?.length > 120) readiness += 15;
+            if (bestRequest?.latitude) readiness += 15;
+            const readinessLabel = readiness >= 80 ? "Lista para publicar" : readiness >= 50 ? "Necesita datos" : valuations.length ? "Necesita completar expediente" : "Necesita valoración";
+            return `
+              <article class="wide-row">
+                <div class="wide-row-main">
+                  <span class="status score-${escapeHtml(contact.leadScore || "warm")}">${escapeHtml(scoreLabel(contact.leadScore))}</span>
+                  <h3>${escapeHtml(contact.name)}</h3>
+                  <p>${escapeHtml(contact.phone || contact.email || "-")} · ${requests.length} solicitudes · ${valuations.length} valoraciones</p>
+                </div>
+                <div class="wide-row-metrics">
+                  <div><span>Preparación</span><strong>${readiness}%</strong></div>
+                  <div><span>Resultado</span><strong>${escapeHtml(readinessLabel)}</strong></div>
+                  <div><span>Responsable</span><strong>${escapeHtml(contact.assignedTo || "Sin asignar")}</strong></div>
+                </div>
+                <div class="item-actions">
+                  ${contact.phone ? `<a class="mini-button primary" href="https://wa.me/${leadPhoneForWhatsApp(contact.phone)}" target="_blank" rel="noopener">Pedir datos</a>` : ""}
+                  <button class="mini-button" type="button" data-task-from="seller" data-task-title="${escapeHtml(`Seguimiento propietario ${contact.name}`)}" data-related-id="${escapeHtml(contact.id)}">Crear seguimiento</button>
+                  ${bestRequest ? `<button class="mini-button" type="button" data-respond-request="${escapeHtml(bestRequest.id)}">Abrir solicitud</button>` : ""}
+                </div>
+              </article>
+            `;
+          })
+          .join("")
+      : `<p class="empty-state">Aquí aparecerán propietarios captados desde solicitudes de venta, valoraciones y registros manuales del CRM.</p>`;
+  }
 }
 
 function renderContactSegment(contacts, emptyLabel) {
@@ -2458,46 +3027,568 @@ function operationCard(title, value, copy) {
 }
 
 function renderOperationalModules() {
-  const marketing = $("#adminMarketing");
-  const pdf = $("#adminPdfTools");
-  const files = $("#adminFiles");
-  const settings = $("#adminSettings");
-  const roles = $("#adminRoles");
-  if (marketing) {
-    marketing.innerHTML = [
-      operationCard("Leads premium", state.stats.premiumLeads || 0, "Segmento para seguimiento comercial prioritario."),
-      operationCard("Compradores", state.stats.buyerLeads || 0, "Enviar propiedades compatibles por WhatsApp o correo."),
-      operationCard("Vendedores", state.stats.sellerLeads || 0, "Recontactar propietarios y solicitudes de valoracion."),
+  renderMarketing();
+  renderDocuments();
+  renderMediaLibrary();
+  renderInternalUsers();
+  renderAdminNotifications();
+  populateOperationalSelects();
+}
+
+function populateSelect(select, items, label, value = "id", emptyLabel = "Seleccionar") {
+  if (!select) return;
+  const current = select.value;
+  select.innerHTML = `<option value="">${escapeHtml(emptyLabel)}</option>`;
+  items.forEach((item) => select.append(new Option(label(item), item[value])));
+  if (current && Array.from(select.options).some((option) => option.value === current)) select.value = current;
+}
+
+function populateOperationalSelects() {
+  populateSelect($("#aiPropertySelect"), state.properties, (item) => item.titleEs, "id", "Sin propiedad");
+  populateSelect($("#campaignPropertySelect"), state.properties, (item) => item.titleEs, "id", "Sin propiedad");
+  populateSelect($("#pdfPropertySelect"), state.properties, (item) => item.titleEs, "id", "Selecciona una propiedad");
+  populateSelect($("#pdfValuationSelect"), state.valuations, (item) => `${item.ownerName} · ${item.zone || "Sin zona"}`, "id", "Selecciona una valoración");
+  populateSelect($("#aiRequestSelect"), state.leads, (item) => `${item.name} · ${leadTypeLabel(item.leadType)}`, "id", "Sin solicitud");
+  $$("[data-staff-select]").forEach((select) => {
+    const current = select.value;
+    select.innerHTML = `<option value="">Sin asignar</option>`;
+    state.internalUsers
+      .filter((user) => user.status === "active")
+      .forEach((user) => select.append(new Option(`${user.name} · ${user.role}`, user.id)));
+    if (current) select.value = current;
+  });
+}
+
+function renderMarketing() {
+  const kpis = $("#adminMarketing");
+  const list = $("#campaignList");
+  if (kpis) {
+    kpis.innerHTML = [
+      operationCard("Leads premium", state.stats.premiumLeads || 0, "Prioridad comercial"),
+      operationCard("Compradores activos", state.buyers.filter((buyer) => buyer.status === "active").length, "Con perfil y presupuesto"),
+      operationCard("Campañas preparadas", state.campaigns.filter((campaign) => campaign.status !== "sent").length, "Borradores y programadas"),
+      operationCard("Campañas enviadas", state.campaigns.filter((campaign) => campaign.status === "sent").length, "Registro de seguimiento"),
     ].join("");
   }
-  if (pdf) {
-    pdf.innerHTML = [
-      operationCard(t("adminJumpListings"), state.properties.length, "Generar ficha comercial desde cada publicacion."),
-      operationCard(t("valuationTitle"), state.valuations.length, "Preparar ficha de valoracion para propietarios."),
-      operationCard("Pendiente", "PDF", "La estructura queda lista para conectar generacion real."),
-    ].join("");
+  if (!list) return;
+  list.innerHTML = state.campaigns.length
+    ? state.campaigns
+        .map(
+          (campaign) => `
+            <article class="wide-row compact-row">
+              <div class="wide-row-main">
+                <span class="status ${escapeHtml(campaign.status)}">${escapeHtml(campaign.status)}</span>
+                <h3>${escapeHtml(campaign.name)}</h3>
+                <p>${escapeHtml(campaign.segment)} · ${escapeHtml(campaign.channel)} · ${escapeHtml(campaign.scheduledAt ? formatDate(campaign.scheduledAt) : "Sin programar")}</p>
+              </div>
+              <p>${escapeHtml(truncateText(campaign.message, 180))}</p>
+              <div class="item-actions">
+                <a class="mini-button" href="/api/admin/campaigns/${encodeURIComponent(campaign.id)}/export">Exportar CSV</a>
+                ${campaign.status !== "sent" ? `<button class="mini-button primary" type="button" data-campaign-sent="${escapeHtml(campaign.id)}">Marcar enviada</button>` : ""}
+                <button class="mini-button danger" type="button" data-delete-campaign="${escapeHtml(campaign.id)}">Eliminar</button>
+              </div>
+            </article>
+          `
+        )
+        .join("")
+    : `<p class="empty-state">No hay campañas. Crea una para preparar mensajes y segmentar contactos sin simular envíos masivos.</p>`;
+}
+
+function renderDocuments() {
+  const list = $("#pdfHistory");
+  if (!list) return;
+  $("#pdfHistoryCount").textContent = `${state.documents.length} fichas`;
+  list.innerHTML = state.documents.length
+    ? state.documents
+        .map(
+          (document) => `
+            <article class="wide-row compact-row">
+              <div class="wide-row-main">
+                <span class="status">${escapeHtml(document.documentType === "valuation" ? "VALORACIÓN" : "PROPIEDAD")}</span>
+                <h3>${escapeHtml(document.title)}</h3>
+                <p>${escapeHtml(formatDate(document.createdAt))} · ${escapeHtml(document.fileName)}</p>
+              </div>
+              <div class="item-actions">
+                <a class="mini-button primary" href="/api/admin/documents/${encodeURIComponent(document.id)}/download">Descargar</a>
+                <button class="mini-button danger" type="button" data-delete-document="${escapeHtml(document.id)}">Eliminar</button>
+              </div>
+            </article>
+          `
+        )
+        .join("")
+    : `<p class="empty-state">Aún no hay fichas. Selecciona una propiedad o valoración y genera el primer PDF.</p>`;
+}
+
+function renderMediaLibrary() {
+  const library = $("#adminFiles");
+  if (!library) return;
+  const search = ($("#mediaSearch")?.value || "").toLowerCase();
+  const filter = $("#mediaTypeFilter")?.value || "";
+  const files = state.files.filter((file) => {
+    const matchesSearch = !search || `${file.name} ${file.category}`.toLowerCase().includes(search);
+    const matchesType =
+      !filter ||
+      (filter === "image" && file.mimeType.startsWith("image/")) ||
+      (filter === "pdf" && file.mimeType === "application/pdf") ||
+      (filter === "document" && !file.mimeType.startsWith("image/") && file.mimeType !== "application/pdf");
+    return matchesSearch && matchesType;
+  });
+  library.innerHTML = files.length
+    ? files
+        .map(
+          (file) => `
+            <article class="media-card">
+              <div class="media-card-preview">
+                ${file.mimeType.startsWith("image/") ? `<img src="/api/admin/files/${encodeURIComponent(file.id)}/download" alt="${escapeHtml(file.name)}" loading="lazy" />` : `<i data-lucide="${file.mimeType === "application/pdf" ? "file-text" : "file"}"></i>`}
+              </div>
+              <div class="media-card-body">
+                <strong title="${escapeHtml(file.name)}">${escapeHtml(file.name)}</strong>
+                <span>${escapeHtml(file.category)} · ${escapeHtml(Math.max(1, Math.round(file.sizeBytes / 1024)))} KB</span>
+                <span>${escapeHtml(file.relatedEntityType || "Sin asociación")}</span>
+                <div class="item-actions">
+                  <a class="mini-button" href="/api/admin/files/${encodeURIComponent(file.id)}/download">Descargar</a>
+                  ${file.mimeType.startsWith("image/") ? `<button class="mini-button" type="button" data-use-media="${escapeHtml(file.id)}">Usar en publicación</button>` : ""}
+                  <button class="mini-button danger" type="button" data-delete-media="${escapeHtml(file.id)}">Eliminar</button>
+                </div>
+              </div>
+            </article>
+          `
+        )
+        .join("")
+    : `<p class="empty-state">No hay archivos con estos filtros. Sube imágenes, PDF o documentos para reutilizarlos.</p>`;
+  refreshIcons();
+}
+
+function renderInternalUsers() {
+  const list = $("#adminRoles");
+  if (!list) return;
+  list.innerHTML = state.internalUsers.length
+    ? `
+      <table class="data-table">
+        <thead><tr><th>Nombre</th><th>Correo</th><th>Rol</th><th>Estado</th><th>Último acceso</th><th>Acciones</th></tr></thead>
+        <tbody>
+          ${state.internalUsers
+            .map(
+              (user) => `
+                <tr>
+                  <td><strong>${escapeHtml(user.name)}</strong></td>
+                  <td>${escapeHtml(user.email)}</td>
+                  <td>${escapeHtml(user.role)}</td>
+                  <td><span class="status ${escapeHtml(user.status)}">${escapeHtml(user.status)}</span></td>
+                  <td>${escapeHtml(user.lastLoginAt ? formatDate(user.lastLoginAt) : "Nunca")}</td>
+                  <td><button class="mini-button" type="button" data-edit-user="${escapeHtml(user.id)}">Editar</button><button class="mini-button" type="button" data-toggle-user="${escapeHtml(user.id)}">${user.status === "active" ? "Desactivar" : "Activar"}</button></td>
+                </tr>
+              `
+            )
+            .join("")}
+        </tbody>
+      </table>
+    `
+    : `<p class="empty-state">No hay usuarios internos. Crea asesores, editores o responsables de marketing con permisos explícitos.</p>`;
+}
+
+function renderAdminNotifications() {
+  const list = $("#adminNotifications");
+  if (!list) return;
+  const unread = state.notifications.filter((notification) => !notification.is_read && !notification.isRead).length;
+  $("#adminNotificationCount").textContent = String(unread);
+  $("#adminNotificationCount").hidden = unread === 0;
+  list.innerHTML = state.notifications.length
+    ? state.notifications
+        .map(
+          (notification) => `
+            <button class="notification-item ${notification.is_read ? "" : "unread"}" type="button" data-read-admin-notification="${escapeHtml(notification.id)}">
+              <i data-lucide="bell-ring"></i>
+              <span><h3>${escapeHtml(notification.title)}</h3><p>${escapeHtml(notification.message)}</p><time>${escapeHtml(formatDate(notification.created_at))}</time></span>
+            </button>
+          `
+        )
+        .join("")
+    : `<p class="empty-state">No hay alertas administrativas.</p>`;
+}
+
+async function contactSubmit(event) {
+  event.preventDefault();
+  const form = event.currentTarget;
+  const button = form.querySelector('[type="submit"]');
+  setButtonLoading(button, true);
+  try {
+    await api("/api/admin/contacts", {
+      method: "POST",
+      body: {
+        name: form.name.value.trim(),
+        email: form.email.value.trim(),
+        phone: form.phone.value.trim(),
+        contactType: form.contactType.value,
+        preferredZones: form.zone.value ? [form.zone.value] : [],
+        budgetMax: form.budgetMax.value,
+        assignedTo: form.assignedTo.value,
+        leadScore: form.leadScore.value,
+        notes: form.notes.value.trim(),
+      },
+    });
+    form.reset();
+    await renderPanel();
+    showToast("Contacto creado en el CRM.");
+  } catch (error) {
+    setFormMessage($("#contactFormMessage"), error.message, true);
+  } finally {
+    setButtonLoading(button, false);
   }
-  if (files) {
-    files.innerHTML = [
-      operationCard(t("imageUpload"), `${state.properties.reduce((sum, property) => sum + storedImages(property).length, 0)}`, "Imagenes asociadas a publicaciones."),
-      operationCard(t("adminJumpRequests"), state.requests.length, "Solicitudes con archivos de respuesta."),
-      operationCard(t("adminRespond"), "Adjuntos", "Las respuestas ya aceptan arreglo de archivos en backend."),
-    ].join("");
+}
+
+async function buyerSubmit(event) {
+  event.preventDefault();
+  const form = event.currentTarget;
+  const button = form.querySelector('[type="submit"]');
+  setButtonLoading(button, true);
+  try {
+    await api("/api/admin/buyers", {
+      method: "POST",
+      body: {
+        name: form.name.value.trim(),
+        email: form.email.value.trim(),
+        phone: form.phone.value.trim(),
+        budgetMin: form.budgetMin.value,
+        budgetMax: form.budgetMax.value,
+        preferredZones: form.zone.value ? [form.zone.value] : [],
+        propertyTypes: form.propertyType.value ? [form.propertyType.value] : [],
+        operation: form.operation.value,
+        bedrooms: form.bedrooms.value,
+        bathrooms: form.bathrooms.value,
+        objective: form.objective.value,
+        urgency: form.urgency.value,
+        notes: form.notes.value.trim(),
+      },
+    });
+    form.reset();
+    form.hidden = true;
+    await renderPanel();
+    showToast("Perfil comprador creado y agregado al radar.");
+  } catch (error) {
+    setFormMessage($("#buyerFormMessage"), error.message, true);
+  } finally {
+    setButtonLoading(button, false);
   }
-  if (settings) {
-    settings.innerHTML = [
-      operationCard("WhatsApp", "998-216-6563", "Numero comercial usado por botones de contacto."),
-      operationCard("Google Maps", state.config.googleMapsApiKey ? "Activo" : "Pendiente", "Mapa interactivo cuando exista API key."),
-      operationCard("SEO", "Activo", "Sitemap, robots, llms y datos estructurados en propiedades."),
-    ].join("");
+}
+
+async function campaignSubmit(event) {
+  event.preventDefault();
+  const form = event.currentTarget;
+  const button = form.querySelector('[type="submit"]');
+  setButtonLoading(button, true);
+  try {
+    await api("/api/admin/campaigns", {
+      method: "POST",
+      body: Object.fromEntries(new FormData(form).entries()),
+    });
+    form.reset();
+    await renderPanel();
+    showToast("Campaña guardada. Ya puedes exportar su segmento o marcarla como enviada.");
+  } catch (error) {
+    setFormMessage($("#campaignFormMessage"), error.message, true);
+  } finally {
+    setButtonLoading(button, false);
   }
-  if (roles) {
-    roles.innerHTML = [
-      operationCard("Super admin", "Todo", "Base de permisos para control completo."),
-      operationCard("Asesor", "Leads", "Seguimiento, notas, tareas y respuestas."),
-      operationCard("Editor", "Publicaciones", "Crear y mejorar contenido sin borrar datos sensibles."),
-    ].join("");
+}
+
+async function markCampaignSent(id) {
+  await api(`/api/admin/campaigns/${encodeURIComponent(id)}`, { method: "PATCH", body: { status: "sent" } });
+  await renderPanel();
+  showToast("Campaña registrada como enviada.");
+}
+
+async function deleteCampaign(id) {
+  if (!(await confirmAction("La campaña se eliminará del calendario e historial.", "Eliminar campaña"))) return;
+  await api(`/api/admin/campaigns/${encodeURIComponent(id)}`, { method: "DELETE" });
+  await renderPanel();
+  showToast("Campaña eliminada.");
+}
+
+async function generateCampaignCopy() {
+  const form = $("#campaignForm");
+  const data = await api("/api/admin/ai/generate", {
+    method: "POST",
+    body: { tool: "campaign", propertyId: form.propertyId.value, input: form.message.value },
+  });
+  form.message.value = data.result.whatsapp || data.result.emailBody || JSON.stringify(data.result, null, 2);
+  showToast("Borrador generado. Revísalo antes de guardarlo.");
+}
+
+async function aiToolSubmit(event) {
+  event.preventDefault();
+  const form = event.currentTarget;
+  const button = form.querySelector('[type="submit"]');
+  setButtonLoading(button, true, "Generando...");
+  try {
+    const data = await api("/api/admin/ai/generate", {
+      method: "POST",
+      body: Object.fromEntries(new FormData(form).entries()),
+    });
+    $("#aiResult").value = typeof data.result === "string" ? data.result : JSON.stringify(data.result, null, 2);
+    setFormMessage($("#aiToolMessage"), "Borrador generado con reglas internas. Requiere revisión humana.");
+  } catch (error) {
+    setFormMessage($("#aiToolMessage"), error.message, true);
+  } finally {
+    setButtonLoading(button, false);
   }
+}
+
+function previewPdf() {
+  const form = $("#pdfForm");
+  const preview = $("#pdfPreview");
+  const isValuation = form.documentType.value === "valuation";
+  const entity = isValuation
+    ? state.valuations.find((item) => item.id === form.valuationId.value)
+    : state.properties.find((item) => item.id === form.propertyId.value);
+  if (!entity) {
+    preview.innerHTML = `<span class="eyebrow">VISTA PREVIA</span><h3>Selecciona un registro</h3><p>Elige una propiedad o valoración válida.</p>`;
+    return;
+  }
+  preview.innerHTML = isValuation
+    ? `
+      <span class="eyebrow">VALORACIÓN INMOBILIARIA</span>
+      <h3>${escapeHtml(entity.ownerName)}</h3>
+      <p>${escapeHtml(entity.zone || "-")} · ${escapeHtml(entity.propertyType || "-")}</p>
+      <div class="preview-price">${escapeHtml(formatMaybePrice(entity.suggestedPrice || entity.expectedPrice))}</div>
+      <p>Rango: ${escapeHtml(formatMaybePrice(entity.lowRange))} - ${escapeHtml(formatMaybePrice(entity.highRange))}</p>
+      <p>${escapeHtml(entity.comments || "Requiere revisión del asesor.")}</p>
+    `
+    : `
+      <span class="eyebrow">FICHA COMERCIAL</span>
+      <h3>${escapeHtml(entity.titleEs)}</h3>
+      <p>${escapeHtml(displayLocation(entity))} · ${escapeHtml(entity.type)}</p>
+      ${form.showPrice.checked ? `<div class="preview-price">${escapeHtml(formatPriceSummary(entity))}</div>` : ""}
+      <p>${escapeHtml(entity.beds)} recámaras · ${escapeHtml(entity.baths)} baños · ${escapeHtml(entity.area)} m²</p>
+      <p>${escapeHtml(truncateText(entity.descriptionEs || "", 460))}</p>
+    `;
+}
+
+async function pdfSubmit(event) {
+  event.preventDefault();
+  const form = event.currentTarget;
+  const button = form.querySelector('[type="submit"]');
+  setButtonLoading(button, true, "Generando PDF...");
+  try {
+    const data = await api("/api/admin/documents/generate", {
+      method: "POST",
+      body: {
+        documentType: form.documentType.value,
+        propertyId: form.propertyId.value,
+        valuationId: form.valuationId.value,
+        options: {
+          currency: form.currency.value,
+          showPrice: form.showPrice.checked,
+          showAddress: form.showAddress.checked,
+          disclaimer: form.disclaimer.value.trim(),
+        },
+      },
+    });
+    await renderPanel();
+    window.location.href = data.downloadUrl;
+    showToast("PDF generado y guardado en el historial.");
+  } catch (error) {
+    setFormMessage($("#pdfFormMessage"), error.message, true);
+  } finally {
+    setButtonLoading(button, false);
+  }
+}
+
+async function deleteDocument(id) {
+  if (!(await confirmAction("La ficha se eliminará del historial.", "Eliminar ficha PDF"))) return;
+  await api(`/api/admin/documents/${encodeURIComponent(id)}`, { method: "DELETE" });
+  await renderPanel();
+  showToast("Ficha eliminada.");
+}
+
+async function mediaUploadSubmit(event) {
+  event.preventDefault();
+  const form = event.currentTarget;
+  const file = form.file.files[0];
+  if (!file) return;
+  const button = form.querySelector('[type="submit"]');
+  setButtonLoading(button, true, "Subiendo...");
+  try {
+    const content = await fileToDataUrl(file);
+    await api("/api/admin/files", {
+      method: "POST",
+      body: {
+        name: file.name,
+        content,
+        category: form.category.value,
+        relatedEntityType: form.relatedEntityType.value,
+        relatedEntityId: form.relatedEntityId.value.trim(),
+      },
+    });
+    form.reset();
+    await renderPanel();
+    showToast("Archivo agregado a la biblioteca.");
+  } catch (error) {
+    setFormMessage($("#mediaFormMessage"), error.message, true);
+  } finally {
+    setButtonLoading(button, false);
+  }
+}
+
+async function deleteMedia(id) {
+  if (!(await confirmAction("El archivo dejará de estar disponible para reutilizarse.", "Eliminar archivo"))) return;
+  await api(`/api/admin/files/${encodeURIComponent(id)}`, { method: "DELETE" });
+  await renderPanel();
+  showToast("Archivo eliminado.");
+}
+
+async function useMediaInListing(id) {
+  const response = await fetch(`/api/admin/files/${encodeURIComponent(id)}/download`, { credentials: "same-origin" });
+  const blob = await response.blob();
+  const content = await fileToDataUrl(blob);
+  const form = $("#listingForm");
+  const images = safeParseImages(form.dataset.currentImages);
+  if (!images.includes(content)) images.push(content);
+  form.dataset.currentImages = JSON.stringify(images);
+  form.dataset.removeImage = "false";
+  updateListingImagePreview(images);
+  setAdminSection("properties");
+  form.scrollIntoView({ behavior: "smooth", block: "start" });
+  showToast("Imagen agregada al formulario. Guarda la publicación para persistirla.");
+}
+
+async function internalUserSubmit(event) {
+  event.preventDefault();
+  const form = event.currentTarget;
+  const id = form.elements.id.value;
+  const permissions = Array.from(form.querySelectorAll('[name="permissions"]:checked')).map((item) => item.value);
+  const body = {
+    name: form.name.value.trim(),
+    email: form.email.value.trim(),
+    role: form.role.value,
+    status: form.status.value,
+    permissions,
+  };
+  if (form.password.value) body.password = form.password.value;
+  try {
+    await api(id ? `/api/admin/users/${encodeURIComponent(id)}` : "/api/admin/users", {
+      method: id ? "PATCH" : "POST",
+      body,
+    });
+    form.reset();
+    form.hidden = true;
+    await renderPanel();
+    showToast(id ? "Usuario actualizado." : "Usuario interno creado.");
+  } catch (error) {
+    setFormMessage($("#internalUserFormMessage"), error.message, true);
+  }
+}
+
+function editInternalUser(id) {
+  const user = state.internalUsers.find((item) => item.id === id);
+  const form = $("#internalUserForm");
+  if (!user || !form) return;
+  form.hidden = false;
+  form.elements.id.value = user.id;
+  form.name.value = user.name;
+  form.email.value = user.email;
+  form.password.value = "";
+  form.role.value = user.role;
+  form.status.value = user.status;
+  form.querySelectorAll('[name="permissions"]').forEach((input) => {
+    input.checked = user.permissions.includes(input.value);
+  });
+  form.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+async function toggleInternalUser(id) {
+  const user = state.internalUsers.find((item) => item.id === id);
+  if (!user) return;
+  await api(`/api/admin/users/${encodeURIComponent(id)}`, {
+    method: "PATCH",
+    body: { status: user.status === "active" ? "inactive" : "active" },
+  });
+  await renderPanel();
+}
+
+const settingsFieldConfig = {
+  site: [
+    ["siteName", "Nombre del sitio", "text"],
+    ["phone", "Teléfono principal", "text"],
+    ["whatsapp", "WhatsApp (solo números)", "text"],
+    ["email", "Correo principal", "email"],
+    ["currencyPrimary", "Moneda principal", "text"],
+    ["currencySecondary", "Moneda secundaria", "text"],
+    ["exchangeRate", "Tipo de cambio manual", "number"],
+    ["language", "Idioma predeterminado", "text"],
+  ],
+  maps: [
+    ["apiKey", "API key", "password"],
+    ["centerLat", "Latitud centro", "number"],
+    ["centerLng", "Longitud centro", "number"],
+    ["zoom", "Zoom inicial", "number"],
+    ["restriction", "Restricción geográfica", "text"],
+  ],
+  seo: [
+    ["metaTitle", "Meta title global", "text"],
+    ["metaDescription", "Meta description global", "textarea"],
+    ["openGraphImage", "Open Graph por defecto", "text"],
+    ["structuredData", "Datos estructurados activos", "checkbox"],
+    ["sitemap", "Sitemap activo", "checkbox"],
+    ["robots", "Robots activo", "checkbox"],
+  ],
+  forms: [
+    ["requiredPhone", "Teléfono obligatorio", "checkbox"],
+    ["requiredEmail", "Correo obligatorio", "checkbox"],
+    ["successMessage", "Mensaje de éxito", "textarea"],
+    ["autoAssignment", "Asignación automática", "checkbox"],
+  ],
+  pdf: [
+    ["showPrice", "Mostrar precio", "checkbox"],
+    ["showExactAddress", "Mostrar dirección exacta", "checkbox"],
+    ["disclaimer", "Disclaimer", "textarea"],
+    ["advisorName", "Nombre del asesor", "text"],
+  ],
+  ai: [
+    ["brandTone", "Tono de marca", "textarea"],
+    ["maxLength", "Límite de respuesta", "number"],
+    ["approvalRequired", "Aprobación humana obligatoria", "checkbox"],
+  ],
+};
+
+function renderSettingsFields(section = $("#settingsForm")?.elements.section.value || "site") {
+  const container = $("#settingsFields");
+  const form = $("#settingsForm");
+  if (!container || !form) return;
+  form.elements.section.value = section;
+  const values = state.settings[section] || {};
+  container.innerHTML = (settingsFieldConfig[section] || [])
+    .map(([key, label, type]) => {
+      if (type === "checkbox") {
+        return `<label class="checkbox-row"><input name="${escapeHtml(key)}" type="checkbox" ${values[key] ? "checked" : ""} /><span>${escapeHtml(label)}</span></label>`;
+      }
+      if (type === "textarea") {
+        return `<label><span>${escapeHtml(label)}</span><textarea name="${escapeHtml(key)}" rows="4">${escapeHtml(values[key] || "")}</textarea></label>`;
+      }
+      return `<label><span>${escapeHtml(label)}</span><input name="${escapeHtml(key)}" type="${escapeHtml(type)}" value="${escapeHtml(values[key] ?? "")}" ${type === "number" ? 'step="any"' : ""} /></label>`;
+    })
+    .join("");
+}
+
+async function settingsSubmit(event) {
+  event.preventDefault();
+  const form = event.currentTarget;
+  const section = form.elements.section.value;
+  const body = {};
+  (settingsFieldConfig[section] || []).forEach(([key, , type]) => {
+    const field = form.elements[key];
+    body[key] = type === "checkbox" ? field.checked : type === "number" ? Number(field.value || 0) : field.value.trim();
+  });
+  await api(`/api/admin/settings/${encodeURIComponent(section)}`, { method: "PUT", body });
+  state.settings[section] = body;
+  showToast("Configuración guardada.");
+}
+
+async function readAdminNotification(id) {
+  await api(`/api/admin/notifications/${encodeURIComponent(id)}/read`, { method: "PATCH" });
+  const item = state.notifications.find((notification) => notification.id === id);
+  if (item) item.is_read = true;
+  renderAdminNotifications();
 }
 
 function exportContactsCsv() {
@@ -2538,7 +3629,25 @@ async function loadPublicData() {
 async function loadPanelData() {
   if (!state.session) return;
   if (state.session.role === "admin") {
-    const [statsData, requestsData, propertiesData, promptsData, leadsData, contactsData, valuationsData, tasksData, matchesData, analyticsData] = await Promise.all([
+    const [
+      statsData,
+      requestsData,
+      propertiesData,
+      promptsData,
+      leadsData,
+      contactsData,
+      valuationsData,
+      tasksData,
+      matchesData,
+      analyticsData,
+      buyersData,
+      usersData,
+      filesData,
+      documentsData,
+      campaignsData,
+      settingsData,
+      notificationsData,
+    ] = await Promise.all([
       api("/api/admin/stats"),
       api("/api/admin/requests"),
       api("/api/properties"),
@@ -2549,6 +3658,13 @@ async function loadPanelData() {
       api("/api/admin/tasks"),
       api("/api/admin/matches"),
       api("/api/admin/analytics"),
+      api("/api/admin/buyers"),
+      api("/api/admin/users"),
+      api("/api/admin/files"),
+      api("/api/admin/documents"),
+      api("/api/admin/campaigns"),
+      api("/api/admin/settings"),
+      api("/api/admin/notifications"),
     ]);
     state.stats = statsData;
     state.requests = requestsData.requests || [];
@@ -2560,15 +3676,38 @@ async function loadPanelData() {
     state.tasks = tasksData.tasks || [];
     state.matches = matchesData.matches || [];
     state.analytics = analyticsData || state.analytics;
+    state.buyers = buyersData.buyers || [];
+    state.internalUsers = usersData.users || [];
+    state.files = filesData.files || [];
+    state.documents = documentsData.documents || [];
+    state.campaigns = campaignsData.campaigns || [];
+    state.settings = settingsData.settings || {};
+    state.notifications = notificationsData.notifications || [];
+    state.serviceRequests = [];
+    state.messages = [];
   } else {
-    const requestsData = await api("/api/seller/requests");
+    const [requestsData, serviceData, notificationsData, messagesData] = await Promise.all([
+      api("/api/seller/requests"),
+      api("/api/seller/service-requests"),
+      api("/api/seller/notifications"),
+      api("/api/seller/messages"),
+    ]);
     state.requests = requestsData.requests || [];
+    state.serviceRequests = serviceData.requests || [];
+    state.notifications = notificationsData.notifications || [];
+    state.messages = messagesData.messages || [];
     state.adminPrompts = [];
     state.leads = [];
     state.contacts = [];
     state.valuations = [];
     state.tasks = [];
     state.matches = [];
+    state.buyers = [];
+    state.internalUsers = [];
+    state.files = [];
+    state.documents = [];
+    state.campaigns = [];
+    state.settings = {};
     state.analytics = { eventsByType: [], propertyEvents: [], searchZones: [], leadSources: [] };
   }
 }
@@ -2618,6 +3757,8 @@ async function renderPanel() {
   $("#panelSubtitle").textContent = isAdmin ? t("adminPanelSubtitle") : t("sellerPanelSubtitle");
   $("#adminPanel").hidden = !isAdmin;
   $("#sellerPanel").hidden = isAdmin;
+  $("#adminNotificationButton").hidden = !isAdmin;
+  $("#sellerNotificationButton").hidden = isAdmin;
   refreshLocationSelects();
   if (isAdmin) {
     renderStats();
@@ -2636,10 +3777,13 @@ async function renderPanel() {
     renderAdminMap();
     renderAdminSegments();
     renderOperationalModules();
+    renderSettingsFields();
     updateAdminShell();
   } else {
     prepareSellerForm();
     renderSellerRequests();
+    renderSellerServiceRequests();
+    renderSellerNotifications();
   }
   bindMapPickers();
   refreshIcons();
@@ -2781,6 +3925,7 @@ async function showPanel() {
   $("#siteShell").hidden = true;
   $("#panelView").hidden = false;
   document.body.classList.add("panel-open");
+  if (window.innerWidth <= 980) state.sidebarCollapsed = true;
   await renderPanel();
   window.scrollTo({ top: 0, behavior: "auto" });
 }
@@ -2897,7 +4042,7 @@ async function leadFormSubmit(event) {
     if (message) setFormMessage(message, t("leadSent"));
   } catch (error) {
     if (message) setFormMessage(message, error.message, true);
-    else alert(error.message);
+    else showToast(error.message, "error");
   }
 }
 
@@ -3087,7 +4232,7 @@ async function listingSubmit(event) {
     resetListingForm();
     await renderPanel();
     renderProperties();
-    alert(t("listingSaved"));
+    showToast(t("listingSaved"));
   } catch (error) {
     setFormMessage(message, error.message, true);
   }
@@ -3125,14 +4270,14 @@ function editListing(id) {
 }
 
 async function deleteListing(id) {
-  if (!confirm(t("confirmDelete"))) return;
+  if (!(await confirmAction(t("confirmDelete"), "Eliminar publicación"))) return;
   try {
     await api(`/api/admin/properties/${encodeURIComponent(id)}`, { method: "DELETE" });
     await renderPanel();
     renderProperties();
-    alert(t("listingDeleted"));
+    showToast(t("listingDeleted"));
   } catch (error) {
-    alert(error.message);
+    showToast(error.message, "error");
   }
 }
 
@@ -3144,9 +4289,33 @@ async function updateListingStatus(id, status) {
     });
     await renderPanel();
     renderProperties();
-    alert(t("listingSaved"));
+    showToast(t("listingSaved"));
   } catch (error) {
-    alert(error.message);
+    showToast(error.message, "error");
+  }
+}
+
+async function toggleListingFeatured(id, featured) {
+  try {
+    await api(`/api/admin/properties/${encodeURIComponent(id)}/featured`, {
+      method: "PATCH",
+      body: { featured },
+    });
+    await renderPanel();
+    renderProperties();
+    showToast(featured ? "Propiedad destacada." : "Propiedad retirada de destacadas.");
+  } catch (error) {
+    showToast(error.message, "error");
+  }
+}
+
+async function duplicateListing(id) {
+  try {
+    await api(`/api/admin/properties/${encodeURIComponent(id)}/duplicate`, { method: "POST" });
+    await renderPanel();
+    showToast("Se creó una copia en estado borrador.");
+  } catch (error) {
+    showToast(error.message, "error");
   }
 }
 
@@ -3155,9 +4324,9 @@ async function approveRequest(id) {
     await api(`/api/admin/requests/${encodeURIComponent(id)}/approve`, { method: "POST" });
     await renderPanel();
     renderProperties();
-    alert(t("requestApproved"));
+    showToast(t("requestApproved"));
   } catch (error) {
-    alert(error.message);
+    showToast(error.message, "error");
   }
 }
 
@@ -3165,9 +4334,9 @@ async function rejectRequest(id) {
   try {
     await api(`/api/admin/requests/${encodeURIComponent(id)}/reject`, { method: "POST" });
     await renderPanel();
-    alert(t("requestRejected"));
+    showToast(t("requestRejected"));
   } catch (error) {
-    alert(error.message);
+    showToast(error.message, "error");
   }
 }
 
@@ -3178,35 +4347,124 @@ async function updateLeadStatus(id, status) {
       body: { status },
     });
     await renderPanel();
-    alert(t("leadUpdated"));
+    showToast(t("leadUpdated"));
   } catch (error) {
-    alert(error.message);
+    showToast(error.message, "error");
   }
 }
 
 async function deleteLead(id) {
-  if (!confirm(t("confirmDeleteLead"))) return;
+  if (!(await confirmAction(t("confirmDeleteLead"), "Eliminar solicitud"))) return;
   try {
     await api(`/api/admin/leads/${encodeURIComponent(id)}`, { method: "DELETE" });
     await renderPanel();
-    alert(t("leadDeleted"));
+    showToast(t("leadDeleted"));
   } catch (error) {
-    alert(error.message);
+    showToast(error.message, "error");
   }
 }
 
 async function respondToRequest(requestTable, requestId) {
-  const message = prompt(t("responsePrompt"));
-  if (!message || !message.trim()) return;
+  const modal = $("#responseModal");
+  const form = $("#responseForm");
+  const item =
+    requestTable === "seller_request"
+      ? state.requests.find((request) => request.id === requestId)
+      : state.leads.find((lead) => lead.id === requestId);
+  if (!modal || !form || !item) return;
+  form.reset();
+  form.requestTable.value = requestTable;
+  form.requestId.value = requestId;
+  form.status.value = item.status === "new" || item.status === "pending" ? "contacted" : item.status;
+  ensureSelectOption(form.status, form.status.value);
+  form.priority.value = item.priority || "medium";
+  ensureSelectOption(form.assignedTo, item.assignedTo || "");
+  form.assignedTo.value = item.assignedTo || "";
+  $("#responseModalSubtitle").textContent =
+    requestTable === "seller_request"
+      ? `${item.sellerName} · ${item.title}`
+      : `${item.name} · ${leadTypeLabel(item.leadType)}`;
+  $("#responseRequestContext").innerHTML =
+    requestTable === "seller_request"
+      ? `
+        <span class="status ${escapeHtml(item.status)}">${escapeHtml(item.status)}</span>
+        <h3>${escapeHtml(item.title)}</h3>
+        <p><strong>${escapeHtml(item.sellerName)}</strong><br>${escapeHtml(item.email)}<br>${escapeHtml(item.phone)}</p>
+        <p>${escapeHtml(displayLocation(item))}<br>${escapeHtml(item.type)} · ${escapeHtml(item.area)} m² · ${escapeHtml(item.beds)} recámaras</p>
+        <p>${escapeHtml(item.description || "")}</p>
+      `
+      : `
+        <span class="status ${escapeHtml(item.status)}">${escapeHtml(leadStatusLabel(item.status))}</span>
+        <h3>${escapeHtml(item.name)}</h3>
+        <p>${escapeHtml(item.email || "")}<br>${escapeHtml(item.phone || "")}</p>
+        ${renderLeadPayload(item)}
+      `;
+  const attachmentSelect = $("#responseAttachmentSelect");
+  attachmentSelect.innerHTML = `<option value="">Sin adjunto</option>`;
+  state.documents.forEach((document) => attachmentSelect.append(new Option(`PDF · ${document.title}`, `document:${document.id}`)));
+  state.files.forEach((file) => attachmentSelect.append(new Option(`${file.category} · ${file.name}`, `file:${file.id}`)));
   try {
+    const data = await api(`/api/admin/messages/${encodeURIComponent(requestTable)}/${encodeURIComponent(requestId)}`);
+    const history = data.messages || [];
+    $("#responseMessageHistory").innerHTML = history.length
+      ? history
+          .map(
+            (message) => `
+              <article class="timeline-message ${escapeHtml(message.sender_type || "")}">
+                <small>${escapeHtml(message.sender_name || message.sender_type)} · ${escapeHtml(formatDate(message.created_at))}</small>
+                <p>${escapeHtml(message.message)}</p>
+              </article>
+            `
+          )
+          .join("")
+      : `<p class="empty-state compact">Todavía no hay mensajes.</p>`;
+  } catch (error) {
+    $("#responseMessageHistory").innerHTML = `<p class="empty-state">${escapeHtml(error.message)}</p>`;
+  }
+  modal.hidden = false;
+  document.body.classList.add("modal-open");
+  refreshIcons();
+}
+
+function closeResponseModal() {
+  $("#responseModal").hidden = true;
+  document.body.classList.remove("modal-open");
+  setFormMessage($("#responseFormMessage"), "");
+}
+
+async function responseFormSubmit(event) {
+  event.preventDefault();
+  const form = event.currentTarget;
+  const submit = form.querySelector('[type="submit"]');
+  setButtonLoading(submit, true, "Guardando...");
+  setFormMessage($("#responseFormMessage"), "");
+  try {
+    const attachment = form.attachmentId.value;
     await api("/api/admin/messages", {
       method: "POST",
-      body: { requestTable, requestId, message: message.trim(), attachments: [] },
+      body: {
+        requestTable: form.requestTable.value,
+        requestId: form.requestId.value,
+        responseType: form.responseType.value,
+        message: form.message.value.trim(),
+        attachments: attachment ? [attachment] : [],
+        status: form.status.value,
+        priority: form.priority.value,
+        assignedTo: form.assignedTo.value,
+        nextAction: form.nextAction.value.trim(),
+        createTask: form.createTask.checked,
+        dueDate: form.dueDate.value,
+        notifyUser: form.notifyUser.checked,
+      },
     });
+    closeResponseModal();
     await renderPanel();
-    alert(t("leadUpdated"));
+    showToast("Respuesta guardada y registrada en el historial.");
   } catch (error) {
-    alert(error.message);
+    setFormMessage($("#responseFormMessage"), error.message, true);
+    showToast(error.message, "error");
+  } finally {
+    setButtonLoading(submit, false);
   }
 }
 
@@ -3439,6 +4697,7 @@ function bindEvents() {
   window.addEventListener("scroll", updateHeaderVisibility, { passive: true });
 
   $("#searchForm").addEventListener("submit", handleSearch);
+  $("#guidedSearchForm")?.addEventListener("submit", guidedSearchSubmit);
   $$("[data-lead-form]").forEach((form) => {
     form.addEventListener("submit", leadFormSubmit);
   });
@@ -3484,6 +4743,22 @@ function bindEvents() {
   $("#propertyDetailModal").addEventListener("click", (event) => {
     if (event.target.id === "propertyDetailModal") closePropertyDetail();
   });
+  $("#openCompare")?.addEventListener("click", openCompareModal);
+  $("#clearCompare")?.addEventListener("click", () => {
+    state.compare = [];
+    localStorage.setItem(keys.compare, "[]");
+    renderProperties();
+  });
+  $("#compareModalClose")?.addEventListener("click", () => {
+    $("#compareModal").hidden = true;
+    document.body.classList.remove("modal-open");
+  });
+  $("#compareModal")?.addEventListener("click", (event) => {
+    if (event.target.id === "compareModal") {
+      $("#compareModal").hidden = true;
+      document.body.classList.remove("modal-open");
+    }
+  });
   $$("[data-auth-tab]").forEach((button) => {
     button.addEventListener("click", () => switchAuthTab(button.dataset.authTab));
   });
@@ -3500,6 +4775,24 @@ function bindEvents() {
   });
 
   $("#sellerRequestForm").addEventListener("submit", sellerRequestSubmit);
+  $("#sellerServiceForm")?.addEventListener("submit", sellerServiceSubmit);
+  $("#sellerReplyForm")?.addEventListener("submit", sellerReplySubmit);
+  $("#cancelSellerReply")?.addEventListener("click", closeSellerReply);
+  $("#sellerReplyModal")?.addEventListener("click", (event) => {
+    if (event.target.id === "sellerReplyModal") closeSellerReply();
+  });
+  $("#closeSellerService")?.addEventListener("click", () => {
+    $("#sellerServiceCard").hidden = true;
+  });
+  $$("[data-seller-flow]").forEach((button) => {
+    button.addEventListener("click", () => openSellerFlow(button.dataset.sellerFlow));
+  });
+  $("#sellerNotificationButton")?.addEventListener("click", () => {
+    $("#sellerNotificationDrawer").hidden = false;
+  });
+  $("#closeSellerNotifications")?.addEventListener("click", () => {
+    $("#sellerNotificationDrawer").hidden = true;
+  });
   $("#sellerRequestForm").elements.imageFile.addEventListener("change", async (event) => {
     const files = event.target.files;
     const message = $("#sellerFormMessage");
@@ -3527,7 +4820,80 @@ function bindEvents() {
   $("#locationCatalogForm").addEventListener("submit", locationCatalogSubmit);
   $("#valuationForm")?.addEventListener("submit", valuationSubmit);
   $("#taskForm")?.addEventListener("submit", taskSubmit);
+  $("#contactForm")?.addEventListener("submit", contactSubmit);
+  $("#buyerForm")?.addEventListener("submit", buyerSubmit);
+  $("#campaignForm")?.addEventListener("submit", campaignSubmit);
+  $("#aiToolForm")?.addEventListener("submit", aiToolSubmit);
+  $("#pdfForm")?.addEventListener("submit", pdfSubmit);
+  $("#mediaUploadForm")?.addEventListener("submit", mediaUploadSubmit);
+  $("#internalUserForm")?.addEventListener("submit", internalUserSubmit);
+  $("#settingsForm")?.addEventListener("submit", settingsSubmit);
   $("#exportContactsCsv")?.addEventListener("click", exportContactsCsv);
+  $("#contactSearch")?.addEventListener("input", renderAdminContacts);
+  $("#contactTypeFilter")?.addEventListener("change", renderAdminContacts);
+  $("#mediaSearch")?.addEventListener("input", renderMediaLibrary);
+  $("#mediaTypeFilter")?.addEventListener("change", renderMediaLibrary);
+  ["#smartMapLayer", "#smartMapZone", "#smartMapStatus", "#smartMapType"].forEach((selector) => {
+    $(selector)?.addEventListener("change", renderAdminMap);
+  });
+  $("#toggleBuyerForm")?.addEventListener("click", () => {
+    $("#buyerForm").hidden = false;
+    $("#buyerForm").scrollIntoView({ behavior: "smooth", block: "start" });
+  });
+  $("#cancelBuyerForm")?.addEventListener("click", () => {
+    $("#buyerForm").reset();
+    $("#buyerForm").hidden = true;
+  });
+  $("#toggleUserForm")?.addEventListener("click", () => {
+    $("#internalUserForm").reset();
+    $("#internalUserForm").elements.id.value = "";
+    $("#internalUserForm").hidden = false;
+  });
+  $("#cancelUserForm")?.addEventListener("click", () => {
+    $("#internalUserForm").reset();
+    $("#internalUserForm").hidden = true;
+  });
+  $("#generateCampaignCopy")?.addEventListener("click", () => void generateCampaignCopy());
+  $("#copyAiResult")?.addEventListener("click", async () => {
+    await navigator.clipboard.writeText($("#aiResult").value);
+    showToast("Resultado copiado.");
+  });
+  $("#applyAiResult")?.addEventListener("click", () => {
+    if (!$("#aiResult").value.trim()) return;
+    $("#listingForm").description.value = $("#aiResult").value;
+    setAdminSection("properties");
+    showToast("Resultado aplicado a la descripción. Revísalo antes de guardar.");
+  });
+  $("#saveAiNote")?.addEventListener("click", () => {
+    showToast("Resultado conservado en el editor. Selecciona un contacto o solicitud para asociarlo mediante una tarea.");
+  });
+  $("#pdfDocumentType")?.addEventListener("change", (event) => {
+    $$("[data-pdf-target]").forEach((field) => {
+      field.hidden = field.dataset.pdfTarget !== event.target.value;
+    });
+    previewPdf();
+  });
+  $("#pdfPropertySelect")?.addEventListener("change", previewPdf);
+  $("#pdfValuationSelect")?.addEventListener("change", previewPdf);
+  $("#previewPdf")?.addEventListener("click", previewPdf);
+  $$("[data-settings-tab]").forEach((button) => {
+    button.addEventListener("click", () => {
+      $$("[data-settings-tab]").forEach((item) => item.classList.toggle("active", item === button));
+      renderSettingsFields(button.dataset.settingsTab);
+    });
+  });
+  $("#responseForm")?.addEventListener("submit", responseFormSubmit);
+  $("#responseModalClose")?.addEventListener("click", closeResponseModal);
+  $("#cancelResponse")?.addEventListener("click", closeResponseModal);
+  $("#responseModal")?.addEventListener("click", (event) => {
+    if (event.target.id === "responseModal") closeResponseModal();
+  });
+  $("#adminNotificationButton")?.addEventListener("click", () => {
+    $("#adminNotificationDrawer").hidden = false;
+  });
+  $("#closeAdminNotifications")?.addEventListener("click", () => {
+    $("#adminNotificationDrawer").hidden = true;
+  });
   $("#locationCatalogForm").elements.type.addEventListener("change", renderCatalogParentOptions);
   $("#resetCatalogForm")?.addEventListener("click", resetCatalogForm);
   $("#resetListingForm").addEventListener("click", resetListingForm);
@@ -3572,6 +4938,10 @@ function bindEvents() {
         adminCatalogsCard: "catalogs",
         adminPromptsCard: "prompts",
         adminLeadsCard: "leads",
+        adminContactsCard: "contacts",
+        adminPdfCard: "pdf",
+        adminMarketingCard: "marketing",
+        adminRolesCard: "roles",
         listingForm: "properties",
       };
       if (sectionMap[button.dataset.adminJump]) {
@@ -3613,6 +4983,12 @@ function bindEvents() {
     const detailContact = event.target.closest("[data-detail-contact]");
     if (detailContact) contactAdvisor(detailContact.dataset.detailContact);
 
+    const favorite = event.target.closest("[data-favorite]");
+    if (favorite) toggleFavorite(favorite.dataset.favorite);
+
+    const compare = event.target.closest("[data-compare]");
+    if (compare) toggleCompare(compare.dataset.compare);
+
     const approve = event.target.closest("[data-approve]");
     if (approve) void approveRequest(approve.dataset.approve);
 
@@ -3627,6 +5003,12 @@ function bindEvents() {
 
     const statusListing = event.target.closest("[data-status-listing]");
     if (statusListing) void updateListingStatus(statusListing.dataset.statusListing, statusListing.dataset.statusValue);
+
+    const featureListing = event.target.closest("[data-feature-listing]");
+    if (featureListing) void toggleListingFeatured(featureListing.dataset.featureListing, featureListing.dataset.featureValue === "true");
+
+    const duplicateListingButton = event.target.closest("[data-duplicate-listing]");
+    if (duplicateListingButton) void duplicateListing(duplicateListingButton.dataset.duplicateListing);
 
     const deleteLocation = event.target.closest("[data-delete-location]");
     if (deleteLocation) void deleteLocationOption(deleteLocation.dataset.deleteLocation);
@@ -3654,6 +5036,67 @@ function bindEvents() {
 
     const taskFrom = event.target.closest("[data-task-from]");
     if (taskFrom) void createTaskFromButton(taskFrom);
+
+    const campaignSent = event.target.closest("[data-campaign-sent]");
+    if (campaignSent) void markCampaignSent(campaignSent.dataset.campaignSent);
+
+    const deleteCampaignButton = event.target.closest("[data-delete-campaign]");
+    if (deleteCampaignButton) void deleteCampaign(deleteCampaignButton.dataset.deleteCampaign);
+
+    const deleteDocumentButton = event.target.closest("[data-delete-document]");
+    if (deleteDocumentButton) void deleteDocument(deleteDocumentButton.dataset.deleteDocument);
+
+    const deleteMediaButton = event.target.closest("[data-delete-media]");
+    if (deleteMediaButton) void deleteMedia(deleteMediaButton.dataset.deleteMedia);
+
+    const useMediaButton = event.target.closest("[data-use-media]");
+    if (useMediaButton) void useMediaInListing(useMediaButton.dataset.useMedia);
+
+    const editUserButton = event.target.closest("[data-edit-user]");
+    if (editUserButton) editInternalUser(editUserButton.dataset.editUser);
+
+    const toggleUserButton = event.target.closest("[data-toggle-user]");
+    if (toggleUserButton) void toggleInternalUser(toggleUserButton.dataset.toggleUser);
+
+    const readSeller = event.target.closest("[data-read-seller-notification]");
+    if (readSeller) void readSellerNotification(readSeller.dataset.readSellerNotification);
+
+    const readAdmin = event.target.closest("[data-read-admin-notification]");
+    if (readAdmin) void readAdminNotification(readAdmin.dataset.readAdminNotification);
+
+    const adminSectionLink = event.target.closest("[data-admin-section-link]");
+    if (adminSectionLink) setAdminSection(adminSectionLink.dataset.adminSectionLink);
+
+    const sellerReply = event.target.closest("[data-seller-reply]");
+    if (sellerReply) {
+      const requestTable = sellerReply.dataset.requestTable || "seller_request";
+      void sellerReplyToAdvisor(requestTable, sellerReply.dataset.sellerReply);
+    }
+
+    const mapProperty = event.target.closest("[data-map-property]");
+    if (mapProperty) focusMapProperty(mapProperty.dataset.mapProperty);
+
+    const pdfValuation = event.target.closest("[data-pdf-valuation]");
+    if (pdfValuation) {
+      setAdminSection("pdf");
+      $("#pdfDocumentType").value = "valuation";
+      $$("[data-pdf-target]").forEach((field) => {
+        field.hidden = field.dataset.pdfTarget !== "valuation";
+      });
+      $("#pdfValuationSelect").value = pdfValuation.dataset.pdfValuation;
+      previewPdf();
+    }
+
+    const pdfProperty = event.target.closest("[data-pdf-property]");
+    if (pdfProperty) {
+      setAdminSection("pdf");
+      $("#pdfDocumentType").value = "property";
+      $$("[data-pdf-target]").forEach((field) => {
+        field.hidden = field.dataset.pdfTarget !== "property";
+      });
+      $("#pdfPropertySelect").value = pdfProperty.dataset.pdfProperty;
+      previewPdf();
+    }
   });
 
   $("#whatsappButton").addEventListener("click", () => {
@@ -3667,7 +5110,7 @@ async function init() {
     await loadPublicData();
   } catch (error) {
     console.error(error);
-    alert(t("apiError"));
+    showToast(t("apiError"), "error");
   }
   applyTranslations();
   updateHeaderVisibility();
