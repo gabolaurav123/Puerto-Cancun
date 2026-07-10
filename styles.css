@@ -4256,13 +4256,11 @@ body {
 }
 
 .hero h1 {
-  background: linear-gradient(135deg, #b98224 0%, #fff1a8 50%, #c99a36 100%);
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
-  -webkit-text-stroke: 0.7px #c99a36;
+  background: none;
+  color: #c99a36;
+  -webkit-text-stroke: 0.55px #e4be59;
   text-shadow:
-    -1px -1px 0 #f4df8a,
+    -1px -1px 0 #eed477,
     1px 1px 0 #765b13,
     2px 2px 0 #644d10,
     3px 3px 0 #523f0d,
@@ -4685,8 +4683,7 @@ button[aria-busy="true"] {
 }
 
 .property-page-summary {
-  position: sticky;
-  top: 120px;
+  position: static;
   padding: 28px;
   background: #fff;
   border-top: 4px solid var(--gold);
