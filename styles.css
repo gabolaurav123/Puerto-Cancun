@@ -4245,11 +4245,15 @@ body {
 
 .brand-copy,
 .hero h1 {
-  background: linear-gradient(135deg, #7a4b0a 0%, #b98224 18%, #e4be59 38%, #fff1a8 50%, #d4a13a 68%, #8a570f 100%);
+  background: linear-gradient(180deg, #fff5bd 0%, #f0d16f 20%, #d8a435 45%, #fff0a3 58%, #c88b22 78%, #f0c95f 100%);
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
-  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.12), 0 3px 8px rgba(0, 0, 0, 0.5);
+  -webkit-text-stroke: 0.45px rgba(255, 240, 163, 0.76);
+  text-shadow:
+    0 1px 0 rgba(255, 247, 198, 0.32),
+    0 2px 1px rgba(72, 42, 4, 0.88),
+    0 5px 14px rgba(0, 0, 0, 0.72);
 }
 
 .main-nav > a:hover,
@@ -4300,7 +4304,9 @@ body {
 .hero::after {
   z-index: -1;
   content: "";
-  background: linear-gradient(180deg, rgba(7, 19, 27, 0.72), rgba(7, 19, 27, 0.4) 44%, rgba(7, 19, 27, 0.72));
+  background:
+    radial-gradient(ellipse at 50% 43%, rgba(7, 19, 27, 0.7) 0%, rgba(7, 19, 27, 0.42) 44%, transparent 72%),
+    linear-gradient(180deg, rgba(7, 19, 27, 0.76), rgba(7, 19, 27, 0.42) 44%, rgba(7, 19, 27, 0.74));
 }
 
 .hero-content {
@@ -4389,6 +4395,46 @@ body {
 .ai-validation-home,
 .more-section {
   background: var(--ivory);
+}
+
+.ai-home-section,
+.ai-validation-home,
+.audience-section,
+.resource-section,
+.welcome-section,
+.type-section,
+.properties-section,
+.more-section,
+.team-section {
+  padding-top: 36px;
+  padding-bottom: 36px;
+}
+
+.ai-home-section + .ai-validation-home,
+.ai-validation-home + .audience-section,
+.audience-section + .resource-section,
+.welcome-section + .type-section,
+.type-section + .category-page[hidden] + .properties-section,
+.properties-section + .more-section,
+.more-section + .team-section {
+  padding-top: 8px;
+}
+
+.feature-split {
+  margin-top: 22px;
+}
+
+.presale-feature {
+  margin-top: 24px;
+}
+
+.center-heading {
+  margin-bottom: 20px;
+  padding: 12px 0;
+}
+
+.guided-search {
+  margin-bottom: 22px;
 }
 
 .property-card,
@@ -4740,6 +4786,29 @@ body {
     line-height: 1.25;
     text-align: center;
     white-space: normal;
+  }
+
+  .ai-home-section,
+  .ai-validation-home,
+  .audience-section,
+  .resource-section,
+  .welcome-section,
+  .type-section,
+  .properties-section,
+  .more-section,
+  .team-section {
+    padding-top: 28px;
+    padding-bottom: 28px;
+  }
+
+  .ai-home-section + .ai-validation-home,
+  .ai-validation-home + .audience-section,
+  .audience-section + .resource-section,
+  .welcome-section + .type-section,
+  .type-section + .category-page[hidden] + .properties-section,
+  .properties-section + .more-section,
+  .more-section + .team-section {
+    padding-top: 6px;
   }
 }
 
