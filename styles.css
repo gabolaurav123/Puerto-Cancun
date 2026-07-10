@@ -4256,22 +4256,26 @@ body {
 }
 
 .hero h1 {
-  background: linear-gradient(
-    180deg,
-    #725516 0%,
-    #d6be78 11%,
-    #f4e7bd 20%,
-    #b4954a 34%,
-    #765819 47%,
-    #cfb268 59%,
-    #f1dfaa 69%,
-    #98742e 84%,
-    #cfb46f 100%
+  background-image: linear-gradient(
+    108deg,
+    #5a3900 0%,
+    #956300 10%,
+    #d9a928 20%,
+    #ffe889 27%,
+    #b77a00 34%,
+    #6b4300 45%,
+    #c99513 56%,
+    #fff0a3 64%,
+    #d5a01e 70%,
+    #7a4d00 82%,
+    #e0b339 92%,
+    #624000 100%
   );
+  background-size: 220% 100%;
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
-  -webkit-text-stroke: 0.65px #a98433;
+  -webkit-text-stroke: 0.75px #d5a01e;
   text-shadow:
     -1px -1px 0 #eed477,
     1px 1px 0 #765b13,
@@ -4280,7 +4284,13 @@ body {
     4px 4px 0 #3d2f09,
     5px 6px 2px rgba(24, 18, 4, 0.9),
     0 10px 22px rgba(0, 0, 0, 0.78);
-  filter: saturate(0.82) contrast(1.12) drop-shadow(0 2px 1px rgba(166, 132, 51, 0.28));
+  filter: saturate(1.18) contrast(1.16) drop-shadow(0 2px 1px rgba(213, 160, 30, 0.34));
+  animation: metallic-gold-sweep 6s ease-in-out infinite alternate;
+}
+
+@keyframes metallic-gold-sweep {
+  from { background-position: 0% 50%; }
+  to { background-position: 100% 50%; }
 }
 
 .form-progress {
