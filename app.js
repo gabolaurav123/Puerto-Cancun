@@ -130,7 +130,7 @@ const translations = {
     activeFilters: "Filtro activo",
     requestInfo: "Solicitar informacion",
     moreProperties: "Ver más propiedades",
-    teamTitle: "Conoce al equipo de Puerto Cancún Center",
+    teamTitle: "Equipo de asesores de Puerto Cancún Center",
     teamRoleSales: "Asesor inmobiliario senior",
     teamRoleListings: "Coordinadora de propiedades",
     teamRoleInvestment: "Consultor de inversión",
@@ -847,7 +847,7 @@ const translations = {
 };
 
 const state = {
-  lang: localStorage.getItem(keys.lang) || "es",
+  lang: document.body.dataset.lang || localStorage.getItem(keys.lang) || "es",
   currency: localStorage.getItem(keys.currency) || "USD",
   session: null,
   properties: [],
@@ -1515,11 +1515,12 @@ function renderProperties() {
         property.type ? displayType(property.type) : "",
         property.mls ? `${t("mls")} ${property.mls}` : "",
       ].filter(Boolean);
+      const propertyUrl = state.lang === "en" ? property.urlEn : property.urlEs;
 
       return `
         <article class="property-card" id="property-${escapeHtml(property.id)}">
           <div class="property-image">
-            <img src="${escapeHtml(primaryImage(property))}" alt="${escapeHtml(localizedTitle(property))}" loading="lazy" onerror="this.onerror=null;this.src='${escapeHtml(fallbackImage)}';" />
+            <a href="${escapeHtml(propertyUrl || `/propiedades/${property.slug || property.id}`)}" aria-label="${escapeHtml(localizedTitle(property))}"><img src="${escapeHtml(primaryImage(property))}" alt="${escapeHtml(localizedTitle(property))}" width="640" height="420" loading="lazy" onerror="this.onerror=null;this.src='${escapeHtml(fallbackImage)}';" /></a>
             <div class="badge-row">${badgeHtml}</div>
             <div class="property-save-actions">
               <button class="${state.favorites.includes(property.id) ? "active" : ""}" type="button" data-favorite="${escapeHtml(property.id)}" title="Guardar favorito" aria-label="Guardar favorito"><i data-lucide="heart"></i></button>
@@ -1533,7 +1534,8 @@ function renderProperties() {
             <p class="property-meta">${escapeHtml(meta.join(" • "))}</p>
             <p class="property-description">${escapeHtml(truncateText(localizedDescription(property)))}</p>
             <div class="property-actions">
-              <button class="mini-button primary" type="button" data-detail="${escapeHtml(property.id)}">${escapeHtml(t("viewDetails"))}</button>
+              <a class="mini-button primary" href="${escapeHtml(propertyUrl || `/propiedades/${property.slug || property.id}`)}">${escapeHtml(state.lang === "en" ? "View property" : "Ver propiedad")}</a>
+              <button class="mini-button icon-only" type="button" data-detail="${escapeHtml(property.id)}" title="${escapeHtml(state.lang === "en" ? "Quick view" : "Vista rapida")}" aria-label="${escapeHtml(state.lang === "en" ? "Quick view" : "Vista rapida")}"><i data-lucide="search"></i></button>
               <button class="mini-button" type="button" data-contact="${escapeHtml(property.id)}">${escapeHtml(t("contactWhatsApp"))}</button>
             </div>
           </div>
@@ -1653,6 +1655,7 @@ function propertySchemaType(property) {
 function updatePropertyJsonLd() {
   const existing = document.getElementById("property-jsonld");
   if (existing) existing.remove();
+  if (document.body.dataset.page !== "home") return;
   const publicProperties = state.properties.filter((property) => property.isPublic !== false && ["active", "featured", undefined, null, ""].includes(property.status));
   if (!publicProperties.length) return;
 
@@ -1662,47 +1665,16 @@ function updatePropertyJsonLd() {
     name: "Propiedades en venta y renta en Cancun",
     itemListElement: publicProperties.slice(0, 24).map((property, index) => {
       const price = selectedPrice(property);
-      const url = `${window.location.origin}/#property-${encodeURIComponent(property.id)}`;
-      const listing = {
-        "@type": "RealEstateListing",
-        name: localizedTitle(property),
-        url,
-        description: localizedDescription(property),
-        image: storedImages(property).length > 1 ? storedImages(property) : primaryImage(property),
-        datePosted: property.createdAt,
-        mainEntity: {
-          "@type": propertySchemaType(property),
-          name: localizedTitle(property),
-          description: localizedDescription(property),
-          numberOfRooms: property.beds || undefined,
-          numberOfBathroomsTotal: property.baths || undefined,
-          floorSize: property.area
-            ? {
-                "@type": "QuantitativeValue",
-                value: property.area,
-                unitCode: "MTK",
-              }
-            : undefined,
-          containedInPlace: {
-            "@type": "Place",
-            name: displayLocation(property) || "Cancun",
-          },
-        },
-      };
-      if (price) {
-        listing.offers = {
-          "@type": "Offer",
-          price: Number(price[1]),
-          priceCurrency: price[0],
-          availability: "https://schema.org/InStock",
-          url,
-        };
-      }
+      const path = state.lang === "en" ? property.urlEn : property.urlEs;
+      const url = `${window.location.origin}${path || `/propiedades/${encodeURIComponent(property.id)}`}`;
+      const image = storedImages(property).find((source) => !String(source).startsWith("data:image"));
       return {
         "@type": "ListItem",
         position: index + 1,
+        name: localizedTitle(property),
         url,
-        item: listing,
+        ...(image ? { image: new URL(image, window.location.origin).href } : {}),
+        ...(price ? { offers: { "@type": "Offer", price: Number(price[1]), priceCurrency: price[0] } } : {}),
       };
     }),
   };
@@ -3512,6 +3484,8 @@ const settingsFieldConfig = {
     ["phone", "Teléfono principal", "text"],
     ["whatsapp", "WhatsApp (solo números)", "text"],
     ["email", "Correo principal", "email"],
+    ["address", "Dirección comercial", "text"],
+    ["publicSiteUrl", "Dominio público", "url"],
     ["currencyPrimary", "Moneda principal", "text"],
     ["currencySecondary", "Moneda secundaria", "text"],
     ["exchangeRate", "Tipo de cambio manual", "number"],
@@ -4218,7 +4192,9 @@ async function listingSubmit(event) {
     priceMxn,
     beds: Number(form.beds.value || 0),
     baths: Number(form.baths.value || 0),
+    parking: Number(form.parking.value || 0),
     area: Number(form.area.value || 0),
+    amenities: form.amenities.value.trim(),
     featured: form.featured.checked,
     description: form.description.value.trim(),
     badges: ["new"],
@@ -4262,7 +4238,9 @@ function editListing(id) {
   updateListingImagePreview(storedImages(property));
   form.beds.value = property.beds || "";
   form.baths.value = property.baths || "";
+  form.parking.value = property.parking || "";
   form.area.value = property.area || "";
+  form.amenities.value = Array.isArray(property.amenities) ? property.amenities.join(", ") : "";
   form.featured.checked = Boolean(property.featured);
   form.description.value = localizedDescription(property);
   setListingQualityPreview(property);
@@ -4675,6 +4653,10 @@ function bindEvents() {
   });
 
   $("#languageToggle").addEventListener("click", () => {
+    if (document.body.dataset.page !== "home" && document.body.dataset.alternateUrl) {
+      window.location.assign(document.body.dataset.alternateUrl);
+      return;
+    }
     state.lang = state.lang === "es" ? "en" : "es";
     localStorage.setItem(keys.lang, state.lang);
     applyTranslations();

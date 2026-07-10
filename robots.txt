@@ -38,6 +38,6 @@ Disallow: /seller/
 Disallow: /dashboard/
 Allow: /styles.css
 Allow: /app.js
-Allow: /og-puerto-cancun-center.svg
+Allow: /assets/
 
-Sitemap: https://puerto-cancun.seenode.app/sitemap.xml
+Sitemap: https://www.puertocancun.center/sitemap.xml

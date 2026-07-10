@@ -1,6 +1,6 @@
 # Puerto Cancun Center
 
-Ultima actualizacion: 2026-07-02
+Ultima actualizacion: 2026-07-10
 
 Inmobiliaria en Cancun enfocada en compra, venta, valoracion y asesoria local para propietarios, compradores e inversionistas.
 
@@ -15,14 +15,58 @@ Cancun, Puerto Cancun, Zona Hotelera, Riviera Maya, Playa Mujeres, Quintana Roo
 - Validacion local de informacion generada por IA
 
 ## Paginas importantes
-- Compra o vende tu propiedad en Cancun: https://puerto-cancun.seenode.app/
-- Inmobiliaria en Cancun para comprar, vender y validar decisiones: https://puerto-cancun.seenode.app/inmobiliaria-cancun
-- Vende tu propiedad en Cancun con Puerto Cancun Center: https://puerto-cancun.seenode.app/vender-casa-cancun
-- Comprar casa en Cancun con comparacion local y decision informada: https://puerto-cancun.seenode.app/comprar-casa-cancun
-- Valoracion inmobiliaria en Cancun para validar cuanto vale tu propiedad: https://puerto-cancun.seenode.app/valuacion-inmobiliaria-cancun
-- Zonas de Cancun para vivir, comprar o invertir: https://puerto-cancun.seenode.app/zonas-cancun
-- Preguntas frecuentes sobre bienes raices en Cancun: https://puerto-cancun.seenode.app/faq-inmobiliario-cancun
-- Valida una respuesta de IA antes de vender, comprar o negociar: https://puerto-cancun.seenode.app/validar-respuesta-ia
+- Compra o vende tu propiedad en Cancun: https://www.puertocancun.center/
+- Inmobiliaria en Cancun para comprar, vender y validar decisiones: https://www.puertocancun.center/inmobiliaria-cancun
+- Vende tu propiedad en Cancun con Puerto Cancun Center: https://www.puertocancun.center/vender-casa-cancun
+- Comprar casa en Cancun con comparacion local y decision informada: https://www.puertocancun.center/comprar-casa-cancun
+- Valoracion inmobiliaria en Cancun para validar cuanto vale tu propiedad: https://www.puertocancun.center/valuacion-inmobiliaria-cancun
+- Zonas de Cancun para vivir, comprar o invertir: https://www.puertocancun.center/zonas-cancun
+- Preguntas frecuentes sobre bienes raices en Cancun: https://www.puertocancun.center/faq-inmobiliario-cancun
+- Valida una respuesta de IA antes de vender, comprar o negociar: https://www.puertocancun.center/validar-respuesta-ia
+- Buy or sell property in Cancun: https://www.puertocancun.center/en
+- Buy property in Cancun with local guidance: https://www.puertocancun.center/en/buy-property-cancun
+- Sell your property in Cancun: https://www.puertocancun.center/en/sell-property-cancun
+- Property valuation in Cancun: https://www.puertocancun.center/en/property-valuation-cancun
+- Validate an AI answer before deciding: https://www.puertocancun.center/en/validate-ai-answer
+- Cancun real estate frequently asked questions: https://www.puertocancun.center/en/cancun-real-estate-faq
+- Equipo de asesores de Puerto Cancun Center: https://www.puertocancun.center/nosotros
+- Contacta a Puerto Cancun Center: https://www.puertocancun.center/contacto
+- Puerto Cancun Center advisor team: https://www.puertocancun.center/en/about
+- Contact Puerto Cancun Center: https://www.puertocancun.center/en/contact
+- Propiedades en Cancun: https://www.puertocancun.center/propiedades
+- Properties in Cancun: https://www.puertocancun.center/en/properties
+- Propiedades en Puerto Cancun: https://www.puertocancun.center/propiedades/puerto-cancun
+- Properties in Puerto Cancun: https://www.puertocancun.center/en/properties/puerto-cancun
+- Casas en Puerto Cancun: https://www.puertocancun.center/propiedades/puerto-cancun/casas
+- Homes in Puerto Cancun: https://www.puertocancun.center/en/properties/puerto-cancun/homes
+- Departamentos en Puerto Cancun: https://www.puertocancun.center/propiedades/puerto-cancun/departamentos
+- Condos in Puerto Cancun: https://www.puertocancun.center/en/properties/puerto-cancun/condos
+- Terrenos en Puerto Cancun: https://www.puertocancun.center/propiedades/puerto-cancun/terrenos
+- Land in Puerto Cancun: https://www.puertocancun.center/en/properties/puerto-cancun/land
+- Propiedades en Zona Hotelera de Cancun: https://www.puertocancun.center/propiedades/zona-hotelera
+- Cancun Hotel Zone properties: https://www.puertocancun.center/en/properties/hotel-zone
+- Propiedades en Playa Mujeres: https://www.puertocancun.center/propiedades/playa-mujeres
+- Properties in Playa Mujeres: https://www.puertocancun.center/en/properties/playa-mujeres
+- Propiedades en Isla Mujeres: https://www.puertocancun.center/propiedades/isla-mujeres
+- Properties in Isla Mujeres: https://www.puertocancun.center/en/properties/isla-mujeres
+- Propiedades en Riviera Maya: https://www.puertocancun.center/propiedades/riviera-maya
+- Properties in Riviera Maya: https://www.puertocancun.center/en/properties/riviera-maya
+- Propiedades en renta en Cancun: https://www.puertocancun.center/propiedades-en-renta-cancun
+- Properties for rent in Cancun: https://www.puertocancun.center/en/cancun-rentals
+- Preventas en Cancun: https://www.puertocancun.center/preventas-cancun
+- Cancun presales: https://www.puertocancun.center/en/cancun-presales
+- Casas en Cancun: https://www.puertocancun.center/propiedades/casas-cancun
+- Homes in Cancun: https://www.puertocancun.center/en/properties/homes-cancun
+- Departamentos en Cancun: https://www.puertocancun.center/propiedades/departamentos-cancun
+- Condos in Cancun: https://www.puertocancun.center/en/properties/condos-cancun
+- Propiedades en Cancun Centro: https://www.puertocancun.center/propiedades/cancun-centro
+- Properties in downtown Cancun: https://www.puertocancun.center/en/properties/downtown-cancun
+- Propiedades comerciales en Cancun: https://www.puertocancun.center/propiedades/comerciales-cancun
+- Commercial property in Cancun: https://www.puertocancun.center/en/properties/commercial-cancun
+- Desarrollos inmobiliarios en Cancun: https://www.puertocancun.center/propiedades/desarrollos-cancun
+- Real estate developments in Cancun: https://www.puertocancun.center/en/properties/developments-cancun
+- Propiedades destacadas en Cancun: https://www.puertocancun.center/propiedades/destacadas-cancun
+- Featured properties in Cancun: https://www.puertocancun.center/en/properties/featured-cancun
 
 ## Contacto
 Telefono Mexico y WhatsApp: +52 1 998 216 6563

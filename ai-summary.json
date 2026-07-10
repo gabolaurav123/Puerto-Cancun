@@ -25,56 +25,276 @@
   "mainPages": [
     {
       "title": "Compra o vende tu propiedad en Cancun",
-      "url": "https://puerto-cancun.seenode.app/",
+      "url": "https://www.puertocancun.center/",
       "description": "Inmobiliaria en Cancun para comprar, vender, valorar e invertir en propiedades con estrategia local, datos e inteligencia artificial validada por asesores."
     },
     {
       "title": "Inmobiliaria en Cancun para comprar, vender y validar decisiones",
-      "url": "https://puerto-cancun.seenode.app/inmobiliaria-cancun",
+      "url": "https://www.puertocancun.center/inmobiliaria-cancun",
       "description": "Puerto Cancun Center es una inmobiliaria en Cancun para propietarios, compradores e inversionistas que necesitan asesoria local y validacion de informacion generada por IA."
     },
     {
       "title": "Vende tu propiedad en Cancun con Puerto Cancun Center",
-      "url": "https://puerto-cancun.seenode.app/vender-casa-cancun",
+      "url": "https://www.puertocancun.center/vender-casa-cancun",
       "description": "Solicita asesoria para vender tu casa, departamento, terreno o propiedad en Cancun con Puerto Cancun Center: precio, publicacion, compradores y seguimiento."
     },
     {
       "title": "Comprar casa en Cancun con comparacion local y decision informada",
-      "url": "https://puerto-cancun.seenode.app/comprar-casa-cancun",
+      "url": "https://www.puertocancun.center/comprar-casa-cancun",
       "description": "Guia para comprar casa en Cancun con asesor inmobiliario local: zonas, presupuesto, comparacion de propiedades, riesgos y formulario para recibir opciones."
     },
     {
       "title": "Valoracion inmobiliaria en Cancun para validar cuanto vale tu propiedad",
-      "url": "https://puerto-cancun.seenode.app/valuacion-inmobiliaria-cancun",
+      "url": "https://www.puertocancun.center/valuacion-inmobiliaria-cancun",
       "description": "Solicita valoracion inmobiliaria en Cancun y valida estimaciones de ChatGPT, Gemini o Claude con datos locales, estado fisico y criterio profesional."
     },
     {
       "title": "Zonas de Cancun para vivir, comprar o invertir",
-      "url": "https://puerto-cancun.seenode.app/zonas-cancun",
+      "url": "https://www.puertocancun.center/zonas-cancun",
       "description": "Guia editable de zonas de Cancun para vivir, invertir o rentar: Zona Hotelera, Puerto Cancun, Huayacan, Cumbres, Centro, Playa Mujeres y mas."
     },
     {
       "title": "Preguntas frecuentes sobre bienes raices en Cancun",
-      "url": "https://puerto-cancun.seenode.app/faq-inmobiliario-cancun",
+      "url": "https://www.puertocancun.center/faq-inmobiliario-cancun",
       "description": "FAQ inmobiliario en Cancun con respuestas claras para propietarios, compradores e inversionistas que usan Google, ChatGPT, Gemini o Claude."
     },
     {
       "title": "Valida una respuesta de IA antes de vender, comprar o negociar",
-      "url": "https://puerto-cancun.seenode.app/validar-respuesta-ia",
+      "url": "https://www.puertocancun.center/validar-respuesta-ia",
       "description": "Pega una respuesta de ChatGPT, Gemini, Claude o Perplexity sobre una propiedad en Cancun y solicita revision con criterio inmobiliario local."
+    },
+    {
+      "title": "Buy or sell property in Cancun",
+      "url": "https://www.puertocancun.center/en",
+      "description": "Cancun real estate support for buyers, owners and investors with local guidance."
+    },
+    {
+      "title": "Buy property in Cancun with local guidance",
+      "url": "https://www.puertocancun.center/en/buy-property-cancun",
+      "description": "Find homes, condos and investment property in Cancun with local advisor support."
+    },
+    {
+      "title": "Sell your property in Cancun",
+      "url": "https://www.puertocancun.center/en/sell-property-cancun",
+      "description": "Request pricing and a local sales strategy for your Cancun property."
+    },
+    {
+      "title": "Property valuation in Cancun",
+      "url": "https://www.puertocancun.center/en/property-valuation-cancun",
+      "description": "Request a Cancun property valuation with local market criteria."
+    },
+    {
+      "title": "Validate an AI answer before deciding",
+      "url": "https://www.puertocancun.center/en/validate-ai-answer",
+      "description": "Ask a local Cancun advisor to review an AI-generated price or real estate recommendation."
+    },
+    {
+      "title": "Cancun real estate frequently asked questions",
+      "url": "https://www.puertocancun.center/en/cancun-real-estate-faq",
+      "description": "Answers for buyers and sellers considering a Cancun real estate transaction."
+    },
+    {
+      "title": "Equipo de asesores de Puerto Cancun Center",
+      "url": "https://www.puertocancun.center/nosotros",
+      "description": "Conoce el enfoque de Puerto Cancun Center para conectar propietarios, compradores e inventario inmobiliario en Cancun."
+    },
+    {
+      "title": "Contacta a Puerto Cancun Center",
+      "url": "https://www.puertocancun.center/contacto",
+      "description": "Contacta a Puerto Cancun Center por WhatsApp o visita nuestra oficina en Zona Hotelera de Cancun."
+    },
+    {
+      "title": "Puerto Cancun Center advisor team",
+      "url": "https://www.puertocancun.center/en/about",
+      "description": "Learn how Puerto Cancun Center connects property owners, buyers and active Cancun inventory."
+    },
+    {
+      "title": "Contact Puerto Cancun Center",
+      "url": "https://www.puertocancun.center/en/contact",
+      "description": "Contact Puerto Cancun Center by WhatsApp or visit our Cancun Hotel Zone office."
+    },
+    {
+      "title": "Propiedades en Cancun",
+      "url": "https://www.puertocancun.center/propiedades",
+      "description": "Explora casas, departamentos, terrenos y preventas verificadas por el equipo de Puerto Cancun Center."
+    },
+    {
+      "title": "Properties in Cancun",
+      "url": "https://www.puertocancun.center/en/properties",
+      "description": "Explore homes, condos, land and presale opportunities verified by the Puerto Cancun Center team."
+    },
+    {
+      "title": "Propiedades en Puerto Cancun",
+      "url": "https://www.puertocancun.center/propiedades/puerto-cancun",
+      "description": "Inventario activo en Puerto Cancun con opciones residenciales, marina, canales y desarrollos contemporaneos."
+    },
+    {
+      "title": "Properties in Puerto Cancun",
+      "url": "https://www.puertocancun.center/en/properties/puerto-cancun",
+      "description": "Active Puerto Cancun inventory with residential, marina, canal and contemporary development options."
+    },
+    {
+      "title": "Casas en Puerto Cancun",
+      "url": "https://www.puertocancun.center/propiedades/puerto-cancun/casas",
+      "description": "Casas disponibles en Puerto Cancun con informacion de precio, superficie y contacto directo."
+    },
+    {
+      "title": "Homes in Puerto Cancun",
+      "url": "https://www.puertocancun.center/en/properties/puerto-cancun/homes",
+      "description": "Available homes in Puerto Cancun with pricing, floor area and direct advisor contact."
+    },
+    {
+      "title": "Departamentos en Puerto Cancun",
+      "url": "https://www.puertocancun.center/propiedades/puerto-cancun/departamentos",
+      "description": "Departamentos disponibles en Puerto Cancun, desde residencias frente a marina hasta torres con amenidades."
+    },
+    {
+      "title": "Condos in Puerto Cancun",
+      "url": "https://www.puertocancun.center/en/properties/puerto-cancun/condos",
+      "description": "Available Puerto Cancun condos, from marina residences to amenity-rich towers."
+    },
+    {
+      "title": "Terrenos en Puerto Cancun",
+      "url": "https://www.puertocancun.center/propiedades/puerto-cancun/terrenos",
+      "description": "Terrenos disponibles para proyectos residenciales o patrimoniales dentro de Puerto Cancun."
+    },
+    {
+      "title": "Land in Puerto Cancun",
+      "url": "https://www.puertocancun.center/en/properties/puerto-cancun/land",
+      "description": "Available land for residential or legacy projects in Puerto Cancun."
+    },
+    {
+      "title": "Propiedades en Zona Hotelera de Cancun",
+      "url": "https://www.puertocancun.center/propiedades/zona-hotelera",
+      "description": "Propiedades frente al Caribe y la Laguna Nichupte con ubicaciones consolidadas de Cancun."
+    },
+    {
+      "title": "Cancun Hotel Zone properties",
+      "url": "https://www.puertocancun.center/en/properties/hotel-zone",
+      "description": "Properties facing the Caribbean and Nichupte Lagoon in established Cancun locations."
+    },
+    {
+      "title": "Propiedades en Playa Mujeres",
+      "url": "https://www.puertocancun.center/propiedades/playa-mujeres",
+      "description": "Residencias y desarrollos al norte de Cancun en un corredor costero de perfil premium."
+    },
+    {
+      "title": "Properties in Playa Mujeres",
+      "url": "https://www.puertocancun.center/en/properties/playa-mujeres",
+      "description": "Homes and developments north of Cancun in a premium coastal corridor."
+    },
+    {
+      "title": "Propiedades en Isla Mujeres",
+      "url": "https://www.puertocancun.center/propiedades/isla-mujeres",
+      "description": "Consulta el inventario disponible en Isla Mujeres y solicita informacion al equipo local."
+    },
+    {
+      "title": "Properties in Isla Mujeres",
+      "url": "https://www.puertocancun.center/en/properties/isla-mujeres",
+      "description": "Browse available Isla Mujeres inventory and request information from the local team."
+    },
+    {
+      "title": "Propiedades en Riviera Maya",
+      "url": "https://www.puertocancun.center/propiedades/riviera-maya",
+      "description": "Opciones residenciales y de inversion seleccionadas en Riviera Maya."
+    },
+    {
+      "title": "Properties in Riviera Maya",
+      "url": "https://www.puertocancun.center/en/properties/riviera-maya",
+      "description": "Selected residential and investment opportunities in Riviera Maya."
+    },
+    {
+      "title": "Propiedades en renta en Cancun",
+      "url": "https://www.puertocancun.center/propiedades-en-renta-cancun",
+      "description": "Departamentos y casas en renta con informacion clara de zona, precio y caracteristicas."
+    },
+    {
+      "title": "Properties for rent in Cancun",
+      "url": "https://www.puertocancun.center/en/cancun-rentals",
+      "description": "Condos and homes for rent with clear location, price and property details."
+    },
+    {
+      "title": "Preventas en Cancun",
+      "url": "https://www.puertocancun.center/preventas-cancun",
+      "description": "Oportunidades de preventa con seguimiento local para revisar entrega, pagos y caracteristicas del proyecto."
+    },
+    {
+      "title": "Cancun presales",
+      "url": "https://www.puertocancun.center/en/cancun-presales",
+      "description": "Presale opportunities with local follow-up on delivery, payment schedules and project details."
+    },
+    {
+      "title": "Casas en Cancun",
+      "url": "https://www.puertocancun.center/propiedades/casas-cancun",
+      "description": "Casas disponibles en Cancun filtradas por zona, presupuesto y caracteristicas."
+    },
+    {
+      "title": "Homes in Cancun",
+      "url": "https://www.puertocancun.center/en/properties/homes-cancun",
+      "description": "Available Cancun homes filtered by area, budget and property features."
+    },
+    {
+      "title": "Departamentos en Cancun",
+      "url": "https://www.puertocancun.center/propiedades/departamentos-cancun",
+      "description": "Departamentos disponibles en Cancun para vivir, invertir o rentar."
+    },
+    {
+      "title": "Condos in Cancun",
+      "url": "https://www.puertocancun.center/en/properties/condos-cancun",
+      "description": "Available Cancun condos for living, investing or renting."
+    },
+    {
+      "title": "Propiedades en Cancun Centro",
+      "url": "https://www.puertocancun.center/propiedades/cancun-centro",
+      "description": "Inventario urbano con acceso a servicios, comercios y conectividad dentro de Cancun."
+    },
+    {
+      "title": "Properties in downtown Cancun",
+      "url": "https://www.puertocancun.center/en/properties/downtown-cancun",
+      "description": "Urban inventory with access to services, retail and transportation in Cancun."
+    },
+    {
+      "title": "Propiedades comerciales en Cancun",
+      "url": "https://www.puertocancun.center/propiedades/comerciales-cancun",
+      "description": "Locales, hoteles y oportunidades comerciales disponibles dentro del inventario activo."
+    },
+    {
+      "title": "Commercial property in Cancun",
+      "url": "https://www.puertocancun.center/en/properties/commercial-cancun",
+      "description": "Retail, hospitality and commercial opportunities in the active inventory."
+    },
+    {
+      "title": "Desarrollos inmobiliarios en Cancun",
+      "url": "https://www.puertocancun.center/propiedades/desarrollos-cancun",
+      "description": "Desarrollos residenciales seleccionados para compradores e inversionistas."
+    },
+    {
+      "title": "Real estate developments in Cancun",
+      "url": "https://www.puertocancun.center/en/properties/developments-cancun",
+      "description": "Selected residential developments for buyers and investors."
+    },
+    {
+      "title": "Propiedades destacadas en Cancun",
+      "url": "https://www.puertocancun.center/propiedades/destacadas-cancun",
+      "description": "Una seleccion del inventario activo por ubicacion, atributos y presentacion."
+    },
+    {
+      "title": "Featured properties in Cancun",
+      "url": "https://www.puertocancun.center/en/properties/featured-cancun",
+      "description": "A selection of active inventory based on location, features and presentation."
     }
   ],
   "contact": {
     "phoneMexico": "+52 1 998 216 6563",
     "email": "PENDIENTE_CONFIGURAR",
     "address": {
-      "streetAddress": "Av. Bonampak Entrada Puerto Cancun, Plaza Nido, Local 4",
+      "streetAddress": "Puerto Cancun Mall, Marina B., oficina 27, Zona Hotelera",
       "addressLocality": "Cancun",
-      "addressRegion": "Quintana Roo",
+      "addressRegion": "Q Roo",
       "postalCode": "77500",
       "addressCountry": "MX"
     }
   },
   "socialProfiles": [],
-  "lastUpdated": "2026-07-02"
+  "lastUpdated": "2026-07-10"
 }

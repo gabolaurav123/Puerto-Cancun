@@ -16,6 +16,10 @@ const {
   escapeHtml,
   getPageByPath,
   llmsTxt,
+  propertySlug,
+  renderCategoryPage,
+  renderPropertyHead,
+  renderPropertyPage,
   renderSeoHead,
   renderSeoPage,
   robotsTxt,
@@ -24,9 +28,9 @@ const {
 
 const app = express();
 const port = Number(process.env.PORT || 3000);
-const siteUrl = process.env.SITE_URL || DEFAULT_SITE_URL;
+const siteUrl = process.env.PUBLIC_SITE_URL || process.env.SITE_URL || DEFAULT_SITE_URL;
 const indexPath = path.join(__dirname, "index.html");
-const publicStaticFiles = new Set(["/app.js", "/styles.css", "/og-puerto-cancun-center.svg", "/favicon.svg"]);
+const publicStaticFiles = new Set(["/app.js", "/styles.css", "/favicon.svg"]);
 
 if (!process.env.DATABASE_URL) {
   console.error("DATABASE_URL is required. Copy .env.example to .env and configure your Neon PostgreSQL URL.");
@@ -66,6 +70,25 @@ const adminUser = (process.env.ADMIN_USER || "admin prueba").trim().toLowerCase(
 const adminPassword = process.env.ADMIN_PASSWORD || "";
 const googleClientId = (process.env.GOOGLE_CLIENT_ID || "").trim();
 const googleMapsApiKey = (process.env.GOOGLE_MAPS_API_KEY || "").trim();
+const indexNowKey = (process.env.INDEXNOW_KEY || "").trim();
+
+async function notifyIndexNow(paths) {
+  if (!indexNowKey || !paths.length) return;
+  try {
+    const host = new URL(siteUrl).host;
+    await fetch("https://api.indexnow.org/indexnow", {
+      method: "POST",
+      headers: { "Content-Type": "application/json; charset=utf-8" },
+      body: JSON.stringify({ host, key: indexNowKey, keyLocation: `${siteUrl.replace(/\/$/, "")}/${indexNowKey}.txt`, urlList: paths.map((entry) => absoluteUrl(entry, siteUrl)) }),
+    });
+  } catch (error) {
+    console.warn("IndexNow notification failed:", error.message);
+  }
+}
+
+function propertyIndexPaths(property) {
+  return [`/propiedades/${property.slug || propertySlug(property)}`, `/en/properties/${property.slug || propertySlug(property)}`];
+}
 
 const adminPrompts = [
   {
@@ -336,6 +359,18 @@ function mergeLegacyImages(images, image) {
   return list.slice(0, IMAGE_MAX_COUNT);
 }
 
+function publicMediaUrls(images, entity, id) {
+  return images.map((image, index) =>
+    /^data:image\//i.test(String(image || "")) ? `/media/${entity}/${encodeURIComponent(id)}/${index}` : image
+  );
+}
+
+function decodeDataImage(value) {
+  const match = /^data:(image\/(?:jpeg|jpg|png|webp));base64,([a-z0-9+/=\s]+)$/i.exec(String(value || ""));
+  if (!match) return null;
+  return { type: match[1].toLowerCase() === "image/jpg" ? "image/jpeg" : match[1].toLowerCase(), buffer: Buffer.from(match[2], "base64") };
+}
+
 function normalizeStatus(value, allowed, fallback) {
   const normalized = String(value || "").trim().toLowerCase();
   return allowed.has(normalized) ? normalized : fallback;
@@ -504,9 +539,10 @@ function propertyQuality(property) {
 }
 
 function toProperty(row) {
-  const images = mergeLegacyImages(row.images, row.image);
+  const stored = mergeLegacyImages(row.images, row.image);
+  const images = publicMediaUrls(stored, "properties", row.id);
   const quality = propertyQuality(row);
-  return {
+  const property = {
     id: row.id,
     titleEs: row.title_es,
     titleEn: row.title_en,
@@ -524,10 +560,12 @@ function toProperty(row) {
     priceMxn: row.price_mxn === null ? null : Number(row.price_mxn || 0),
     beds: Number(row.beds || 0),
     baths: Number(row.baths || 0),
+    parking: Number(row.parking || 0),
     area: Number(row.area || 0),
     lot: Number(row.lot || 0),
+    amenities: safeJsonArray(row.amenities),
     mls: row.mls,
-    image: row.image || images[0] || null,
+    image: images[0] || null,
     images,
     featured: Boolean(row.featured),
     status: row.status || "active",
@@ -544,6 +582,10 @@ function toProperty(row) {
     descriptionEn: row.description_en,
     sourceRequestId: row.source_request_id,
   };
+  property.slug = row.slug || propertySlug(property);
+  property.urlEs = `/propiedades/${property.slug}`;
+  property.urlEn = `/en/properties/${property.slug}`;
+  return property;
 }
 
 function numericOrNull(value) {
@@ -752,7 +794,8 @@ function formatPdfMoney(value, currency = "USD") {
 }
 
 function toRequest(row) {
-  const images = mergeLegacyImages(row.images, row.image);
+  const stored = mergeLegacyImages(row.images, row.image);
+  const images = publicMediaUrls(stored, "requests", row.id);
   return {
     id: row.id,
     sellerId: row.seller_id,
@@ -776,7 +819,7 @@ function toRequest(row) {
     baths: Number(row.baths || 0),
     area: Number(row.area || 0),
     description: row.description,
-    image: row.image || images[0] || null,
+    image: images[0] || null,
     images,
     status: row.status,
     priority: row.priority || "medium",
@@ -866,6 +909,22 @@ async function query(sql, params = []) {
   return result;
 }
 
+let publicPropertyCache = { expiresAt: 0, items: [] };
+
+async function getPublicProperties() {
+  if (publicPropertyCache.expiresAt > Date.now()) return publicPropertyCache.items;
+  const result = await query(
+    "SELECT * FROM properties WHERE is_public = TRUE AND status = ANY($1::text[]) ORDER BY featured DESC, updated_at DESC",
+    [Array.from(PUBLIC_PROPERTY_STATUSES)]
+  );
+  publicPropertyCache = { expiresAt: Date.now() + 300_000, items: result.rows.map(toProperty) };
+  return publicPropertyCache.items;
+}
+
+function invalidatePublicPropertyCache() {
+  publicPropertyCache = { expiresAt: 0, items: [] };
+}
+
 async function verifyGoogleCredential(credential) {
   if (!googleClientId) {
     const error = new Error("Google login is not configured");
@@ -945,6 +1004,7 @@ async function initDatabase() {
     await client.query(`
       CREATE TABLE IF NOT EXISTS properties (
         id TEXT PRIMARY KEY,
+        slug TEXT UNIQUE,
         title_es TEXT NOT NULL,
         title_en TEXT NOT NULL,
         type TEXT NOT NULL,
@@ -961,8 +1021,10 @@ async function initDatabase() {
         price_mxn NUMERIC,
         beds INTEGER NOT NULL DEFAULT 0,
         baths INTEGER NOT NULL DEFAULT 0,
+        parking INTEGER NOT NULL DEFAULT 0,
         area INTEGER NOT NULL DEFAULT 0,
         lot INTEGER NOT NULL DEFAULT 0,
+        amenities JSONB NOT NULL DEFAULT '[]'::jsonb,
         mls TEXT NOT NULL,
         image TEXT,
         images JSONB NOT NULL DEFAULT '[]'::jsonb,
@@ -987,6 +1049,9 @@ async function initDatabase() {
     await client.query("ALTER TABLE seller_accounts ADD COLUMN IF NOT EXISTS google_sub TEXT UNIQUE");
     await client.query("ALTER TABLE seller_accounts ADD COLUMN IF NOT EXISTS auth_provider TEXT NOT NULL DEFAULT 'password'");
     await client.query("ALTER TABLE properties ADD COLUMN IF NOT EXISTS price_mxn NUMERIC");
+    await client.query("ALTER TABLE properties ADD COLUMN IF NOT EXISTS slug TEXT UNIQUE");
+    await client.query("ALTER TABLE properties ADD COLUMN IF NOT EXISTS parking INTEGER NOT NULL DEFAULT 0");
+    await client.query("ALTER TABLE properties ADD COLUMN IF NOT EXISTS amenities JSONB NOT NULL DEFAULT '[]'::jsonb");
     await client.query("ALTER TABLE properties ALTER COLUMN price_usd DROP NOT NULL");
     await client.query("ALTER TABLE properties ADD COLUMN IF NOT EXISTS state TEXT NOT NULL DEFAULT 'Quintana Roo'");
     await client.query("ALTER TABLE properties ADD COLUMN IF NOT EXISTS city TEXT NOT NULL DEFAULT 'Cancun'");
@@ -1275,6 +1340,17 @@ async function initDatabase() {
     await client.query("ALTER TABLE properties ADD COLUMN IF NOT EXISTS archived_at TIMESTAMPTZ");
     await client.query("ALTER TABLE properties ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()");
     await client.query("UPDATE properties SET status = 'active', is_public = TRUE WHERE status IS NULL");
+    const slugRows = await client.query("SELECT id, slug, title_es, title_en, zone, mls FROM properties ORDER BY created_at");
+    for (const row of slugRows.rows) {
+      if (row.slug) continue;
+      const base = propertySlug({ titleEs: row.title_es, titleEn: row.title_en, zone: row.zone, mls: row.mls, id: row.id });
+      let slug = base;
+      let suffix = 2;
+      while ((await client.query("SELECT 1 FROM properties WHERE slug = $1 AND id <> $2", [slug, row.id])).rowCount) {
+        slug = `${base}-${suffix++}`;
+      }
+      await client.query("UPDATE properties SET slug = $2 WHERE id = $1", [row.id, slug]);
+    }
     await client.query("ALTER TABLE location_options ADD COLUMN IF NOT EXISTS is_active BOOLEAN NOT NULL DEFAULT TRUE");
     await client.query("ALTER TABLE location_options ADD COLUMN IF NOT EXISTS sort_order INTEGER NOT NULL DEFAULT 0");
     await client.query("ALTER TABLE location_options ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()");
@@ -1296,12 +1372,18 @@ async function initDatabase() {
     await client.query(
       `INSERT INTO app_settings (key, value)
        VALUES
-         ('site', '{"siteName":"Puerto Cancún Center","phone":"998-216-6563","whatsapp":"5219982166563","email":"","currencyPrimary":"USD","currencySecondary":"MXN","exchangeRate":18.5,"language":"es"}'::jsonb),
+         ('site', '{"siteName":"Puerto Cancún Center","phone":"998-216-6563","whatsapp":"5219982166563","email":"","address":"Puerto Cancun Mall, Marina B., oficina 27, Zona Hotelera, Cancun 77500, Q Roo, Mexico.","publicSiteUrl":"https://www.puertocancun.center","currencyPrimary":"USD","currencySecondary":"MXN","exchangeRate":18.5,"language":"es"}'::jsonb),
          ('seo', '{"metaTitle":"Puerto Cancún Center | Propiedades en Cancún","metaDescription":"Compra, vende y valora propiedades en Cancún con asesoría local.","structuredData":true,"sitemap":true,"robots":true}'::jsonb),
          ('forms', '{"requiredPhone":true,"requiredEmail":true,"successMessage":"Recibimos tu solicitud. Un asesor la revisará.","autoAssignment":false}'::jsonb),
          ('pdf', '{"showPrice":true,"showExactAddress":false,"disclaimer":"Información sujeta a disponibilidad y cambios sin previo aviso.","advisorName":"Puerto Cancún Center"}'::jsonb),
          ('ai', '{"brandTone":"Profesional, claro y local.","enabledTools":["listing","improve","missing","summary","next_action","whatsapp","campaign","price"]}'::jsonb)
        ON CONFLICT (key) DO NOTHING`
+    );
+    await client.query(
+      `UPDATE app_settings
+       SET value = jsonb_set(jsonb_set(value, '{address}', to_jsonb($1::text), true), '{publicSiteUrl}', to_jsonb($2::text), true), updated_at = NOW()
+       WHERE key = 'site'`,
+      ["Puerto Cancun Mall, Marina B., oficina 27, Zona Hotelera, Cancun 77500, Q Roo, Mexico.", siteUrl]
     );
     for (const option of seedLocationOptions) {
       await client.query(
@@ -1317,12 +1399,13 @@ async function initDatabase() {
       for (const property of seedProperties) {
         await client.query(
           `INSERT INTO properties
-            (id, title_es, title_en, type, state, city, zone, neighborhood, address, operation, price_usd, price_mxn, beds, baths, area, lot, mls, image, images, featured, badges, created_at, description_es, description_en)
+            (id, slug, title_es, title_en, type, state, city, zone, neighborhood, address, operation, price_usd, price_mxn, beds, baths, area, lot, mls, image, images, featured, badges, created_at, description_es, description_en)
            VALUES
-            ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19::jsonb, $20, $21::jsonb, $22, $23, $24)
+            ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20::jsonb, $21, $22::jsonb, $23, $24, $25)
            ON CONFLICT (id) DO NOTHING`,
           [
             property.id,
+            propertySlug(property),
             property.titleEs,
             property.titleEn,
             property.type,
@@ -1398,6 +1481,7 @@ async function initDatabase() {
 
 app.set("trust proxy", 1);
 app.use(express.json({ limit: "20mb" }));
+app.use("/assets", express.static(path.join(__dirname, "assets"), { immutable: true, maxAge: "1y" }));
 app.use(
   session({
     store: new PgSession({
@@ -1431,7 +1515,60 @@ app.get("/api/config", (_req, res) => {
   res.json({
     googleClientId,
     googleMapsApiKey,
+    publicSiteUrl: siteUrl,
+    businessAddress: "Puerto Cancun Mall, Marina B., oficina 27, Zona Hotelera, Cancun 77500, Q Roo, Mexico.",
   });
+});
+
+app.get("/media/properties/:id/:index", async (req, res, next) => {
+  try {
+    const result = await query(
+      "SELECT id, image, images, is_public, status, updated_at FROM properties WHERE id = $1",
+      [req.params.id]
+    );
+    const property = result.rows[0];
+    const canViewPrivate = req.session.user?.role === "admin";
+    if (!property || (!canViewPrivate && (!property.is_public || !PUBLIC_PROPERTY_STATUSES.has(property.status)))) {
+      res.status(404).end();
+      return;
+    }
+    const image = mergeLegacyImages(property.images, property.image)[Number(req.params.index)];
+    const decoded = decodeDataImage(image);
+    if (!decoded) {
+      res.status(404).end();
+      return;
+    }
+    res.set({ "Content-Type": decoded.type, "Cache-Control": "public, max-age=86400, stale-while-revalidate=604800", ETag: `W/\"${property.id}-${req.params.index}-${new Date(property.updated_at || 0).getTime()}\"` });
+    res.send(decoded.buffer);
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.get("/media/requests/:id/:index", async (req, res, next) => {
+  try {
+    if (!req.session.user) {
+      res.status(401).end();
+      return;
+    }
+    const result = await query("SELECT * FROM seller_requests WHERE id = $1", [req.params.id]);
+    const request = result.rows[0];
+    const allowed = request && (req.session.user.role === "admin" || request.seller_id === req.session.user.id);
+    if (!allowed) {
+      res.status(404).end();
+      return;
+    }
+    const image = mergeLegacyImages(request.images, request.image)[Number(req.params.index)];
+    const decoded = decodeDataImage(image);
+    if (!decoded) {
+      res.status(404).end();
+      return;
+    }
+    res.set({ "Content-Type": decoded.type, "Cache-Control": "private, max-age=3600" });
+    res.send(decoded.buffer);
+  } catch (error) {
+    next(error);
+  }
 });
 
 app.get("/api/session", (req, res) => {
@@ -1621,12 +1758,11 @@ app.get("/api/properties", async (req, res, next) => {
       await query("UPDATE app_metrics SET visits = visits + 1 WHERE id = 1");
     }
     const isAdmin = req.session.user?.role === "admin";
-    const result = await query(
-      isAdmin
-        ? "SELECT * FROM properties ORDER BY created_at DESC"
-        : "SELECT * FROM properties WHERE is_public = TRUE AND status = ANY($1::text[]) ORDER BY created_at DESC",
-      isAdmin ? [] : [Array.from(PUBLIC_PROPERTY_STATUSES)]
-    );
+    if (!isAdmin) {
+      res.json({ properties: await getPublicProperties() });
+      return;
+    }
+    const result = await query("SELECT * FROM properties ORDER BY created_at DESC");
     res.json({ properties: result.rows.map(toProperty) });
   } catch (error) {
     next(error);
@@ -2969,6 +3105,11 @@ app.post("/api/admin/requests/:id/approve", requireRole("admin"), async (req, re
       res.status(404).json({ error: "Request not found" });
       return;
     }
+    if (!mergeLegacyImages(request.images, request.image).length) {
+      await client.query("ROLLBACK");
+      res.status(400).json({ error: "Solicita al vendedor al menos una imagen antes de aprobar y publicar." });
+      return;
+    }
 
     const existing = await client.query("SELECT * FROM properties WHERE source_request_id = $1", [request.id]);
     let property = existing.rows[0];
@@ -3009,10 +3150,16 @@ app.post("/api/admin/requests/:id/approve", requireRole("admin"), async (req, re
         ]
       );
       property = propertyResult.rows[0];
+      const approvedSlug = propertySlug(toProperty(property));
+      const slugResult = await client.query("UPDATE properties SET slug = COALESCE(slug, $2) WHERE id = $1 RETURNING *", [property.id, approvedSlug]);
+      property = slugResult.rows[0];
     }
 
     await client.query("COMMIT");
-    res.json({ request: toRequest(request), property: toProperty(property) });
+    invalidatePublicPropertyCache();
+    const approvedProperty = toProperty(property);
+    void notifyIndexNow(propertyIndexPaths(approvedProperty));
+    res.json({ request: toRequest(request), property: approvedProperty });
   } catch (error) {
     await client.query("ROLLBACK");
     next(error);
@@ -3079,7 +3226,14 @@ app.post("/api/admin/properties", requireRole("admin"), async (req, res, next) =
         property.descriptionEn,
       ]
     );
-    res.status(201).json({ property: toProperty(result.rows[0]) });
+    const slugged = await query(
+      "UPDATE properties SET slug = COALESCE(slug, $2), parking = $3, amenities = $4::jsonb WHERE id = $1 RETURNING *",
+      [result.rows[0].id, propertySlug(toProperty(result.rows[0])), property.parking, JSON.stringify(property.amenities)]
+    );
+    invalidatePublicPropertyCache();
+    const createdProperty = toProperty(slugged.rows[0]);
+    if (createdProperty.isPublic && PUBLIC_PROPERTY_STATUSES.has(createdProperty.status)) void notifyIndexNow(propertyIndexPaths(createdProperty));
+    res.status(201).json({ property: createdProperty });
   } catch (error) {
     next(error);
   }
@@ -3145,7 +3299,11 @@ app.put("/api/admin/properties/:id", requireRole("admin"), async (req, res, next
       res.status(404).json({ error: "Property not found" });
       return;
     }
-    res.json({ property: toProperty(result.rows[0]) });
+    const enriched = await query("UPDATE properties SET parking = $2, amenities = $3::jsonb WHERE id = $1 RETURNING *", [result.rows[0].id, property.parking, JSON.stringify(property.amenities)]);
+    const updatedProperty = toProperty(enriched.rows[0]);
+    invalidatePublicPropertyCache();
+    if (updatedProperty.isPublic && PUBLIC_PROPERTY_STATUSES.has(updatedProperty.status)) void notifyIndexNow(propertyIndexPaths(updatedProperty));
+    res.json({ property: updatedProperty });
   } catch (error) {
     next(error);
   }
@@ -3153,7 +3311,10 @@ app.put("/api/admin/properties/:id", requireRole("admin"), async (req, res, next
 
 app.delete("/api/admin/properties/:id", requireRole("admin"), async (req, res, next) => {
   try {
+    const existing = await query("SELECT * FROM properties WHERE id = $1", [req.params.id]);
     await query("DELETE FROM properties WHERE id = $1", [req.params.id]);
+    invalidatePublicPropertyCache();
+    if (existing.rows[0]) void notifyIndexNow(propertyIndexPaths(toProperty(existing.rows[0])));
     res.json({ ok: true });
   } catch (error) {
     next(error);
@@ -3180,7 +3341,8 @@ app.post("/api/admin/properties/:id/duplicate", requireRole("admin"), async (req
        RETURNING *`,
       [req.params.id, uuid("prop"), String(Math.floor(2000 + Math.random() * 8000))]
     );
-    res.status(201).json({ property: toProperty(result.rows[0]) });
+    const slugged = await query("UPDATE properties SET slug = COALESCE(slug, $2) WHERE id = $1 RETURNING *", [result.rows[0].id, propertySlug(toProperty(result.rows[0]))]);
+    res.status(201).json({ property: toProperty(slugged.rows[0]) });
   } catch (error) {
     next(error);
   }
@@ -3196,7 +3358,10 @@ app.patch("/api/admin/properties/:id/featured", requireRole("admin"), async (req
       res.status(404).json({ error: "Property not found" });
       return;
     }
-    res.json({ property: toProperty(result.rows[0]) });
+    const featuredProperty = toProperty(result.rows[0]);
+    invalidatePublicPropertyCache();
+    void notifyIndexNow(propertyIndexPaths(featuredProperty));
+    res.json({ property: featuredProperty });
   } catch (error) {
     next(error);
   }
@@ -3223,7 +3388,10 @@ app.patch("/api/admin/properties/:id/status", requireRole("admin"), async (req, 
       res.status(404).json({ error: "Property not found" });
       return;
     }
-    res.json({ property: toProperty(result.rows[0]) });
+    const statusProperty = toProperty(result.rows[0]);
+    invalidatePublicPropertyCache();
+    void notifyIndexNow(propertyIndexPaths(statusProperty));
+    res.json({ property: statusProperty });
   } catch (error) {
     next(error);
   }
@@ -3825,6 +3993,11 @@ function normalizePropertyInput(body, id, existingImages = []) {
     error.status = 400;
     throw error;
   }
+  if (isPublic && PUBLIC_PROPERTY_STATUSES.has(status) && !images.length) {
+    const error = new Error("Agrega al menos una imagen antes de publicar la propiedad.");
+    error.status = 400;
+    throw error;
+  }
 
   return {
     id,
@@ -3846,8 +4019,13 @@ function normalizePropertyInput(body, id, existingImages = []) {
     priceMxn,
     beds: Number(body.beds || 0),
     baths: Number(body.baths || 0),
+    parking: Number(body.parking || 0),
     area: Number(body.area || 0),
     lot: Number(body.lot || 0),
+    amenities: (Array.isArray(body.amenities) ? body.amenities : String(body.amenities || "").split(","))
+      .map((item) => String(item).trim())
+      .filter(Boolean)
+      .slice(0, 30),
     mls: String(body.mls || Math.floor(2000 + Math.random() * 8000)),
     image: images[0] || null,
     images,
@@ -3860,28 +4038,15 @@ function normalizePropertyInput(body, id, existingImages = []) {
   };
 }
 
-function defaultImageForType(type) {
-  const images = {
-    Casa: "https://images.unsplash.com/photo-1613490493576-7fde63acd811?auto=format&fit=crop&w=1200&q=82",
-    Departamento: "https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?auto=format&fit=crop&w=1200&q=82",
-    Terreno: "https://images.unsplash.com/photo-1572120360610-d971b9d7767c?auto=format&fit=crop&w=1200&q=82",
-    Comercial: "https://images.unsplash.com/photo-1571896349842-33c89424de2d?auto=format&fit=crop&w=1200&q=82",
-    Preventa: "https://images.unsplash.com/photo-1582268611958-ebfd161ef9cf?auto=format&fit=crop&w=1200&q=82",
-    Desarrollo: "https://images.unsplash.com/photo-1600607687644-c7171b42498f?auto=format&fit=crop&w=1200&q=82",
-  };
-  return images[type] || "https://images.unsplash.com/photo-1600566753190-17f0baa2a6c3?auto=format&fit=crop&w=1200&q=82";
-}
-
 function replaceMetaTag(html, pattern, replacement) {
   return html.replace(pattern, replacement);
 }
 
-function renderPublicHtml(requestPath) {
-  const page = getPageByPath(requestPath) || getPageByPath("/");
-  const seo = renderSeoHead(page, siteUrl);
-  const pageContent = page.path === "/" ? "" : renderSeoPage(page.path);
+function decoratePublicHtml({ page, seo, pageContent = "", bodyPage = "seo", noindex = false }) {
   let html = fs.readFileSync(indexPath, "utf8");
-
+  const alternateUrl = absoluteUrl(seo.alternate || "/", siteUrl);
+  const spanishUrl = seo.lang === "en" ? alternateUrl : seo.canonical;
+  const englishUrl = seo.lang === "en" ? seo.canonical : alternateUrl;
   html = replaceMetaTag(html, /<title>[\s\S]*?<\/title>/, `<title>${escapeHtml(seo.title)}</title>`);
   html = replaceMetaTag(
     html,
@@ -3889,6 +4054,15 @@ function renderPublicHtml(requestPath) {
     `<meta name="description" content="${escapeHtml(seo.description)}" />`
   );
   html = replaceMetaTag(html, /<link\s+rel="canonical"[\s\S]*?\/>/, `<link rel="canonical" href="${escapeHtml(seo.canonical)}" />`);
+  html = html.replace(
+    /<link rel="canonical"[^>]+>/,
+    (canonical) => `${canonical}\n    <link rel="alternate" hreflang="es-MX" href="${escapeHtml(spanishUrl)}" />\n    <link rel="alternate" hreflang="en" href="${escapeHtml(englishUrl)}" />\n    <link rel="alternate" hreflang="x-default" href="${escapeHtml(spanishUrl)}" />`
+  );
+  html = replaceMetaTag(
+    html,
+    /<meta\s+name="robots"[\s\S]*?\/>/,
+    `<meta name="robots" content="${noindex ? "noindex,nofollow" : "index,follow,max-image-preview:large"}" />`
+  );
   html = replaceMetaTag(
     html,
     /<meta\s+property="og:title"[\s\S]*?\/>/,
@@ -3918,16 +4092,43 @@ function renderPublicHtml(requestPath) {
   );
   html = html.replace("<!-- SEO_JSON_LD -->", seo.jsonLd);
   html = html.replace("<!-- SEO_PAGE_CONTENT -->", pageContent);
-  html = html.replace('<body data-page="home">', `<body data-page="${page.path === "/" ? "home" : "seo"}">`);
+  if (bodyPage !== "home") {
+    html = html.replace(/<h1 data-i18n="heroTitle">([\s\S]*?)<\/h1>/, '<p class="hero-title" data-i18n="heroTitle">$1</p>');
+  }
+  html = html.replace('<html lang="es">', `<html lang="${seo.lang === "en" ? "en" : "es-MX"}">`);
+  html = html.replace('<body data-page="home">', `<body data-page="${bodyPage}" data-lang="${seo.lang === "en" ? "en" : "es"}" data-alternate-url="${escapeHtml(seo.alternate || "/")}">`);
   return html;
 }
 
-app.get("/robots.txt", (_req, res) => {
+async function renderPublicHtml(requestPath, noindex = false) {
+  const page = getPageByPath(requestPath);
+  if (!page) return null;
+  const seo = renderSeoHead(page, siteUrl);
+  let pageContent = page.path === "/" ? "" : renderSeoPage(page.path);
+  if (page.category) {
+    pageContent = renderCategoryPage(page, await getPublicProperties());
+  }
+  return decoratePublicHtml({ page, seo, pageContent, bodyPage: page.path === "/" ? "home" : "seo", noindex });
+}
+
+app.get("/robots.txt", (req, res) => {
+  if (req.hostname.endsWith("seenode.app")) {
+    res.type("text/plain").send("User-agent: *\nDisallow: /\n");
+    return;
+  }
   res.type("text/plain").send(robotsTxt(siteUrl));
 });
 
-app.get("/sitemap.xml", (_req, res) => {
-  res.type("application/xml").send(sitemapXml(siteUrl));
+if (indexNowKey) {
+  app.get(`/${indexNowKey}.txt`, (_req, res) => res.type("text/plain").send(indexNowKey));
+}
+
+app.get("/sitemap.xml", async (_req, res, next) => {
+  try {
+    res.type("application/xml").send(sitemapXml(siteUrl, await getPublicProperties()));
+  } catch (error) {
+    next(error);
+  }
 });
 
 app.get("/llms.txt", (_req, res) => {
@@ -3942,12 +4143,56 @@ app.get("/prompts-inmobiliarios-cancun", (_req, res) => {
   res.redirect(301, "/validar-respuesta-ia");
 });
 
+const legacyRedirects = {
+  "/about": "/nosotros",
+  "/contact": "/contacto",
+  "/properties": "/propiedades",
+  "/rentals": "/propiedades-en-renta-cancun",
+  "/Preguntas": "/faq-inmobiliario-cancun",
+};
+Object.entries(legacyRedirects).forEach(([from, to]) => app.get(from, (_req, res) => res.redirect(301, to)));
+
+app.get(["/propiedades/:slug", "/en/properties/:slug"], async (req, res, next) => {
+  try {
+    const staticPage = getPageByPath(req.path);
+    if (staticPage) {
+      const html = await renderPublicHtml(req.path, req.hostname.endsWith("seenode.app"));
+      res.send(html);
+      return;
+    }
+    const publicProperties = await getPublicProperties();
+    const property = publicProperties.find((item) => item.slug === req.params.slug || propertySlug(item) === req.params.slug);
+    if (!property) {
+      res.status(404).send("Propiedad no encontrada");
+      return;
+    }
+    const lang = req.path.startsWith("/en/") ? "en" : "es";
+    const similar = publicProperties
+      .filter((item) => item.id !== property.id && (item.zone === property.zone || item.type === property.type))
+      .sort((a, b) => Number(b.zone === property.zone) - Number(a.zone === property.zone));
+    const rendered = renderPropertyPage(property, lang, similar);
+    const seo = renderPropertyHead(property, siteUrl, lang);
+    res.send(decoratePublicHtml({ page: rendered.page, seo, pageContent: rendered.html, bodyPage: "property", noindex: req.hostname.endsWith("seenode.app") }));
+  } catch (error) {
+    next(error);
+  }
+});
+
 app.get(Array.from(publicStaticFiles), (req, res) => {
   res.sendFile(path.join(__dirname, req.path.slice(1)));
 });
 
-app.get("*", (req, res) => {
-  res.send(renderPublicHtml(req.path));
+app.get("*", async (req, res, next) => {
+  try {
+    const html = await renderPublicHtml(req.path, req.hostname.endsWith("seenode.app"));
+    if (!html) {
+      res.status(404).send("Pagina no encontrada");
+      return;
+    }
+    res.send(html);
+  } catch (error) {
+    next(error);
+  }
 });
 
 app.use((error, _req, res, _next) => {
@@ -3959,7 +4204,8 @@ app.use((error, _req, res, _next) => {
 });
 
 initDatabase()
-  .then(() => {
+  .then(async () => {
+    await getPublicProperties();
     app.listen(port, () => {
       console.log(`Puerto Cancun Center running on http://localhost:${port}`);
     });

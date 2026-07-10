@@ -52,6 +52,7 @@ CREATE TABLE IF NOT EXISTS seller_requests (
 
 CREATE TABLE IF NOT EXISTS properties (
   id TEXT PRIMARY KEY,
+  slug TEXT UNIQUE,
   title_es TEXT NOT NULL,
   title_en TEXT NOT NULL,
   type TEXT NOT NULL,
@@ -70,8 +71,10 @@ CREATE TABLE IF NOT EXISTS properties (
   price_mxn NUMERIC,
   beds INTEGER NOT NULL DEFAULT 0,
   baths INTEGER NOT NULL DEFAULT 0,
+  parking INTEGER NOT NULL DEFAULT 0,
   area INTEGER NOT NULL DEFAULT 0,
   lot INTEGER NOT NULL DEFAULT 0,
+  amenities JSONB NOT NULL DEFAULT '[]'::jsonb,
   mls TEXT NOT NULL,
   image TEXT,
   images JSONB NOT NULL DEFAULT '[]'::jsonb,
