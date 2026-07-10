@@ -1205,16 +1205,65 @@ function showToast(message, type = "success") {
   window.setTimeout(() => toast.remove(), 4200);
 }
 
+const formProgressTimers = new WeakMap();
+
+function setFormProgress(button, loading, label) {
+  const form = button?.closest("form");
+  if (!form) return;
+  let indicator = form.querySelector(".form-progress[data-form-progress]");
+  if (loading) {
+    if (!indicator) {
+      indicator = document.createElement("div");
+      indicator.className = "form-progress";
+      indicator.dataset.formProgress = "true";
+      indicator.setAttribute("role", "status");
+      indicator.setAttribute("aria-live", "polite");
+      indicator.innerHTML = `
+        <div class="form-progress-copy">
+          <span>${escapeHtml(label)}</span>
+          <strong>8%</strong>
+        </div>
+        <div class="form-progress-track" aria-hidden="true"><span></span></div>
+        <small>No cierres esta ventana. Las imágenes pueden tardar un poco en procesarse.</small>
+      `;
+      button.closest(".form-actions")?.insertAdjacentElement("afterend", indicator) || form.append(indicator);
+    }
+    let progress = 8;
+    const bar = indicator.querySelector(".form-progress-track span");
+    const value = indicator.querySelector("strong");
+    bar.style.width = `${progress}%`;
+    const timer = window.setInterval(() => {
+      progress = Math.min(92, progress + Math.max(1, Math.round((92 - progress) * 0.08)));
+      bar.style.width = `${progress}%`;
+      value.textContent = `${progress}%`;
+    }, 700);
+    formProgressTimers.set(form, timer);
+    return;
+  }
+  const timer = formProgressTimers.get(form);
+  if (timer) window.clearInterval(timer);
+  formProgressTimers.delete(form);
+  if (!indicator) return;
+  indicator.querySelector(".form-progress-track span").style.width = "100%";
+  indicator.querySelector("strong").textContent = "100%";
+  indicator.querySelector(".form-progress-copy span").textContent = "Proceso completado";
+  window.setTimeout(() => indicator.remove(), 650);
+}
+
 function setButtonLoading(button, loading, label = "Procesando...") {
   if (!button) return;
   if (loading) {
     button.dataset.originalText = button.textContent;
     button.disabled = true;
     button.textContent = label;
+    button.setAttribute("aria-busy", "true");
+    setFormProgress(button, true, label);
     return;
   }
   button.disabled = false;
   button.textContent = button.dataset.originalText || button.textContent;
+  button.removeAttribute("aria-busy");
+  setFormProgress(button, false);
   delete button.dataset.originalText;
   refreshIcons();
 }
@@ -4165,6 +4214,7 @@ async function getListingImagePayload(form) {
 async function listingSubmit(event) {
   event.preventDefault();
   const form = event.currentTarget;
+  const submit = form.querySelector('[type="submit"]');
   const id = form.elements.id.value;
   const message = $("#listingFormMessage");
   setFormMessage(message, "");
@@ -4199,6 +4249,7 @@ async function listingSubmit(event) {
     description: form.description.value.trim(),
     badges: ["new"],
   };
+  setButtonLoading(submit, true, "Guardando publicación...");
   try {
     Object.assign(payload, await getListingImagePayload(form));
     await api(id ? `/api/admin/properties/${encodeURIComponent(id)}` : "/api/admin/properties", {
@@ -4211,6 +4262,9 @@ async function listingSubmit(event) {
     showToast(t("listingSaved"));
   } catch (error) {
     setFormMessage(message, error.message, true);
+    showToast(error.message, "error");
+  } finally {
+    setButtonLoading(submit, false);
   }
 }
 

@@ -4243,8 +4243,7 @@ body {
   color: var(--gold-light);
 }
 
-.brand-copy,
-.hero h1 {
+.brand-copy {
   background: linear-gradient(180deg, #fff5bd 0%, #f0d16f 20%, #d8a435 45%, #fff0a3 58%, #c88b22 78%, #f0c95f 100%);
   -webkit-background-clip: text;
   background-clip: text;
@@ -4254,6 +4253,75 @@ body {
     0 1px 0 rgba(255, 247, 198, 0.32),
     0 2px 1px rgba(72, 42, 4, 0.88),
     0 5px 14px rgba(0, 0, 0, 0.72);
+}
+
+.hero h1 {
+  background: linear-gradient(
+    180deg,
+    #fff8c9 0%,
+    #ffe78d 12%,
+    #d5a33c 34%,
+    #fff0a2 48%,
+    #d29a2f 66%,
+    #8f5b12 88%,
+    #e2b74f 100%
+  );
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  -webkit-text-stroke: 0.65px rgba(255, 235, 141, 0.88);
+  text-shadow:
+    -1px -1px 0 rgba(255, 250, 211, 0.7),
+    1px 1px 0 #8b5a17,
+    2px 2px 0 #74450f,
+    3px 3px 0 #5f370b,
+    4px 4px 0 #462706,
+    5px 6px 2px rgba(27, 15, 3, 0.86),
+    0 10px 22px rgba(0, 0, 0, 0.78);
+  filter: drop-shadow(0 2px 1px rgba(255, 220, 108, 0.18));
+}
+
+.form-progress {
+  width: 100%;
+  margin-top: 12px;
+  padding: 14px 16px;
+  color: #0b2230;
+  background: #f5f8f9;
+  border: 1px solid #cdd9de;
+}
+
+.form-progress-copy {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 9px;
+  font-weight: 800;
+}
+
+.form-progress-track {
+  height: 8px;
+  overflow: hidden;
+  background: #dbe4e8;
+}
+
+.form-progress-track span {
+  display: block;
+  width: 8%;
+  height: 100%;
+  background: linear-gradient(90deg, #956514, #e5bd59 55%, #fff0a3);
+  transition: width 500ms ease;
+}
+
+.form-progress small {
+  display: block;
+  margin-top: 8px;
+  color: #5a6d78;
+  line-height: 1.4;
+}
+
+button[aria-busy="true"] {
+  cursor: wait;
+  opacity: 0.82;
 }
 
 .main-nav > a:hover,
