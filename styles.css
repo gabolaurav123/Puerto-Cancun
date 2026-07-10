@@ -4258,27 +4258,27 @@ body {
 .hero h1 {
   background: linear-gradient(
     180deg,
-    #fff8c9 0%,
-    #ffe78d 12%,
-    #d5a33c 34%,
-    #fff0a2 48%,
-    #d29a2f 66%,
-    #8f5b12 88%,
-    #e2b74f 100%
+    #e4be59 0%,
+    #c99a36 18%,
+    #9a6415 38%,
+    #d9aa3d 50%,
+    #b57a1d 67%,
+    #754508 86%,
+    #b98224 100%
   );
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
-  -webkit-text-stroke: 0.65px rgba(255, 235, 141, 0.88);
+  -webkit-text-stroke: 0.7px #d6a43a;
   text-shadow:
-    -1px -1px 0 rgba(255, 250, 211, 0.7),
-    1px 1px 0 #8b5a17,
-    2px 2px 0 #74450f,
-    3px 3px 0 #5f370b,
-    4px 4px 0 #462706,
-    5px 6px 2px rgba(27, 15, 3, 0.86),
+    -1px -1px 0 #edca6a,
+    1px 1px 0 #7c4a0b,
+    2px 2px 0 #693b08,
+    3px 3px 0 #563006,
+    4px 4px 0 #3f2204,
+    5px 6px 2px rgba(25, 13, 2, 0.9),
     0 10px 22px rgba(0, 0, 0, 0.78);
-  filter: drop-shadow(0 2px 1px rgba(255, 220, 108, 0.18));
+  filter: drop-shadow(0 2px 1px rgba(201, 154, 54, 0.22));
 }
 
 .form-progress {
