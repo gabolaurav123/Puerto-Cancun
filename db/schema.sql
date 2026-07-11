@@ -75,6 +75,7 @@ CREATE TABLE IF NOT EXISTS properties (
   area INTEGER NOT NULL DEFAULT 0,
   lot INTEGER NOT NULL DEFAULT 0,
   amenities JSONB NOT NULL DEFAULT '[]'::jsonb,
+  keywords JSONB NOT NULL DEFAULT '[]'::jsonb,
   mls TEXT NOT NULL,
   image TEXT,
   images JSONB NOT NULL DEFAULT '[]'::jsonb,
@@ -90,7 +91,8 @@ CREATE TABLE IF NOT EXISTS properties (
   archived_at TIMESTAMPTZ,
   description_es TEXT NOT NULL,
   description_en TEXT NOT NULL,
-  source_request_id TEXT UNIQUE
+  source_request_id TEXT UNIQUE,
+  idempotency_key TEXT UNIQUE
 );
 
 CREATE TABLE IF NOT EXISTS location_options (
@@ -104,6 +106,8 @@ CREATE TABLE IF NOT EXISTS location_options (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   UNIQUE (type, name, parent_id)
 );
+
+CREATE INDEX IF NOT EXISTS idx_properties_keywords_gin ON properties USING GIN (keywords);
 
 CREATE TABLE IF NOT EXISTS app_metrics (
   id INTEGER PRIMARY KEY CHECK (id = 1),

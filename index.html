@@ -880,7 +880,7 @@
                 <div class="map-picker-copy">
                   <div>
                     <h3 data-i18n="mapPickerTitle">Ubicacion en mapa</h3>
-                    <p data-i18n="mapPickerCopy">Selecciona o confirma la ubicacion aproximada del inmueble.</p>
+                    <p data-i18n="mapPickerCopy">Arrastra el pin o haz clic en el mapa para definir la ubicación exacta.</p>
                   </div>
                   <div class="map-actions">
                     <button class="ghost-button" type="button" data-use-current-location>
@@ -900,6 +900,7 @@
                   data-map-frame
                   src="https://www.google.com/maps?q=Cancun%2C%20Quintana%20Roo&output=embed"
                 ></iframe>
+                <div class="interactive-map-canvas" data-map-canvas hidden aria-label="Selector interactivo de ubicación"></div>
                 <div class="form-row coordinate-row">
                   <label>
                     <span data-i18n="latitudeField">Latitud</span>
@@ -1703,7 +1704,7 @@
                 <div class="map-picker-copy">
                   <div>
                     <h3 data-i18n="mapPickerTitle">Ubicacion en mapa</h3>
-                    <p data-i18n="mapPickerCopy">Selecciona o confirma la ubicacion aproximada del inmueble.</p>
+                    <p data-i18n="mapPickerCopy">Arrastra el pin o haz clic en el mapa para definir la ubicación exacta.</p>
                   </div>
                   <div class="map-actions">
                     <button class="ghost-button" type="button" data-use-current-location>
@@ -1723,6 +1724,7 @@
                   data-map-frame
                   src="https://www.google.com/maps?q=Cancun%2C%20Quintana%20Roo&output=embed"
                 ></iframe>
+                <div class="interactive-map-canvas" data-map-canvas hidden aria-label="Selector interactivo de ubicación"></div>
                 <div class="form-row coordinate-row">
                   <label>
                     <span data-i18n="latitudeField">Latitud</span>
@@ -1735,7 +1737,7 @@
                 </div>
                 <input name="mapPlace" type="hidden" data-map-place />
                 <p class="map-help" data-i18n="mapPickerHelp">
-                  Si no ves el mapa interactivo, escribe la direccion o pega coordenadas; al guardar quedaran vinculadas a la publicacion.
+                  Arrastra el pin o haz clic en el mapa para ajustar la ubicación exacta. También puedes escribir las coordenadas manualmente.
                 </p>
               </div>
               <label class="file-field">
@@ -1751,7 +1753,7 @@
                 <div class="image-preview-grid"></div>
               </div>
               <p class="form-message" id="listingFormMessage"></p>
-              <div class="form-row">
+              <div class="form-row listing-metrics-row">
                 <label>
                   <span data-i18n="bedrooms">Recamaras</span>
                   <input name="beds" type="number" min="0" />
@@ -1764,6 +1766,31 @@
                   <span data-i18n="area">M2 construccion</span>
                   <input name="area" type="number" min="0" />
                 </label>
+                <label>
+                  <span>Estacionamientos</span>
+                  <input name="parking" type="number" min="0" />
+                </label>
+                <label>
+                  <span>M2 terreno</span>
+                  <input name="lot" type="number" min="0" />
+                </label>
+                <label>
+                  <span>MLS</span>
+                  <input name="mls" maxlength="40" />
+                </label>
+              </div>
+              <label>
+                <span>Amenidades</span>
+                <input name="amenities" placeholder="Alberca, marina, gimnasio, seguridad" />
+              </label>
+              <div class="keyword-editor" data-keyword-editor>
+                <label for="listingKeywords">Keywords / palabras clave</label>
+                <div class="keyword-input-row">
+                  <input id="listingKeywords" name="keywords" placeholder="frente al mar, inversión, playa" autocomplete="off" />
+                  <button class="ghost-button" type="button" data-add-keyword>Agregar</button>
+                </div>
+                <div class="keyword-chips" data-keyword-chips aria-live="polite"></div>
+                <small>Separa con comas o presiona Enter. Máximo 40 keywords.</small>
               </div>
               <label class="checkbox-row">
                 <input name="featured" type="checkbox" />
@@ -1775,7 +1802,8 @@
               </label>
               <label>
                 <span data-i18n="description">Descripcion</span>
-                <textarea name="description" rows="3"></textarea>
+                <textarea name="description" rows="10" maxlength="50000"></textarea>
+                <small class="character-counter" id="listingDescriptionCounter">0 / 50,000 caracteres</small>
               </label>
               <div class="form-actions">
                 <button class="primary-button" type="submit" data-i18n="saveListing">Guardar publicacion</button>
@@ -1799,6 +1827,20 @@
                 <button class="mini-button" type="button" data-admin-jump="adminPdfCard">Generar ficha PDF</button>
               </article>
             </aside>
+            </div>
+            <div class="admin-listing-toolbar" aria-label="Buscar y filtrar publicaciones">
+              <label class="admin-listing-search">
+                <span>Buscar publicaciones</span>
+                <div class="search-input-with-icon">
+                  <i data-lucide="search"></i>
+                  <input id="adminListingSearch" type="search" placeholder="Título, keyword, zona, MLS, ubicación..." />
+                </div>
+              </label>
+              <label><span>Tipo</span><select id="adminListingTypeFilter"><option value="">Todos</option></select></label>
+              <label><span>Zona</span><select id="adminListingZoneFilter"><option value="">Todas</option></select></label>
+              <label><span>Operación</span><select id="adminListingOperationFilter"><option value="">Todas</option><option value="sale">Venta</option><option value="rent">Renta</option></select></label>
+              <label><span>Estado</span><select id="adminListingStatusFilter"><option value="">Todos</option><option value="draft">Borrador</option><option value="pending">Pendiente</option><option value="active">Activa</option><option value="disabled">Deshabilitada</option><option value="sold">Vendida</option><option value="rented">Rentada</option><option value="archived">Archivada</option></select></label>
+              <button class="ghost-button" id="clearAdminListingSearch" type="button"><i data-lucide="x"></i> Limpiar</button>
             </div>
             <div class="panel-card-subhead listings-subhead">
               <span id="adminListingSummary"></span>

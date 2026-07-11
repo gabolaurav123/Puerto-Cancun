@@ -905,7 +905,7 @@ function propertySchema(property, baseUrl = DEFAULT_SITE_URL, lang = "es") {
     address: { "@type": "PostalAddress", streetAddress: property.address || undefined, addressLocality: property.city || "Cancun", addressRegion: property.state || "Quintana Roo", addressCountry: "MX" },
   };
   return {
-    "@context": "https://schema.org", "@type": "RealEstateListing", "@id": `${url}#listing`, url, name: title, description, image: images, datePosted: property.createdAt, dateModified: property.updatedAt || property.createdAt, inLanguage: lang === "en" ? "en" : "es-MX", identifier: property.mls || property.id, mainEntity,
+    "@context": "https://schema.org", "@type": "RealEstateListing", "@id": `${url}#listing`, url, name: title, description, keywords: Array.isArray(property.keywords) ? property.keywords.join(", ") : undefined, image: images, datePosted: property.createdAt, dateModified: property.updatedAt || property.createdAt, inLanguage: lang === "en" ? "en" : "es-MX", identifier: property.mls || property.id, mainEntity,
     offers: price ? { "@type": "Offer", price: Number(price), priceCurrency: currency, availability: "https://schema.org/InStock", url, seller: { "@id": `${absoluteUrl("/", baseUrl)}#real-estate-agent` } } : undefined,
   };
 }

@@ -41,10 +41,14 @@ const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   ssl: { rejectUnauthorized: false },
   max: 5,
+  statement_timeout: 30000,
+  query_timeout: 35000,
 });
 
-const IMAGE_MAX_BYTES = 1.5 * 1024 * 1024;
+const IMAGE_MAX_BYTES = 480 * 1024;
 const IMAGE_MAX_COUNT = 20;
+const DESCRIPTION_MAX_LENGTH = 50000;
+const KEYWORD_MAX_COUNT = 40;
 const IMAGE_TYPES = new Set(["image/jpeg", "image/jpg", "image/png", "image/webp"]);
 const PUBLIC_PROPERTY_STATUSES = new Set(["active", "featured"]);
 const PROPERTY_STATUSES = new Set(["draft", "pending", "active", "disabled", "sold", "rented", "archived", "rejected"]);
@@ -564,6 +568,7 @@ function toProperty(row) {
     area: Number(row.area || 0),
     lot: Number(row.lot || 0),
     amenities: safeJsonArray(row.amenities),
+    keywords: safeJsonArray(row.keywords),
     mls: row.mls,
     image: images[0] || null,
     images,
@@ -1025,6 +1030,7 @@ async function initDatabase() {
         area INTEGER NOT NULL DEFAULT 0,
         lot INTEGER NOT NULL DEFAULT 0,
         amenities JSONB NOT NULL DEFAULT '[]'::jsonb,
+        keywords JSONB NOT NULL DEFAULT '[]'::jsonb,
         mls TEXT NOT NULL,
         image TEXT,
         images JSONB NOT NULL DEFAULT '[]'::jsonb,
@@ -1033,7 +1039,8 @@ async function initDatabase() {
         created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
         description_es TEXT NOT NULL,
         description_en TEXT NOT NULL,
-        source_request_id TEXT UNIQUE
+        source_request_id TEXT UNIQUE,
+        idempotency_key TEXT UNIQUE
       );
     `);
     await client.query(`
@@ -1052,6 +1059,9 @@ async function initDatabase() {
     await client.query("ALTER TABLE properties ADD COLUMN IF NOT EXISTS slug TEXT UNIQUE");
     await client.query("ALTER TABLE properties ADD COLUMN IF NOT EXISTS parking INTEGER NOT NULL DEFAULT 0");
     await client.query("ALTER TABLE properties ADD COLUMN IF NOT EXISTS amenities JSONB NOT NULL DEFAULT '[]'::jsonb");
+    await client.query("ALTER TABLE properties ADD COLUMN IF NOT EXISTS keywords JSONB NOT NULL DEFAULT '[]'::jsonb");
+    await client.query("ALTER TABLE properties ADD COLUMN IF NOT EXISTS idempotency_key TEXT UNIQUE");
+    await client.query("CREATE INDEX IF NOT EXISTS idx_properties_keywords_gin ON properties USING GIN (keywords)");
     await client.query("ALTER TABLE properties ALTER COLUMN price_usd DROP NOT NULL");
     await client.query("ALTER TABLE properties ADD COLUMN IF NOT EXISTS state TEXT NOT NULL DEFAULT 'Quintana Roo'");
     await client.query("ALTER TABLE properties ADD COLUMN IF NOT EXISTS city TEXT NOT NULL DEFAULT 'Cancun'");
@@ -3186,12 +3196,20 @@ app.post("/api/admin/requests/:id/reject", requireRole("admin"), async (req, res
 
 app.post("/api/admin/properties", requireRole("admin"), async (req, res, next) => {
   try {
+    const idempotencyKey = String(req.get("Idempotency-Key") || "").trim().slice(0, 120);
+    if (idempotencyKey) {
+      const existing = await query("SELECT * FROM properties WHERE idempotency_key = $1", [idempotencyKey]);
+      if (existing.rows[0]) {
+        res.json({ property: toProperty(existing.rows[0]), idempotent: true });
+        return;
+      }
+    }
     const property = normalizePropertyInput(req.body, uuid("prop"));
     const result = await query(
       `INSERT INTO properties
-        (id, title_es, title_en, type, state, city, zone, neighborhood, address, latitude, longitude, map_place, location_precision, google_maps_url, operation, price_usd, price_mxn, beds, baths, area, lot, mls, image, images, featured, status, is_public, badges, description_es, description_en, published_at)
+        (id, title_es, title_en, type, state, city, zone, neighborhood, address, latitude, longitude, map_place, location_precision, google_maps_url, operation, price_usd, price_mxn, beds, baths, area, lot, mls, image, images, featured, status, is_public, badges, description_es, description_en, keywords, idempotency_key, published_at)
        VALUES
-        ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24::jsonb, $25, $26, $27, $28::jsonb, $29, $30, CASE WHEN $26 = 'active' AND $27 = TRUE THEN NOW() ELSE NULL END)
+        ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24::jsonb, $25, $26, $27, $28::jsonb, $29, $30, $31::jsonb, $32, CASE WHEN $26 = 'active' AND $27 = TRUE THEN NOW() ELSE NULL END)
        RETURNING *`,
       [
         property.id,
@@ -3224,6 +3242,8 @@ app.post("/api/admin/properties", requireRole("admin"), async (req, res, next) =
         JSON.stringify(property.badges),
         property.descriptionEs,
         property.descriptionEn,
+        JSON.stringify(property.keywords),
+        idempotencyKey || null,
       ]
     );
     const slugged = await query(
@@ -3254,7 +3274,7 @@ app.put("/api/admin/properties/:id", requireRole("admin"), async (req, res, next
            latitude = $10, longitude = $11, map_place = $12, location_precision = $13, google_maps_url = $14,
            operation = $15, price_usd = $16, price_mxn = $17,
            beds = $18, baths = $19, area = $20, lot = $21, mls = $22, image = $23, images = $24::jsonb,
-           featured = $25, status = $26, is_public = $27, badges = $28::jsonb, description_es = $29, description_en = $30,
+           featured = $25, status = $26, is_public = $27, badges = $28::jsonb, description_es = $29, description_en = $30, keywords = $31::jsonb,
            published_at = CASE WHEN $26 = 'active' AND $27 = TRUE AND published_at IS NULL THEN NOW() ELSE published_at END,
            disabled_at = CASE WHEN $26 = 'disabled' OR $27 = FALSE THEN NOW() ELSE disabled_at END,
            sold_at = CASE WHEN $26 IN ('sold', 'rented') THEN NOW() ELSE sold_at END,
@@ -3293,6 +3313,7 @@ app.put("/api/admin/properties/:id", requireRole("admin"), async (req, res, next
         JSON.stringify(property.badges),
         property.descriptionEs,
         property.descriptionEn,
+        JSON.stringify(property.keywords),
       ]
     );
     if (!result.rows[0]) {
@@ -3333,10 +3354,10 @@ app.post("/api/admin/properties/:id/duplicate", requireRole("admin"), async (req
       `INSERT INTO properties
         (id, title_es, title_en, type, state, city, zone, neighborhood, address, latitude, longitude, map_place,
          location_precision, google_maps_url, operation, price_usd, price_mxn, beds, baths, area, lot, mls,
-         image, images, featured, status, is_public, badges, description_es, description_en)
+         image, images, featured, status, is_public, badges, description_es, description_en, keywords)
        SELECT $2, title_es || ' (copia)', title_en || ' (copy)', type, state, city, zone, neighborhood, address,
          latitude, longitude, map_place, location_precision, google_maps_url, operation, price_usd, price_mxn,
-         beds, baths, area, lot, $3, image, images, FALSE, 'draft', FALSE, badges, description_es, description_en
+          beds, baths, area, lot, $3, image, images, FALSE, 'draft', FALSE, badges, description_es, description_en, keywords
        FROM properties WHERE id = $1
        RETURNING *`,
       [req.params.id, uuid("prop"), String(Math.floor(2000 + Math.random() * 8000))]
@@ -3918,6 +3939,32 @@ function parseOptionalCoordinate(value, fieldName, min, max) {
   return number;
 }
 
+function parseNonNegativeInteger(value, fieldName) {
+  if (value === undefined || value === null || value === "") return 0;
+  const number = Number(value);
+  if (!Number.isInteger(number) || number < 0) {
+    const error = new Error(`${fieldName} debe ser un numero entero mayor o igual a cero.`);
+    error.status = 400;
+    throw error;
+  }
+  return number;
+}
+
+function normalizeKeywords(value) {
+  const source = Array.isArray(value) ? value : String(value || "").split(",");
+  const seen = new Set();
+  const keywords = [];
+  for (const item of source) {
+    const keyword = String(item || "").trim().replace(/\s+/g, " ").slice(0, 80);
+    const normalized = keyword.toLocaleLowerCase("es-MX");
+    if (!keyword || seen.has(normalized)) continue;
+    seen.add(normalized);
+    keywords.push(keyword);
+    if (keywords.length >= KEYWORD_MAX_COUNT) break;
+  }
+  return keywords;
+}
+
 function validateImagePayload(image) {
   const mimeType = String(image.imageType || image.type || "").toLowerCase();
   const size = Number(image.imageSize || image.size || 0);
@@ -3930,7 +3977,7 @@ function validateImagePayload(image) {
   }
 
   if (!Number.isFinite(size) || size <= 0 || size > IMAGE_MAX_BYTES) {
-    const error = new Error("La imagen no debe superar 1.5 MB.");
+    const error = new Error("La imagen procesada no debe superar 480 KB.");
     error.status = 400;
     throw error;
   }
@@ -3944,7 +3991,7 @@ function validateImagePayload(image) {
 
   const estimatedBytes = Math.floor((match[2].length * 3) / 4);
   if (estimatedBytes > IMAGE_MAX_BYTES) {
-    const error = new Error("La imagen no debe superar 1.5 MB.");
+    const error = new Error("La imagen procesada no debe superar 480 KB.");
     error.status = 400;
     throw error;
   }
@@ -3985,16 +4032,29 @@ function normalizePropertyInput(body, id, existingImages = []) {
   const priceUsd = parseOptionalPrice(body.priceUsd, "priceUsd");
   const priceMxn = parseOptionalPrice(body.priceMxn, "priceMxn");
   const images = parseUploadedImages(body, existingImages);
+  const keywords = normalizeKeywords(body.keywords);
   const status = normalizeStatus(body.status, PROPERTY_STATUSES, "active");
   const isPublic = body.isPublic === undefined ? status === "active" : body.isPublic !== false && body.isPublic !== "false";
 
-  if (!title || !type || !state || !city || !zone || (priceUsd === null && priceMxn === null)) {
-    const error = new Error("Missing required property fields");
+  if (!title || !type || !state || !city || !zone) {
+    const error = new Error("Completa titulo, tipo de propiedad, estado, ciudad y zona antes de guardar.");
+    error.status = 400;
+    throw error;
+  }
+  if (priceUsd === null && priceMxn === null) {
+    const error = new Error("Agrega al menos un precio en USD o MXN.");
     error.status = 400;
     throw error;
   }
   if (isPublic && PUBLIC_PROPERTY_STATUSES.has(status) && !images.length) {
     const error = new Error("Agrega al menos una imagen antes de publicar la propiedad.");
+    error.status = 400;
+    throw error;
+  }
+  const descriptionEs = String(body.description || body.descriptionEs || "").trim() || "Propiedad publicada por administracion.";
+  const descriptionEn = String(body.descriptionEn || body.description || "").trim() || "Property published by administration.";
+  if (descriptionEs.length > DESCRIPTION_MAX_LENGTH || descriptionEn.length > DESCRIPTION_MAX_LENGTH) {
+    const error = new Error(`La descripcion no debe superar ${DESCRIPTION_MAX_LENGTH.toLocaleString("es-MX")} caracteres.`);
     error.status = 400;
     throw error;
   }
@@ -4017,15 +4077,16 @@ function normalizePropertyInput(body, id, existingImages = []) {
     operation,
     priceUsd,
     priceMxn,
-    beds: Number(body.beds || 0),
-    baths: Number(body.baths || 0),
-    parking: Number(body.parking || 0),
-    area: Number(body.area || 0),
-    lot: Number(body.lot || 0),
+    beds: parseNonNegativeInteger(body.beds, "Recamaras"),
+    baths: parseNonNegativeInteger(body.baths, "Banos"),
+    parking: parseNonNegativeInteger(body.parking, "Estacionamientos"),
+    area: parseNonNegativeInteger(body.area, "M2 construccion"),
+    lot: parseNonNegativeInteger(body.lot, "M2 terreno"),
     amenities: (Array.isArray(body.amenities) ? body.amenities : String(body.amenities || "").split(","))
       .map((item) => String(item).trim())
       .filter(Boolean)
       .slice(0, 30),
+    keywords,
     mls: String(body.mls || Math.floor(2000 + Math.random() * 8000)),
     image: images[0] || null,
     images,
@@ -4033,8 +4094,8 @@ function normalizePropertyInput(body, id, existingImages = []) {
     status,
     isPublic,
     badges: Array.isArray(body.badges) ? body.badges : ["new"],
-    descriptionEs: String(body.description || body.descriptionEs || "").trim() || "Propiedad publicada por administracion.",
-    descriptionEn: String(body.descriptionEn || body.description || "").trim() || "Property published by administration.",
+    descriptionEs,
+    descriptionEn,
   };
 }
 
@@ -4196,11 +4257,17 @@ app.get("*", async (req, res, next) => {
 });
 
 app.use((error, _req, res, _next) => {
-  const status = error.status || 500;
+  const status = error.type === "entity.too.large" ? 413 : error.code === "57014" ? 504 : error.status || 500;
   if (status >= 500) {
     console.error(error);
   }
-  res.status(status).json({ error: error.message || "Server error" });
+  const message =
+    status === 413
+      ? "El contenido es demasiado grande. Reduce el peso o la cantidad de imagenes e intenta nuevamente."
+      : status === 504
+        ? "El servidor tardo demasiado en guardar. Los datos permanecen en el formulario para reintentar."
+        : error.message || "Server error";
+  res.status(status).json({ error: message });
 });
 
 initDatabase()

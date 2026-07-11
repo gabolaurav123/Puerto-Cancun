@@ -1,5 +1,8 @@
-const IMAGE_MAX_BYTES = 1.5 * 1024 * 1024;
+const IMAGE_MAX_BYTES = 480 * 1024;
+const IMAGE_ORIGINAL_MAX_BYTES = 12 * 1024 * 1024;
 const IMAGE_MAX_COUNT = 20;
+const DESCRIPTION_MAX_LENGTH = 50000;
+const LISTING_DRAFT_KEY = "pcc.admin.listingDraft.v2";
 const IMAGE_TYPES = new Set(["image/jpeg", "image/jpg", "image/png", "image/webp"]);
 const WHATSAPP_NUMBER = "5219982166563";
 const LOCATION_FIELD_ORDER = ["state", "city", "zone", "neighborhood"];
@@ -168,9 +171,9 @@ const translations = {
     currency: "Moneda",
     address: "Dirección",
     mapPickerTitle: "Ubicación en mapa",
-    mapPickerCopy: "Selecciona o confirma la ubicacion aproximada del inmueble.",
+    mapPickerCopy: "Arrastra el pin o haz clic en el mapa para definir la ubicación exacta.",
     mapPickerHelp:
-      "Si no ves el mapa interactivo, escribe la direccion o pega coordenadas; al guardar quedaran vinculadas a la propiedad.",
+      "Arrastra el pin o haz clic en el mapa para ajustar la ubicación exacta. También puedes escribir las coordenadas manualmente.",
     useCurrentLocation: "Usar mi ubicacion",
     openGoogleMaps: "Abrir Google Maps",
     latitudeField: "Latitud",
@@ -569,8 +572,8 @@ const translations = {
     currency: "Currency",
     address: "Address",
     mapPickerTitle: "Map location",
-    mapPickerCopy: "Select or confirm the approximate property location.",
-    mapPickerHelp: "If the interactive map is unavailable, type the address or paste coordinates; they will be saved with the property.",
+    mapPickerCopy: "Drag the pin or click the map to set the exact property location.",
+    mapPickerHelp: "Drag the pin or click the map to set the exact location. You can also enter the coordinates manually.",
     useCurrentLocation: "Use my location",
     openGoogleMaps: "Open Google Maps",
     latitudeField: "Latitude",
@@ -872,6 +875,7 @@ const state = {
   adminSection: "dashboard",
   leadFilter: "all",
   taskFilter: "all",
+  adminListingFilters: { search: "", type: "", zone: "", operation: "", status: "" },
   sidebarCollapsed: false,
   config: { googleClientId: "", googleMapsApiKey: "" },
   googleReady: false,
@@ -902,8 +906,11 @@ const state = {
 
 const $ = (selector) => document.querySelector(selector);
 const $$ = (selector) => Array.from(document.querySelectorAll(selector));
+const formField = (form, name) => form?.elements?.namedItem(name) || form?.querySelector?.(`[name="${name}"]`) || null;
 const googleMapInstances = new WeakMap();
 let lastScrollY = 0;
+let adminListingSearchTimer = 0;
+let listingDraftTimer = 0;
 
 function safeParseStoredIds(key) {
   try {
@@ -952,8 +959,8 @@ function parentFieldForLocation(type) {
 function locationOptionsByType(type, form = null) {
   const parentField = parentFieldForLocation(type);
   let options = state.locationOptions.filter((option) => option.type === type);
-  if (form && parentField && form.elements[parentField]?.value) {
-    const parentValue = form.elements[parentField].value;
+  if (form && parentField && formField(form, parentField)?.value) {
+    const parentValue = formField(form, parentField).value;
     const parentIds = state.locationOptions
       .filter((option) => option.type === parentField && option.name === parentValue)
       .map((option) => option.id);
@@ -990,7 +997,7 @@ function fillLocationSelect(select, selectedValue = select?.value || "", options
 function refreshLocationSelects() {
   const forms = [...new Set($$("[data-location-select]").map((select) => select.form).filter(Boolean))];
   forms.forEach((form) => {
-    LOCATION_FIELD_ORDER.forEach((name) => fillLocationSelect(form.elements[name]));
+    LOCATION_FIELD_ORDER.forEach((name) => fillLocationSelect(formField(form, name)));
   });
   $$("[data-location-select]")
     .filter((select) => !select.form)
@@ -999,7 +1006,7 @@ function refreshLocationSelects() {
 
 function setLocationFormValues(form, source = {}) {
   LOCATION_FIELD_ORDER.forEach((name) => {
-    const select = form.elements[name];
+    const select = formField(form, name);
     if (!select) return;
     fillLocationSelect(select, source[name] || select.value || "");
     if (source[name]) select.value = source[name];
@@ -1012,7 +1019,7 @@ function handleLocationSelectChange(select) {
   const currentIndex = LOCATION_FIELD_ORDER.indexOf(select.name);
   if (currentIndex < 0) return;
   LOCATION_FIELD_ORDER.slice(currentIndex + 1).forEach((name) => {
-    fillLocationSelect(form.elements[name], "", { preserveUnknown: false });
+    fillLocationSelect(formField(form, name), "", { preserveUnknown: false });
   });
   updateMapPickerForForm(form);
 }
@@ -1041,15 +1048,15 @@ function scriptOnce(src, id) {
 
 function mapQueryFromForm(form) {
   if (!form) return "Cancun, Quintana Roo";
-  const latitude = form.elements.latitude?.value;
-  const longitude = form.elements.longitude?.value;
+  const latitude = formField(form, "latitude")?.value;
+  const longitude = formField(form, "longitude")?.value;
   if (latitude && longitude) return `${latitude},${longitude}`;
   const parts = [
-    form.elements.address?.value,
-    form.elements.neighborhood?.value,
-    form.elements.zone?.value,
-    form.elements.city?.value,
-    form.elements.state?.value,
+    formField(form, "address")?.value,
+    formField(form, "neighborhood")?.value,
+    formField(form, "zone")?.value,
+    formField(form, "city")?.value,
+    formField(form, "state")?.value,
   ].filter(Boolean);
   return parts.join(", ") || "Cancun, Quintana Roo";
 }
@@ -1062,18 +1069,23 @@ function updateMapPicker(picker) {
   const frame = picker.querySelector("[data-map-frame]");
   const openLink = picker.querySelector("[data-open-map]");
   const placeInput = picker.querySelector("[data-map-place]");
-  if (frame) frame.src = `https://www.google.com/maps?q=${encoded}&output=embed`;
+  const instance = googleMapInstances.get(picker);
+  if (frame && !instance) frame.src = `https://www.google.com/maps?q=${encoded}&output=embed`;
   if (openLink) openLink.href = `https://www.google.com/maps/search/?api=1&query=${encoded}`;
   if (placeInput) placeInput.value = query;
 
-  const instance = googleMapInstances.get(picker);
-  if (instance && form?.elements.latitude?.value && form?.elements.longitude?.value) {
+  if (instance && formField(form, "latitude")?.value && formField(form, "longitude")?.value) {
     const center = {
-      lat: Number(form.elements.latitude.value),
-      lng: Number(form.elements.longitude.value),
+      lat: Number(formField(form, "latitude").value),
+      lng: Number(formField(form, "longitude").value),
     };
-    instance.map.setCenter(center);
-    instance.marker.setPosition(center);
+    if (instance.type === "google") {
+      instance.map.setCenter(center);
+      instance.marker.setPosition(center);
+    } else {
+      instance.marker.setLatLng([center.lat, center.lng]);
+      instance.map.panTo([center.lat, center.lng], { animate: false });
+    }
   }
 }
 
@@ -1085,8 +1097,8 @@ function updateMapPickerForForm(form) {
 function setMapCoordinates(picker, latitude, longitude, messageKey = "") {
   const form = picker.closest("form");
   if (!form) return;
-  form.elements.latitude.value = Number(latitude).toFixed(6);
-  form.elements.longitude.value = Number(longitude).toFixed(6);
+  formField(form, "latitude").value = Number(latitude).toFixed(6);
+  formField(form, "longitude").value = Number(longitude).toFixed(6);
   updateMapPicker(picker);
   const message = form.querySelector(".form-message");
   if (message && messageKey) setFormMessage(message, t(messageKey));
@@ -1100,13 +1112,60 @@ async function initializeGoogleMaps() {
   );
 }
 
+async function initializeLeaflet() {
+  if (!document.getElementById("leafletStyles")) {
+    const link = document.createElement("link");
+    link.id = "leafletStyles";
+    link.rel = "stylesheet";
+    link.href = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.css";
+    document.head.append(link);
+  }
+  if (!window.L) await scriptOnce("https://unpkg.com/leaflet@1.9.4/dist/leaflet.js", "leafletScript");
+}
+
+async function enhanceLeafletMapPicker(picker) {
+  await initializeLeaflet();
+  if (!window.L || googleMapInstances.has(picker)) return;
+  const form = picker.closest("form");
+  const latitude = Number(formField(form, "latitude")?.value || 21.1619);
+  const longitude = Number(formField(form, "longitude")?.value || -86.8515);
+  const canvas = picker.querySelector("[data-map-canvas]");
+  if (!canvas) return;
+  canvas.hidden = false;
+  const map = L.map(canvas, { zoomControl: true, attributionControl: true }).setView([latitude, longitude], 13);
+  L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+    maxZoom: 19,
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+  }).addTo(map);
+  const icon = L.divIcon({
+    className: "draggable-map-pin",
+    html: '<span aria-hidden="true"></span>',
+    iconSize: [30, 40],
+    iconAnchor: [15, 38],
+  });
+  const marker = L.marker([latitude, longitude], { draggable: true, icon }).addTo(map);
+  const update = (latlng) => setMapCoordinates(picker, latlng.lat, latlng.lng, "locationDetected");
+  marker.on("dragend", (event) => update(event.target.getLatLng()));
+  map.on("click", (event) => {
+    marker.setLatLng(event.latlng);
+    update(event.latlng);
+  });
+  googleMapInstances.set(picker, { type: "leaflet", map, marker });
+  picker.classList.add("has-interactive-map");
+  window.setTimeout(() => map.invalidateSize(), 0);
+}
+
 async function enhanceMapPicker(picker) {
-  if (!state.config.googleMapsApiKey || googleMapInstances.has(picker)) return;
+  if (googleMapInstances.has(picker)) return;
+  if (!state.config.googleMapsApiKey) {
+    await enhanceLeafletMapPicker(picker);
+    return;
+  }
   await initializeGoogleMaps();
   if (!window.google?.maps) return;
   const form = picker.closest("form");
-  const latitude = Number(form?.elements.latitude?.value || 21.1619);
-  const longitude = Number(form?.elements.longitude?.value || -86.8515);
+  const latitude = Number(formField(form, "latitude")?.value || 21.1619);
+  const longitude = Number(formField(form, "longitude")?.value || -86.8515);
   const center = { lat: latitude, lng: longitude };
   const canvas = document.createElement("div");
   canvas.className = "google-map-canvas";
@@ -1124,8 +1183,8 @@ async function enhanceMapPicker(picker) {
     marker.setPosition(latLng);
     setMapCoordinates(picker, latLng.lat(), latLng.lng());
     geocoder.geocode({ location: latLng }, (results, status) => {
-      if (status === "OK" && results?.[0]?.formatted_address && form?.elements.address && !form.elements.address.dataset.locked) {
-        form.elements.address.value = results[0].formatted_address;
+      if (status === "OK" && results?.[0]?.formatted_address && formField(form, "address") && !formField(form, "address").dataset.locked) {
+        formField(form, "address").value = results[0].formatted_address;
         updateMapPicker(picker);
       }
     });
@@ -1134,7 +1193,7 @@ async function enhanceMapPicker(picker) {
     updateFromLatLng(event.latLng);
   });
   marker.addListener("dragend", (event) => updateFromLatLng(event.latLng));
-  googleMapInstances.set(picker, { map, marker });
+  googleMapInstances.set(picker, { type: "google", map, marker });
   picker.classList.add("has-google-map");
 }
 
@@ -1176,15 +1235,28 @@ function escapeHtml(value) {
 }
 
 async function api(path, options = {}) {
-  const response = await fetch(path, {
-    credentials: "same-origin",
-    headers: {
-      "Content-Type": "application/json",
-      ...(options.headers || {}),
-    },
-    ...options,
-    body: options.body ? JSON.stringify(options.body) : undefined,
-  });
+  const { timeoutMs = 45000, body, headers = {}, ...fetchOptions } = options;
+  const controller = new AbortController();
+  const timeout = window.setTimeout(() => controller.abort(), timeoutMs);
+  let response;
+  try {
+    response = await fetch(path, {
+      credentials: "same-origin",
+      headers: { "Content-Type": "application/json", ...headers },
+      ...fetchOptions,
+      signal: controller.signal,
+      body: body ? JSON.stringify(body) : undefined,
+    });
+  } catch (error) {
+    if (error.name === "AbortError") {
+      const timeoutError = new Error("No se recibió confirmación del servidor. La información permanece en pantalla para reintentar.");
+      timeoutError.status = 504;
+      throw timeoutError;
+    }
+    throw error;
+  } finally {
+    window.clearTimeout(timeout);
+  }
   const data = await response.json().catch(() => ({}));
   if (!response.ok) {
     const error = new Error(data.error || "Request failed");
@@ -2556,17 +2628,62 @@ async function deleteLocationOption(id) {
   }
 }
 
+function normalizeSearchText(value) {
+  return String(value || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function populateAdminListingFilter(select, values, current, emptyLabel) {
+  if (!select) return;
+  select.innerHTML = "";
+  select.append(new Option(emptyLabel, ""));
+  [...new Set(values.filter(Boolean))].sort((a, b) => a.localeCompare(b)).forEach((value) => select.append(new Option(value, value)));
+  select.value = current || "";
+}
+
+function renderAdminListingFilters() {
+  const filters = state.adminListingFilters;
+  const search = $("#adminListingSearch");
+  if (search && search.value !== filters.search) search.value = filters.search;
+  populateAdminListingFilter($("#adminListingTypeFilter"), state.properties.map((item) => item.type), filters.type, "Todos");
+  populateAdminListingFilter($("#adminListingZoneFilter"), state.properties.map((item) => item.zone), filters.zone, "Todas");
+  if ($("#adminListingOperationFilter")) $("#adminListingOperationFilter").value = filters.operation;
+  if ($("#adminListingStatusFilter")) $("#adminListingStatusFilter").value = filters.status;
+}
+
 function renderAdminListings() {
   const list = $("#adminListings");
   if (!list) return;
-  const properties = sortedProperties(state.properties);
+  const allProperties = sortedProperties(state.properties);
+  const filters = state.adminListingFilters;
+  const search = normalizeSearchText(filters.search);
+  const properties = allProperties.filter((property) => {
+    if (filters.type && property.type !== filters.type) return false;
+    if (filters.zone && property.zone !== filters.zone) return false;
+    if (filters.operation && property.operation !== filters.operation) return false;
+    if (filters.status && property.status !== filters.status) return false;
+    if (!search) return true;
+    const haystack = normalizeSearchText(
+      [
+        localizedTitle(property), property.titleEs, property.titleEn, property.zone, property.city, property.state,
+        property.neighborhood, property.address, property.mapPlace, property.type, property.operation, property.status,
+        property.mls, localizedDescription(property), ...(Array.isArray(property.keywords) ? property.keywords : []),
+      ].join(" ")
+    );
+    return haystack.includes(search);
+  });
   const summary = $("#adminListingSummary");
   if (summary) {
-    const featured = properties.filter((property) => property.featured).length;
-    summary.textContent = `${properties.length} ${t("adminListingSummary")} · ${featured} ${t("navFeatured")}`;
+    const featured = allProperties.filter((property) => property.featured).length;
+    summary.textContent = `${properties.length} de ${allProperties.length} ${t("adminListingSummary")} · ${featured} ${t("navFeatured")}`;
   }
   if (!properties.length) {
-    list.innerHTML = `<p class="empty-state">${escapeHtml(t("listingsEmpty"))}</p>`;
+    const filtered = search || filters.type || filters.zone || filters.operation || filters.status;
+    list.innerHTML = `<p class="empty-state">${escapeHtml(filtered ? "No se encontraron publicaciones con esa búsqueda." : t("listingsEmpty"))}</p>`;
     return;
   }
   list.innerHTML = properties
@@ -2587,6 +2704,11 @@ function renderAdminListings() {
               <strong>${escapeHtml(formatPriceSummary(property))}</strong>
             </div>
             <p>${escapeHtml(displayLocation(property))} · ${escapeHtml(displayType(property.type))} · ${escapeHtml(property.mls ? `${t("mls")} ${property.mls}` : "")}</p>
+            ${
+              Array.isArray(property.keywords) && property.keywords.length
+                ? `<div class="listing-keywords">${property.keywords.slice(0, 10).map((keyword) => `<span>${escapeHtml(keyword)}</span>`).join("")}</div>`
+                : ""
+            }
             <div class="listing-facts">
               <span>${escapeHtml(property.beds || 0)} ${escapeHtml(t("bedShort"))}</span>
               <span>${escapeHtml(property.baths || 0)} ${escapeHtml(t("bathShort"))}</span>
@@ -3792,6 +3914,7 @@ async function renderPanel() {
     renderAdminLeads();
     renderAdminContacts();
     renderAdminRequests();
+    renderAdminListingFilters();
     renderAdminListings();
     renderAdminValuations();
     renderAdminTasks();
@@ -3809,6 +3932,7 @@ async function renderPanel() {
     renderSellerNotifications();
   }
   bindMapPickers();
+  if (isAdmin) restoreListingDraft();
   refreshIcons();
 }
 
@@ -4069,19 +4193,103 @@ async function leadFormSubmit(event) {
   }
 }
 
-function resetListingForm() {
+function parseKeywordInput(value) {
+  const seen = new Set();
+  return String(value || "")
+    .split(",")
+    .map((item) => item.trim().replace(/\s+/g, " "))
+    .filter((item) => {
+      const normalized = item.toLocaleLowerCase("es-MX");
+      if (!item || seen.has(normalized)) return false;
+      seen.add(normalized);
+      return true;
+    })
+    .slice(0, 40);
+}
+
+function renderListingKeywordChips() {
+  const input = $("#listingKeywords");
+  const container = $("[data-keyword-chips]");
+  if (!input || !container) return;
+  const keywords = parseKeywordInput(input.value);
+  input.value = keywords.join(", ");
+  container.innerHTML = keywords
+    .map((keyword) => `<button type="button" data-remove-keyword="${escapeHtml(keyword)}"><span>${escapeHtml(keyword)}</span><i data-lucide="x"></i></button>`)
+    .join("");
+  refreshIcons();
+}
+
+function updateListingDescriptionCounter() {
+  const textarea = formField($("#listingForm"), "description");
+  const counter = $("#listingDescriptionCounter");
+  if (textarea && counter) counter.textContent = `${textarea.value.length.toLocaleString("es-MX")} / ${DESCRIPTION_MAX_LENGTH.toLocaleString("es-MX")} caracteres`;
+}
+
+function listingDraftSnapshot(form) {
+  const fields = {};
+  Array.from(form.elements).forEach((field) => {
+    if (!field.name || field.type === "file" || field.type === "submit" || field.type === "button") return;
+    fields[field.name] = field.type === "checkbox" ? field.checked : field.value;
+  });
+  return { fields, idempotencyKey: form.dataset.idempotencyKey || "", savedAt: new Date().toISOString() };
+}
+
+function saveListingDraft() {
+  const form = $("#listingForm");
+  if (!form || state.session?.role !== "admin") return;
+  localStorage.setItem(LISTING_DRAFT_KEY, JSON.stringify(listingDraftSnapshot(form)));
+  form.dataset.dirty = "true";
+}
+
+function clearListingDraft() {
+  localStorage.removeItem(LISTING_DRAFT_KEY);
+  const form = $("#listingForm");
+  if (form) form.dataset.dirty = "false";
+}
+
+function restoreListingDraft() {
+  const form = $("#listingForm");
+  if (!form || form.dataset.draftRestored === "true") return;
+  form.dataset.draftRestored = "true";
+  try {
+    const draft = JSON.parse(localStorage.getItem(LISTING_DRAFT_KEY) || "null");
+    if (!draft?.fields || !Object.values(draft.fields).some((value) => value !== "" && value !== false)) return;
+    const source = draft.fields;
+    if (draft.idempotencyKey) form.dataset.idempotencyKey = draft.idempotencyKey;
+    setLocationFormValues(form, source);
+    Object.entries(source).forEach(([name, value]) => {
+      const field = formField(form, name);
+      if (!field || LOCATION_FIELD_ORDER.includes(name)) return;
+      if (field.type === "checkbox") field.checked = Boolean(value);
+      else field.value = value ?? "";
+    });
+    form.dataset.dirty = "true";
+    renderListingKeywordChips();
+    updateListingDescriptionCounter();
+    updateMapPickerForForm(form);
+    showToast("Se recuperó el borrador local que estaba pendiente de guardar.");
+  } catch {
+    localStorage.removeItem(LISTING_DRAFT_KEY);
+  }
+}
+
+function resetListingForm(clearDraft = true) {
   const form = $("#listingForm");
   form.reset();
-  form.elements.id.value = "";
+  formField(form, "id").value = "";
   form.dataset.currentImages = "[]";
   form.dataset.removeImage = "false";
-  if (form.status) form.status.value = "active";
-  if (form.isPublic) form.isPublic.checked = true;
+  delete form.dataset.idempotencyKey;
+  if (formField(form, "status")) formField(form, "status").value = "active";
+  if (formField(form, "isPublic")) formField(form, "isPublic").checked = true;
   refreshLocationSelects();
   updateMapPickerForForm(form);
   updateListingImagePreview([]);
   setListingQualityPreview(null);
   setFormMessage($("#listingFormMessage"), "");
+  renderListingKeywordChips();
+  updateListingDescriptionCounter();
+  if (clearDraft) clearListingDraft();
 }
 
 function setListingQualityPreview(property) {
@@ -4128,7 +4336,7 @@ function validateImageFile(file) {
   if (!IMAGE_TYPES.has(file.type)) {
     throw new Error(t("invalidImageType"));
   }
-  if (file.size > IMAGE_MAX_BYTES * 8) {
+  if (file.size > IMAGE_ORIGINAL_MAX_BYTES) {
     throw new Error(t("imageTooLarge"));
   }
 }
@@ -4161,21 +4369,23 @@ function loadImageElement(file) {
 async function compressImageFile(file) {
   validateImageFile(file);
   const image = await loadImageElement(file);
-  const maxSide = 1800;
-  const ratio = Math.min(1, maxSide / Math.max(image.width, image.height));
+  const maxSide = 1600;
+  const baseRatio = Math.min(1, maxSide / Math.max(image.width, image.height));
   const canvas = document.createElement("canvas");
-  canvas.width = Math.max(1, Math.round(image.width * ratio));
-  canvas.height = Math.max(1, Math.round(image.height * ratio));
-  const context = canvas.getContext("2d");
-  context.fillStyle = "#ffffff";
-  context.fillRect(0, 0, canvas.width, canvas.height);
-  context.drawImage(image, 0, 0, canvas.width, canvas.height);
-  const blob = await new Promise((resolve) => canvas.toBlob(resolve, "image/webp", 0.82));
-  if (!blob) throw new Error(t("apiError"));
-  if (blob.size <= IMAGE_MAX_BYTES) return blob;
-  const smallerBlob = await new Promise((resolve) => canvas.toBlob(resolve, "image/webp", 0.68));
-  if (!smallerBlob || smallerBlob.size > IMAGE_MAX_BYTES) throw new Error(t("imageTooLarge"));
-  return smallerBlob;
+  for (const scale of [1, 0.84, 0.7]) {
+    const ratio = baseRatio * scale;
+    canvas.width = Math.max(1, Math.round(image.width * ratio));
+    canvas.height = Math.max(1, Math.round(image.height * ratio));
+    const context = canvas.getContext("2d");
+    context.fillStyle = "#ffffff";
+    context.fillRect(0, 0, canvas.width, canvas.height);
+    context.drawImage(image, 0, 0, canvas.width, canvas.height);
+    for (const quality of [0.78, 0.66, 0.54, 0.44]) {
+      const blob = await new Promise((resolve) => canvas.toBlob(resolve, "image/webp", quality));
+      if (blob && blob.size <= IMAGE_MAX_BYTES) return blob;
+    }
+  }
+  throw new Error(t("imageTooLarge"));
 }
 
 async function readImageFile(file) {
@@ -4192,18 +4402,19 @@ async function readImageFiles(files) {
   if (list.length > IMAGE_MAX_COUNT) {
     throw new Error(t("tooManyImages"));
   }
-  const images = await Promise.all(list.map(readImageFile));
+  const images = [];
+  for (const file of list) images.push(await readImageFile(file));
   return { images };
 }
 
 async function getFormImagePayload(form) {
-  const files = form.elements.imageFile?.files || [];
+  const files = formField(form, "imageFile")?.files || [];
   if (!files.length) return {};
   return readImageFiles(files);
 }
 
 async function getListingImagePayload(form) {
-  const files = form.elements.imageFile.files;
+  const files = formField(form, "imageFile").files;
   if (!files.length) {
     return form.dataset.removeImage === "true" ? { removeImage: true } : {};
   }
@@ -4214,56 +4425,110 @@ async function getListingImagePayload(form) {
 async function listingSubmit(event) {
   event.preventDefault();
   const form = event.currentTarget;
+  const field = (name) => formField(form, name);
+  if (form.dataset.saving === "true") return;
   const submit = form.querySelector('[type="submit"]');
-  const id = form.elements.id.value;
+  const id = field("id").value;
   const message = $("#listingFormMessage");
   setFormMessage(message, "");
-  const priceUsd = form.priceUsd.value === "" ? null : Number(form.priceUsd.value);
-  const priceMxn = form.priceMxn.value === "" ? null : Number(form.priceMxn.value);
+  if (!form.reportValidity()) return;
+  const priceUsd = field("priceUsd").value === "" ? null : Number(field("priceUsd").value);
+  const priceMxn = field("priceMxn").value === "" ? null : Number(field("priceMxn").value);
   if (priceUsd === null && priceMxn === null) {
     setFormMessage(message, t("missingPrice"), true);
     return;
   }
+  if (!Number.isFinite(priceUsd ?? priceMxn) || (priceUsd !== null && priceUsd < 0) || (priceMxn !== null && priceMxn < 0)) {
+    setFormMessage(message, "Revisa los precios ingresados.", true);
+    return;
+  }
+  const latitude = field("latitude").value === "" ? null : Number(field("latitude").value);
+  const longitude = field("longitude").value === "" ? null : Number(field("longitude").value);
+  if ((latitude === null) !== (longitude === null) || (latitude !== null && (!Number.isFinite(latitude) || latitude < -90 || latitude > 90 || !Number.isFinite(longitude) || longitude < -180 || longitude > 180))) {
+    setFormMessage(message, "Ingresa una latitud y longitud válidas, o deja ambas vacías.", true);
+    return;
+  }
+  if (field("description").value.length > DESCRIPTION_MAX_LENGTH) {
+    setFormMessage(message, `La descripción no debe superar ${DESCRIPTION_MAX_LENGTH.toLocaleString("es-MX")} caracteres.`, true);
+    return;
+  }
+  const keywords = parseKeywordInput(field("keywords").value);
   const payload = {
-    title: form.title.value.trim(),
-    type: form.type.value,
-    state: form.state.value,
-    city: form.city.value,
-    zone: form.zone.value,
-    neighborhood: form.neighborhood.value,
-    address: form.address.value.trim(),
-    latitude: form.latitude.value,
-    longitude: form.longitude.value,
-    mapPlace: form.mapPlace.value,
-    operation: form.operation.value,
-    status: form.status.value,
-    isPublic: form.isPublic.checked,
+    title: field("title").value.trim(),
+    type: field("type").value,
+    state: field("state").value,
+    city: field("city").value,
+    zone: field("zone").value,
+    neighborhood: field("neighborhood").value,
+    address: field("address").value.trim(),
+    latitude,
+    longitude,
+    mapPlace: field("mapPlace").value,
+    locationPrecision: latitude !== null && longitude !== null ? "exact" : "approximate",
+    googleMapsUrl: form.querySelector("[data-open-map]")?.href || "",
+    operation: field("operation").value,
+    status: field("status").value,
+    isPublic: field("isPublic").checked,
     priceUsd,
     priceMxn,
-    beds: Number(form.beds.value || 0),
-    baths: Number(form.baths.value || 0),
-    parking: Number(form.parking.value || 0),
-    area: Number(form.area.value || 0),
-    amenities: form.amenities.value.trim(),
-    featured: form.featured.checked,
-    description: form.description.value.trim(),
+    beds: Number(field("beds").value || 0),
+    baths: Number(field("baths").value || 0),
+    parking: Number(field("parking").value || 0),
+    area: Number(field("area").value || 0),
+    lot: Number(field("lot").value || 0),
+    mls: field("mls").value.trim(),
+    amenities: field("amenities").value.trim(),
+    keywords,
+    featured: field("featured").checked,
+    description: field("description").value.trim(),
     badges: ["new"],
   };
+  const idempotencyKey = id ? "" : form.dataset.idempotencyKey || globalThis.crypto?.randomUUID?.() || `listing-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+  if (!id) form.dataset.idempotencyKey = idempotencyKey;
+  form.dataset.saving = "true";
+  saveListingDraft();
   setButtonLoading(submit, true, "Guardando publicación...");
+  setFormMessage(message, "Guardando publicación, por favor espera...");
+  const slowTimer = window.setTimeout(() => {
+    setFormMessage(message, "El guardado está tardando más de lo normal. No cierres esta ventana.");
+  }, 12000);
   try {
     Object.assign(payload, await getListingImagePayload(form));
-    await api(id ? `/api/admin/properties/${encodeURIComponent(id)}` : "/api/admin/properties", {
+    const data = await api(id ? `/api/admin/properties/${encodeURIComponent(id)}` : "/api/admin/properties", {
       method: id ? "PUT" : "POST",
       body: payload,
+      headers: idempotencyKey ? { "Idempotency-Key": idempotencyKey } : {},
+      timeoutMs: 60000,
     });
-    resetListingForm();
-    await renderPanel();
+    const saved = data.property;
+    const existingIndex = state.properties.findIndex((property) => property.id === saved.id);
+    if (existingIndex >= 0) state.properties.splice(existingIndex, 1, saved);
+    else state.properties.unshift(saved);
+    clearListingDraft();
+    if (id) {
+      editListing(saved.id);
+      form.dataset.dirty = "false";
+    } else {
+      resetListingForm(true);
+      delete form.dataset.idempotencyKey;
+    }
+    renderAdminListingFilters();
+    renderAdminListings();
     renderProperties();
-    showToast(t("listingSaved"));
+    const savedMessage = `Publicación guardada correctamente · ${new Date().toLocaleTimeString("es-MX", { hour: "2-digit", minute: "2-digit" })}`;
+    setFormMessage(message, savedMessage);
+    showToast(savedMessage);
+    void api("/api/admin/stats").then((stats) => {
+      state.stats = stats;
+      renderStats();
+    }).catch(() => null);
   } catch (error) {
-    setFormMessage(message, error.message, true);
-    showToast(error.message, "error");
+    const errorMessage = error.message || "No se pudo guardar la publicación. Revisa la información e intenta nuevamente.";
+    setFormMessage(message, errorMessage, true);
+    showToast(errorMessage, "error");
   } finally {
+    window.clearTimeout(slowTimer);
+    form.dataset.saving = "false";
     setButtonLoading(submit, false);
   }
 }
@@ -4272,31 +4537,38 @@ function editListing(id) {
   const property = state.properties.find((item) => item.id === id);
   if (!property) return;
   const form = $("#listingForm");
-  form.elements.id.value = property.id;
-  form.title.value = localizedTitle(property);
-  form.type.value = property.type;
+  const field = (name) => formField(form, name);
+  field("id").value = property.id;
+  field("title").value = localizedTitle(property);
+  field("type").value = property.type;
   setLocationFormValues(form, property);
-  form.operation.value = property.operation;
-  form.status.value = property.status || "active";
-  form.isPublic.checked = property.isPublic !== false;
-  form.priceUsd.value = property.priceUsd || "";
-  form.priceMxn.value = property.priceMxn || "";
-  form.address.value = property.address || "";
-  form.latitude.value = property.latitude ?? "";
-  form.longitude.value = property.longitude ?? "";
-  form.mapPlace.value = property.mapPlace || "";
+  field("operation").value = property.operation;
+  field("status").value = property.status || "active";
+  field("isPublic").checked = property.isPublic !== false;
+  field("priceUsd").value = property.priceUsd || "";
+  field("priceMxn").value = property.priceMxn || "";
+  field("address").value = property.address || "";
+  field("latitude").value = property.latitude ?? "";
+  field("longitude").value = property.longitude ?? "";
+  field("mapPlace").value = property.mapPlace || "";
   updateMapPickerForForm(form);
-  form.elements.imageFile.value = "";
+  field("imageFile").value = "";
   form.dataset.currentImages = JSON.stringify(storedImages(property));
   form.dataset.removeImage = "false";
   updateListingImagePreview(storedImages(property));
-  form.beds.value = property.beds || "";
-  form.baths.value = property.baths || "";
-  form.parking.value = property.parking || "";
-  form.area.value = property.area || "";
-  form.amenities.value = Array.isArray(property.amenities) ? property.amenities.join(", ") : "";
-  form.featured.checked = Boolean(property.featured);
-  form.description.value = localizedDescription(property);
+  field("beds").value = property.beds || "";
+  field("baths").value = property.baths || "";
+  field("parking").value = property.parking || "";
+  field("area").value = property.area || "";
+  field("lot").value = property.lot || "";
+  field("mls").value = property.mls || "";
+  field("amenities").value = Array.isArray(property.amenities) ? property.amenities.join(", ") : "";
+  field("keywords").value = Array.isArray(property.keywords) ? property.keywords.join(", ") : "";
+  field("featured").checked = Boolean(property.featured);
+  field("description").value = localizedDescription(property);
+  form.dataset.dirty = "false";
+  renderListingKeywordChips();
+  updateListingDescriptionCounter();
   setListingQualityPreview(property);
   form.scrollIntoView({ behavior: "smooth", block: "start" });
 }
@@ -4731,6 +5003,11 @@ function bindEvents() {
   });
 
   window.addEventListener("scroll", updateHeaderVisibility, { passive: true });
+  window.addEventListener("beforeunload", (event) => {
+    if ($("#listingForm")?.dataset.dirty !== "true") return;
+    event.preventDefault();
+    event.returnValue = "Tienes cambios sin guardar.";
+  });
 
   $("#searchForm").addEventListener("submit", handleSearch);
   $("#guidedSearchForm")?.addEventListener("submit", guidedSearchSubmit);
@@ -4848,11 +5125,57 @@ function bindEvents() {
   });
   $("#clearSellerImage").addEventListener("click", () => {
     const form = $("#sellerRequestForm");
-    form.elements.imageFile.value = "";
+    formField(form, "imageFile").value = "";
     updateSellerImagePreview([]);
     setFormMessage($("#sellerFormMessage"), t("imageRemoved"));
   });
   $("#listingForm").addEventListener("submit", listingSubmit);
+  $("#adminListingSearch")?.addEventListener("input", (event) => {
+    window.clearTimeout(adminListingSearchTimer);
+    adminListingSearchTimer = window.setTimeout(() => {
+      state.adminListingFilters.search = event.target.value;
+      renderAdminListings();
+    }, 350);
+  });
+  [
+    ["#adminListingTypeFilter", "type"],
+    ["#adminListingZoneFilter", "zone"],
+    ["#adminListingOperationFilter", "operation"],
+    ["#adminListingStatusFilter", "status"],
+  ].forEach(([selector, key]) => {
+    $(selector)?.addEventListener("change", (event) => {
+      state.adminListingFilters[key] = event.target.value;
+      renderAdminListings();
+    });
+  });
+  $("#clearAdminListingSearch")?.addEventListener("click", () => {
+    state.adminListingFilters = { search: "", type: "", zone: "", operation: "", status: "" };
+    renderAdminListingFilters();
+    renderAdminListings();
+  });
+  $("[data-add-keyword]")?.addEventListener("click", renderListingKeywordChips);
+  $("#listingKeywords")?.addEventListener("keydown", (event) => {
+    if (event.key !== "Enter") return;
+    event.preventDefault();
+    renderListingKeywordChips();
+  });
+  $("[data-keyword-chips]")?.addEventListener("click", (event) => {
+    const button = event.target.closest("[data-remove-keyword]");
+    if (!button) return;
+    const input = $("#listingKeywords");
+    input.value = parseKeywordInput(input.value).filter((keyword) => keyword !== button.dataset.removeKeyword).join(", ");
+    renderListingKeywordChips();
+    saveListingDraft();
+  });
+  $("#listingForm").addEventListener("input", () => {
+    updateListingDescriptionCounter();
+    window.clearTimeout(listingDraftTimer);
+    listingDraftTimer = window.setTimeout(saveListingDraft, 500);
+  });
+  $("#listingForm").addEventListener("change", () => {
+    window.clearTimeout(listingDraftTimer);
+    listingDraftTimer = window.setTimeout(saveListingDraft, 300);
+  });
   $("#locationCatalogForm").addEventListener("submit", locationCatalogSubmit);
   $("#valuationForm")?.addEventListener("submit", valuationSubmit);
   $("#taskForm")?.addEventListener("submit", taskSubmit);
@@ -4932,16 +5255,16 @@ function bindEvents() {
   });
   $("#locationCatalogForm").elements.type.addEventListener("change", renderCatalogParentOptions);
   $("#resetCatalogForm")?.addEventListener("click", resetCatalogForm);
-  $("#resetListingForm").addEventListener("click", resetListingForm);
+  $("#resetListingForm").addEventListener("click", () => resetListingForm(true));
   $("#clearListingImage").addEventListener("click", () => {
     const form = $("#listingForm");
-    form.elements.imageFile.value = "";
+    formField(form, "imageFile").value = "";
     form.dataset.currentImages = "[]";
     form.dataset.removeImage = "true";
     updateListingImagePreview([]);
     setFormMessage($("#listingFormMessage"), t("imageRemoved"));
   });
-  $("#listingForm").elements.imageFile.addEventListener("change", async (event) => {
+  formField($("#listingForm"), "imageFile").addEventListener("change", async (event) => {
     const files = event.target.files;
     const form = $("#listingForm");
     const message = $("#listingFormMessage");
