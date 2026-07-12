@@ -1781,11 +1781,32 @@ input[type="file"] {
   background: #edf3f6;
 }
 
-.map-picker.has-google-map iframe {
+.interactive-map-canvas.leaflet-container {
+  position: relative;
+  z-index: 0;
+  overflow: hidden;
+  min-height: 260px;
+  background: #dce7ec;
+}
+
+.interactive-map-canvas.leaflet-container img,
+.interactive-map-canvas.leaflet-container .leaflet-tile {
+  width: 256px !important;
+  max-width: none !important;
+  height: 256px !important;
+  max-height: none !important;
+}
+
+.map-picker.is-loading-map iframe,
+.map-picker.has-interactive-map iframe {
   display: none;
 }
 
-.map-picker.has-interactive-map iframe {
+.map-picker.map-load-failed .interactive-map-canvas {
+  display: none;
+}
+
+.map-picker.has-google-map iframe {
   display: none;
 }
 

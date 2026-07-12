@@ -180,6 +180,7 @@ const translations = {
     longitudeField: "Longitud",
     locationDetected: "Ubicación detectada. Revisa el mapa antes de guardar.",
     locationUnavailable: "No se pudo obtener tu ubicacion. Puedes escribir las coordenadas manualmente.",
+    mapLoadUnavailable: "No se pudo cargar el mapa interactivo. Puedes usar el mapa visible o escribir las coordenadas manualmente.",
     bedrooms: "Recámaras",
     bathrooms: "Baños",
     area: "M2 construcción",
@@ -580,6 +581,7 @@ const translations = {
     longitudeField: "Longitude",
     locationDetected: "Location detected. Review the map before saving.",
     locationUnavailable: "Could not get your location. You can enter coordinates manually.",
+    mapLoadUnavailable: "The interactive map could not be loaded. Use the visible map or enter the coordinates manually.",
     bedrooms: "Bedrooms",
     bathrooms: "Bathrooms",
     area: "Built m2",
@@ -1132,11 +1134,72 @@ async function enhanceLeafletMapPicker(picker) {
   const canvas = picker.querySelector("[data-map-canvas]");
   if (!canvas) return;
   canvas.hidden = false;
+  picker.classList.add("is-loading-map");
   const map = L.map(canvas, { zoomControl: true, attributionControl: true }).setView([latitude, longitude], 13);
-  L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-    maxZoom: 19,
-    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
-  }).addTo(map);
+  const tileSources = [
+    {
+      url: "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
+      options: {
+        maxZoom: 19,
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+      },
+    },
+    {
+      url: "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png",
+      options: {
+        subdomains: "abcd",
+        maxZoom: 20,
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; CARTO',
+      },
+    },
+  ];
+  let tileLayer = null;
+  let tileSourceIndex = 0;
+  let tileErrors = 0;
+  let tilesReady = false;
+  let switchingTiles = false;
+  let mapFallbackTimer = null;
+
+  const revealInteractiveMap = () => {
+    if (tilesReady) return;
+    tilesReady = true;
+    window.clearTimeout(mapFallbackTimer);
+    canvas.hidden = false;
+    picker.classList.remove("is-loading-map", "map-load-failed");
+    picker.classList.add("has-interactive-map");
+    window.requestAnimationFrame(() => map.invalidateSize({ animate: false }));
+  };
+
+  const showEmbeddedFallback = () => {
+    if (tilesReady) return;
+    picker.classList.remove("is-loading-map", "has-interactive-map");
+    picker.classList.add("map-load-failed");
+    canvas.hidden = true;
+    const help = picker.querySelector(".map-help");
+    if (help) help.textContent = t("mapLoadUnavailable");
+  };
+
+  const addTileLayer = () => {
+    const source = tileSources[tileSourceIndex];
+    tileErrors = 0;
+    switchingTiles = false;
+    if (tileLayer) map.removeLayer(tileLayer);
+    tileLayer = L.tileLayer(source.url, source.options)
+      .on("tileload", revealInteractiveMap)
+      .on("tileerror", () => {
+        tileErrors += 1;
+        if (tileErrors < 3 || switchingTiles) return;
+        if (tileSourceIndex < tileSources.length - 1) {
+          switchingTiles = true;
+          tileSourceIndex += 1;
+          addTileLayer();
+        } else if (tileErrors >= 6) {
+          showEmbeddedFallback();
+        }
+      })
+      .addTo(map);
+  };
+  addTileLayer();
   const icon = L.divIcon({
     className: "draggable-map-pin",
     html: '<span aria-hidden="true"></span>',
@@ -1150,9 +1213,18 @@ async function enhanceLeafletMapPicker(picker) {
     marker.setLatLng(event.latlng);
     update(event.latlng);
   });
-  googleMapInstances.set(picker, { type: "leaflet", map, marker });
-  picker.classList.add("has-interactive-map");
-  window.setTimeout(() => map.invalidateSize(), 0);
+  const resizeMap = () => {
+    if (!canvas.hidden && canvas.offsetWidth > 0 && canvas.offsetHeight > 0) {
+      map.invalidateSize({ animate: false });
+    }
+  };
+  const resizeObserver = typeof ResizeObserver === "function" ? new ResizeObserver(resizeMap) : null;
+  resizeObserver?.observe(canvas);
+  googleMapInstances.set(picker, { type: "leaflet", map, marker, resizeObserver });
+  window.requestAnimationFrame(() => window.requestAnimationFrame(resizeMap));
+  window.setTimeout(resizeMap, 250);
+  window.setTimeout(resizeMap, 900);
+  mapFallbackTimer = window.setTimeout(showEmbeddedFallback, 12000);
 }
 
 async function enhanceMapPicker(picker) {
@@ -1221,7 +1293,14 @@ function bindMapPickers() {
       );
     });
     updateMapPicker(picker);
-    void enhanceMapPicker(picker).catch(() => null);
+    void enhanceMapPicker(picker).catch(() => {
+      picker.classList.remove("is-loading-map", "has-interactive-map");
+      picker.classList.add("map-load-failed");
+      const canvas = picker.querySelector("[data-map-canvas]");
+      if (canvas) canvas.hidden = true;
+      const help = picker.querySelector(".map-help");
+      if (help) help.textContent = t("mapLoadUnavailable");
+    });
   });
 }
 
