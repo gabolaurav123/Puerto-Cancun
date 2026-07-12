@@ -951,6 +951,8 @@ function schemaBase(baseUrl = DEFAULT_SITE_URL) {
       "@id": businessId,
       name: business.name,
       url: siteUrl,
+      logo: absoluteUrl("/assets/puerto-cancun-logo.png", baseUrl),
+      image: absoluteUrl("/assets/og-puerto-cancun-center.webp", baseUrl),
       description: business.description,
       telephone: business.telephone,
       address: {

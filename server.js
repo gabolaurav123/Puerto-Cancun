@@ -30,7 +30,15 @@ const app = express();
 const port = Number(process.env.PORT || 3000);
 const siteUrl = process.env.PUBLIC_SITE_URL || process.env.SITE_URL || DEFAULT_SITE_URL;
 const indexPath = path.join(__dirname, "index.html");
-const publicStaticFiles = new Set(["/app.js", "/styles.css", "/favicon.svg"]);
+const publicStaticFiles = new Set([
+  "/app.js",
+  "/styles.css",
+  "/favicon.png",
+  "/apple-touch-icon.png",
+  "/icon-192.png",
+  "/icon-512.png",
+  "/site.webmanifest",
+]);
 
 if (!process.env.DATABASE_URL) {
   console.error("DATABASE_URL is required. Copy .env.example to .env and configure your Neon PostgreSQL URL.");

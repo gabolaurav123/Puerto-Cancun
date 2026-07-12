@@ -1,0 +1,23 @@
+{
+  "name": "Puerto Cancún Center",
+  "short_name": "Puerto Cancún",
+  "description": "Compra, venta y valoración de propiedades en Cancún.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#07131b",
+  "theme_color": "#07131b",
+  "icons": [
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
