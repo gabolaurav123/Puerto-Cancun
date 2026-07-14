@@ -875,6 +875,10 @@
                     <p data-i18n="mapPickerCopy">Arrastra el pin o haz clic en el mapa para definir la ubicación exacta.</p>
                   </div>
                   <div class="map-actions">
+                    <button class="ghost-button" type="button" data-geocode-address>
+                      <i data-lucide="search"></i>
+                      <span data-i18n="locateAddress">Ubicar dirección</span>
+                    </button>
                     <button class="ghost-button" type="button" data-use-current-location>
                       <i data-lucide="crosshair"></i>
                       <span data-i18n="useCurrentLocation">Usar mi ubicacion</span>
@@ -1702,6 +1706,10 @@
                     <p data-i18n="mapPickerCopy">Arrastra el pin o haz clic en el mapa para definir la ubicación exacta.</p>
                   </div>
                   <div class="map-actions">
+                    <button class="ghost-button" type="button" data-geocode-address>
+                      <i data-lucide="search"></i>
+                      <span data-i18n="locateAddress">Ubicar dirección</span>
+                    </button>
                     <button class="ghost-button" type="button" data-use-current-location>
                       <i data-lucide="crosshair"></i>
                       <span data-i18n="useCurrentLocation">Usar mi ubicacion</span>
@@ -1742,10 +1750,11 @@
               </label>
               <div class="image-preview" id="listingImagePreview" hidden>
                 <div class="image-preview-header">
-                  <span data-i18n="currentImage">Imagen actual</span>
+                  <span data-i18n="imageGalleryTitle">Galería y orden de publicación</span>
                   <button class="text-button danger" type="button" id="clearListingImage" data-i18n="removeImage">Quitar imagenes</button>
                 </div>
                 <div class="image-preview-grid"></div>
+                <small data-i18n="imageGalleryHelp">La primera imagen será la portada. Arrastra las fotos o usa las flechas para cambiar su orden.</small>
               </div>
               <p class="form-message" id="listingFormMessage"></p>
               <div class="form-row listing-metrics-row">

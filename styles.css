@@ -1843,10 +1843,14 @@ input[type="file"] {
   font-size: 0.82rem;
 }
 
+.map-help.is-error {
+  color: #a52a22;
+}
+
 .image-preview {
   display: grid;
   gap: 8px;
-  width: min(360px, 100%);
+  width: 100%;
   padding: 12px;
   border: 1px solid var(--line);
   background: #f7fafc;
@@ -1872,6 +1876,65 @@ input[type="file"] {
   object-fit: contain;
   border: 1px solid var(--line);
   background: #eef3f7;
+}
+
+.image-preview-item {
+  position: relative;
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+  padding: 6px;
+  border: 1px solid var(--line);
+  background: #fff;
+  cursor: grab;
+}
+
+.image-preview-item.is-dragging {
+  opacity: 0.45;
+}
+
+.image-preview-item .image-order {
+  position: absolute;
+  z-index: 1;
+  top: 10px;
+  left: 10px;
+  padding: 3px 6px;
+  color: #fff;
+  background: var(--blue-900);
+  font-size: 0.65rem;
+}
+
+.image-preview-actions {
+  display: grid;
+  grid-template-columns: repeat(3, 30px);
+  justify-content: center;
+  gap: 5px;
+}
+
+.image-preview-actions button {
+  display: grid;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  place-items: center;
+  border: 1px solid var(--line);
+  background: #fff;
+  color: var(--blue-900);
+  cursor: pointer;
+}
+
+.image-preview-actions button:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.image-preview-actions button.danger {
+  color: #a52a22;
+}
+
+.image-preview-actions svg {
+  width: 15px;
+  height: 15px;
 }
 
 .image-preview-grid {

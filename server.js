@@ -3676,7 +3676,13 @@ app.post("/api/admin/documents/generate", requireRole("admin"), async (req, res,
         addPdfField(document, "Ubicación", [entity.zone, entity.city, entity.state].filter(Boolean).join(", "));
         addPdfField(document, "Tipo / operación", `${entity.type} · ${entity.operation === "rent" ? "Renta" : "Venta"}`);
         if (options.showPrice !== false) addPdfField(document, "Precio", formatPdfMoney(entity.priceUsd || entity.priceMxn, entity.priceUsd ? "USD" : "MXN"));
-        addPdfField(document, "Características", `${entity.beds} recámaras · ${entity.baths} baños · ${entity.area} m²`);
+        const formatArea = (value) => new Intl.NumberFormat("es-MX", { maximumFractionDigits: 2 }).format(Number(value || 0));
+        const characteristics = [];
+        if (entity.beds) characteristics.push(`${formatArea(entity.beds)} recámaras`);
+        if (entity.baths) characteristics.push(`${formatArea(entity.baths)} baños`);
+        if (entity.area) characteristics.push(`${formatArea(entity.area)} m² construcción`);
+        if (entity.lot) characteristics.push(`${formatArea(entity.lot)} m² terreno`);
+        addPdfField(document, "Características", characteristics.join(" · ") || "Sin características registradas");
         addPdfField(document, "MLS", entity.mls);
         document.moveDown(0.4).fillColor("#102d3d").font("Helvetica").fontSize(11).text(entity.descriptionEs || "", { align: "justify" });
         if (options.showAddress && entity.address) {
@@ -4007,7 +4013,7 @@ function validateImagePayload(image) {
   return dataUrl;
 }
 
-function parseUploadedImages(body, existingImages = []) {
+function parseUploadedImages(body, existingImages = [], propertyId = "") {
   if (body.removeImage === true || body.removeImage === "true") return [];
   const incoming = Array.isArray(body.images)
     ? body.images
@@ -4020,7 +4026,24 @@ function parseUploadedImages(body, existingImages = []) {
     error.status = 400;
     throw error;
   }
-  return incoming.map(validateImagePayload);
+  const stored = safeJsonArray(existingImages).filter(Boolean);
+  return incoming.map((image) => {
+    if (typeof image !== "string") return validateImagePayload(image);
+    if (/^data:image\//i.test(image)) {
+      const decoded = decodeDataImage(image);
+      return validateImagePayload({ imageDataUrl: image, imageType: decoded?.type, imageSize: decoded?.buffer?.length });
+    }
+    const mediaMatch = image.match(/^\/media\/properties\/([^/]+)\/(\d+)(?:\?.*)?$/);
+    if (mediaMatch && (!propertyId || decodeURIComponent(mediaMatch[1]) === propertyId)) {
+      const existing = stored[Number(mediaMatch[2])];
+      if (existing) return existing;
+    }
+    const exactExisting = stored.find((existing) => existing === image);
+    if (exactExisting) return exactExisting;
+    const error = new Error("Una de las imagenes existentes ya no esta disponible. Recarga la publicacion e intenta nuevamente.");
+    error.status = 400;
+    throw error;
+  });
 }
 
 function normalizePropertyInput(body, id, existingImages = []) {
@@ -4039,7 +4062,7 @@ function normalizePropertyInput(body, id, existingImages = []) {
   const operation = body.operation === "rent" ? "rent" : "sale";
   const priceUsd = parseOptionalPrice(body.priceUsd, "priceUsd");
   const priceMxn = parseOptionalPrice(body.priceMxn, "priceMxn");
-  const images = parseUploadedImages(body, existingImages);
+  const images = parseUploadedImages(body, existingImages, id);
   const keywords = normalizeKeywords(body.keywords);
   const status = normalizeStatus(body.status, PROPERTY_STATUSES, "active");
   const isPublic = body.isPublic === undefined ? status === "active" : body.isPublic !== false && body.isPublic !== "false";

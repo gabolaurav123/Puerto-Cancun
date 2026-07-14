@@ -175,12 +175,17 @@ const translations = {
     mapPickerHelp:
       "Arrastra el pin o haz clic en el mapa para ajustar la ubicación exacta. También puedes escribir las coordenadas manualmente.",
     useCurrentLocation: "Usar mi ubicacion",
+    locateAddress: "Ubicar dirección",
     openGoogleMaps: "Abrir Google Maps",
     latitudeField: "Latitud",
     longitudeField: "Longitud",
     locationDetected: "Ubicación detectada. Revisa el mapa antes de guardar.",
     locationUnavailable: "No se pudo obtener tu ubicacion. Puedes escribir las coordenadas manualmente.",
     mapLoadUnavailable: "No se pudo cargar el mapa interactivo. Puedes usar el mapa visible o escribir las coordenadas manualmente.",
+    mapSearching: "Buscando la dirección y actualizando el pin...",
+    mapAddressFound: "Dirección localizada. Confirma o ajusta el pin antes de guardar.",
+    mapAddressNotFound: "No encontramos esa dirección automáticamente. Ajusta el pin en el mapa o escribe las coordenadas.",
+    mapAddressChanged: "Dirección modificada. Esperando para actualizar el mapa...",
     bedrooms: "Recámaras",
     bathrooms: "Baños",
     area: "M2 construcción",
@@ -196,6 +201,8 @@ const translations = {
     priceMxn: "Precio MXN",
     imageUpload: "Imagenes de la propiedad",
     imageHelp: "JPG, PNG o WEBP. Maximo 20 imagenes. Se optimizan antes de guardarse.",
+    imageGalleryTitle: "Galería y orden de publicación",
+    imageGalleryHelp: "La primera imagen será la portada. Arrastra las fotos o usa las flechas para cambiar su orden.",
     currentImage: "Imagen actual",
     selectedImage: "Imagenes seleccionadas",
     removeImage: "Quitar imagenes",
@@ -576,12 +583,17 @@ const translations = {
     mapPickerCopy: "Drag the pin or click the map to set the exact property location.",
     mapPickerHelp: "Drag the pin or click the map to set the exact location. You can also enter the coordinates manually.",
     useCurrentLocation: "Use my location",
+    locateAddress: "Locate address",
     openGoogleMaps: "Open Google Maps",
     latitudeField: "Latitude",
     longitudeField: "Longitude",
     locationDetected: "Location detected. Review the map before saving.",
     locationUnavailable: "Could not get your location. You can enter coordinates manually.",
     mapLoadUnavailable: "The interactive map could not be loaded. Use the visible map or enter the coordinates manually.",
+    mapSearching: "Finding the address and updating the pin...",
+    mapAddressFound: "Address found. Confirm or adjust the pin before saving.",
+    mapAddressNotFound: "We could not find that address automatically. Adjust the pin or enter the coordinates.",
+    mapAddressChanged: "Address changed. Waiting to update the map...",
     bedrooms: "Bedrooms",
     bathrooms: "Bathrooms",
     area: "Built m2",
@@ -597,6 +609,8 @@ const translations = {
     priceMxn: "MXN price",
     imageUpload: "Property images",
     imageHelp: "JPG, PNG or WEBP. Up to 20 images. They are optimized before saving.",
+    imageGalleryTitle: "Gallery and publication order",
+    imageGalleryHelp: "The first image will be the cover. Drag photos or use the arrows to change their order.",
     currentImage: "Current image",
     selectedImage: "Selected images",
     removeImage: "Remove images",
@@ -913,6 +927,8 @@ const googleMapInstances = new WeakMap();
 let lastScrollY = 0;
 let adminListingSearchTimer = 0;
 let listingDraftTimer = 0;
+const mapGeocodeTimers = new WeakMap();
+const mapGeocodeControllers = new WeakMap();
 
 function safeParseStoredIds(key) {
   try {
@@ -1063,6 +1079,75 @@ function mapQueryFromForm(form) {
   return parts.join(", ") || "Cancun, Quintana Roo";
 }
 
+function mapAddressQueryFromForm(form) {
+  if (!form) return "";
+  return [
+    formField(form, "address")?.value,
+    formField(form, "neighborhood")?.value,
+    formField(form, "zone")?.value,
+    formField(form, "city")?.value,
+    formField(form, "state")?.value,
+  ].filter(Boolean).join(", ");
+}
+
+function setMapStatus(picker, message, isError = false) {
+  const status = picker?.querySelector(".map-help");
+  if (!status) return;
+  status.textContent = message;
+  status.classList.toggle("is-error", isError);
+}
+
+async function geocodeMapAddress(picker) {
+  const form = picker?.closest("form");
+  const query = mapAddressQueryFromForm(form);
+  if (!form || !query) return;
+  mapGeocodeControllers.get(picker)?.abort();
+  const controller = new AbortController();
+  mapGeocodeControllers.set(picker, controller);
+  setMapStatus(picker, t("mapSearching"));
+  try {
+    let latitude;
+    let longitude;
+    if (window.google?.maps) {
+      const result = await new Promise((resolve, reject) => {
+        new google.maps.Geocoder().geocode({ address: query }, (results, status) => {
+          if (status === "OK" && results?.[0]) resolve(results[0]);
+          else reject(new Error("Direccion no encontrada"));
+        });
+      });
+      latitude = result.geometry.location.lat();
+      longitude = result.geometry.location.lng();
+    } else {
+      const response = await fetch(`https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&countrycodes=mx&q=${encodeURIComponent(query)}`, {
+        headers: { Accept: "application/json" },
+        signal: controller.signal,
+      });
+      if (!response.ok) throw new Error("No se pudo consultar la direccion");
+      const [result] = await response.json();
+      if (!result) throw new Error("Direccion no encontrada");
+      latitude = Number(result.lat);
+      longitude = Number(result.lon);
+    }
+    if (controller.signal.aborted) return;
+    setMapCoordinates(picker, latitude, longitude);
+    setMapStatus(picker, t("mapAddressFound"));
+  } catch (error) {
+    if (error.name === "AbortError") return;
+    setMapStatus(picker, t("mapAddressNotFound"), true);
+  }
+}
+
+function scheduleMapAddressGeocode(picker) {
+  window.clearTimeout(mapGeocodeTimers.get(picker));
+  const form = picker?.closest("form");
+  if (!form) return;
+  if (formField(form, "latitude")) formField(form, "latitude").value = "";
+  if (formField(form, "longitude")) formField(form, "longitude").value = "";
+  updateMapPicker(picker);
+  setMapStatus(picker, t("mapAddressChanged"));
+  mapGeocodeTimers.set(picker, window.setTimeout(() => void geocodeMapAddress(picker), 700));
+}
+
 function updateMapPicker(picker) {
   if (!picker) return;
   const form = picker.closest("form");
@@ -1074,7 +1159,7 @@ function updateMapPicker(picker) {
   const instance = googleMapInstances.get(picker);
   if (frame && !instance) frame.src = `https://www.google.com/maps?q=${encoded}&output=embed`;
   if (openLink) openLink.href = `https://www.google.com/maps/search/?api=1&query=${encoded}`;
-  if (placeInput) placeInput.value = query;
+  if (placeInput) placeInput.value = mapAddressQueryFromForm(form) || query;
 
   if (instance && formField(form, "latitude")?.value && formField(form, "longitude")?.value) {
     const center = {
@@ -1277,7 +1362,11 @@ function bindMapPickers() {
     }
     picker.dataset.bound = "true";
     const form = picker.closest("form");
-    ["address", "state", "city", "zone", "neighborhood", "latitude", "longitude"].forEach((name) => {
+    ["address", "state", "city", "zone", "neighborhood"].forEach((name) => {
+      form?.elements[name]?.addEventListener("input", () => scheduleMapAddressGeocode(picker));
+      form?.elements[name]?.addEventListener("change", () => scheduleMapAddressGeocode(picker));
+    });
+    ["latitude", "longitude"].forEach((name) => {
       form?.elements[name]?.addEventListener("input", () => updateMapPicker(picker));
       form?.elements[name]?.addEventListener("change", () => updateMapPicker(picker));
     });
@@ -1291,6 +1380,10 @@ function bindMapPickers() {
         () => setFormMessage(form.querySelector(".form-message"), t("locationUnavailable"), true),
         { enableHighAccuracy: true, timeout: 9000 }
       );
+    });
+    picker.querySelector("[data-geocode-address]")?.addEventListener("click", () => {
+      window.clearTimeout(mapGeocodeTimers.get(picker));
+      void geocodeMapAddress(picker);
     });
     updateMapPicker(picker);
     void enhanceMapPicker(picker).catch(() => {
@@ -3567,6 +3660,14 @@ function previewPdf() {
     preview.innerHTML = `<span class="eyebrow">VISTA PREVIA</span><h3>Selecciona un registro</h3><p>Elige una propiedad o valoración válida.</p>`;
     return;
   }
+  const propertyMetrics = !isValuation
+    ? [
+        entity.beds ? `${new Intl.NumberFormat("es-MX").format(entity.beds)} recámaras` : "",
+        entity.baths ? `${new Intl.NumberFormat("es-MX").format(entity.baths)} baños` : "",
+        entity.area ? `${new Intl.NumberFormat("es-MX").format(entity.area)} m² construcción` : "",
+        entity.lot ? `${new Intl.NumberFormat("es-MX").format(entity.lot)} m² terreno` : "",
+      ].filter(Boolean).join(" · ")
+    : "";
   preview.innerHTML = isValuation
     ? `
       <span class="eyebrow">VALORACIÓN INMOBILIARIA</span>
@@ -3581,7 +3682,7 @@ function previewPdf() {
       <h3>${escapeHtml(entity.titleEs)}</h3>
       <p>${escapeHtml(displayLocation(entity))} · ${escapeHtml(entity.type)}</p>
       ${form.showPrice.checked ? `<div class="preview-price">${escapeHtml(formatPriceSummary(entity))}</div>` : ""}
-      <p>${escapeHtml(entity.beds)} recámaras · ${escapeHtml(entity.baths)} baños · ${escapeHtml(entity.area)} m²</p>
+      <p>${escapeHtml(propertyMetrics || "Sin características registradas")}</p>
       <p>${escapeHtml(truncateText(entity.descriptionEs || "", 460))}</p>
     `;
 }
@@ -4387,15 +4488,26 @@ function setListingQualityPreview(property) {
   }
 }
 
-function renderImagePreview(preview, images) {
+function renderImagePreview(preview, images, interactive = false) {
   if (!preview) return;
   const list = Array.isArray(images) ? images.filter(Boolean) : images ? [images] : [];
   const grid = preview.querySelector(".image-preview-grid");
   if (list.length) {
     grid.innerHTML = list
-      .map((src, index) => `<img src="${escapeHtml(src)}" alt="Property preview ${index + 1}" loading="lazy" />`)
+      .map((src, index) => interactive
+        ? `<article class="image-preview-item" draggable="true" data-image-index="${index}">
+            <span class="image-order">${index === 0 ? "PORTADA" : index + 1}</span>
+            <img src="${escapeHtml(src)}" alt="Vista previa ${index + 1}" loading="lazy" />
+            <div class="image-preview-actions">
+              <button type="button" data-move-image="up" data-image-index="${index}" aria-label="Mover imagen a la izquierda" ${index === 0 ? "disabled" : ""}><i data-lucide="arrow-left"></i></button>
+              <button type="button" data-move-image="down" data-image-index="${index}" aria-label="Mover imagen a la derecha" ${index === list.length - 1 ? "disabled" : ""}><i data-lucide="arrow-right"></i></button>
+              <button type="button" class="danger" data-remove-listing-image="${index}" aria-label="Eliminar esta imagen"><i data-lucide="trash-2"></i></button>
+            </div>
+          </article>`
+        : `<img src="${escapeHtml(src)}" alt="Property preview ${index + 1}" loading="lazy" />`)
       .join("");
     preview.hidden = false;
+    if (interactive) refreshIcons();
   } else {
     grid.innerHTML = "";
     preview.hidden = true;
@@ -4407,7 +4519,25 @@ function updateSellerImagePreview(images) {
 }
 
 function updateListingImagePreview(images) {
-  renderImagePreview($("#listingImagePreview"), images);
+  renderImagePreview($("#listingImagePreview"), images, true);
+}
+
+function setListingImages(images) {
+  const form = $("#listingForm");
+  const list = Array.isArray(images) ? images.filter(Boolean).slice(0, IMAGE_MAX_COUNT) : [];
+  form.dataset.currentImages = JSON.stringify(list);
+  form.dataset.removeImage = list.length ? "false" : "true";
+  updateListingImagePreview(list);
+  saveListingDraft();
+}
+
+function moveListingImage(fromIndex, toIndex) {
+  const form = $("#listingForm");
+  const images = safeParseImages(form.dataset.currentImages);
+  if (fromIndex < 0 || toIndex < 0 || fromIndex >= images.length || toIndex >= images.length || fromIndex === toIndex) return;
+  const [image] = images.splice(fromIndex, 1);
+  images.splice(toIndex, 0, image);
+  setListingImages(images);
 }
 
 function validateImageFile(file) {
@@ -4493,12 +4623,8 @@ async function getFormImagePayload(form) {
 }
 
 async function getListingImagePayload(form) {
-  const files = formField(form, "imageFile").files;
-  if (!files.length) {
-    return form.dataset.removeImage === "true" ? { removeImage: true } : {};
-  }
-  form.dataset.removeImage = "false";
-  return readImageFiles(files);
+  const images = safeParseImages(form.dataset.currentImages);
+  return images.length ? { images } : { removeImage: true };
 }
 
 async function listingSubmit(event) {
@@ -5338,9 +5464,7 @@ function bindEvents() {
   $("#clearListingImage").addEventListener("click", () => {
     const form = $("#listingForm");
     formField(form, "imageFile").value = "";
-    form.dataset.currentImages = "[]";
-    form.dataset.removeImage = "true";
-    updateListingImagePreview([]);
+    setListingImages([]);
     setFormMessage($("#listingFormMessage"), t("imageRemoved"));
   });
   formField($("#listingForm"), "imageFile").addEventListener("change", async (event) => {
@@ -5355,13 +5479,48 @@ function bindEvents() {
     }
     try {
       const payload = await readImageFiles(files);
-      form.dataset.removeImage = "false";
-      updateListingImagePreview(payload.images.map((image) => image.imageDataUrl));
+      const added = payload.images.map((image) => image.imageDataUrl);
+      if (currentImages.length + added.length > IMAGE_MAX_COUNT) throw new Error(t("tooManyImages"));
+      setListingImages([...currentImages, ...added]);
+      event.target.value = "";
+      setFormMessage(message, `${added.length} imagen${added.length === 1 ? "" : "es"} agregada${added.length === 1 ? "" : "s"}. Guarda la publicacion para confirmar los cambios.`);
     } catch (error) {
       event.target.value = "";
       updateListingImagePreview(form.dataset.removeImage === "true" ? [] : currentImages);
       setFormMessage(message, error.message, true);
     }
+  });
+  $("#listingImagePreview")?.addEventListener("click", (event) => {
+    const remove = event.target.closest("[data-remove-listing-image]");
+    if (remove) {
+      const images = safeParseImages($("#listingForm").dataset.currentImages);
+      images.splice(Number(remove.dataset.removeListingImage), 1);
+      setListingImages(images);
+      setFormMessage($("#listingFormMessage"), "Imagen eliminada de la galeria. Guarda la publicacion para confirmar el cambio.");
+      return;
+    }
+    const move = event.target.closest("[data-move-image]");
+    if (move) {
+      const index = Number(move.dataset.imageIndex);
+      moveListingImage(index, move.dataset.moveImage === "up" ? index - 1 : index + 1);
+    }
+  });
+  let draggedListingImageIndex = null;
+  $("#listingImagePreview")?.addEventListener("dragstart", (event) => {
+    const item = event.target.closest("[data-image-index]");
+    if (!item) return;
+    draggedListingImageIndex = Number(item.dataset.imageIndex);
+    item.classList.add("is-dragging");
+  });
+  $("#listingImagePreview")?.addEventListener("dragend", (event) => {
+    event.target.closest("[data-image-index]")?.classList.remove("is-dragging");
+    draggedListingImageIndex = null;
+  });
+  $("#listingImagePreview")?.addEventListener("dragover", (event) => event.preventDefault());
+  $("#listingImagePreview")?.addEventListener("drop", (event) => {
+    event.preventDefault();
+    const target = event.target.closest("[data-image-index]");
+    if (target && draggedListingImageIndex !== null) moveListingImage(draggedListingImageIndex, Number(target.dataset.imageIndex));
   });
 
   $$("[data-seller-help]").forEach((button) => {
