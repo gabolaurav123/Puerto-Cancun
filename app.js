@@ -1,8 +1,10 @@
-const IMAGE_MAX_BYTES = 480 * 1024;
+const IMAGE_MAX_BYTES = 240 * 1024;
 const IMAGE_ORIGINAL_MAX_BYTES = 12 * 1024 * 1024;
 const IMAGE_MAX_COUNT = 20;
 const DESCRIPTION_MAX_LENGTH = 50000;
 const LISTING_DRAFT_KEY = "pcc.admin.listingDraft.v2";
+const SELLER_DRAFT_KEY = "pcc.seller.requestDraft.v1";
+const DRAFT_DB_NAME = "puertoCancunDrafts";
 const IMAGE_TYPES = new Set(["image/jpeg", "image/jpg", "image/png", "image/webp"]);
 const WHATSAPP_NUMBER = "5219982166563";
 const LOCATION_FIELD_ORDER = ["state", "city", "zone", "neighborhood"];
@@ -927,6 +929,9 @@ const googleMapInstances = new WeakMap();
 let lastScrollY = 0;
 let adminListingSearchTimer = 0;
 let listingDraftTimer = 0;
+let sellerDraftTimer = 0;
+let draftDbPromise = null;
+let draftWriteQueue = Promise.resolve();
 const mapGeocodeTimers = new WeakMap();
 const mapGeocodeControllers = new WeakMap();
 
@@ -937,6 +942,60 @@ function safeParseStoredIds(key) {
   } catch {
     return [];
   }
+}
+
+function openDraftDatabase() {
+  if (!("indexedDB" in window)) return Promise.resolve(null);
+  if (draftDbPromise) return draftDbPromise;
+  draftDbPromise = new Promise((resolve) => {
+    const request = indexedDB.open(DRAFT_DB_NAME, 1);
+    request.onupgradeneeded = () => {
+      if (!request.result.objectStoreNames.contains("drafts")) request.result.createObjectStore("drafts", { keyPath: "key" });
+    };
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => resolve(null);
+    request.onblocked = () => resolve(null);
+  });
+  return draftDbPromise;
+}
+
+async function writePersistentDraft(key, value) {
+  const database = await openDraftDatabase();
+  if (!database) return;
+  await new Promise((resolve) => {
+    const transaction = database.transaction("drafts", "readwrite");
+    transaction.objectStore("drafts").put({ key, value });
+    transaction.oncomplete = resolve;
+    transaction.onerror = resolve;
+    transaction.onabort = resolve;
+  });
+}
+
+async function readPersistentDraft(key) {
+  const database = await openDraftDatabase();
+  if (!database) return null;
+  return new Promise((resolve) => {
+    const request = database.transaction("drafts", "readonly").objectStore("drafts").get(key);
+    request.onsuccess = () => resolve(request.result?.value || null);
+    request.onerror = () => resolve(null);
+  });
+}
+
+async function deletePersistentDraft(key) {
+  const database = await openDraftDatabase();
+  if (!database) return;
+  await new Promise((resolve) => {
+    const transaction = database.transaction("drafts", "readwrite");
+    transaction.objectStore("drafts").delete(key);
+    transaction.oncomplete = resolve;
+    transaction.onerror = resolve;
+    transaction.onabort = resolve;
+  });
+}
+
+function queueDraftOperation(operation) {
+  draftWriteQueue = draftWriteQueue.then(operation, operation);
+  return draftWriteQueue;
 }
 
 function t(key) {
@@ -3798,6 +3857,9 @@ async function useMediaInListing(id) {
   if (!images.includes(content)) images.push(content);
   form.dataset.currentImages = JSON.stringify(images);
   form.dataset.removeImage = "false";
+  form.dataset.mediaDirty = "true";
+  form.dataset.persistentMediaDirty = "true";
+  saveListingDraft();
   updateListingImagePreview(images);
   setAdminSection("properties");
   form.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -4066,12 +4128,91 @@ async function loadPanelData() {
   }
 }
 
+function sellerDraftSnapshot(form) {
+  const fields = {};
+  Array.from(form.elements).forEach((field) => {
+    if (!field.name || field.type === "file" || field.type === "submit" || field.type === "button") return;
+    fields[field.name] = field.type === "checkbox" ? field.checked : field.value;
+  });
+  return {
+    fields,
+    images: safeParseImages(form.dataset.currentImages),
+    mediaDirty: form.dataset.mediaDirty === "true",
+    idempotencyKey: form.dataset.idempotencyKey || "",
+    savedAt: new Date().toISOString(),
+  };
+}
+
+function currentSellerDraftKey() {
+  return `${SELLER_DRAFT_KEY}.${state.session?.id || "anonymous"}`;
+}
+
+function saveSellerDraft() {
+  const form = $("#sellerRequestForm");
+  if (!form || state.session?.role !== "seller") return;
+  const draftKey = currentSellerDraftKey();
+  const snapshot = sellerDraftSnapshot(form);
+  localStorage.setItem(draftKey, JSON.stringify({ ...snapshot, images: [] }));
+  if (form.dataset.persistentMediaDirty === "true") {
+    form.dataset.persistentMediaDirty = "false";
+    void queueDraftOperation(() => writePersistentDraft(draftKey, snapshot));
+  }
+  form.dataset.dirty = "true";
+}
+
+function clearSellerDraft() {
+  const draftKey = currentSellerDraftKey();
+  localStorage.removeItem(draftKey);
+  void queueDraftOperation(() => deletePersistentDraft(draftKey));
+  const form = $("#sellerRequestForm");
+  if (form) {
+    form.dataset.dirty = "false";
+    form.dataset.currentImages = "[]";
+    form.dataset.mediaDirty = "false";
+    form.dataset.persistentMediaDirty = "false";
+    delete form.dataset.idempotencyKey;
+  }
+}
+
+async function restoreSellerDraft() {
+  const form = $("#sellerRequestForm");
+  if (!form || form.dataset.draftRestored === "true") return;
+  form.dataset.draftRestored = "true";
+  try {
+    const draftKey = currentSellerDraftKey();
+    const localDraft = JSON.parse(localStorage.getItem(draftKey) || "null");
+    const richDraft = await readPersistentDraft(draftKey);
+    const draft = localDraft || richDraft;
+    const sameRichDraft = richDraft && (!localDraft || richDraft.idempotencyKey === localDraft.idempotencyKey);
+    if (draft && sameRichDraft && Array.isArray(richDraft.images)) draft.images = richDraft.images;
+    if (!draft?.fields || !Object.values(draft.fields).some((value) => value !== "" && value !== false)) return;
+    Object.entries(draft.fields).forEach(([name, value]) => {
+      const field = formField(form, name);
+      if (!field) return;
+      if (field.type === "checkbox") field.checked = Boolean(value);
+      else field.value = value ?? "";
+    });
+    if (draft.idempotencyKey) form.dataset.idempotencyKey = draft.idempotencyKey;
+    if (Array.isArray(draft.images) && (draft.images.length || draft.mediaDirty)) {
+      form.dataset.currentImages = JSON.stringify(draft.images);
+      updateSellerImagePreview(draft.images.map((image) => image.imageDataUrl || image));
+    }
+    form.dataset.mediaDirty = draft.mediaDirty ? "true" : "false";
+    form.dataset.dirty = "true";
+    updateMapPickerForForm(form);
+    setFormMessage($("#sellerFormMessage"), "Borrador recuperado. Revisa la información antes de enviarla.");
+  } catch {
+    localStorage.removeItem(currentSellerDraftKey());
+  }
+}
+
 function prepareSellerForm() {
   const form = $("#sellerRequestForm");
   if (!form || !state.session || state.session.role !== "seller") return;
   if (!form.email.value) form.email.value = state.session.email || "";
   if (!form.phone.value) form.phone.value = state.session.phone || "";
   form.preferredContact.value = state.session.preferredContact || "email";
+  void restoreSellerDraft();
 }
 
 function updateAdminShell() {
@@ -4141,7 +4282,7 @@ async function renderPanel() {
     renderSellerNotifications();
   }
   bindMapPickers();
-  if (isAdmin) restoreListingDraft();
+  if (isAdmin) void restoreListingDraft();
   refreshIcons();
 }
 
@@ -4359,8 +4500,20 @@ async function registerSubmit(event) {
 async function sellerRequestSubmit(event) {
   event.preventDefault();
   const form = event.currentTarget;
+  if (form.dataset.saving === "true") return;
   const message = $("#sellerFormMessage");
+  const button = form.querySelector('[type="submit"]');
+  const idempotencyKey = form.dataset.idempotencyKey || globalThis.crypto?.randomUUID?.() || `seller-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+  form.dataset.idempotencyKey = idempotencyKey;
+  form.dataset.saving = "true";
+  form.dataset.persistentMediaDirty = "true";
+  saveSellerDraft();
   setFormMessage(message, "");
+  setButtonLoading(button, true, "Enviando solicitud...");
+  setFormMessage(message, "Guardando la información de forma segura...");
+  const slowTimer = window.setTimeout(() => {
+    setFormMessage(message, "La conexión está tardando más de lo normal. Tu borrador permanece guardado; no vuelvas a enviar.");
+  }, 12000);
   try {
     const payload = Object.fromEntries(new FormData(form).entries());
     delete payload.imageFile;
@@ -4368,15 +4521,23 @@ async function sellerRequestSubmit(event) {
     await api("/api/seller/requests", {
       method: "POST",
       body: payload,
+      headers: { "Idempotency-Key": idempotencyKey },
+      timeoutMs: 60000,
     });
+    clearSellerDraft();
     form.reset();
+    form.dataset.currentImages = "[]";
     refreshLocationSelects();
     updateMapPickerForForm(form);
     updateSellerImagePreview([]);
     await renderPanel();
     setFormMessage($("#sellerFormMessage"), t("requestSent"));
   } catch (error) {
-    setFormMessage(message, error.message, true);
+    setFormMessage(message, `${error.message} Tu borrador sigue guardado para reintentar.`, true);
+  } finally {
+    window.clearTimeout(slowTimer);
+    form.dataset.saving = "false";
+    setButtonLoading(button, false);
   }
 }
 
@@ -4440,28 +4601,48 @@ function listingDraftSnapshot(form) {
     if (!field.name || field.type === "file" || field.type === "submit" || field.type === "button") return;
     fields[field.name] = field.type === "checkbox" ? field.checked : field.value;
   });
-  return { fields, idempotencyKey: form.dataset.idempotencyKey || "", savedAt: new Date().toISOString() };
+  return {
+    fields,
+    images: safeParseImages(form.dataset.currentImages),
+    mediaDirty: form.dataset.mediaDirty === "true",
+    idempotencyKey: form.dataset.idempotencyKey || "",
+    savedAt: new Date().toISOString(),
+  };
 }
 
 function saveListingDraft() {
   const form = $("#listingForm");
   if (!form || state.session?.role !== "admin") return;
-  localStorage.setItem(LISTING_DRAFT_KEY, JSON.stringify(listingDraftSnapshot(form)));
+  const snapshot = listingDraftSnapshot(form);
+  localStorage.setItem(LISTING_DRAFT_KEY, JSON.stringify({ ...snapshot, images: [] }));
+  if (form.dataset.persistentMediaDirty === "true") {
+    form.dataset.persistentMediaDirty = "false";
+    void queueDraftOperation(() => writePersistentDraft(LISTING_DRAFT_KEY, snapshot));
+  }
   form.dataset.dirty = "true";
 }
 
 function clearListingDraft() {
   localStorage.removeItem(LISTING_DRAFT_KEY);
+  void queueDraftOperation(() => deletePersistentDraft(LISTING_DRAFT_KEY));
   const form = $("#listingForm");
   if (form) form.dataset.dirty = "false";
 }
 
-function restoreListingDraft() {
+async function restoreListingDraft() {
   const form = $("#listingForm");
   if (!form || form.dataset.draftRestored === "true") return;
   form.dataset.draftRestored = "true";
   try {
-    const draft = JSON.parse(localStorage.getItem(LISTING_DRAFT_KEY) || "null");
+    const localDraft = JSON.parse(localStorage.getItem(LISTING_DRAFT_KEY) || "null");
+    const richDraft = await readPersistentDraft(LISTING_DRAFT_KEY);
+    const draft = localDraft || richDraft;
+    const sameEntity = richDraft && (!localDraft || (richDraft.fields?.id || "") === (localDraft.fields?.id || ""));
+    const sameNewDraft = richDraft && (!localDraft || richDraft.idempotencyKey === localDraft.idempotencyKey);
+    if (draft && sameEntity && sameNewDraft && Array.isArray(richDraft.images)) {
+      draft.images = richDraft.images;
+      draft.mediaDirty = richDraft.mediaDirty;
+    }
     if (!draft?.fields || !Object.values(draft.fields).some((value) => value !== "" && value !== false)) return;
     const source = draft.fields;
     if (draft.idempotencyKey) form.dataset.idempotencyKey = draft.idempotencyKey;
@@ -4472,6 +4653,12 @@ function restoreListingDraft() {
       if (field.type === "checkbox") field.checked = Boolean(value);
       else field.value = value ?? "";
     });
+    const sourceProperty = state.properties.find((property) => property.id === source.id);
+    const restoredImages = draft.mediaDirty ? (Array.isArray(draft.images) ? draft.images : []) : sourceProperty ? storedImages(sourceProperty) : (draft.images || []);
+    form.dataset.currentImages = JSON.stringify(restoredImages);
+    form.dataset.removeImage = restoredImages.length ? "false" : draft.mediaDirty ? "true" : "false";
+    form.dataset.mediaDirty = draft.mediaDirty ? "true" : "false";
+    updateListingImagePreview(restoredImages);
     form.dataset.dirty = "true";
     renderListingKeywordChips();
     updateListingDescriptionCounter();
@@ -4488,6 +4675,8 @@ function resetListingForm(clearDraft = true) {
   formField(form, "id").value = "";
   form.dataset.currentImages = "[]";
   form.dataset.removeImage = "false";
+  form.dataset.mediaDirty = "false";
+  form.dataset.persistentMediaDirty = "false";
   delete form.dataset.idempotencyKey;
   if (formField(form, "status")) formField(form, "status").value = "active";
   if (formField(form, "isPublic")) formField(form, "isPublic").checked = true;
@@ -4556,6 +4745,8 @@ function setListingImages(images) {
   const list = Array.isArray(images) ? images.filter(Boolean).slice(0, IMAGE_MAX_COUNT) : [];
   form.dataset.currentImages = JSON.stringify(list);
   form.dataset.removeImage = list.length ? "false" : "true";
+  form.dataset.mediaDirty = "true";
+  form.dataset.persistentMediaDirty = "true";
   updateListingImagePreview(list);
   saveListingDraft();
 }
@@ -4607,7 +4798,7 @@ function loadImageElement(file) {
 async function compressImageFile(file) {
   validateImageFile(file);
   const image = await loadImageElement(file);
-  const maxSide = 1600;
+  const maxSide = 1400;
   const baseRatio = Math.min(1, maxSide / Math.max(image.width, image.height));
   const canvas = document.createElement("canvas");
   for (const scale of [1, 0.84, 0.7]) {
@@ -4640,12 +4831,22 @@ async function readImageFiles(files) {
   if (list.length > IMAGE_MAX_COUNT) {
     throw new Error(t("tooManyImages"));
   }
-  const images = [];
-  for (const file of list) images.push(await readImageFile(file));
+  const images = new Array(list.length);
+  let cursor = 0;
+  const worker = async () => {
+    while (cursor < list.length) {
+      const index = cursor;
+      cursor += 1;
+      images[index] = await readImageFile(list[index]);
+    }
+  };
+  await Promise.all(Array.from({ length: Math.min(3, list.length) }, worker));
   return { images };
 }
 
 async function getFormImagePayload(form) {
+  const cached = safeParseImages(form.dataset.currentImages);
+  if (cached.length) return { images: cached };
   const files = formField(form, "imageFile")?.files || [];
   if (!files.length) return {};
   return readImageFiles(files);
@@ -4653,6 +4854,7 @@ async function getFormImagePayload(form) {
 
 async function getListingImagePayload(form) {
   const images = safeParseImages(form.dataset.currentImages);
+  if (formField(form, "id")?.value && form.dataset.mediaDirty !== "true") return { preserveImages: true };
   return images.length ? { images } : { removeImage: true };
 }
 
@@ -4687,6 +4889,7 @@ async function listingSubmit(event) {
     return;
   }
   const keywords = parseKeywordInput(field("keywords").value);
+  const currentProperty = id ? state.properties.find((property) => property.id === id) : null;
   const payload = {
     title: field("title").value.trim(),
     type: field("type").value,
@@ -4716,10 +4919,12 @@ async function listingSubmit(event) {
     featured: field("featured").checked,
     description: field("description").value.trim(),
     badges: ["new"],
+    expectedUpdatedAt: currentProperty?.updatedAt || null,
   };
   const idempotencyKey = id ? "" : form.dataset.idempotencyKey || globalThis.crypto?.randomUUID?.() || `listing-${Date.now()}-${Math.random().toString(16).slice(2)}`;
   if (!id) form.dataset.idempotencyKey = idempotencyKey;
   form.dataset.saving = "true";
+  form.dataset.persistentMediaDirty = "true";
   saveListingDraft();
   setButtonLoading(submit, true, "Guardando publicación...");
   setFormMessage(message, "Guardando publicación, por favor espera...");
@@ -4789,6 +4994,8 @@ function editListing(id) {
   field("imageFile").value = "";
   form.dataset.currentImages = JSON.stringify(storedImages(property));
   form.dataset.removeImage = "false";
+  form.dataset.mediaDirty = "false";
+  form.dataset.persistentMediaDirty = "true";
   updateListingImagePreview(storedImages(property));
   field("beds").value = property.beds || "";
   field("baths").value = property.baths || "";
@@ -5256,7 +5463,9 @@ function bindEvents() {
 
   window.addEventListener("scroll", updateHeaderVisibility, { passive: true });
   window.addEventListener("beforeunload", (event) => {
-    if ($("#listingForm")?.dataset.dirty !== "true") return;
+    const hasUnsavedAdminDraft = $("#listingForm")?.dataset.dirty === "true";
+    const hasUnsavedSellerDraft = $("#sellerRequestForm")?.dataset.dirty === "true";
+    if (!hasUnsavedAdminDraft && !hasUnsavedSellerDraft) return;
     event.preventDefault();
     event.returnValue = "Tienes cambios sin guardar.";
   });
@@ -5340,6 +5549,14 @@ function bindEvents() {
   });
 
   $("#sellerRequestForm").addEventListener("submit", sellerRequestSubmit);
+  $("#sellerRequestForm").addEventListener("input", () => {
+    window.clearTimeout(sellerDraftTimer);
+    sellerDraftTimer = window.setTimeout(saveSellerDraft, 500);
+  });
+  $("#sellerRequestForm").addEventListener("change", () => {
+    window.clearTimeout(sellerDraftTimer);
+    sellerDraftTimer = window.setTimeout(saveSellerDraft, 300);
+  });
   $("#sellerServiceForm")?.addEventListener("submit", sellerServiceSubmit);
   $("#sellerReplyForm")?.addEventListener("submit", sellerReplySubmit);
   $("#cancelSellerReply")?.addEventListener("click", closeSellerReply);
@@ -5363,14 +5580,22 @@ function bindEvents() {
     const message = $("#sellerFormMessage");
     setFormMessage(message, "");
     if (!files.length) {
-      updateSellerImagePreview([]);
+      updateSellerImagePreview(safeParseImages(event.currentTarget.form.dataset.currentImages).map((image) => image.imageDataUrl || image));
       return;
     }
     try {
       const payload = await readImageFiles(files);
+      event.currentTarget.form.dataset.currentImages = JSON.stringify(payload.images);
+      event.currentTarget.form.dataset.mediaDirty = "true";
+      event.currentTarget.form.dataset.persistentMediaDirty = "true";
       updateSellerImagePreview(payload.images.map((image) => image.imageDataUrl));
+      saveSellerDraft();
+      setFormMessage(message, `${payload.images.length} imagen${payload.images.length === 1 ? "" : "es"} optimizada${payload.images.length === 1 ? "" : "s"} y protegida${payload.images.length === 1 ? "" : "s"} en el borrador.`);
     } catch (error) {
       event.target.value = "";
+      event.currentTarget.form.dataset.currentImages = "[]";
+      event.currentTarget.form.dataset.mediaDirty = "true";
+      event.currentTarget.form.dataset.persistentMediaDirty = "true";
       updateSellerImagePreview([]);
       setFormMessage(message, error.message, true);
     }
@@ -5378,7 +5603,11 @@ function bindEvents() {
   $("#clearSellerImage").addEventListener("click", () => {
     const form = $("#sellerRequestForm");
     formField(form, "imageFile").value = "";
+    form.dataset.currentImages = "[]";
+    form.dataset.mediaDirty = "true";
+    form.dataset.persistentMediaDirty = "true";
     updateSellerImagePreview([]);
+    saveSellerDraft();
     setFormMessage($("#sellerFormMessage"), t("imageRemoved"));
   });
   $("#listingForm").addEventListener("submit", listingSubmit);

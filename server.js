@@ -54,7 +54,7 @@ const pool = new Pool({
   query_timeout: 35000,
 });
 
-const IMAGE_MAX_BYTES = 480 * 1024;
+const IMAGE_MAX_BYTES = 240 * 1024;
 const IMAGE_MAX_COUNT = 20;
 const DESCRIPTION_MAX_LENGTH = 50000;
 const KEYWORD_MAX_COUNT = 40;
@@ -923,15 +923,56 @@ async function query(sql, params = []) {
   return result;
 }
 
+const PROPERTY_SUMMARY_COLUMNS = `
+  p.id, p.slug, p.title_es, p.title_en, p.type, p.state, p.city, p.zone, p.neighborhood, p.address,
+  p.latitude, p.longitude, p.map_place, p.location_precision, p.google_maps_url, p.operation,
+  p.price_usd, p.price_mxn, p.beds, p.baths, p.parking, p.area, p.lot, p.amenities, p.keywords,
+  p.mls, p.featured, p.badges, p.status, p.is_public, p.created_at, p.updated_at, p.published_at,
+  p.disabled_at, p.sold_at, p.archived_at, p.description_es, p.description_en, p.source_request_id,
+  p.idempotency_key,
+  GREATEST(COALESCE(jsonb_array_length(p.images), 0), CASE WHEN p.image IS NULL THEN 0 ELSE 1 END)::int AS image_count
+`;
+
+const SELLER_REQUEST_SUMMARY_COLUMNS = `
+  r.id, r.seller_id, r.seller_name, r.email, r.phone, r.preferred_contact, r.title, r.type,
+  r.state, r.city, r.zone, r.neighborhood, r.latitude, r.longitude, r.map_place, r.location_precision,
+  r.google_maps_url, r.price, r.currency, r.address, r.beds, r.baths, r.area, r.description, r.status,
+  r.priority, r.admin_response, r.response_files, r.internal_notes, r.assigned_to, r.next_action,
+  r.created_at, r.updated_at, r.reviewed_at, r.idempotency_key,
+  GREATEST(COALESCE(jsonb_array_length(r.images), 0), CASE WHEN r.image IS NULL THEN 0 ELSE 1 END)::int AS image_count
+`;
+
+function withPropertyMediaPlaceholders(row) {
+  const count = Math.max(0, Number(row.image_count || 0));
+  const images = Array.from({ length: count }, (_value, index) => `/media/properties/${encodeURIComponent(row.id)}/${index}`);
+  return { ...row, image: images[0] || null, images };
+}
+
+function withRequestMediaPlaceholders(row) {
+  const count = Math.max(0, Number(row.image_count || 0));
+  const images = Array.from({ length: count }, (_value, index) => `/media/requests/${encodeURIComponent(row.id)}/${index}`);
+  return { ...row, image: images[0] || null, images };
+}
+
+async function getPropertySummary(id, client = { query }) {
+  const result = await client.query(`SELECT ${PROPERTY_SUMMARY_COLUMNS} FROM properties p WHERE p.id = $1`, [id]);
+  return result.rows[0] ? withPropertyMediaPlaceholders(result.rows[0]) : null;
+}
+
+async function getSellerRequestSummary(id, client = { query }) {
+  const result = await client.query(`SELECT ${SELLER_REQUEST_SUMMARY_COLUMNS} FROM seller_requests r WHERE r.id = $1`, [id]);
+  return result.rows[0] ? withRequestMediaPlaceholders(result.rows[0]) : null;
+}
+
 let publicPropertyCache = { expiresAt: 0, items: [] };
 
 async function getPublicProperties() {
   if (publicPropertyCache.expiresAt > Date.now()) return publicPropertyCache.items;
   const result = await query(
-    "SELECT * FROM properties WHERE is_public = TRUE AND status = ANY($1::text[]) ORDER BY featured DESC, updated_at DESC",
+    `SELECT ${PROPERTY_SUMMARY_COLUMNS} FROM properties p WHERE p.is_public = TRUE AND p.status = ANY($1::text[]) ORDER BY p.featured DESC, p.updated_at DESC`,
     [Array.from(PUBLIC_PROPERTY_STATUSES)]
   );
-  publicPropertyCache = { expiresAt: Date.now() + 300_000, items: result.rows.map(toProperty) };
+  publicPropertyCache = { expiresAt: Date.now() + 300_000, items: result.rows.map(withPropertyMediaPlaceholders).map(toProperty) };
   return publicPropertyCache.items;
 }
 
@@ -1089,6 +1130,9 @@ async function initDatabase() {
     await client.query("ALTER TABLE seller_requests ADD COLUMN IF NOT EXISTS map_place TEXT");
     await client.query("ALTER TABLE seller_requests ADD COLUMN IF NOT EXISTS images JSONB NOT NULL DEFAULT '[]'::jsonb");
     await client.query("ALTER TABLE seller_requests ADD COLUMN IF NOT EXISTS image TEXT");
+    await client.query("ALTER TABLE seller_requests ADD COLUMN IF NOT EXISTS idempotency_key TEXT");
+    await client.query("CREATE UNIQUE INDEX IF NOT EXISTS idx_seller_requests_idempotency ON seller_requests (idempotency_key) WHERE idempotency_key IS NOT NULL");
+    await client.query("CREATE INDEX IF NOT EXISTS idx_seller_requests_seller_created ON seller_requests (seller_id, created_at DESC)");
     await client.query("UPDATE seller_requests SET images = jsonb_build_array(image) WHERE image IS NOT NULL AND images = '[]'::jsonb");
     await client.query(`
       CREATE TABLE IF NOT EXISTS app_metrics (
@@ -1358,6 +1402,7 @@ async function initDatabase() {
     await client.query("ALTER TABLE properties ADD COLUMN IF NOT EXISTS sold_at TIMESTAMPTZ");
     await client.query("ALTER TABLE properties ADD COLUMN IF NOT EXISTS archived_at TIMESTAMPTZ");
     await client.query("ALTER TABLE properties ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()");
+    await client.query("CREATE INDEX IF NOT EXISTS idx_properties_updated_at ON properties (updated_at DESC)");
     await client.query("UPDATE properties SET status = 'active', is_public = TRUE WHERE status IS NULL");
     const slugRows = await client.query("SELECT id, slug, title_es, title_en, zone, mls FROM properties ORDER BY created_at");
     for (const row of slugRows.rows) {
@@ -1781,8 +1826,8 @@ app.get("/api/properties", async (req, res, next) => {
       res.json({ properties: await getPublicProperties() });
       return;
     }
-    const result = await query("SELECT * FROM properties ORDER BY created_at DESC");
-    res.json({ properties: result.rows.map(toProperty) });
+    const result = await query(`SELECT ${PROPERTY_SUMMARY_COLUMNS} FROM properties p ORDER BY p.created_at DESC`);
+    res.json({ properties: result.rows.map(withPropertyMediaPlaceholders).map(toProperty) });
   } catch (error) {
     next(error);
   }
@@ -1937,10 +1982,10 @@ app.post("/api/leads", async (req, res, next) => {
 
 app.get("/api/seller/requests", requireRole("seller"), async (req, res, next) => {
   try {
-    const result = await query("SELECT * FROM seller_requests WHERE seller_id = $1 ORDER BY created_at DESC", [
+    const result = await query(`SELECT ${SELLER_REQUEST_SUMMARY_COLUMNS} FROM seller_requests r WHERE r.seller_id = $1 ORDER BY r.created_at DESC`, [
       req.session.user.id,
     ]);
-    res.json({ requests: result.rows.map(toRequest) });
+    res.json({ requests: result.rows.map(withRequestMediaPlaceholders).map(toRequest) });
   } catch (error) {
     next(error);
   }
@@ -2168,7 +2213,21 @@ app.post("/api/seller/service-requests", requireRole("seller"), async (req, res,
 });
 
 app.post("/api/seller/requests", requireRole("seller"), async (req, res, next) => {
+  const idempotencyKey = String(req.get("Idempotency-Key") || "").trim().slice(0, 120);
+  let client;
+  let inTransaction = false;
   try {
+    client = await pool.connect();
+    if (idempotencyKey) {
+      const existing = await client.query(
+        `SELECT ${SELLER_REQUEST_SUMMARY_COLUMNS} FROM seller_requests r WHERE r.idempotency_key = $1 AND r.seller_id = $2`,
+        [idempotencyKey, req.session.user.id]
+      );
+      if (existing.rows[0]) {
+        res.json({ request: toRequest(withRequestMediaPlaceholders(existing.rows[0])), idempotent: true });
+        return;
+      }
+    }
     const id = uuid("req");
     const body = req.body;
     const email = String(body.email || req.session.user.email || "").trim().toLowerCase();
@@ -2213,12 +2272,14 @@ app.post("/api/seller/requests", requireRole("seller"), async (req, res, next) =
       return;
     }
 
-    const result = await query(
+    await client.query("BEGIN");
+    inTransaction = true;
+    const result = await client.query(
       `INSERT INTO seller_requests
-        (id, seller_id, seller_name, email, phone, preferred_contact, title, type, state, city, zone, neighborhood, latitude, longitude, map_place, location_precision, google_maps_url, price, currency, address, beds, baths, area, description, image, images, priority)
+        (id, seller_id, seller_name, email, phone, preferred_contact, title, type, state, city, zone, neighborhood, latitude, longitude, map_place, location_precision, google_maps_url, price, currency, address, beds, baths, area, description, image, images, priority, idempotency_key)
        VALUES
-        ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26::jsonb, $27)
-       RETURNING *`,
+        ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26::jsonb, $27, $28)
+       RETURNING id`,
       [
         id,
         req.session.user.id,
@@ -2247,10 +2308,11 @@ app.post("/api/seller/requests", requireRole("seller"), async (req, res, next) =
         request.image,
         JSON.stringify(request.images),
         request.images.length >= 5 || request.price >= 1000000 ? "high" : "medium",
+        idempotencyKey || null,
       ]
     );
     await upsertContact(
-      { query },
+      client,
       {
         name: req.session.user.name,
         email,
@@ -2263,14 +2325,29 @@ app.post("/api/seller/requests", requireRole("seller"), async (req, res, next) =
         leadScore: request.images.length >= 5 || request.price >= 1000000 ? "hot" : "warm",
       }
     );
-    await query(
+    await client.query(
       `INSERT INTO notifications (id, type, title, message, related_entity_type, related_entity_id)
        VALUES ($1, 'seller_request_created', 'Nueva solicitud de venta', $2, 'seller_request', $3)`,
       [uuid("notif"), `${req.session.user.name} envio ${request.title}`, id]
     );
-    res.status(201).json({ request: toRequest(result.rows[0]) });
+    await client.query("COMMIT");
+    inTransaction = false;
+    res.status(201).json({ request: toRequest(await getSellerRequestSummary(result.rows[0].id, client)) });
   } catch (error) {
+    if (inTransaction) await client.query("ROLLBACK").catch(() => null);
+    if (error.code === "23505" && idempotencyKey) {
+      const existing = await client.query(
+        `SELECT ${SELLER_REQUEST_SUMMARY_COLUMNS} FROM seller_requests r WHERE r.idempotency_key = $1 AND r.seller_id = $2`,
+        [idempotencyKey, req.session.user.id]
+      ).catch(() => ({ rows: [] }));
+      if (existing.rows[0]) {
+        res.json({ request: toRequest(withRequestMediaPlaceholders(existing.rows[0])), idempotent: true });
+        return;
+      }
+    }
     next(error);
+  } finally {
+    client?.release();
   }
 });
 
@@ -2535,10 +2612,10 @@ app.get("/api/admin/matches", requireRole("admin"), async (_req, res, next) => {
   try {
     const [contacts, properties, buyerProfiles] = await Promise.all([
       query("SELECT * FROM contacts WHERE contact_type = 'buyer' ORDER BY lead_score DESC, updated_at DESC LIMIT 120"),
-      query("SELECT * FROM properties WHERE status = 'active' AND is_public = TRUE ORDER BY featured DESC, updated_at DESC LIMIT 160"),
+      query(`SELECT ${PROPERTY_SUMMARY_COLUMNS} FROM properties p WHERE p.status = 'active' AND p.is_public = TRUE ORDER BY p.featured DESC, p.updated_at DESC LIMIT 160`),
       query("SELECT * FROM buyer_profiles"),
     ]);
-    const propertyItems = properties.rows.map(toProperty);
+    const propertyItems = properties.rows.map(withPropertyMediaPlaceholders).map(toProperty);
     const profiles = new Map(buyerProfiles.rows.map((profile) => [profile.contact_id, profile]));
     const matches = [];
     for (const contact of contacts.rows.map(toContact)) {
@@ -2958,8 +3035,8 @@ app.post("/api/admin/buyers", requireRole("admin"), async (req, res, next) => {
 
 app.get("/api/admin/requests", requireRole("admin"), async (_req, res, next) => {
   try {
-    const result = await query("SELECT * FROM seller_requests ORDER BY created_at DESC");
-    res.json({ requests: result.rows.map(toRequest) });
+    const result = await query(`SELECT ${SELLER_REQUEST_SUMMARY_COLUMNS} FROM seller_requests r ORDER BY r.created_at DESC`);
+    res.json({ requests: result.rows.map(withRequestMediaPlaceholders).map(toRequest) });
   } catch (error) {
     next(error);
   }
@@ -3207,19 +3284,19 @@ app.post("/api/admin/properties", requireRole("admin"), async (req, res, next) =
   try {
     const idempotencyKey = String(req.get("Idempotency-Key") || "").trim().slice(0, 120);
     if (idempotencyKey) {
-      const existing = await query("SELECT * FROM properties WHERE idempotency_key = $1", [idempotencyKey]);
+      const existing = await query(`SELECT ${PROPERTY_SUMMARY_COLUMNS} FROM properties p WHERE p.idempotency_key = $1`, [idempotencyKey]);
       if (existing.rows[0]) {
-        res.json({ property: toProperty(existing.rows[0]), idempotent: true });
+        res.json({ property: toProperty(withPropertyMediaPlaceholders(existing.rows[0])), idempotent: true });
         return;
       }
     }
     const property = normalizePropertyInput(req.body, uuid("prop"));
     const result = await query(
       `INSERT INTO properties
-        (id, title_es, title_en, type, state, city, zone, neighborhood, address, latitude, longitude, map_place, location_precision, google_maps_url, operation, price_usd, price_mxn, beds, baths, area, lot, mls, image, images, featured, status, is_public, badges, description_es, description_en, keywords, idempotency_key, published_at)
+        (id, title_es, title_en, type, state, city, zone, neighborhood, address, latitude, longitude, map_place, location_precision, google_maps_url, operation, price_usd, price_mxn, beds, baths, area, lot, mls, image, images, featured, status, is_public, badges, description_es, description_en, keywords, idempotency_key, slug, parking, amenities, published_at)
        VALUES
-        ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24::jsonb, $25, $26, $27, $28::jsonb, $29, $30, $31::jsonb, $32, CASE WHEN $26 = 'active' AND $27 = TRUE THEN NOW() ELSE NULL END)
-       RETURNING *`,
+        ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24::jsonb, $25, $26, $27, $28::jsonb, $29, $30, $31::jsonb, $32, $33, $34, $35::jsonb, CASE WHEN $26 = 'active' AND $27 = TRUE THEN NOW() ELSE NULL END)
+       RETURNING id`,
       [
         property.id,
         property.titleEs,
@@ -3253,14 +3330,14 @@ app.post("/api/admin/properties", requireRole("admin"), async (req, res, next) =
         property.descriptionEn,
         JSON.stringify(property.keywords),
         idempotencyKey || null,
+        propertySlug(property),
+        property.parking,
+        JSON.stringify(property.amenities),
       ]
     );
-    const slugged = await query(
-      "UPDATE properties SET slug = COALESCE(slug, $2), parking = $3, amenities = $4::jsonb WHERE id = $1 RETURNING *",
-      [result.rows[0].id, propertySlug(toProperty(result.rows[0])), property.parking, JSON.stringify(property.amenities)]
-    );
+    const createdRow = await getPropertySummary(result.rows[0].id);
     invalidatePublicPropertyCache();
-    const createdProperty = toProperty(slugged.rows[0]);
+    const createdProperty = toProperty(createdRow);
     if (createdProperty.isPublic && PUBLIC_PROPERTY_STATUSES.has(createdProperty.status)) void notifyIndexNow(propertyIndexPaths(createdProperty));
     res.status(201).json({ property: createdProperty });
   } catch (error) {
@@ -3270,27 +3347,39 @@ app.post("/api/admin/properties", requireRole("admin"), async (req, res, next) =
 
 app.put("/api/admin/properties/:id", requireRole("admin"), async (req, res, next) => {
   try {
-    const existing = await query("SELECT * FROM properties WHERE id = $1", [req.params.id]);
+    const preserveImages = req.body.preserveImages === true || req.body.preserveImages === "true";
+    const existing = await query(
+      preserveImages
+        ? "SELECT id, GREATEST(COALESCE(jsonb_array_length(images), 0), CASE WHEN image IS NULL THEN 0 ELSE 1 END)::int AS image_count FROM properties WHERE id = $1"
+        : "SELECT id, image, images FROM properties WHERE id = $1",
+      [req.params.id]
+    );
     if (!existing.rows[0]) {
       res.status(404).json({ error: "Property not found" });
       return;
     }
-    const existingImages = mergeLegacyImages(existing.rows[0].images, existing.rows[0].image);
+    const existingImages = preserveImages
+      ? Array.from({ length: Number(existing.rows[0].image_count || 0) }, (_value, index) => `preserved-media-${index}`)
+      : mergeLegacyImages(existing.rows[0].images, existing.rows[0].image);
     const property = normalizePropertyInput(req.body, req.params.id, existingImages);
     const result = await query(
       `UPDATE properties
        SET title_es = $2, title_en = $3, type = $4, state = $5, city = $6, zone = $7, neighborhood = $8, address = $9,
            latitude = $10, longitude = $11, map_place = $12, location_precision = $13, google_maps_url = $14,
            operation = $15, price_usd = $16, price_mxn = $17,
-           beds = $18, baths = $19, area = $20, lot = $21, mls = $22, image = $23, images = $24::jsonb,
+           beds = $18, baths = $19, area = $20, lot = $21, mls = $22,
+           image = CASE WHEN $32 THEN image ELSE $23 END,
+           images = CASE WHEN $32 THEN images ELSE $24::jsonb END,
            featured = $25, status = $26, is_public = $27, badges = $28::jsonb, description_es = $29, description_en = $30, keywords = $31::jsonb,
+           parking = $33, amenities = $34::jsonb,
            published_at = CASE WHEN $26 = 'active' AND $27 = TRUE AND published_at IS NULL THEN NOW() ELSE published_at END,
            disabled_at = CASE WHEN $26 = 'disabled' OR $27 = FALSE THEN NOW() ELSE disabled_at END,
            sold_at = CASE WHEN $26 IN ('sold', 'rented') THEN NOW() ELSE sold_at END,
            archived_at = CASE WHEN $26 = 'archived' THEN NOW() ELSE archived_at END,
            updated_at = NOW()
        WHERE id = $1
-       RETURNING *`,
+         AND ($35::timestamptz IS NULL OR date_trunc('milliseconds', updated_at) = date_trunc('milliseconds', $35::timestamptz))
+       RETURNING id`,
       [
         property.id,
         property.titleEs,
@@ -3323,14 +3412,17 @@ app.put("/api/admin/properties/:id", requireRole("admin"), async (req, res, next
         property.descriptionEs,
         property.descriptionEn,
         JSON.stringify(property.keywords),
+        preserveImages,
+        property.parking,
+        JSON.stringify(property.amenities),
+        req.body.expectedUpdatedAt || null,
       ]
     );
     if (!result.rows[0]) {
-      res.status(404).json({ error: "Property not found" });
+      res.status(409).json({ error: "Esta propiedad fue modificada en otra sesión. Recarga el panel para conservar la versión más reciente antes de volver a editar." });
       return;
     }
-    const enriched = await query("UPDATE properties SET parking = $2, amenities = $3::jsonb WHERE id = $1 RETURNING *", [result.rows[0].id, property.parking, JSON.stringify(property.amenities)]);
-    const updatedProperty = toProperty(enriched.rows[0]);
+    const updatedProperty = toProperty(await getPropertySummary(result.rows[0].id));
     invalidatePublicPropertyCache();
     if (updatedProperty.isPublic && PUBLIC_PROPERTY_STATUSES.has(updatedProperty.status)) void notifyIndexNow(propertyIndexPaths(updatedProperty));
     res.json({ property: updatedProperty });
@@ -3985,7 +4077,7 @@ function validateImagePayload(image) {
   }
 
   if (!Number.isFinite(size) || size <= 0 || size > IMAGE_MAX_BYTES) {
-    const error = new Error("La imagen procesada no debe superar 480 KB.");
+    const error = new Error("La imagen procesada no debe superar 240 KB.");
     error.status = 400;
     throw error;
   }
@@ -3999,7 +4091,7 @@ function validateImagePayload(image) {
 
   const estimatedBytes = Math.floor((match[2].length * 3) / 4);
   if (estimatedBytes > IMAGE_MAX_BYTES) {
-    const error = new Error("La imagen procesada no debe superar 480 KB.");
+    const error = new Error("La imagen procesada no debe superar 240 KB.");
     error.status = 400;
     throw error;
   }
