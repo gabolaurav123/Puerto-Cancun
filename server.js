@@ -8,6 +8,7 @@ const session = require("express-session");
 const PgSession = require("connect-pg-simple")(session);
 const bcrypt = require("bcryptjs");
 const PDFDocument = require("pdfkit");
+const { drawPropertyPdf, preparePropertyPdfImages } = require("./pdf-property-sheet");
 const { Pool } = require("pg");
 const {
   DEFAULT_SITE_URL,
@@ -3657,9 +3658,11 @@ app.post("/api/admin/documents/generate", requireRole("admin"), async (req, res,
     const documentType = req.body.documentType === "valuation" ? "valuation" : "property";
     const options = req.body.options || {};
     let entity;
+    let propertyPdfImages = [];
     if (documentType === "property") {
       const result = await query("SELECT * FROM properties WHERE id = $1", [String(req.body.propertyId || "")]);
       entity = result.rows[0] ? toProperty(result.rows[0]) : null;
+      if (result.rows[0]) propertyPdfImages = await preparePropertyPdfImages(mergeLegacyImages(result.rows[0].images, result.rows[0].image));
     } else {
       const result = await query("SELECT * FROM valuations WHERE id = $1", [String(req.body.valuationId || "")]);
       entity = result.rows[0] ? toValuation(result.rows[0]) : null;
@@ -3669,35 +3672,26 @@ app.post("/api/admin/documents/generate", requireRole("admin"), async (req, res,
       return;
     }
     const pdf = await pdfBuffer((document) => {
-      addPdfHeader(document, documentType === "property" ? "Ficha comercial de propiedad" : "Valoración inmobiliaria");
       if (documentType === "property") {
-        document.fillColor("#003f5c").font("Times-Bold").fontSize(22).text(entity.titleEs);
-        document.moveDown(0.6);
-        addPdfField(document, "Ubicación", [entity.zone, entity.city, entity.state].filter(Boolean).join(", "));
-        addPdfField(document, "Tipo / operación", `${entity.type} · ${entity.operation === "rent" ? "Renta" : "Venta"}`);
-        if (options.showPrice !== false) addPdfField(document, "Precio", formatPdfMoney(entity.priceUsd || entity.priceMxn, entity.priceUsd ? "USD" : "MXN"));
-        const formatArea = (value) => new Intl.NumberFormat("es-MX", { maximumFractionDigits: 2 }).format(Number(value || 0));
-        const characteristics = [];
-        if (entity.beds) characteristics.push(`${formatArea(entity.beds)} recámaras`);
-        if (entity.baths) characteristics.push(`${formatArea(entity.baths)} baños`);
-        if (entity.area) characteristics.push(`${formatArea(entity.area)} m² construcción`);
-        if (entity.lot) characteristics.push(`${formatArea(entity.lot)} m² terreno`);
-        addPdfField(document, "Características", characteristics.join(" · ") || "Sin características registradas");
-        addPdfField(document, "MLS", entity.mls);
-        document.moveDown(0.4).fillColor("#102d3d").font("Helvetica").fontSize(11).text(entity.descriptionEs || "", { align: "justify" });
-        if (options.showAddress && entity.address) {
-          document.moveDown().fillColor("#526476").fontSize(9).text(`Dirección: ${entity.address}`);
-        }
-      } else {
-        document.fillColor("#003f5c").font("Times-Bold").fontSize(22).text(`Valoración para ${entity.ownerName}`);
-        document.moveDown(0.6);
-        addPdfField(document, "Zona / tipo", `${entity.zone || "Sin zona"} · ${entity.propertyType || "Sin tipo"}`);
-        addPdfField(document, "Precio esperado", formatPdfMoney(entity.expectedPrice));
-        addPdfField(document, "Precio sugerido", formatPdfMoney(entity.suggestedPrice));
-        addPdfField(document, "Rango estimado", `${formatPdfMoney(entity.lowRange)} - ${formatPdfMoney(entity.highRange)}`);
-        addPdfField(document, "Nivel de confianza", entity.confidenceLevel);
-        document.moveDown(0.4).fillColor("#102d3d").font("Helvetica").fontSize(11).text(entity.comments || "Requiere revisión y validación comercial del asesor.", { align: "justify" });
+        drawPropertyPdf(document, {
+          property: entity,
+          images: propertyPdfImages,
+          propertyUrl: absoluteUrl(entity.urlEs, siteUrl),
+          logoPath: path.join(__dirname, "assets", "puerto-cancun-logo.png"),
+          options,
+        });
+        return;
       }
+
+      addPdfHeader(document, "Valoración inmobiliaria");
+      document.fillColor("#003f5c").font("Times-Bold").fontSize(22).text(`Valoración para ${entity.ownerName}`);
+      document.moveDown(0.6);
+      addPdfField(document, "Zona / tipo", `${entity.zone || "Sin zona"} · ${entity.propertyType || "Sin tipo"}`);
+      addPdfField(document, "Precio esperado", formatPdfMoney(entity.expectedPrice));
+      addPdfField(document, "Precio sugerido", formatPdfMoney(entity.suggestedPrice));
+      addPdfField(document, "Rango estimado", `${formatPdfMoney(entity.lowRange)} - ${formatPdfMoney(entity.highRange)}`);
+      addPdfField(document, "Nivel de confianza", entity.confidenceLevel);
+      document.moveDown(0.4).fillColor("#102d3d").font("Helvetica").fontSize(11).text(entity.comments || "Requiere revisión y validación comercial del asesor.", { align: "justify" });
       document.moveDown(2).strokeColor("#d9e3e8").moveTo(48, document.y).lineTo(547, document.y).stroke();
       document.moveDown(0.6).fillColor("#526476").fontSize(8).text(
         String(options.disclaimer || "Información preparada por Puerto Cancún Center. Sujeta a validación, disponibilidad y cambios sin previo aviso.")

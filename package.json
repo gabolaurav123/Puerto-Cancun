@@ -6,7 +6,7 @@
   "type": "commonjs",
   "scripts": {
     "start": "node server.js",
-    "check": "node --check server.js && node --check app.js && node --check seo-pages.js"
+    "check": "node --check server.js && node --check app.js && node --check seo-pages.js && node --check pdf-property-sheet.js"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",
@@ -15,7 +15,8 @@
     "express": "^4.21.2",
     "express-session": "^1.18.1",
     "pdfkit": "^0.16.0",
-    "pg": "^8.13.1"
+    "pg": "^8.13.1",
+    "sharp": "^0.35.3"
   },
   "engines": {
     "node": ">=20"
