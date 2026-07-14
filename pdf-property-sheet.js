@@ -165,19 +165,19 @@ function drawPropertyPdf(document, { property, images = [], propertyUrl, logoPat
   document.fillColor(COLORS.teal).font("Helvetica-Bold").fontSize(8.5).text("ABRIR PUBLICACIÓN", 320, ctaY + 4, { width: 233, link: propertyUrl, underline: true });
   document.fillColor(COLORS.muted).font("Helvetica").fontSize(7.5).text(propertyUrl, 320, ctaY + 19, { width: 233, height: 22, link: propertyUrl, underline: false, ellipsis: true });
 
-  document.strokeColor(COLORS.line).lineWidth(1).moveTo(42, 766).lineTo(553, 766).stroke();
+  document.strokeColor(COLORS.line).lineWidth(1).moveTo(42, 752).lineTo(553, 752).stroke();
   document.fillColor(COLORS.muted).font("Helvetica").fontSize(7).text(
     String(options.disclaimer || "Información sujeta a disponibilidad, validación y cambios sin previo aviso."),
     42,
-    777,
-    { width: 390, height: 26 }
+    762,
+    { width: 390, height: 24, ellipsis: true }
   );
-  document.fillColor(COLORS.ink).font("Helvetica-Bold").fontSize(8).text("+52 1 998 216 6563", 442, 777, { width: 111, align: "right" });
+  document.fillColor(COLORS.ink).font("Helvetica-Bold").fontSize(8).text("+52 1 998 216 6563", 442, 762, { width: 111, align: "right", lineBreak: false });
   document.fillColor(COLORS.muted).font("Helvetica").fontSize(6.8).text(
     `Generado: ${new Intl.DateTimeFormat("es-MX", { dateStyle: "long" }).format(new Date())}`,
     442,
-    791,
-    { width: 111, align: "right" }
+    776,
+    { width: 111, align: "right", lineBreak: false }
   );
 }
 

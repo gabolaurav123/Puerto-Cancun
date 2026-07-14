@@ -1438,6 +1438,35 @@ async function api(path, options = {}) {
   return data;
 }
 
+function downloadFileName(response, fallbackName) {
+  const disposition = response.headers.get("content-disposition") || "";
+  const encoded = disposition.match(/filename\*=UTF-8''([^;]+)/i)?.[1];
+  const plain = disposition.match(/filename="?([^";]+)"?/i)?.[1];
+  try {
+    return decodeURIComponent(encoded || plain || fallbackName);
+  } catch {
+    return plain || fallbackName;
+  }
+}
+
+async function downloadFile(url, fallbackName = "archivo.pdf") {
+  const response = await fetch(url, { credentials: "same-origin" });
+  if (!response.ok) {
+    const data = await response.json().catch(() => ({}));
+    throw new Error(data.error || "No se pudo descargar el archivo.");
+  }
+  const blob = await response.blob();
+  const objectUrl = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = objectUrl;
+  link.download = downloadFileName(response, fallbackName);
+  link.hidden = true;
+  document.body.append(link);
+  link.click();
+  link.remove();
+  window.setTimeout(() => URL.revokeObjectURL(objectUrl), 1000);
+}
+
 function showToast(message, type = "success") {
   const stack = $("#toastStack");
   if (!stack) return;
@@ -3707,8 +3736,8 @@ async function pdfSubmit(event) {
         },
       },
     });
+    await downloadFile(data.downloadUrl, data.document?.fileName || "ficha-propiedad.pdf");
     await renderPanel();
-    window.location.href = data.downloadUrl;
     showToast("PDF generado y guardado en el historial.");
   } catch (error) {
     setFormMessage($("#pdfFormMessage"), error.message, true);
@@ -5175,6 +5204,24 @@ async function handleSellEntry(event) {
 }
 
 function bindEvents() {
+  document.addEventListener("click", async (event) => {
+    const link = event.target.closest('a[href^="/api/admin/documents/"][href$="/download"], a[href^="/api/seller/documents/"][href$="/download"]');
+    if (!link) return;
+    event.preventDefault();
+    if (link.dataset.downloading === "true") return;
+    link.dataset.downloading = "true";
+    link.setAttribute("aria-busy", "true");
+    try {
+      await downloadFile(link.getAttribute("href"), "ficha-propiedad.pdf");
+      showToast("PDF descargado correctamente.");
+    } catch (error) {
+      showToast(error.message || "No se pudo descargar el PDF.", "error");
+    } finally {
+      link.dataset.downloading = "false";
+      link.removeAttribute("aria-busy");
+    }
+  });
+
   $("#currencySelect").value = state.currency;
   $("#currencySelect").addEventListener("change", (event) => {
     state.currency = event.target.value;
