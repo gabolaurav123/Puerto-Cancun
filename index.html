@@ -1004,6 +1004,11 @@
                 <i data-lucide="users"></i>
                 <span data-i18n="adminJumpContacts">CRM / Contactos</span>
               </button>
+              <button type="button" data-admin-section="whatsapp">
+                <i data-lucide="message-circle-more"></i>
+                <span>WhatsApp</span>
+                <b id="sidebarWhatsappBadge">0</b>
+              </button>
               <button type="button" data-admin-section="valuations">
                 <i data-lucide="badge-dollar-sign"></i>
                 <span data-i18n="adminJumpValuations">Valoraciones</span>
@@ -1176,6 +1181,107 @@
           <p class="form-message" id="contactFormMessage"></p>
           <div class="panel-card-subhead"><span id="adminContactSummary"></span></div>
           <div class="contact-list" id="adminContacts"></div>
+        </article>
+        <article class="panel-card admin-whatsapp-card" id="adminWhatsappCard" data-admin-section-panel="whatsapp">
+          <div class="admin-module-heading whatsapp-module-heading">
+            <div>
+              <span class="module-eyebrow">CRM DE CONVERSACIONES</span>
+              <h2>WhatsApp</h2>
+              <p>Administra la conexion, el chatbot, las conversaciones y las oportunidades desde un solo lugar.</p>
+            </div>
+            <div class="whatsapp-status-line">
+              <span class="whatsapp-connection-dot" id="whatsappConnectionDot"></span>
+              <strong id="whatsappConnectionLabel">Sin conectar</strong>
+              <button class="icon-button" type="button" id="refreshWhatsapp" title="Actualizar WhatsApp"><i data-lucide="refresh-cw"></i></button>
+            </div>
+          </div>
+          <div class="whatsapp-kpis" id="whatsappKpis">
+            <div><span>Estado</span><strong id="whatsappKpiStatus">Desconectado</strong></div>
+            <div><span>Conversaciones</span><strong id="whatsappKpiChats">0</strong></div>
+            <div><span>Sin leer</span><strong id="whatsappKpiUnread">0</strong></div>
+            <div><span>Leads activos</span><strong id="whatsappKpiLeads">0</strong></div>
+          </div>
+          <div class="whatsapp-tabs" role="tablist" aria-label="Secciones de WhatsApp">
+            <button class="active" type="button" data-whatsapp-tab="connection"><i data-lucide="qr-code"></i><span>Conexion</span></button>
+            <button type="button" data-whatsapp-tab="chatbot"><i data-lucide="bot"></i><span>Chatbot</span></button>
+            <button type="button" data-whatsapp-tab="chats"><i data-lucide="messages-square"></i><span>Chats</span></button>
+            <button type="button" data-whatsapp-tab="leads"><i data-lucide="contact-round"></i><span>Leads</span></button>
+          </div>
+
+          <section class="whatsapp-tab-panel" data-whatsapp-tab-panel="connection">
+            <div class="whatsapp-connection-layout">
+              <div class="whatsapp-qr-stage" id="whatsappQrStage">
+                <div class="whatsapp-qr-placeholder" id="whatsappQrPlaceholder"><i data-lucide="qr-code"></i><span>Genera un QR para vincular el numero.</span></div>
+                <img id="whatsappQrImage" alt="Codigo QR para conectar WhatsApp" hidden />
+              </div>
+              <div class="whatsapp-connection-copy">
+                <span class="module-eyebrow">VINCULACION MULTIDISPOSITIVO</span>
+                <h3 id="whatsappConnectionTitle">Conecta el WhatsApp comercial</h3>
+                <p id="whatsappConnectionMessage">La sesion se guarda cifrada y se restaura despues de reinicios del servidor.</p>
+                <dl class="whatsapp-account-data">
+                  <div><dt>Cuenta</dt><dd id="whatsappAccountName">No vinculada</dd></div>
+                  <div><dt>Numero</dt><dd id="whatsappAccountPhone">Sin numero</dd></div>
+                  <div><dt>Ultima actualizacion</dt><dd id="whatsappUpdatedAt">--</dd></div>
+                </dl>
+                <div class="form-actions whatsapp-connection-actions">
+                  <button class="primary-button" type="button" id="connectWhatsapp"><i data-lucide="qr-code"></i> Generar QR</button>
+                  <button class="ghost-button" type="button" id="resetWhatsapp"><i data-lucide="rotate-ccw"></i> Nuevo QR</button>
+                  <button class="danger-button" type="button" id="disconnectWhatsapp"><i data-lucide="log-out"></i> Desconectar</button>
+                </div>
+                <p class="form-message" id="whatsappConnectionFormMessage"></p>
+              </div>
+            </div>
+          </section>
+
+          <section class="whatsapp-tab-panel" data-whatsapp-tab-panel="chatbot" hidden>
+            <div class="whatsapp-chatbot-layout">
+              <div class="whatsapp-chatbot-intro">
+                <span class="module-eyebrow">ASISTENTE AUTOMATICO</span>
+                <h3>Personalidad y reglas del chatbot</h3>
+                <p>El prompt se aplica solo a respuestas entrantes de WhatsApp. Las palabras de transferencia pausan la automatizacion para que intervenga un asesor.</p>
+                <div class="whatsapp-ai-state" id="whatsappAiState"></div>
+              </div>
+              <form id="whatsappChatbotForm" class="whatsapp-chatbot-form">
+                <label class="toggle-row"><input name="enabled" type="checkbox" /><span><strong>Activar respuestas automaticas</strong><small>Puede pausarse por cada conversacion.</small></span></label>
+                <label><span>Modelo</span><input name="model" value="gpt-5-mini" /></label>
+                <label class="span-2"><span>Prompt del chatbot</span><textarea name="prompt" rows="10" required maxlength="8000"></textarea></label>
+                <label class="span-2"><span>Mensaje de bienvenida</span><textarea name="welcomeMessage" rows="3" maxlength="800"></textarea></label>
+                <label class="span-2"><span>Palabras para transferir a un asesor</span><input name="handoffKeywords" placeholder="asesor, humano, llamada, queja" /></label>
+                <div class="form-actions span-2"><button class="primary-button" type="submit"><i data-lucide="save"></i> Guardar chatbot</button></div>
+                <p class="form-message span-2" id="whatsappChatbotMessage"></p>
+              </form>
+            </div>
+          </section>
+
+          <section class="whatsapp-tab-panel whatsapp-chat-workspace" data-whatsapp-tab-panel="chats" hidden>
+            <aside class="whatsapp-chat-list-pane">
+              <div class="whatsapp-chat-search"><i data-lucide="search"></i><input id="whatsappChatSearch" type="search" placeholder="Buscar conversacion" /></div>
+              <div class="whatsapp-chat-list" id="whatsappChatList"></div>
+            </aside>
+            <div class="whatsapp-conversation-pane">
+              <header class="whatsapp-conversation-header" id="whatsappConversationHeader">
+                <div><strong>Selecciona una conversacion</strong><span>Los mensajes apareceran aqui.</span></div>
+              </header>
+              <div class="whatsapp-message-list" id="whatsappMessageList"><p class="empty-state">No hay una conversacion seleccionada.</p></div>
+              <form id="whatsappMessageForm" class="whatsapp-message-composer">
+                <textarea name="text" rows="2" placeholder="Escribe una respuesta" required disabled></textarea>
+                <button class="primary-button icon-command" type="submit" title="Enviar mensaje" disabled><i data-lucide="send"></i><span>Enviar</span></button>
+              </form>
+              <p class="form-message" id="whatsappMessageFormMessage"></p>
+            </div>
+          </section>
+
+          <section class="whatsapp-tab-panel" data-whatsapp-tab-panel="leads" hidden>
+            <div class="admin-module-heading whatsapp-leads-heading">
+              <div><h3>Leads de WhatsApp</h3><p>Clasifica cada conversacion y registra interes, presupuesto, zona, responsable y notas.</p></div>
+              <select id="whatsappLeadStageFilter">
+                <option value="">Todos los estados</option>
+                <option value="new">Nuevo</option><option value="qualified">Calificado</option><option value="contacted">Contactado</option>
+                <option value="appointment">Cita</option><option value="won">Ganado</option><option value="lost">Perdido</option><option value="archived">Archivado</option>
+              </select>
+            </div>
+            <div class="whatsapp-lead-list" id="whatsappLeadList"></div>
+          </section>
         </article>
         <article class="panel-card admin-valuations-card" id="adminValuationsCard" data-admin-section-panel="valuations">
           <div class="admin-module-heading">

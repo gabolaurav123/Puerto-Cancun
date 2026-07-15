@@ -887,6 +887,14 @@ const state = {
   campaigns: [],
   settings: {},
   messages: [],
+  whatsapp: {
+    overview: null,
+    chats: [],
+    leads: [],
+    messages: [],
+    activeTab: "connection",
+    selectedJid: "",
+  },
   analytics: { eventsByType: [], propertyEvents: [], searchZones: [], leadSources: [] },
   adminPrompts: [],
   locationOptions: [],
@@ -930,6 +938,8 @@ let lastScrollY = 0;
 let adminListingSearchTimer = 0;
 let listingDraftTimer = 0;
 let sellerDraftTimer = 0;
+let whatsappPollTimer = 0;
+let whatsappSearchTimer = 0;
 let draftDbPromise = null;
 let draftWriteQueue = Promise.resolve();
 const mapGeocodeTimers = new WeakMap();
@@ -1586,6 +1596,7 @@ function setButtonLoading(button, loading, label = "Procesando...") {
   if (!button) return;
   if (loading) {
     button.dataset.originalText = button.textContent;
+    button.dataset.originalHtml = button.innerHTML;
     button.disabled = true;
     button.textContent = label;
     button.setAttribute("aria-busy", "true");
@@ -1593,10 +1604,12 @@ function setButtonLoading(button, loading, label = "Procesando...") {
     return;
   }
   button.disabled = false;
-  button.textContent = button.dataset.originalText || button.textContent;
+  if (button.dataset.originalHtml) button.innerHTML = button.dataset.originalHtml;
+  else button.textContent = button.dataset.originalText || button.textContent;
   button.removeAttribute("aria-busy");
   setFormProgress(button, false);
   delete button.dataset.originalText;
+  delete button.dataset.originalHtml;
   refreshIcons();
 }
 
@@ -4029,6 +4042,334 @@ function exportContactsCsv() {
   URL.revokeObjectURL(url);
 }
 
+const whatsappStatusLabels = {
+  disconnected: "Sin conectar",
+  connecting: "Conectando",
+  qr: "QR listo",
+  connected: "Conectado",
+  reconnecting: "Reconectando",
+  standby: "Activo en otra instancia",
+  error: "Error de conexion",
+};
+
+function formatWhatsappTime(value, includeDate = false) {
+  if (!value) return "--";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "--";
+  return new Intl.DateTimeFormat("es-MX", includeDate
+    ? { dateStyle: "medium", timeStyle: "short" }
+    : { hour: "2-digit", minute: "2-digit" }).format(date);
+}
+
+function whatsappInitials(name) {
+  return String(name || "WA")
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0])
+    .join("")
+    .toUpperCase();
+}
+
+function setWhatsappTab(tab) {
+  state.whatsapp.activeTab = tab || "connection";
+  $$('[data-whatsapp-tab]').forEach((button) => button.classList.toggle("active", button.dataset.whatsappTab === state.whatsapp.activeTab));
+  $$('[data-whatsapp-tab-panel]').forEach((panel) => {
+    panel.hidden = panel.dataset.whatsappTabPanel !== state.whatsapp.activeTab;
+  });
+}
+
+async function refreshWhatsappData({ includeLists = true, silent = false } = {}) {
+  if (state.session?.role !== "admin") return;
+  try {
+    const requests = [api("/api/admin/whatsapp/overview")];
+    if (includeLists) requests.push(api("/api/admin/whatsapp/chats"), api("/api/admin/whatsapp/leads"));
+    const [overview, chatsData, leadsData] = await Promise.all(requests);
+    state.whatsapp.overview = overview;
+    if (chatsData) state.whatsapp.chats = chatsData.chats || [];
+    if (leadsData) state.whatsapp.leads = leadsData.leads || [];
+    renderWhatsappModule();
+    updateAdminShell();
+  } catch (error) {
+    if (!silent) setFormMessage($("#whatsappConnectionFormMessage"), error.message, true);
+  }
+}
+
+function startWhatsappPolling() {
+  stopWhatsappPolling();
+  if (state.session?.role !== "admin") return;
+  void refreshWhatsappData({ includeLists: true, silent: true });
+  whatsappPollTimer = window.setInterval(() => {
+    if (state.adminSection === "whatsapp" && !document.hidden) void refreshWhatsappData({ includeLists: true, silent: true });
+  }, 5000);
+}
+
+function stopWhatsappPolling() {
+  window.clearInterval(whatsappPollTimer);
+  whatsappPollTimer = 0;
+}
+
+function renderWhatsappOverview() {
+  const overview = state.whatsapp.overview || {};
+  const status = overview.status || {};
+  const connection = status.connection || "disconnected";
+  const label = whatsappStatusLabels[connection] || connection;
+  const counts = overview.counts || {};
+  const dot = $("#whatsappConnectionDot");
+  if (!dot) return;
+  dot.className = `whatsapp-connection-dot ${connection === "connected" ? "connected" : ["qr", "connecting", "reconnecting", "standby"].includes(connection) ? "pending" : connection === "error" ? "error" : ""}`;
+  $("#whatsappConnectionLabel").textContent = label;
+  $("#whatsappKpiStatus").textContent = label;
+  $("#whatsappKpiChats").textContent = String(counts.chats || 0);
+  $("#whatsappKpiUnread").textContent = String(counts.unread || 0);
+  $("#whatsappKpiLeads").textContent = String(counts.leads || 0);
+
+  const qrImage = $("#whatsappQrImage");
+  const qrPlaceholder = $("#whatsappQrPlaceholder");
+  const hasQr = connection === "qr" && Boolean(status.qrDataUrl);
+  qrImage.hidden = !hasQr;
+  qrPlaceholder.hidden = hasQr;
+  if (hasQr && qrImage.src !== status.qrDataUrl) qrImage.src = status.qrDataUrl;
+
+  const copy = {
+    connected: ["WhatsApp comercial conectado", "La cuenta esta lista para recibir y responder conversaciones desde este CRM."],
+    qr: ["Escanea el codigo QR", "En tu celular abre WhatsApp > Dispositivos vinculados > Vincular dispositivo."],
+    connecting: ["Preparando la conexion", "Estamos generando una sesion segura. El codigo QR aparecera en unos segundos."],
+    reconnecting: ["Restableciendo la conexion", "La sesion se reconectara automaticamente sin volver a escanear el QR."],
+    standby: ["Sesion activa en otra instancia", "Este servidor queda en espera para evitar conexiones duplicadas."],
+    error: ["No se pudo conectar", status.lastError || "Revisa la configuracion y genera un QR nuevo."],
+    disconnected: ["Conecta el WhatsApp comercial", "La sesion se guarda cifrada y se restaura despues de reinicios del servidor."],
+  }[connection] || [label, status.lastError || ""];
+  $("#whatsappConnectionTitle").textContent = copy[0];
+  $("#whatsappConnectionMessage").textContent = copy[1];
+  $("#whatsappAccountName").textContent = status.accountName || (connection === "connected" ? "Cuenta comercial" : "No vinculada");
+  $("#whatsappAccountPhone").textContent = status.phone ? `+${status.phone}` : "Sin numero";
+  $("#whatsappUpdatedAt").textContent = formatWhatsappTime(status.updatedAt, true);
+  $("#connectWhatsapp").disabled = ["connecting", "qr", "connected", "reconnecting"].includes(connection);
+  $("#resetWhatsapp").disabled = connection === "connecting";
+  $("#disconnectWhatsapp").disabled = connection === "disconnected";
+
+  const form = $("#whatsappChatbotForm");
+  const chatbot = overview.chatbot || {};
+  if (form && form.dataset.loaded !== "true") {
+    form.enabled.checked = chatbot.enabled === true;
+    form.model.value = chatbot.model || "gpt-5-mini";
+    form.prompt.value = chatbot.prompt || "";
+    form.welcomeMessage.value = chatbot.welcomeMessage || "";
+    form.handoffKeywords.value = chatbot.handoffKeywords || "";
+    form.dataset.loaded = "true";
+  }
+  const aiConfigured = status.aiConfigured === true;
+  $("#whatsappAiState").innerHTML = aiConfigured
+    ? '<strong>Motor de IA configurado</strong><span>Las respuestas automaticas pueden activarse con el interruptor.</span>'
+    : '<strong>Configuracion pendiente</strong><span>El prompt se guardara, pero se necesita OPENAI_API_KEY para responder automaticamente.</span>';
+}
+
+function renderWhatsappChats() {
+  const list = $("#whatsappChatList");
+  if (!list) return;
+  const query = $("#whatsappChatSearch")?.value.trim().toLowerCase() || "";
+  const chats = state.whatsapp.chats.filter((chat) => !query || [chat.name, chat.phone, chat.lastMessage].some((value) => String(value || "").toLowerCase().includes(query)));
+  list.innerHTML = chats.length
+    ? chats.map((chat) => `
+      <button class="whatsapp-chat-item ${chat.jid === state.whatsapp.selectedJid ? "active" : ""}" type="button" data-whatsapp-chat="${escapeHtml(chat.jid)}">
+        <span class="whatsapp-chat-avatar">${escapeHtml(whatsappInitials(chat.name))}</span>
+        <span class="whatsapp-chat-copy"><strong>${escapeHtml(chat.name || chat.phone)}</strong><span>${escapeHtml(chat.lastMessage || "Sin mensajes")}</span></span>
+        <span class="whatsapp-chat-meta"><time>${escapeHtml(formatWhatsappTime(chat.lastMessageAt))}</time>${chat.unreadCount ? `<b class="whatsapp-unread-badge">${Number(chat.unreadCount)}</b>` : ""}</span>
+      </button>`).join("")
+    : '<p class="empty-state">No hay conversaciones que coincidan.</p>';
+}
+
+function renderWhatsappMessages() {
+  const list = $("#whatsappMessageList");
+  const header = $("#whatsappConversationHeader");
+  const form = $("#whatsappMessageForm");
+  if (!list || !header || !form) return;
+  const chat = state.whatsapp.chats.find((item) => item.jid === state.whatsapp.selectedJid);
+  if (!chat) {
+    header.innerHTML = "<div><strong>Selecciona una conversacion</strong><span>Los mensajes apareceran aqui.</span></div>";
+    list.innerHTML = '<p class="empty-state">No hay una conversacion seleccionada.</p>';
+    form.text.disabled = true;
+    form.querySelector('button[type="submit"]').disabled = true;
+    return;
+  }
+  header.innerHTML = `
+    <div><strong>${escapeHtml(chat.name || chat.phone)}</strong><span>${escapeHtml(chat.phone ? `+${chat.phone}` : chat.jid)}</span></div>
+    <button class="ghost-button mini-button" type="button" data-whatsapp-bot-toggle="${escapeHtml(chat.jid)}" data-bot-paused="${chat.botPaused}">
+      ${chat.botPaused ? "Reactivar chatbot" : "Pausar chatbot"}
+    </button>`;
+  list.innerHTML = state.whatsapp.messages.length
+    ? state.whatsapp.messages.map((message) => `
+      <article class="whatsapp-message ${message.direction === "outgoing" ? "outgoing" : "incoming"}">
+        <p>${escapeHtml(message.text || `[${message.type || "mensaje"}]`)}</p>
+        <small>${escapeHtml(formatWhatsappTime(message.sentAt))}${message.status === "automated" ? " · chatbot" : ""}</small>
+      </article>`).join("")
+    : '<p class="empty-state">Esta conversacion todavia no tiene mensajes de texto.</p>';
+  form.text.disabled = false;
+  form.querySelector('button[type="submit"]').disabled = false;
+  window.requestAnimationFrame(() => { list.scrollTop = list.scrollHeight; });
+}
+
+async function openWhatsappChat(jid, { preserveList = false } = {}) {
+  if (!jid) return;
+  state.whatsapp.selectedJid = jid;
+  if (!preserveList) renderWhatsappChats();
+  try {
+    const data = await api(`/api/admin/whatsapp/chats/${encodeURIComponent(jid)}/messages`);
+    state.whatsapp.messages = data.messages || [];
+    const chat = state.whatsapp.chats.find((item) => item.jid === jid);
+    if (chat) chat.unreadCount = 0;
+    renderWhatsappChats();
+    renderWhatsappMessages();
+    updateAdminShell();
+  } catch (error) {
+    setFormMessage($("#whatsappMessageFormMessage"), error.message, true);
+  }
+}
+
+function renderWhatsappLeads() {
+  const list = $("#whatsappLeadList");
+  if (!list) return;
+  const stageFilter = $("#whatsappLeadStageFilter")?.value || "";
+  const leads = state.whatsapp.leads.filter((lead) => !stageFilter || lead.stage === stageFilter);
+  const stageOptions = [["new", "Nuevo"], ["qualified", "Calificado"], ["contacted", "Contactado"], ["appointment", "Cita"], ["won", "Ganado"], ["lost", "Perdido"], ["archived", "Archivado"]];
+  const scoreOptions = [["cold", "Bajo"], ["warm", "Medio"], ["hot", "Alto"], ["premium", "Premium"]];
+  list.innerHTML = leads.length ? leads.map((lead) => `
+    <article class="whatsapp-lead-row" data-whatsapp-lead-row="${escapeHtml(lead.id)}">
+      <div class="whatsapp-lead-identity"><strong>${escapeHtml(lead.name || lead.phone)}</strong><span>${escapeHtml(lead.phone ? `+${lead.phone}` : lead.jid)}</span><span>${escapeHtml(lead.lastMessage || "Sin resumen")}</span></div>
+      <label><span>Estado</span><select data-whatsapp-lead-field="stage">${stageOptions.map(([value, label]) => `<option value="${value}" ${lead.stage === value ? "selected" : ""}>${label}</option>`).join("")}</select></label>
+      <label><span>Prioridad</span><select data-whatsapp-lead-field="score">${scoreOptions.map(([value, label]) => `<option value="${value}" ${lead.score === value ? "selected" : ""}>${label}</option>`).join("")}</select></label>
+      <label><span>Interes</span><input data-whatsapp-lead-field="interest" value="${escapeHtml(lead.interest || "")}" placeholder="Comprar, vender..." /></label>
+      <label><span>Zona</span><input data-whatsapp-lead-field="zone" value="${escapeHtml(lead.zone || "")}" placeholder="Puerto Cancun" /></label>
+      <button class="mini-button" type="button" data-save-whatsapp-lead="${escapeHtml(lead.id)}">Guardar</button>
+    </article>`).join("") : '<p class="empty-state">No hay leads de WhatsApp en este estado.</p>';
+}
+
+function renderWhatsappModule() {
+  if (!$("#adminWhatsappCard")) return;
+  renderWhatsappOverview();
+  setWhatsappTab(state.whatsapp.activeTab);
+  renderWhatsappChats();
+  renderWhatsappMessages();
+  renderWhatsappLeads();
+  refreshIcons();
+}
+
+async function connectWhatsapp(reset = false) {
+  const button = reset ? $("#resetWhatsapp") : $("#connectWhatsapp");
+  setButtonLoading(button, true, reset ? "Generando..." : "Conectando...");
+  setFormMessage($("#whatsappConnectionFormMessage"), "Preparando conexion segura...");
+  try {
+    await api("/api/admin/whatsapp/connect", { method: "POST", body: { reset }, timeoutMs: 60000 });
+    setFormMessage($("#whatsappConnectionFormMessage"), "Conexion iniciada. Espera a que aparezca el codigo QR.");
+    await refreshWhatsappData({ includeLists: false });
+  } catch (error) {
+    setFormMessage($("#whatsappConnectionFormMessage"), error.message, true);
+  } finally {
+    setButtonLoading(button, false);
+    renderWhatsappOverview();
+  }
+}
+
+async function disconnectWhatsapp() {
+  if (!window.confirm("Desconectar esta cuenta de WhatsApp y eliminar la sesion vinculada?")) return;
+  const button = $("#disconnectWhatsapp");
+  setButtonLoading(button, true, "Desconectando...");
+  try {
+    await api("/api/admin/whatsapp/connection", { method: "DELETE", timeoutMs: 60000 });
+    setFormMessage($("#whatsappConnectionFormMessage"), "Cuenta desconectada correctamente.");
+    await refreshWhatsappData({ includeLists: false });
+  } catch (error) {
+    setFormMessage($("#whatsappConnectionFormMessage"), error.message, true);
+  } finally {
+    setButtonLoading(button, false);
+    renderWhatsappOverview();
+  }
+}
+
+async function whatsappChatbotSubmit(event) {
+  event.preventDefault();
+  const form = event.currentTarget;
+  const button = form.querySelector('button[type="submit"]');
+  setButtonLoading(button, true, "Guardando...");
+  try {
+    const data = await api("/api/admin/whatsapp/chatbot", {
+      method: "PUT",
+      body: {
+        enabled: form.enabled.checked,
+        model: form.model.value,
+        prompt: form.prompt.value,
+        welcomeMessage: form.welcomeMessage.value,
+        handoffKeywords: form.handoffKeywords.value,
+      },
+    });
+    state.whatsapp.overview.chatbot = data.chatbot;
+    form.dataset.loaded = "true";
+    setFormMessage($("#whatsappChatbotMessage"), data.aiConfigured || !form.enabled.checked
+      ? "Configuracion del chatbot guardada."
+      : "Prompt guardado. Falta configurar OPENAI_API_KEY para activar respuestas.");
+  } catch (error) {
+    setFormMessage($("#whatsappChatbotMessage"), error.message, true);
+  } finally {
+    setButtonLoading(button, false);
+  }
+}
+
+async function whatsappMessageSubmit(event) {
+  event.preventDefault();
+  const form = event.currentTarget;
+  const text = form.text.value.trim();
+  if (!text || !state.whatsapp.selectedJid) return;
+  const button = form.querySelector('button[type="submit"]');
+  setButtonLoading(button, true, "Enviando...");
+  try {
+    await api(`/api/admin/whatsapp/chats/${encodeURIComponent(state.whatsapp.selectedJid)}/messages`, { method: "POST", body: { text }, timeoutMs: 60000 });
+    form.reset();
+    setFormMessage($("#whatsappMessageFormMessage"), "");
+    await Promise.all([openWhatsappChat(state.whatsapp.selectedJid, { preserveList: true }), refreshWhatsappData({ includeLists: true, silent: true })]);
+  } catch (error) {
+    setFormMessage($("#whatsappMessageFormMessage"), error.message, true);
+  } finally {
+    setButtonLoading(button, false);
+  }
+}
+
+async function toggleWhatsappChatbot(button) {
+  const jid = button.dataset.whatsappBotToggle;
+  const botPaused = button.dataset.botPaused !== "true";
+  setButtonLoading(button, true, "Guardando...");
+  try {
+    await api(`/api/admin/whatsapp/chats/${encodeURIComponent(jid)}`, { method: "PATCH", body: { botPaused } });
+    const chat = state.whatsapp.chats.find((item) => item.jid === jid);
+    if (chat) chat.botPaused = botPaused;
+    renderWhatsappMessages();
+    showToast(botPaused ? "Chatbot pausado para esta conversacion." : "Chatbot reactivado para esta conversacion.");
+  } catch (error) {
+    showToast(error.message, "error");
+  } finally {
+    setButtonLoading(button, false);
+  }
+}
+
+async function saveWhatsappLead(button) {
+  const row = button.closest("[data-whatsapp-lead-row]");
+  if (!row) return;
+  const value = (name) => row.querySelector(`[data-whatsapp-lead-field="${name}"]`)?.value || "";
+  setButtonLoading(button, true, "Guardando...");
+  try {
+    await api(`/api/admin/whatsapp/leads/${encodeURIComponent(button.dataset.saveWhatsappLead)}`, {
+      method: "PATCH",
+      body: { stage: value("stage"), score: value("score"), interest: value("interest"), zone: value("zone") },
+    });
+    showToast("Lead de WhatsApp actualizado.");
+    await refreshWhatsappData({ includeLists: true, silent: true });
+  } catch (error) {
+    showToast(error.message, "error");
+  } finally {
+    setButtonLoading(button, false);
+  }
+}
+
 async function loadPublicData() {
   const [propertiesData, sessionData, locationData, configData] = await Promise.all([
     api("/api/properties"),
@@ -4063,6 +4404,9 @@ async function loadPanelData() {
       campaignsData,
       settingsData,
       notificationsData,
+      whatsappOverviewData,
+      whatsappChatsData,
+      whatsappLeadsData,
     ] = await Promise.all([
       api("/api/admin/stats"),
       api("/api/admin/requests"),
@@ -4081,6 +4425,9 @@ async function loadPanelData() {
       api("/api/admin/campaigns"),
       api("/api/admin/settings"),
       api("/api/admin/notifications"),
+      api("/api/admin/whatsapp/overview"),
+      api("/api/admin/whatsapp/chats"),
+      api("/api/admin/whatsapp/leads"),
     ]);
     state.stats = statsData;
     state.requests = requestsData.requests || [];
@@ -4099,6 +4446,9 @@ async function loadPanelData() {
     state.campaigns = campaignsData.campaigns || [];
     state.settings = settingsData.settings || {};
     state.notifications = notificationsData.notifications || [];
+    state.whatsapp.overview = whatsappOverviewData;
+    state.whatsapp.chats = whatsappChatsData.chats || [];
+    state.whatsapp.leads = whatsappLeadsData.leads || [];
     state.serviceRequests = [];
     state.messages = [];
   } else {
@@ -4124,6 +4474,14 @@ async function loadPanelData() {
     state.documents = [];
     state.campaigns = [];
     state.settings = {};
+    state.whatsapp = {
+      overview: null,
+      chats: [],
+      leads: [],
+      messages: [],
+      activeTab: "connection",
+      selectedJid: "",
+    };
     state.analytics = { eventsByType: [], propertyEvents: [], searchZones: [], leadSources: [] };
   }
 }
@@ -4230,15 +4588,19 @@ function updateAdminShell() {
   const requestBadge = $("#sidebarRequestBadge");
   const valuationBadge = $("#sidebarValuationBadge");
   const taskBadge = $("#sidebarTaskBadge");
+  const whatsappBadge = $("#sidebarWhatsappBadge");
   if (leadBadge) leadBadge.textContent = String(state.leads.filter((lead) => lead.status === "new").length);
   if (requestBadge) requestBadge.textContent = String(state.requests.filter((request) => request.status === "pending").length);
   if (valuationBadge) valuationBadge.textContent = String(state.valuations.filter((valuation) => ["new", "in_review", "in_analysis"].includes(valuation.status)).length);
   if (taskBadge) taskBadge.textContent = String(state.tasks.filter((task) => ["pending", "in_progress"].includes(task.status)).length);
+  if (whatsappBadge) whatsappBadge.textContent = String(state.whatsapp.overview?.counts?.unread || 0);
   $("#adminPanel")?.classList.toggle("sidebar-collapsed", state.sidebarCollapsed);
 }
 
 function setAdminSection(section) {
   state.adminSection = section || "dashboard";
+  if (state.adminSection === "whatsapp") startWhatsappPolling();
+  else stopWhatsappPolling();
   updateAdminShell();
   $("#adminPanel")?.scrollIntoView({ behavior: "smooth", block: "start" });
 }
@@ -4274,6 +4636,7 @@ async function renderPanel() {
     renderAdminSegments();
     renderOperationalModules();
     renderSettingsFields();
+    renderWhatsappModule();
     updateAdminShell();
   } else {
     prepareSellerForm();
@@ -5541,6 +5904,7 @@ function bindEvents() {
 
   $("#backToSite").addEventListener("click", hidePanel);
   $("#logoutButton").addEventListener("click", async () => {
+    stopWhatsappPolling();
     await api("/api/auth/logout", { method: "POST" }).catch(() => null);
     state.session = null;
     state.requests = [];
@@ -5668,6 +6032,20 @@ function bindEvents() {
   $("#mediaUploadForm")?.addEventListener("submit", mediaUploadSubmit);
   $("#internalUserForm")?.addEventListener("submit", internalUserSubmit);
   $("#settingsForm")?.addEventListener("submit", settingsSubmit);
+  $("#whatsappChatbotForm")?.addEventListener("submit", whatsappChatbotSubmit);
+  $("#whatsappMessageForm")?.addEventListener("submit", whatsappMessageSubmit);
+  $("#refreshWhatsapp")?.addEventListener("click", () => void refreshWhatsappData({ includeLists: true }));
+  $("#connectWhatsapp")?.addEventListener("click", () => void connectWhatsapp(false));
+  $("#resetWhatsapp")?.addEventListener("click", () => void connectWhatsapp(true));
+  $("#disconnectWhatsapp")?.addEventListener("click", () => void disconnectWhatsapp());
+  $("#whatsappChatSearch")?.addEventListener("input", () => {
+    window.clearTimeout(whatsappSearchTimer);
+    whatsappSearchTimer = window.setTimeout(renderWhatsappChats, 180);
+  });
+  $("#whatsappLeadStageFilter")?.addEventListener("change", renderWhatsappLeads);
+  $$('[data-whatsapp-tab]').forEach((button) => {
+    button.addEventListener("click", () => setWhatsappTab(button.dataset.whatsappTab));
+  });
   $("#exportContactsCsv")?.addEventListener("click", exportContactsCsv);
   $("#contactSearch")?.addEventListener("input", renderAdminContacts);
   $("#contactTypeFilter")?.addEventListener("change", renderAdminContacts);
@@ -5939,6 +6317,15 @@ function bindEvents() {
 
     const adminSectionLink = event.target.closest("[data-admin-section-link]");
     if (adminSectionLink) setAdminSection(adminSectionLink.dataset.adminSectionLink);
+
+    const whatsappChat = event.target.closest("[data-whatsapp-chat]");
+    if (whatsappChat) void openWhatsappChat(whatsappChat.dataset.whatsappChat);
+
+    const whatsappBotToggle = event.target.closest("[data-whatsapp-bot-toggle]");
+    if (whatsappBotToggle) void toggleWhatsappChatbot(whatsappBotToggle);
+
+    const whatsappLeadSave = event.target.closest("[data-save-whatsapp-lead]");
+    if (whatsappLeadSave) void saveWhatsappLead(whatsappLeadSave);
 
     const sellerReply = event.target.closest("[data-seller-reply]");
     if (sellerReply) {

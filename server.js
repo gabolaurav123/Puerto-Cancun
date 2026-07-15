@@ -9,6 +9,7 @@ const PgSession = require("connect-pg-simple")(session);
 const bcrypt = require("bcryptjs");
 const PDFDocument = require("pdfkit");
 const { drawPropertyPdf, preparePropertyPdfImages } = require("./pdf-property-sheet");
+const { createWhatsappService, normalizeBotSettings } = require("./whatsapp-service");
 const { Pool } = require("pg");
 const {
   DEFAULT_SITE_URL,
@@ -84,6 +85,7 @@ const adminPassword = process.env.ADMIN_PASSWORD || "";
 const googleClientId = (process.env.GOOGLE_CLIENT_ID || "").trim();
 const googleMapsApiKey = (process.env.GOOGLE_MAPS_API_KEY || "").trim();
 const indexNowKey = (process.env.INDEXNOW_KEY || "").trim();
+const sessionSecret = process.env.SESSION_SECRET || "dev-session-secret-change-me";
 
 async function notifyIndexNow(paths) {
   if (!indexNowKey || !paths.length) return;
@@ -923,6 +925,8 @@ async function query(sql, params = []) {
   return result;
 }
 
+const whatsappService = createWhatsappService({ pool, query, uuid, secret: sessionSecret });
+
 const PROPERTY_SUMMARY_COLUMNS = `
   p.id, p.slug, p.title_es, p.title_en, p.type, p.state, p.city, p.zone, p.neighborhood, p.address,
   p.latitude, p.longitude, p.map_place, p.location_precision, p.google_maps_url, p.operation,
@@ -1372,6 +1376,60 @@ async function initDatabase() {
       );
     `);
     await client.query(`
+      CREATE TABLE IF NOT EXISTS whatsapp_auth_state (
+        auth_key TEXT PRIMARY KEY,
+        encrypted_value TEXT NOT NULL,
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      );
+    `);
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS whatsapp_chats (
+        jid TEXT PRIMARY KEY,
+        phone TEXT,
+        contact_name TEXT,
+        last_message TEXT,
+        last_message_at TIMESTAMPTZ,
+        unread_count INTEGER NOT NULL DEFAULT 0,
+        bot_paused BOOLEAN NOT NULL DEFAULT FALSE,
+        assigned_to TEXT,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      );
+    `);
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS whatsapp_messages (
+        id TEXT PRIMARY KEY,
+        chat_jid TEXT NOT NULL REFERENCES whatsapp_chats(jid) ON DELETE CASCADE,
+        direction TEXT NOT NULL CHECK (direction IN ('incoming', 'outgoing')),
+        message_type TEXT NOT NULL DEFAULT 'text',
+        text TEXT NOT NULL,
+        message_status TEXT NOT NULL DEFAULT 'received',
+        sent_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      );
+    `);
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS whatsapp_leads (
+        id TEXT PRIMARY KEY,
+        chat_jid TEXT NOT NULL UNIQUE REFERENCES whatsapp_chats(jid) ON DELETE CASCADE,
+        name TEXT NOT NULL,
+        phone TEXT,
+        stage TEXT NOT NULL DEFAULT 'new',
+        score TEXT NOT NULL DEFAULT 'warm',
+        source TEXT NOT NULL DEFAULT 'whatsapp',
+        interest TEXT,
+        budget NUMERIC,
+        zone TEXT,
+        assigned_to TEXT,
+        notes TEXT,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      );
+    `);
+    await client.query("CREATE INDEX IF NOT EXISTS idx_whatsapp_chats_recent ON whatsapp_chats (last_message_at DESC NULLS LAST)");
+    await client.query("CREATE INDEX IF NOT EXISTS idx_whatsapp_messages_chat_recent ON whatsapp_messages (chat_jid, sent_at DESC)");
+    await client.query("CREATE INDEX IF NOT EXISTS idx_whatsapp_leads_stage ON whatsapp_leads (stage, updated_at DESC)");
+    await client.query(`
       INSERT INTO app_metrics (id, visits, searches)
       VALUES (1, 0, 0)
       ON CONFLICT (id) DO NOTHING;
@@ -1440,7 +1498,8 @@ async function initDatabase() {
          ('seo', '{"metaTitle":"Puerto Cancún Center | Propiedades en Cancún","metaDescription":"Compra, vende y valora propiedades en Cancún con asesoría local.","structuredData":true,"sitemap":true,"robots":true}'::jsonb),
          ('forms', '{"requiredPhone":true,"requiredEmail":true,"successMessage":"Recibimos tu solicitud. Un asesor la revisará.","autoAssignment":false}'::jsonb),
          ('pdf', '{"showPrice":true,"showExactAddress":false,"disclaimer":"Información sujeta a disponibilidad y cambios sin previo aviso.","advisorName":"Puerto Cancún Center"}'::jsonb),
-         ('ai', '{"brandTone":"Profesional, claro y local.","enabledTools":["listing","improve","missing","summary","next_action","whatsapp","campaign","price"]}'::jsonb)
+         ('ai', '{"brandTone":"Profesional, claro y local.","enabledTools":["listing","improve","missing","summary","next_action","whatsapp","campaign","price"]}'::jsonb),
+         ('whatsapp_bot', '{"enabled":false,"prompt":"Eres el asistente inmobiliario de Puerto Cancun Center. Responde en espanol de forma profesional, breve y cordial. Recopila nombre, zona, tipo de propiedad, presupuesto y plazo. No inventes propiedades, precios ni disponibilidad y deriva decisiones sensibles a un asesor humano.","model":"gpt-5-mini","welcomeMessage":"Gracias por contactar a Puerto Cancun Center. En un momento revisamos tu solicitud.","handoffKeywords":"asesor,humano,llamada,queja"}'::jsonb)
        ON CONFLICT (key) DO NOTHING`
     );
     await client.query(
@@ -1554,7 +1613,7 @@ app.use(
       createTableIfMissing: true,
     }),
     name: "pcc.sid",
-    secret: process.env.SESSION_SECRET || "dev-session-secret-change-me",
+    secret: sessionSecret,
     resave: false,
     saveUninitialized: false,
     cookie: {
@@ -3641,6 +3700,235 @@ app.put("/api/admin/settings/:key", requireRole("admin"), async (req, res, next)
   }
 });
 
+app.get("/api/admin/whatsapp/overview", requireRole("admin"), async (_req, res, next) => {
+  try {
+    const [settingsResult, chatCount, leadCount, unreadCount] = await Promise.all([
+      query("SELECT value FROM app_settings WHERE key = 'whatsapp_bot'"),
+      query("SELECT COUNT(*)::int AS count FROM whatsapp_chats"),
+      query("SELECT COUNT(*)::int AS count FROM whatsapp_leads WHERE stage NOT IN ('won', 'lost', 'archived')"),
+      query("SELECT COALESCE(SUM(unread_count), 0)::int AS count FROM whatsapp_chats"),
+    ]);
+    res.json({
+      status: whatsappService.getStatus(),
+      chatbot: normalizeBotSettings(settingsResult.rows[0]?.value || {}),
+      counts: {
+        chats: chatCount.rows[0].count,
+        leads: leadCount.rows[0].count,
+        unread: unreadCount.rows[0].count,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.post("/api/admin/whatsapp/connect", requireRole("admin"), async (req, res, next) => {
+  try {
+    const status = await whatsappService.connect({ reset: req.body?.reset === true });
+    res.json({ status });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.delete("/api/admin/whatsapp/connection", requireRole("admin"), async (_req, res, next) => {
+  try {
+    res.json({ status: await whatsappService.disconnect() });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.put("/api/admin/whatsapp/chatbot", requireRole("admin"), async (req, res, next) => {
+  try {
+    const value = normalizeBotSettings(req.body || {});
+    const result = await query(
+      `INSERT INTO app_settings (key, value, updated_by)
+       VALUES ('whatsapp_bot', $1::jsonb, $2)
+       ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_by = EXCLUDED.updated_by, updated_at = NOW()
+       RETURNING value`,
+      [JSON.stringify(value), req.session.user.id]
+    );
+    res.json({ chatbot: normalizeBotSettings(result.rows[0].value), aiConfigured: Boolean(process.env.OPENAI_API_KEY) });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.get("/api/admin/whatsapp/chats", requireRole("admin"), async (req, res, next) => {
+  try {
+    const search = String(req.query.q || "").trim();
+    const params = [];
+    let where = "";
+    if (search) {
+      params.push(`%${search.slice(0, 100)}%`);
+      where = "WHERE contact_name ILIKE $1 OR phone ILIKE $1 OR last_message ILIKE $1";
+    }
+    const result = await query(
+      `SELECT jid, phone, contact_name, last_message, last_message_at, unread_count, bot_paused, assigned_to, created_at, updated_at
+       FROM whatsapp_chats ${where}
+       ORDER BY last_message_at DESC NULLS LAST LIMIT 200`,
+      params
+    );
+    res.json({
+      chats: result.rows.map((row) => ({
+        jid: row.jid,
+        phone: row.phone || "",
+        name: row.contact_name || row.phone || row.jid.split("@")[0],
+        lastMessage: row.last_message || "",
+        lastMessageAt: row.last_message_at,
+        unreadCount: Number(row.unread_count || 0),
+        botPaused: Boolean(row.bot_paused),
+        assignedTo: row.assigned_to || "",
+        createdAt: row.created_at,
+        updatedAt: row.updated_at,
+      })),
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.get("/api/admin/whatsapp/chats/:jid/messages", requireRole("admin"), async (req, res, next) => {
+  try {
+    const jid = String(req.params.jid || "").slice(0, 180);
+    const result = await query(
+      `SELECT id, chat_jid, direction, message_type, text, message_status, sent_at
+       FROM whatsapp_messages WHERE chat_jid = $1 ORDER BY sent_at ASC LIMIT 500`,
+      [jid]
+    );
+    await query("UPDATE whatsapp_chats SET unread_count = 0, updated_at = NOW() WHERE jid = $1", [jid]);
+    res.json({
+      messages: result.rows.map((row) => ({
+        id: row.id,
+        jid: row.chat_jid,
+        direction: row.direction,
+        type: row.message_type,
+        text: row.text,
+        status: row.message_status,
+        sentAt: row.sent_at,
+      })),
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.post("/api/admin/whatsapp/chats/:jid/messages", requireRole("admin"), async (req, res, next) => {
+  try {
+    const jid = String(req.params.jid || "").slice(0, 180);
+    if (!jid || !/^[^\s@]+@(s\.whatsapp\.net|lid)$/.test(jid)) {
+      res.status(400).json({ error: "Conversacion de WhatsApp no valida." });
+      return;
+    }
+    const result = await whatsappService.sendMessage(jid, req.body?.text || "");
+    res.status(201).json({ message: result });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.patch("/api/admin/whatsapp/chats/:jid", requireRole("admin"), async (req, res, next) => {
+  try {
+    const jid = String(req.params.jid || "").slice(0, 180);
+    const botPaused = req.body?.botPaused === undefined ? null : req.body.botPaused === true;
+    const assignedTo = req.body?.assignedTo === undefined ? null : String(req.body.assignedTo || "").trim().slice(0, 120);
+    const result = await query(
+      `UPDATE whatsapp_chats SET
+         unread_count = CASE WHEN $2::boolean THEN 0 ELSE unread_count END,
+         bot_paused = COALESCE($3::boolean, bot_paused),
+         assigned_to = COALESCE($4, assigned_to),
+         updated_at = NOW()
+       WHERE jid = $1 RETURNING *`,
+      [jid, req.body?.markRead === true, botPaused, assignedTo]
+    );
+    if (!result.rows[0]) {
+      res.status(404).json({ error: "Conversacion no encontrada." });
+      return;
+    }
+    res.json({ ok: true });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.get("/api/admin/whatsapp/leads", requireRole("admin"), async (_req, res, next) => {
+  try {
+    const result = await query(
+      `SELECT l.*, c.last_message, c.last_message_at, c.unread_count, c.bot_paused
+       FROM whatsapp_leads l JOIN whatsapp_chats c ON c.jid = l.chat_jid
+       ORDER BY CASE l.stage WHEN 'new' THEN 0 WHEN 'qualified' THEN 1 WHEN 'contacted' THEN 2 WHEN 'appointment' THEN 3 ELSE 4 END, l.updated_at DESC
+       LIMIT 300`
+    );
+    res.json({
+      leads: result.rows.map((row) => ({
+        id: row.id,
+        jid: row.chat_jid,
+        name: row.name,
+        phone: row.phone || "",
+        stage: row.stage,
+        score: row.score,
+        source: row.source,
+        interest: row.interest || "",
+        budget: row.budget === null ? null : Number(row.budget || 0),
+        zone: row.zone || "",
+        assignedTo: row.assigned_to || "",
+        notes: row.notes || "",
+        lastMessage: row.last_message || "",
+        lastMessageAt: row.last_message_at,
+        unreadCount: Number(row.unread_count || 0),
+        botPaused: Boolean(row.bot_paused),
+        createdAt: row.created_at,
+        updatedAt: row.updated_at,
+      })),
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.patch("/api/admin/whatsapp/leads/:id", requireRole("admin"), async (req, res, next) => {
+  try {
+    const allowedStages = new Set(["new", "qualified", "contacted", "appointment", "won", "lost", "archived"]);
+    const allowedScores = new Set(["cold", "warm", "hot", "premium"]);
+    const stage = req.body?.stage === undefined ? null : String(req.body.stage);
+    const score = req.body?.score === undefined ? null : String(req.body.score);
+    const budget = req.body?.budget === undefined || req.body.budget === "" ? null : Number(req.body.budget);
+    if ((stage && !allowedStages.has(stage)) || (score && !allowedScores.has(score))) {
+      res.status(400).json({ error: "Estado o prioridad no validos." });
+      return;
+    }
+    if (budget !== null && (!Number.isFinite(budget) || budget < 0)) {
+      res.status(400).json({ error: "El presupuesto debe ser un numero valido." });
+      return;
+    }
+    const result = await query(
+      `UPDATE whatsapp_leads SET
+         stage = COALESCE($2, stage), score = COALESCE($3, score),
+         interest = COALESCE($4, interest), budget = COALESCE($5, budget), zone = COALESCE($6, zone),
+         assigned_to = COALESCE($7, assigned_to), notes = COALESCE($8, notes), updated_at = NOW()
+       WHERE id = $1 RETURNING *`,
+      [
+        req.params.id,
+        stage,
+        score,
+        req.body?.interest === undefined ? null : String(req.body.interest || "").trim().slice(0, 200),
+        budget,
+        req.body?.zone === undefined ? null : String(req.body.zone || "").trim().slice(0, 160),
+        req.body?.assignedTo === undefined ? null : String(req.body.assignedTo || "").trim().slice(0, 120),
+        req.body?.notes === undefined ? null : String(req.body.notes || "").trim().slice(0, 4000),
+      ]
+    );
+    if (!result.rows[0]) {
+      res.status(404).json({ error: "Lead de WhatsApp no encontrado." });
+      return;
+    }
+    res.json({ ok: true });
+  } catch (error) {
+    next(error);
+  }
+});
+
 app.get("/api/admin/files", requireRole("admin"), async (req, res, next) => {
   try {
     const category = String(req.query.category || "").trim();
@@ -4392,6 +4680,7 @@ initDatabase()
     await getPublicProperties();
     app.listen(port, () => {
       console.log(`Puerto Cancun Center running on http://localhost:${port}`);
+      void whatsappService.resume().catch((error) => console.warn("WhatsApp resume failed:", error.message));
     });
   })
   .catch((error) => {
