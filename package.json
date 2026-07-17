@@ -6,7 +6,8 @@
   "type": "commonjs",
   "scripts": {
     "start": "node server.js",
-    "check": "node --check server.js && node --check app.js && node --check whatsapp-service.js && node --check seo-pages.js && node --check pdf-property-sheet.js"
+    "check": "node --check server.js && node --check app.js && node --check whatsapp-service.js && node --check seo-pages.js && node --check pdf-property-sheet.js",
+    "test": "node --test"
   },
   "dependencies": {
     "baileys": "^7.0.0-rc13",

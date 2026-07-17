@@ -20,6 +20,12 @@ PUBLIC_SITE_URL=https://www.puertocancun.center
 SESSION_SECRET=un-secreto-largo-y-aleatorio
 ADMIN_USER=admin prueba
 ADMIN_PASSWORD=tu-password-admin
+OPENAI_API_KEY=
+OPENAI_MODEL=gpt-5-mini
+INSTAGRAM_ACCOUNT_ID=
+INSTAGRAM_ACCESS_TOKEN=
+INSTAGRAM_OAUTH_URL=
+INSTAGRAM_PROFILE_URL=https://www.instagram.com/
 GOOGLE_CLIENT_ID=tu-client-id-de-google
 GOOGLE_MAPS_API_KEY=tu-api-key-de-google-maps
 INDEXNOW_KEY=tu-clave-indexnow
@@ -48,6 +54,10 @@ El servidor crea automáticamente las tablas necesarias y carga propiedades de e
 - Biblioteca de archivos, usuarios internos, roles y configuración persistente.
 - Fichas PDF reales para propiedades y valoraciones.
 - Publicaciones con estados, score, ubicación jerárquica y hasta 20 imágenes.
+- Galería editable por imagen: agregar, eliminar, reordenar y elegir portada sin perder las fotos existentes.
+- Catálogo base con los 32 estados de México y municipios y zonas principales de Quintana Roo.
+- Fichas PDF de una página con hasta cuatro imágenes, en versión institucional o neutra sin datos de la agencia.
+- Espacio de Instagram para seleccionar una propiedad y generar captions con OpenAI; la conexión se habilita con credenciales de Meta.
 - URL canónica individual por propiedad, categorías rastreables y versiones independientes en español e inglés.
 - Schema `RealEstateAgent`, `RealEstateListing`, `BreadcrumbList`, sitemap dinámico y medios públicos sin Base64 en el HTML.
 - Hero responsive WebP, Open Graph 1200×630 y staging Seenode bloqueado para indexación.
@@ -68,4 +78,5 @@ Las campañas preparan y registran mensajes; no realizan envío masivo sin un pr
 
 ```bash
 npm run check
+npm test
 ```
