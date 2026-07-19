@@ -70,7 +70,7 @@ El servidor crea automáticamente las tablas necesarias y carga propiedades de e
 - Publicaciones con estados, score, ubicación jerárquica y hasta 20 imágenes.
 - Galería editable por imagen: agregar, eliminar, reordenar y elegir portada sin perder las fotos existentes.
 - Catálogo base con los 32 estados de México, los 11 municipios de Quintana Roo y una selección amplia de zonas, colonias y desarrollos inmobiliarios.
-- Fichas PDF de una página con hasta cuatro imágenes, en versión institucional o neutra sin datos de la agencia.
+- Fichas PDF de una página con hasta cuatro imágenes para cualquier propiedad, incluso borradores e incompletas. Cada inmueble ofrece dos acciones directas: institucional con logos y datos de Puerto Cancún Center, o neutra únicamente con información de la propiedad.
 - Espacio de Instagram para seleccionar una propiedad, generar captions con OpenAI, copiarlos y abrir el perfil configurado. No publica automáticamente: el texto siempre requiere revisión humana.
 - URL canónica individual por propiedad, categorías rastreables y versiones independientes en español e inglés.
 - Schema `RealEstateAgent`, `RealEstateListing`, `BreadcrumbList`, sitemap dinámico y medios públicos sin Base64 en el HTML.

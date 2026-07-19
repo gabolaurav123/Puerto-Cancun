@@ -62,3 +62,19 @@ test("prepara cuatro imágenes y genera ambas fichas en una sola página", async
     }
   }
 });
+
+test("todas las propiedades ofrecen PDF institucional y neutro", () => {
+  const indexSource = fs.readFileSync(path.join(__dirname, "..", "index.html"), "utf8");
+  const appSource = fs.readFileSync(path.join(__dirname, "..", "app.js"), "utf8");
+  const serverSource = fs.readFileSync(path.join(__dirname, "..", "server.js"), "utf8");
+  const routeStart = serverSource.indexOf('app.post("/api/admin/documents/generate"');
+  const routeEnd = serverSource.indexOf('app.get("/api/admin/documents/:id/download"', routeStart);
+  const generateRoute = serverSource.slice(routeStart, routeEnd);
+
+  assert.match(indexSource, /data-generate-selected-property-pdf="branded"/);
+  assert.match(indexSource, /data-generate-selected-property-pdf="neutral"/);
+  assert.match(appSource, /data-generate-property-pdf=.*data-pdf-mode="branded"/s);
+  assert.match(appSource, /data-generate-property-pdf=.*data-pdf-mode="neutral"/s);
+  assert.match(generateRoute, /SELECT \* FROM properties WHERE id = \$1/);
+  assert.doesNotMatch(generateRoute, /is_public\s*=|status\s*=/i);
+});

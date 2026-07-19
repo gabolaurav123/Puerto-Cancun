@@ -3108,6 +3108,18 @@ textarea {
   gap: 8px;
 }
 
+.pdf-institutional-button {
+  border-color: #c9a84f;
+  color: #003f5c;
+  background: #fff8df;
+}
+
+.pdf-neutral-button {
+  border-color: #9eacb3;
+  color: #344b57;
+  background: #f7f9fa;
+}
+
 .admin-module-heading {
   display: flex;
   align-items: flex-start;
@@ -4223,6 +4235,10 @@ button[aria-busy="true"]::before {
   display: grid;
   grid-template-columns: minmax(300px, 0.85fr) minmax(0, 1.35fr);
   gap: 24px;
+}
+
+.pdf-workspace {
+  grid-template-columns: minmax(400px, 1.05fr) minmax(340px, 1.25fr);
 }
 
 .ai-tool-sidebar,

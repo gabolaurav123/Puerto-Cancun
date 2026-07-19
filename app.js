@@ -3123,7 +3123,9 @@ function renderAdminListings() {
               <button class="mini-button" type="button" data-status-listing="${escapeHtml(property.id)}" data-status-value="sold">${escapeHtml(t("markSold"))}</button>
               <button class="mini-button" type="button" data-feature-listing="${escapeHtml(property.id)}" data-feature-value="${property.featured ? "false" : "true"}">${property.featured ? "Quitar destacada" : "Destacar"}</button>
               <button class="mini-button" type="button" data-duplicate-listing="${escapeHtml(property.id)}">Duplicar</button>
-              <button class="mini-button" type="button" data-pdf-property="${escapeHtml(property.id)}">Ficha PDF</button>
+              <button class="mini-button pdf-institutional-button" type="button" data-generate-property-pdf="${escapeHtml(property.id)}" data-pdf-mode="branded">PDF institucional</button>
+              <button class="mini-button pdf-neutral-button" type="button" data-generate-property-pdf="${escapeHtml(property.id)}" data-pdf-mode="neutral">PDF neutro</button>
+              <button class="mini-button" type="button" data-pdf-property="${escapeHtml(property.id)}">Configurar PDF</button>
               <button class="mini-button" type="button" data-detail="${escapeHtml(property.id)}">Ver detalle público</button>
               <button class="mini-button danger" type="button" data-delete-listing="${escapeHtml(property.id)}">${escapeHtml(t("delete"))}</button>
             </div>
@@ -3928,26 +3930,66 @@ async function pdfSubmit(event) {
   const button = form.querySelector('[type="submit"]');
   setButtonLoading(button, true, "Generando PDF...");
   try {
-    const data = await api("/api/admin/documents/generate", {
-      method: "POST",
-      body: {
-        documentType: form.documentType.value,
-        propertyId: form.propertyId.value,
-        valuationId: form.valuationId.value,
-        options: {
-          currency: form.currency.value,
-          brandMode: form.brandMode.value,
-          showPrice: form.showPrice.checked,
-          showAddress: form.showAddress.checked,
-          disclaimer: form.disclaimer.value.trim(),
-        },
-      },
+    await generatePdfDocument({
+      documentType: form.documentType.value,
+      propertyId: form.propertyId.value,
+      valuationId: form.valuationId.value,
+      options: pdfOptionsFromForm(form, form.brandMode.value),
     });
-    await downloadFile(data.downloadUrl, data.document?.fileName || "ficha-propiedad.pdf");
-    await renderPanel();
     showToast("PDF generado y guardado en el historial.");
   } catch (error) {
     setFormMessage($("#pdfFormMessage"), error.message, true);
+  } finally {
+    setButtonLoading(button, false);
+  }
+}
+
+function pdfOptionsFromForm(form, brandMode = "branded") {
+  return {
+    currency: form?.currency?.value || "USD",
+    brandMode: brandMode === "neutral" ? "neutral" : "branded",
+    showPrice: form?.showPrice?.checked !== false,
+    showAddress: form?.showAddress?.checked === true,
+    disclaimer: String(form?.disclaimer?.value || "Información sujeta a disponibilidad y cambios sin previo aviso.").trim(),
+  };
+}
+
+async function generatePdfDocument(payload) {
+  const data = await api("/api/admin/documents/generate", { method: "POST", body: payload });
+  await downloadFile(data.downloadUrl, data.document?.fileName || "ficha-propiedad.pdf");
+  if (data.document) {
+    state.documents = [data.document, ...state.documents.filter((item) => item.id !== data.document.id)];
+    renderDocuments();
+  }
+  return data;
+}
+
+async function generatePropertyPdf(propertyId, brandMode, button) {
+  const property = state.properties.find((item) => item.id === propertyId);
+  if (!property) {
+    showToast("Selecciona una propiedad válida para generar la ficha.", "error");
+    return;
+  }
+  const mode = brandMode === "neutral" ? "neutral" : "branded";
+  const form = $("#pdfForm");
+  if (form) {
+    form.propertyId.value = property.id;
+    form.brandMode.value = mode;
+    if (state.adminSection === "pdf") previewPdf();
+  }
+  setButtonLoading(button, true, mode === "neutral" ? "Generando PDF neutro..." : "Generando PDF institucional...");
+  try {
+    await generatePdfDocument({
+      documentType: "property",
+      propertyId: property.id,
+      valuationId: "",
+      options: pdfOptionsFromForm(form, mode),
+    });
+    setFormMessage($("#pdfFormMessage"), "");
+    showToast(`${mode === "neutral" ? "PDF neutro" : "PDF institucional"} generado para ${property.titleEs}.`);
+  } catch (error) {
+    setFormMessage($("#pdfFormMessage"), error.message, true);
+    showToast(error.message, "error");
   } finally {
     setButtonLoading(button, false);
   }
@@ -6685,6 +6727,24 @@ function bindEvents() {
       });
       $("#pdfPropertySelect").value = pdfProperty.dataset.pdfProperty;
       previewPdf();
+    }
+
+    const generatePropertyPdfButton = event.target.closest("[data-generate-property-pdf]");
+    if (generatePropertyPdfButton) {
+      void generatePropertyPdf(
+        generatePropertyPdfButton.dataset.generatePropertyPdf,
+        generatePropertyPdfButton.dataset.pdfMode,
+        generatePropertyPdfButton
+      );
+    }
+
+    const generateSelectedPropertyPdfButton = event.target.closest("[data-generate-selected-property-pdf]");
+    if (generateSelectedPropertyPdfButton) {
+      void generatePropertyPdf(
+        $("#pdfPropertySelect").value,
+        generateSelectedPropertyPdfButton.dataset.generateSelectedPropertyPdf,
+        generateSelectedPropertyPdfButton
+      );
     }
   });
 
