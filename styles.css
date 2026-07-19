@@ -1863,27 +1863,6 @@ input[type="file"] {
   gap: 12px;
 }
 
-.image-preview-header-actions,
-.instagram-connection {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 10px;
-}
-
-.location-quick-help {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  margin-top: -4px;
-  padding: 10px 12px;
-  border: 1px dashed #b8cbd2;
-  background: #f6faf9;
-  color: var(--muted);
-  font-size: 0.84rem;
-}
-
 .image-preview span {
   color: var(--muted);
   font-size: 0.76rem;
@@ -2304,40 +2283,6 @@ textarea {
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 12px;
   margin-top: 16px;
-}
-
-.catalog-toolbar {
-  display: grid;
-  grid-template-columns: minmax(260px, 1fr) minmax(190px, 0.4fr) auto;
-  gap: 12px;
-  align-items: end;
-  margin-top: 20px;
-  padding: 14px;
-  border: 1px solid var(--line);
-  background: #f5f8f9;
-}
-
-.catalog-toolbar label {
-  display: grid;
-  gap: 6px;
-  font-size: 0.78rem;
-  font-weight: 800;
-}
-
-.catalog-base-note {
-  margin: 10px 0 0;
-  color: var(--muted);
-  font-size: 0.82rem;
-}
-
-.catalog-entry-copy {
-  display: grid;
-  gap: 3px;
-}
-
-.catalog-entry-copy small {
-  color: var(--muted);
-  font-size: 0.72rem;
 }
 
 .catalog-group {
@@ -2990,7 +2935,7 @@ textarea {
 
 .admin-listing-toolbar {
   display: grid;
-  grid-template-columns: minmax(260px, 1.6fr) repeat(5, minmax(125px, 0.7fr)) auto;
+  grid-template-columns: minmax(260px, 1.6fr) repeat(4, minmax(130px, 0.7fr)) auto;
   gap: 10px;
   align-items: end;
   margin-top: 26px;
@@ -3946,33 +3891,6 @@ button[aria-busy="true"]::before {
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 12px;
   margin-bottom: 22px;
-}
-
-.instagram-workspace {
-  display: grid;
-  gap: 18px;
-  margin: 0 0 24px;
-  padding: 20px;
-  border: 1px solid #dec9d8;
-  background: linear-gradient(135deg, #fff 0%, #fff7fb 54%, #f6f3ff 100%);
-}
-
-.instagram-heading {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 20px;
-}
-
-.instagram-heading h3 {
-  margin: 5px 0 6px;
-  color: var(--blue-900);
-  font-size: 1.3rem;
-}
-
-.instagram-heading p {
-  margin: 0;
-  color: var(--muted);
 }
 
 .module-split > form {
@@ -5885,16 +5803,9 @@ button[aria-busy="true"] {
 
 @media (max-width: 760px) {
   .admin-listing-toolbar,
-  .catalog-toolbar,
   .listing-metrics-row,
   .keyword-input-row {
     grid-template-columns: 1fr;
-  }
-
-  .instagram-heading,
-  .location-quick-help {
-    align-items: stretch;
-    flex-direction: column;
   }
 
   .admin-listing-search {
