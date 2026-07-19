@@ -2801,94 +2801,50 @@ function renderLocationCatalogs() {
   if (!list) return;
   const filters = state.catalogFilters || { search: "", type: "" };
   const search = normalizeSearchText(filters.search);
-  const typeOrder = ["state", "city", "zone", "neighborhood"];
-  const allOptions = [...state.locationOptions].sort((a, b) => {
-    const typeDifference = typeOrder.indexOf(a.type) - typeOrder.indexOf(b.type);
-    return typeDifference || locationOptionPath(a).localeCompare(locationOptionPath(b), "es", { sensitivity: "base" });
-  });
-  const counts = Object.fromEntries(typeOrder.map((type) => [type, allOptions.filter((option) => option.type === type).length]));
-  const summary = $("#catalogSummary");
-  if (summary) {
-    summary.innerHTML = [
-      ["map-pinned", "Total de lugares", allOptions.length],
-      ["map", "Estados", counts.state],
-      ["building-2", "Municipios", counts.city],
-      ["route", "Zonas", counts.zone],
-      ["home", "Colonias", counts.neighborhood],
-    ]
-      .map(([icon, label, value]) => `<article><i data-lucide="${icon}"></i><div><strong>${value}</strong><span>${label}</span></div></article>`)
-      .join("");
-  }
-  const tabs = $("#catalogLevelTabs");
-  if (tabs) {
-    const tabOptions = [
-      ["", "Todos", allOptions.length],
-      ["state", "Estados", counts.state],
-      ["city", "Municipios", counts.city],
-      ["zone", "Zonas", counts.zone],
-      ["neighborhood", "Colonias", counts.neighborhood],
-    ];
-    tabs.innerHTML = tabOptions
-      .map(
-        ([value, label, count]) =>
-          `<button type="button" class="${filters.type === value ? "is-active" : ""}" data-catalog-level="${value}"><span>${label}</span><b>${count}</b></button>`
-      )
-      .join("");
-  }
-  const options = allOptions.filter((option) => {
-    if (filters.type && option.type !== filters.type) return false;
-    if (!search) return true;
-    return normalizeSearchText(`${option.name} ${locationOptionPath(option)} ${catalogTypeMeta(option.type).label}`).includes(search);
-  });
-  const resultCount = $("#catalogResultCount");
-  if (resultCount) resultCount.textContent = `${options.length} ubicación${options.length === 1 ? "" : "es"}`;
-  list.innerHTML = options.length
-    ? options
-        .map((option) => {
-          const meta = catalogTypeMeta(option.type);
-          const nextType = nextCatalogType(option.type);
-          const children = allOptions.filter((item) => item.parentId === option.id).length;
-          const properties = Number(option.propertyCount || 0);
-          return `
-            <article class="catalog-entry ${option.isActive === false ? "is-inactive" : ""} ${$("#locationCatalogForm")?.elements.id.value === option.id ? "is-editing" : ""}">
-              <div class="catalog-entry-icon"><i data-lucide="${meta.icon}"></i></div>
-              <div class="catalog-entry-copy">
-                <div class="catalog-entry-name">
-                  <strong>${escapeHtml(option.name)}</strong>
-                  <span class="catalog-type-badge">${escapeHtml(meta.label)}</span>
-                  ${option.isActive === false ? `<span class="catalog-status-badge">Inactivo</span>` : ""}
-                </div>
-                <small>${escapeHtml(locationOptionPath(option))}</small>
-              </div>
-              <div class="catalog-entry-metrics">
-                <span><b>${properties}</b> propiedad${properties === 1 ? "" : "es"}</span>
-                ${nextType ? `<span><b>${children}</b> subnivel${children === 1 ? "" : "es"}</span>` : ""}
-              </div>
-              <div class="catalog-actions">
-                ${nextType ? `<button class="catalog-child-button" type="button" data-add-location-child="${escapeHtml(option.id)}"><i data-lucide="corner-down-right"></i> Agregar debajo</button>` : ""}
-                <button class="catalog-icon-button" type="button" data-edit-location="${escapeHtml(option.id)}" aria-label="Editar ${escapeHtml(option.name)}" title="Editar"><i data-lucide="pencil"></i></button>
-                <button class="catalog-icon-button" type="button" data-toggle-location="${escapeHtml(option.id)}" aria-label="${option.isActive ? "Desactivar" : "Activar"} ${escapeHtml(option.name)}" title="${option.isActive ? "Desactivar" : "Activar"}"><i data-lucide="${option.isActive ? "eye-off" : "eye"}"></i></button>
-                <button class="catalog-icon-button danger" type="button" data-delete-location="${escapeHtml(option.id)}" aria-label="Eliminar ${escapeHtml(option.name)}" title="Eliminar"><i data-lucide="trash-2"></i></button>
-              </div>
-            </article>
-          `;
-        })
-        .join("")
-    : `<div class="catalog-empty-state"><i data-lucide="search-x"></i><h3>No encontramos ubicaciones</h3><p>Prueba otro término o limpia los filtros. También puedes agregar este lugar al catálogo.</p><button class="primary-button" type="button" data-new-location>Agregar ubicación</button></div>`;
+  const types = (filters.type ? [filters.type] : ["state", "city", "zone", "neighborhood"]);
+  list.innerHTML = types
+    .map((type) => {
+      const options = locationOptionsByType(type).filter((option) => {
+        if (!search) return true;
+        return normalizeSearchText(`${option.name} ${locationOptionPath(option)}`).includes(search);
+      });
+      const titleKey =
+        type === "state"
+          ? "catalogState"
+          : type === "city"
+            ? "catalogCity"
+            : type === "zone"
+              ? "catalogZone"
+              : "catalogNeighborhood";
+      return `
+        <article class="catalog-group">
+          <h3>${escapeHtml(t(titleKey))} · ${options.length}</h3>
+          ${
+            options.length
+              ? options
+                  .map(
+                    (option) => `
+                      <div class="catalog-entry">
+                        <div class="catalog-entry-copy">
+                          <span>${escapeHtml(option.name)} · ${escapeHtml(option.propertyCount || 0)} propiedades ${option.isActive ? "" : "· inactivo"}</span>
+                          <small>${escapeHtml(locationOptionPath(option))}</small>
+                        </div>
+                        <div class="catalog-actions">
+                          <button class="text-button" type="button" data-edit-location="${escapeHtml(option.id)}">${escapeHtml(t("editCatalog"))}</button>
+                          <button class="text-button" type="button" data-toggle-location="${escapeHtml(option.id)}">${escapeHtml(option.isActive ? t("disableCatalog") : t("enableCatalog"))}</button>
+                          <button class="text-button danger" type="button" data-delete-location="${escapeHtml(option.id)}">${escapeHtml(t("delete"))}</button>
+                        </div>
+                      </div>
+                    `
+                  )
+                  .join("")
+              : `<p class="empty-state">${escapeHtml(t("catalogEmpty"))}</p>`
+          }
+        </article>
+      `;
+    })
+    .join("");
   refreshIcons();
-}
-
-function catalogTypeMeta(type) {
-  return {
-    state: { label: "Estado", icon: "map" },
-    city: { label: "Municipio", icon: "building-2" },
-    zone: { label: "Zona", icon: "route" },
-    neighborhood: { label: "Colonia", icon: "home" },
-  }[type] || { label: "Ubicación", icon: "map-pin" };
-}
-
-function nextCatalogType(type) {
-  return { state: "city", city: "zone", zone: "neighborhood" }[type] || "";
 }
 
 function locationOptionPath(option) {
@@ -2945,7 +2901,10 @@ async function locationCatalogSubmit(event) {
         isActive: form.isActive.checked,
       },
     });
-    resetCatalogForm();
+    form.reset();
+    form.elements.id.value = "";
+    form.elements.isActive.checked = true;
+    form.elements.sortOrder.value = "0";
     await refreshLocationOptions();
     setFormMessage(message, t("catalogSaved"));
   } catch (error) {
@@ -2964,28 +2923,7 @@ function editLocationOption(id) {
   form.elements.name.value = option.name;
   form.elements.sortOrder.value = option.sortOrder || 0;
   form.elements.isActive.checked = option.isActive !== false;
-  $("#catalogFormTitle").textContent = `Editar ${option.name}`;
-  $("#catalogFormContext").textContent = `Ruta actual: ${locationOptionPath(option)}`;
-  $("#catalogEditor")?.classList.add("is-editing");
-  renderLocationCatalogs();
-  form.elements.name.focus({ preventScroll: true });
-  $("#catalogEditor")?.scrollIntoView({ behavior: "smooth", block: "nearest" });
-}
-
-function prepareChildLocation(parentId) {
-  const parent = state.locationOptions.find((item) => item.id === parentId);
-  const childType = parent ? nextCatalogType(parent.type) : "";
-  const form = $("#locationCatalogForm");
-  if (!parent || !childType || !form) return;
-  resetCatalogForm();
-  form.elements.type.value = childType;
-  renderCatalogParentOptions();
-  form.elements.parentId.value = parent.id;
-  const childLabel = catalogTypeMeta(childType).label.toLowerCase();
-  $("#catalogFormTitle").textContent = `Agregar ${childLabel}`;
-  $("#catalogFormContext").textContent = `Se guardará dentro de ${locationOptionPath(parent)}.`;
-  form.elements.name.focus({ preventScroll: true });
-  $("#catalogEditor")?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  form.scrollIntoView({ behavior: "smooth", block: "center" });
 }
 
 async function toggleLocationOption(id) {
@@ -3011,11 +2949,7 @@ function resetCatalogForm() {
   form.elements.isActive.checked = true;
   form.elements.sortOrder.value = "0";
   renderCatalogParentOptions();
-  $("#catalogFormTitle").textContent = "Agregar ubicación";
-  $("#catalogFormContext").textContent = "Selecciona el nivel y su ubicación superior. Los campos se adaptan automáticamente.";
-  $("#catalogEditor")?.classList.remove("is-editing");
   setFormMessage($("#catalogFormMessage"), "");
-  renderLocationCatalogs();
 }
 
 async function deleteLocationOption(id) {
@@ -6311,11 +6245,6 @@ function bindEvents() {
     if ($("#catalogTypeFilter")) $("#catalogTypeFilter").value = "";
     renderLocationCatalogs();
   });
-  $("#catalogNewLocationButton")?.addEventListener("click", () => {
-    resetCatalogForm();
-    $("#locationCatalogForm")?.elements.name.focus({ preventScroll: true });
-    $("#catalogEditor")?.scrollIntoView({ behavior: "smooth", block: "nearest" });
-  });
   $$('[data-open-location-catalog]').forEach((button) => button.addEventListener("click", () => {
     saveListingDraft();
     setAdminSection("catalogs");
@@ -6413,17 +6342,7 @@ function bindEvents() {
   $("#closeAdminNotifications")?.addEventListener("click", () => {
     $("#adminNotificationDrawer").hidden = true;
   });
-  $("#locationCatalogForm").elements.type.addEventListener("change", () => {
-    const form = $("#locationCatalogForm");
-    renderCatalogParentOptions();
-    if (!form.elements.id.value) {
-      const meta = catalogTypeMeta(form.elements.type.value);
-      $("#catalogFormTitle").textContent = `Agregar ${meta.label.toLowerCase()}`;
-      $("#catalogFormContext").textContent = form.elements.type.value === "state"
-        ? "Los estados no necesitan una ubicación superior."
-        : "Ahora selecciona la ubicación superior para mantener el catálogo ordenado.";
-    }
-  });
+  $("#locationCatalogForm").elements.type.addEventListener("change", renderCatalogParentOptions);
   $("#resetCatalogForm")?.addEventListener("click", resetCatalogForm);
   $("#resetListingForm").addEventListener("click", () => resetListingForm(true));
   $("#saveListingImages")?.addEventListener("click", saveListingImagesOnly);
@@ -6572,23 +6491,6 @@ function bindEvents() {
 
     const duplicateListingButton = event.target.closest("[data-duplicate-listing]");
     if (duplicateListingButton) void duplicateListing(duplicateListingButton.dataset.duplicateListing);
-
-    const catalogLevel = event.target.closest("[data-catalog-level]");
-    if (catalogLevel) {
-      state.catalogFilters.type = catalogLevel.dataset.catalogLevel || "";
-      if ($("#catalogTypeFilter")) $("#catalogTypeFilter").value = state.catalogFilters.type;
-      renderLocationCatalogs();
-    }
-
-    const newLocation = event.target.closest("[data-new-location]");
-    if (newLocation) {
-      resetCatalogForm();
-      $("#locationCatalogForm")?.elements.name.focus({ preventScroll: true });
-      $("#catalogEditor")?.scrollIntoView({ behavior: "smooth", block: "nearest" });
-    }
-
-    const addLocationChild = event.target.closest("[data-add-location-child]");
-    if (addLocationChild) prepareChildLocation(addLocationChild.dataset.addLocationChild);
 
     const deleteLocation = event.target.closest("[data-delete-location]");
     if (deleteLocation) void deleteLocationOption(deleteLocation.dataset.deleteLocation);
