@@ -86,10 +86,6 @@ const googleClientId = (process.env.GOOGLE_CLIENT_ID || "").trim();
 const googleMapsApiKey = (process.env.GOOGLE_MAPS_API_KEY || "").trim();
 const indexNowKey = (process.env.INDEXNOW_KEY || "").trim();
 const sessionSecret = process.env.SESSION_SECRET || "dev-session-secret-change-me";
-const instagramAccountId = (process.env.INSTAGRAM_ACCOUNT_ID || "").trim();
-const instagramAccessToken = (process.env.INSTAGRAM_ACCESS_TOKEN || "").trim();
-const instagramOauthUrl = (process.env.INSTAGRAM_OAUTH_URL || "").trim();
-const instagramProfileUrl = (process.env.INSTAGRAM_PROFILE_URL || "https://www.instagram.com/").trim();
 
 async function notifyIndexNow(paths) {
   if (!indexNowKey || !paths.length) return;
@@ -336,59 +332,22 @@ const seedRequests = [
   },
 ];
 
-const mexicoStates = [
-  "Aguascalientes", "Baja California", "Baja California Sur", "Campeche", "Chiapas", "Chihuahua", "Ciudad de México",
-  "Coahuila", "Colima", "Durango", "Estado de México", "Guanajuato", "Guerrero", "Hidalgo", "Jalisco", "Michoacán",
-  "Morelos", "Nayarit", "Nuevo León", "Oaxaca", "Puebla", "Querétaro", "Quintana Roo", "San Luis Potosí", "Sinaloa",
-  "Sonora", "Tabasco", "Tamaulipas", "Tlaxcala", "Veracruz", "Yucatán", "Zacatecas",
-];
-
-const quintanaRooCities = [
-  ["Cozumel", "cozumel"], ["Felipe Carrillo Puerto", "felipe-carrillo-puerto"], ["Isla Mujeres", "isla-mujeres"],
-  ["Cancún / Benito Juárez", "cancun"], ["Chetumal / Othón P. Blanco", "chetumal"], ["José María Morelos", "jose-maria-morelos"],
-  ["Playa del Carmen", "playa-del-carmen"], ["Tulum", "tulum"], ["Bacalar", "bacalar"],
-  ["Puerto Morelos", "puerto-morelos"], ["Kantunilkín / Lázaro Cárdenas", "lazaro-cardenas"],
-];
-
-const quintanaRooZones = [
-  ["Puerto Cancún", "cancun"], ["Zona Hotelera", "cancun"], ["Cancún Centro", "cancun"], ["Huayacán", "cancun"],
-  ["Bonfil", "cancun"], ["Polígono Sur", "cancun"], ["Lagos del Sol", "cancun"], ["Malecón Tajamar", "cancun"],
-  ["Playa Mujeres", "isla-mujeres"], ["Punta Sam", "isla-mujeres"], ["Costa Mujeres", "isla-mujeres"],
-  ["Centro Playa del Carmen", "playa-del-carmen"], ["Playacar", "playa-del-carmen"], ["Corasol", "playa-del-carmen"],
-  ["Mayakoba", "playa-del-carmen"], ["Puerto Aventuras", "playa-del-carmen"],
-  ["Aldea Zamá", "tulum"], ["Región 15", "tulum"], ["La Veleta", "tulum"], ["Tulum Centro", "tulum"],
-  ["Zona Hotelera Tulum", "tulum"], ["Akumal", "tulum"], ["Bacalar Centro", "bacalar"], ["Laguna de Bacalar", "bacalar"],
-  ["Puerto Morelos Centro", "puerto-morelos"], ["Ruta de los Cenotes", "puerto-morelos"],
-  ["Cozumel Centro", "cozumel"], ["Zona Hotelera Norte", "cozumel"], ["Zona Hotelera Sur", "cozumel"],
-  ["Chetumal Centro", "chetumal"], ["Calderitas", "chetumal"], ["Mahahual", "chetumal"],
-];
-
-function locationSeedSlug(value) {
-  return String(value || "")
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-|-$/g, "");
-}
-
-const stateSeedOptions = mexicoStates.map((name) => ({
-  id: `loc-state-${locationSeedSlug(name)}`,
-  type: "state",
-  name,
-  parentId: null,
-}));
-const citySeedOptions = quintanaRooCities.map(([name, slug]) => ({ id: `loc-city-${slug}`, type: "city", name, parentId: "loc-state-quintana-roo" }));
-const zoneSeedOptions = quintanaRooZones.map(([name, citySlug]) => ({ id: `loc-zone-${locationSeedSlug(name)}`, type: "zone", name, parentId: `loc-city-${citySlug}` }));
 const seedLocationOptions = [
-  ...stateSeedOptions,
-  ...citySeedOptions,
-  ...zoneSeedOptions,
-  { id: "loc-col-puerto-cancun", type: "neighborhood", name: "Puerto Cancún", parentId: "loc-zone-puerto-cancun" },
-  { id: "loc-col-novo-cancun", type: "neighborhood", name: "Novo Cancún", parentId: "loc-zone-puerto-cancun" },
-  { id: "loc-col-marina", type: "neighborhood", name: "Marina Puerto Cancún", parentId: "loc-zone-puerto-cancun" },
+  { id: "loc-state-quintana-roo", type: "state", name: "Quintana Roo", parentId: null },
+  { id: "loc-city-cancun", type: "city", name: "Cancun", parentId: "loc-state-quintana-roo" },
+  { id: "loc-city-isla-mujeres", type: "city", name: "Isla Mujeres", parentId: "loc-state-quintana-roo" },
+  { id: "loc-city-playa-del-carmen", type: "city", name: "Playa del Carmen", parentId: "loc-state-quintana-roo" },
+  { id: "loc-zone-puerto-cancun", type: "zone", name: "Puerto Cancun", parentId: "loc-city-cancun" },
+  { id: "loc-zone-zona-hotelera", type: "zone", name: "Zona Hotelera", parentId: "loc-city-cancun" },
+  { id: "loc-zone-cancun-centro", type: "zone", name: "Cancun Centro", parentId: "loc-city-cancun" },
+  { id: "loc-zone-riviera-maya", type: "zone", name: "Riviera Maya", parentId: "loc-city-playa-del-carmen" },
+  { id: "loc-zone-punta-sam", type: "zone", name: "Punta Sam / Playa Mujeres", parentId: "loc-city-isla-mujeres" },
+  { id: "loc-zone-isla-mujeres", type: "zone", name: "Isla Mujeres", parentId: "loc-city-isla-mujeres" },
+  { id: "loc-col-puerto-cancun", type: "neighborhood", name: "Puerto Cancun", parentId: "loc-zone-puerto-cancun" },
+  { id: "loc-col-novo-cancun", type: "neighborhood", name: "Novo Cancun", parentId: "loc-zone-puerto-cancun" },
+  { id: "loc-col-marina", type: "neighborhood", name: "Marina Puerto Cancun", parentId: "loc-zone-puerto-cancun" },
   { id: "loc-col-km-9", type: "neighborhood", name: "Zona Hotelera Km 9", parentId: "loc-zone-zona-hotelera" },
-  { id: "loc-col-la-amada", type: "neighborhood", name: "La Amada", parentId: "loc-zone-playa-mujeres" },
+  { id: "loc-col-la-amada", type: "neighborhood", name: "La Amada", parentId: "loc-zone-punta-sam" },
 ];
 
 function uuid(prefix) {
@@ -1092,7 +1051,7 @@ async function initDatabase() {
         address TEXT NOT NULL,
         beds INTEGER NOT NULL DEFAULT 0,
         baths INTEGER NOT NULL DEFAULT 0,
-        area NUMERIC NOT NULL DEFAULT 0,
+        area INTEGER NOT NULL DEFAULT 0,
         description TEXT NOT NULL,
         image TEXT,
         images JSONB NOT NULL DEFAULT '[]'::jsonb,
@@ -1122,8 +1081,8 @@ async function initDatabase() {
         beds INTEGER NOT NULL DEFAULT 0,
         baths INTEGER NOT NULL DEFAULT 0,
         parking INTEGER NOT NULL DEFAULT 0,
-        area NUMERIC NOT NULL DEFAULT 0,
-        lot NUMERIC NOT NULL DEFAULT 0,
+        area INTEGER NOT NULL DEFAULT 0,
+        lot INTEGER NOT NULL DEFAULT 0,
         amenities JSONB NOT NULL DEFAULT '[]'::jsonb,
         keywords JSONB NOT NULL DEFAULT '[]'::jsonb,
         mls TEXT NOT NULL,
@@ -1151,9 +1110,6 @@ async function initDatabase() {
     await client.query("ALTER TABLE seller_accounts ADD COLUMN IF NOT EXISTS google_sub TEXT UNIQUE");
     await client.query("ALTER TABLE seller_accounts ADD COLUMN IF NOT EXISTS auth_provider TEXT NOT NULL DEFAULT 'password'");
     await client.query("ALTER TABLE properties ADD COLUMN IF NOT EXISTS price_mxn NUMERIC");
-    await client.query("ALTER TABLE properties ALTER COLUMN area TYPE NUMERIC USING area::numeric");
-    await client.query("ALTER TABLE properties ALTER COLUMN lot TYPE NUMERIC USING lot::numeric");
-    await client.query("ALTER TABLE seller_requests ALTER COLUMN area TYPE NUMERIC USING area::numeric");
     await client.query("ALTER TABLE properties ADD COLUMN IF NOT EXISTS slug TEXT UNIQUE");
     await client.query("ALTER TABLE properties ADD COLUMN IF NOT EXISTS parking INTEGER NOT NULL DEFAULT 0");
     await client.query("ALTER TABLE properties ADD COLUMN IF NOT EXISTS amenities JSONB NOT NULL DEFAULT '[]'::jsonb");
@@ -2546,16 +2502,6 @@ app.get("/api/admin/prompts", requireRole("admin"), (_req, res) => {
   res.json({ prompts: adminPrompts });
 });
 
-app.get("/api/admin/instagram/status", requireRole("admin"), (_req, res) => {
-  res.json({
-    connected: Boolean(instagramAccountId && instagramAccessToken),
-    accountConfigured: Boolean(instagramAccountId),
-    oauthUrl: instagramOauthUrl,
-    profileUrl: instagramProfileUrl,
-    aiConfigured: Boolean(process.env.OPENAI_API_KEY),
-  });
-});
-
 app.get("/api/admin/valuations", requireRole("admin"), async (_req, res, next) => {
   try {
     const [valuationRows, valuationLeads] = await Promise.all([
@@ -2853,29 +2799,13 @@ app.post("/api/admin/location-options", requireRole("admin"), async (req, res, n
       res.status(400).json({ error: "Missing required location fields" });
       return;
     }
-    const expectedParentType = type === "city" ? "state" : type === "zone" ? "city" : type === "neighborhood" ? "zone" : "";
-    if (expectedParentType) {
-      const parent = parentId ? await query("SELECT type FROM location_options WHERE id = $1", [parentId]) : { rows: [] };
-      if (parent.rows[0]?.type !== expectedParentType) {
-        res.status(400).json({ error: `Selecciona ${expectedParentType === "state" ? "el estado" : expectedParentType === "city" ? "la ciudad o municipio" : "la zona"} al que pertenece.` });
-        return;
-      }
-    }
-    const duplicate = await query(
-      "SELECT id FROM location_options WHERE type = $1 AND lower(name) = lower($2) AND parent_id IS NOT DISTINCT FROM $3 LIMIT 1",
-      [type, name, parentId]
+    const result = await query(
+      `INSERT INTO location_options (id, type, name, parent_id, sort_order, is_active)
+       VALUES ($1, $2, $3, $4, $5, $6)
+       ON CONFLICT (type, name, parent_id) DO UPDATE SET name = EXCLUDED.name, sort_order = EXCLUDED.sort_order, is_active = EXCLUDED.is_active, updated_at = NOW()
+       RETURNING *`,
+      [uuid("loc"), type, name, parentId, Number.isFinite(sortOrder) ? sortOrder : 0, isActive]
     );
-    const result = duplicate.rows[0]
-      ? await query(
-          "UPDATE location_options SET name = $2, sort_order = $3, is_active = $4, updated_at = NOW() WHERE id = $1 RETURNING *",
-          [duplicate.rows[0].id, name, Number.isFinite(sortOrder) ? sortOrder : 0, isActive]
-        )
-      : await query(
-          `INSERT INTO location_options (id, type, name, parent_id, sort_order, is_active)
-           VALUES ($1, $2, $3, $4, $5, $6)
-           RETURNING *`,
-          [uuid("loc"), type, name, parentId, Number.isFinite(sortOrder) ? sortOrder : 0, isActive]
-        );
     res.status(201).json({ option: toLocationOption(result.rows[0]) });
   } catch (error) {
     next(error);
@@ -3560,39 +3490,6 @@ app.put("/api/admin/properties/:id", requireRole("admin"), async (req, res, next
   }
 });
 
-app.patch("/api/admin/properties/:id/images", requireRole("admin"), async (req, res, next) => {
-  try {
-    const existing = await query("SELECT id, image, images, updated_at FROM properties WHERE id = $1", [req.params.id]);
-    const row = existing.rows[0];
-    if (!row) {
-      res.status(404).json({ error: "Property not found" });
-      return;
-    }
-    const expectedUpdatedAt = req.body.expectedUpdatedAt ? new Date(req.body.expectedUpdatedAt) : null;
-    if (expectedUpdatedAt && Number.isFinite(expectedUpdatedAt.getTime())) {
-      const storedUpdatedAt = new Date(row.updated_at);
-      if (Math.abs(storedUpdatedAt.getTime() - expectedUpdatedAt.getTime()) > 1) {
-        res.status(409).json({ error: "Esta propiedad fue modificada en otra sesión. Recarga el panel antes de cambiar sus imágenes." });
-        return;
-      }
-    }
-    const images = parseUploadedImages(req.body || {}, mergeLegacyImages(row.images, row.image), req.params.id);
-    const result = await query(
-      `UPDATE properties
-       SET image = $2, images = $3::jsonb, updated_at = NOW()
-       WHERE id = $1
-       RETURNING id`,
-      [req.params.id, images[0] || null, JSON.stringify(images)]
-    );
-    const property = toProperty(await getPropertySummary(result.rows[0].id));
-    invalidatePublicPropertyCache();
-    if (property.isPublic && PUBLIC_PROPERTY_STATUSES.has(property.status)) void notifyIndexNow(propertyIndexPaths(property));
-    res.json({ property });
-  } catch (error) {
-    next(error);
-  }
-});
-
 app.delete("/api/admin/properties/:id", requireRole("admin"), async (req, res, next) => {
   try {
     const existing = await query("SELECT * FROM properties WHERE id = $1", [req.params.id]);
@@ -4182,9 +4079,8 @@ app.post("/api/admin/documents/generate", requireRole("admin"), async (req, res,
       document.moveDown(0.5).text(`Generado: ${new Intl.DateTimeFormat("es-MX", { dateStyle: "long" }).format(new Date())}`);
     });
     const id = uuid("doc");
-    const neutralPropertySheet = documentType === "property" && options.brandMode === "neutral";
-    const title = documentType === "property" ? `${entity.titleEs}${neutralPropertySheet ? " · ficha neutra" : ""}` : `Valoración - ${entity.ownerName}`;
-    const fileName = `${documentType === "property" ? (neutralPropertySheet ? "ficha-neutra" : "ficha-puerto-cancun") : "valoracion"}-${id.slice(-8)}.pdf`;
+    const title = documentType === "property" ? entity.titleEs : `Valoración - ${entity.ownerName}`;
+    const fileName = `${documentType === "property" ? "ficha" : "valoracion"}-${id.slice(-8)}.pdf`;
     const result = await query(
       `INSERT INTO generated_documents
         (id, document_type, title, property_id, valuation_id, contact_id, file_name, content_base64, options, created_by)
@@ -4397,41 +4293,12 @@ app.post("/api/admin/ai/generate", requireRole("admin"), async (req, res, next) 
         emailBody: `Conoce ${property?.titleEs || context}. Nuestro equipo puede ayudarte a revisar precio, ubicación y condiciones.`,
         social: `${property?.titleEs || context}\nAsesoría local, información clara y seguimiento profesional.`,
       },
-      instagram: {
-        caption: `${property?.titleEs || "Propiedad en Cancún"}\n\n${context || "Descubre esta oportunidad inmobiliaria en el Caribe Mexicano."}\n\nSolicita precio, disponibilidad y ficha completa por mensaje directo.\n\n#PuertoCancun #BienesRaicesCancun #RealEstateMexico`,
-      },
       price: {
         result: property ? `Precio publicado: ${formatPdfMoney(property.priceUsd || property.priceMxn, property.priceUsd ? "USD" : "MXN")}.` : "Se requiere seleccionar una propiedad.",
         recommendation: "Comparar con inventario activo de la misma zona, tipo y rango de superficie antes de responder al cliente.",
         confidence: property ? "media" : "baja",
       },
     };
-    if (tool === "instagram" && process.env.OPENAI_API_KEY) {
-      const response = await fetch("https://api.openai.com/v1/responses", {
-        method: "POST",
-        headers: { Authorization: `Bearer ${process.env.OPENAI_API_KEY}`, "Content-Type": "application/json" },
-        body: JSON.stringify({
-          model: process.env.OPENAI_MODEL || "gpt-5-mini",
-          instructions:
-            "Eres copywriter inmobiliario para Instagram. Escribe en español de México, con tono profesional y natural. No inventes características, precios ni disponibilidad. Entrega solamente el caption final, con llamada a la acción y entre 6 y 12 hashtags relevantes. Máximo 1,800 caracteres.",
-          input: `Datos de la propiedad:\n${context}\n\nPreferencias del usuario:\n${input || "Generar consultas calificadas."}`,
-          max_output_tokens: 650,
-          store: false,
-        }),
-        signal: AbortSignal.timeout(30000),
-      });
-      if (!response.ok) throw Object.assign(new Error(`El proveedor de IA respondió ${response.status}.`), { status: 502 });
-      const aiPayload = await response.json();
-      const caption = String(
-        aiPayload.output_text ||
-          aiPayload.output?.flatMap((item) => item.content || []).find((item) => item.type === "output_text")?.text ||
-          ""
-      ).trim();
-      if (caption) {
-        res.json({ tool, result: { caption: caption.slice(0, 2200) }, provider: "openai", requiresApproval: true });
-        return;
-      }
-    }
     res.json({ tool, result: outputs[tool] || outputs.summary, provider: "internal-rules", requiresApproval: true });
   } catch (error) {
     next(error);
@@ -4469,17 +4336,6 @@ function parseNonNegativeInteger(value, fieldName) {
     throw error;
   }
   return number;
-}
-
-function parseNonNegativeNumber(value, fieldName) {
-  if (value === undefined || value === null || value === "") return 0;
-  const number = Number(value);
-  if (!Number.isFinite(number) || number < 0) {
-    const error = new Error(`${fieldName} debe ser un número mayor o igual a cero.`);
-    error.status = 400;
-    throw error;
-  }
-  return Math.round(number * 100) / 100;
 }
 
 function normalizeKeywords(value) {
@@ -4629,8 +4485,8 @@ function normalizePropertyInput(body, id, existingImages = []) {
     beds: parseNonNegativeInteger(body.beds, "Recamaras"),
     baths: parseNonNegativeInteger(body.baths, "Banos"),
     parking: parseNonNegativeInteger(body.parking, "Estacionamientos"),
-    area: parseNonNegativeNumber(body.area, "M2 construccion"),
-    lot: parseNonNegativeNumber(body.lot, "M2 terreno"),
+    area: parseNonNegativeInteger(body.area, "M2 construccion"),
+    lot: parseNonNegativeInteger(body.lot, "M2 terreno"),
     amenities: (Array.isArray(body.amenities) ? body.amenities : String(body.amenities || "").split(","))
       .map((item) => String(item).trim())
       .filter(Boolean)

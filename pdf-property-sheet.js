@@ -29,7 +29,7 @@ async function fetchImageBuffer(value) {
 }
 
 async function preparePropertyPdfImages(images) {
-  const selected = (Array.isArray(images) ? images : []).filter(Boolean).slice(0, 4);
+  const selected = (Array.isArray(images) ? images : []).filter(Boolean).slice(0, 2);
   const prepared = await Promise.all(selected.map(async (image) => {
     try {
       const input = await fetchImageBuffer(image);
@@ -76,28 +76,22 @@ function conciseDescription(value, limit = 720) {
 }
 
 function drawPropertyPdf(document, { property, images = [], propertyUrl, logoPath, options = {} }) {
-  const branded = options.brandMode !== "neutral";
-  document.page.margins.bottom = 10;
   document.info.Title = property.titleEs;
   document.info.Subject = "Ficha comercial de propiedad";
-  document.info.Author = branded ? "Puerto Cancún Center" : "Ficha de propiedad";
+  document.info.Author = "Puerto Cancún Center";
 
-  document.rect(0, 0, 595.28, 86).fill(branded ? COLORS.navy : COLORS.white);
-  document.rect(0, 84, 595.28, 3).fill(branded ? COLORS.gold : COLORS.line);
-  if (branded && logoPath) {
+  document.rect(0, 0, 595.28, 86).fill(COLORS.navy);
+  document.rect(0, 84, 595.28, 3).fill(COLORS.gold);
+  if (logoPath) {
     try {
       document.image(logoPath, 38, 12, { fit: [62, 62], align: "center", valign: "center" });
     } catch {
       // The text identity remains visible if the optional logo cannot be read.
     }
   }
-  if (branded) {
-    document.fillColor(COLORS.white).font("Times-Bold").fontSize(19).text("PUERTO CANCÚN CENTER", 112, 24, { width: 330 });
-    document.fillColor("#cfe8e6").font("Helvetica").fontSize(8.5).text("SELECCIÓN INMOBILIARIA · CANCÚN, QUINTANA ROO", 112, 50, { characterSpacing: 0.7 });
-    document.fillColor(COLORS.gold).font("Helvetica-Bold").fontSize(8).text("FICHA COMERCIAL", 445, 32, { width: 108, align: "right" });
-  } else {
-    document.fillColor(COLORS.ink).font("Helvetica-Bold").fontSize(11).text("FICHA DE PROPIEDAD", 42, 36, { width: 511, align: "center", characterSpacing: 1.1 });
-  }
+  document.fillColor(COLORS.white).font("Times-Bold").fontSize(19).text("PUERTO CANCÚN CENTER", 112, 24, { width: 330 });
+  document.fillColor("#cfe8e6").font("Helvetica").fontSize(8.5).text("SELECCIÓN INMOBILIARIA · CANCÚN, QUINTANA ROO", 112, 50, { characterSpacing: 0.7 });
+  document.fillColor(COLORS.gold).font("Helvetica-Bold").fontSize(8).text("FICHA COMERCIAL", 445, 32, { width: 108, align: "right" });
 
   document.fillColor(COLORS.ink).font("Times-Bold").fontSize(22).text(property.titleEs, 42, 106, { width: 511, height: 58, ellipsis: true, lineGap: 1 });
   document.fillColor(COLORS.teal).font("Helvetica-Bold").fontSize(9).text(
@@ -108,16 +102,8 @@ function drawPropertyPdf(document, { property, images = [], propertyUrl, logoPat
   );
 
   const galleryY = 188;
-  const galleryHeight = 220;
-  if (images.length >= 3) {
-    const cellWidth = 249;
-    const cellHeight = 105;
-    images.slice(0, 4).forEach((image, index) => {
-      const x = index % 2 === 0 ? 42 : 304;
-      const y = galleryY + Math.floor(index / 2) * 115;
-      drawImageFrame(document, image, x, y, cellWidth, cellHeight);
-    });
-  } else if (images.length === 2) {
+  const galleryHeight = 200;
+  if (images.length >= 2) {
     drawImageFrame(document, images[0], 42, galleryY, 249, galleryHeight);
     drawImageFrame(document, images[1], 304, galleryY, 249, galleryHeight);
   } else if (images.length === 1) {
@@ -130,26 +116,26 @@ function drawPropertyPdf(document, { property, images = [], propertyUrl, logoPat
   document.fillColor(COLORS.gold).font("Times-Bold").fontSize(25).text(
     options.showPrice === false ? "INFORMACIÓN COMERCIAL" : formatMoney(property, options.currency),
     42,
-    430,
+    410,
     { width: 330 }
   );
   document.fillColor(COLORS.muted).font("Helvetica-Bold").fontSize(8).text(
     `${property.type || "Propiedad"} · ${property.operation === "rent" ? "EN RENTA" : "EN VENTA"}`.toUpperCase(),
     385,
-    440,
+    420,
     { width: 168, align: "right" }
   );
 
   const facts = [
-    Number(property.beds) > 0 ? `${formatNumber(property.beds)} recámaras` : "",
-    Number(property.baths) > 0 ? `${formatNumber(property.baths)} baños` : "",
-    Number(property.area) > 0 ? `${formatNumber(property.area)} m² construcción` : "",
-    Number(property.lot) > 0 ? `${formatNumber(property.lot)} m² terreno` : "",
-    Number(property.parking) > 0 ? `${formatNumber(property.parking)} estacionamientos` : "",
+    property.beds ? `${formatNumber(property.beds)} recámaras` : "",
+    property.baths ? `${formatNumber(property.baths)} baños` : "",
+    property.area ? `${formatNumber(property.area)} m² construcción` : "",
+    property.lot ? `${formatNumber(property.lot)} m² terreno` : "",
+    property.parking ? `${formatNumber(property.parking)} estacionamientos` : "",
     property.mls ? `MLS# ${property.mls}` : "",
   ].filter(Boolean);
   let pillX = 42;
-  let pillY = 475;
+  let pillY = 455;
   for (const fact of facts) {
     const estimatedWidth = Math.max(66, Math.min(130, fact.length * 5.1 + 22));
     if (pillX + estimatedWidth > 553) {
@@ -172,27 +158,25 @@ function drawPropertyPdf(document, { property, images = [], propertyUrl, logoPat
     document.fillColor(COLORS.teal).font("Helvetica-Bold").fontSize(8).text(`DIRECCIÓN: ${property.address}`, 42, detailY + 119, { width: 511, height: 12, ellipsis: true });
   }
 
-  const ctaY = 696;
-  if (branded && propertyUrl) {
-    document.roundedRect(42, ctaY, 250, 38, 3).fill(COLORS.teal);
-    document.fillColor(COLORS.white).font("Helvetica-Bold").fontSize(10).text("VER MÁS FOTOS Y DETALLES", 54, ctaY + 14, { width: 226, align: "center", link: propertyUrl, underline: false });
-    document.link(42, ctaY, 250, 38, propertyUrl);
-    document.fillColor(COLORS.teal).font("Helvetica-Bold").fontSize(8.5).text("ABRIR PUBLICACIÓN", 320, ctaY + 4, { width: 233, link: propertyUrl, underline: true });
-    document.fillColor(COLORS.muted).font("Helvetica").fontSize(7.5).text(propertyUrl, 320, ctaY + 19, { width: 233, height: 22, link: propertyUrl, underline: false, ellipsis: true });
-  }
+  const ctaY = 704;
+  document.roundedRect(42, ctaY, 250, 38, 3).fill(COLORS.teal);
+  document.fillColor(COLORS.white).font("Helvetica-Bold").fontSize(10).text("VER MÁS FOTOS Y DETALLES", 54, ctaY + 14, { width: 226, align: "center", link: propertyUrl, underline: false });
+  document.link(42, ctaY, 250, 38, propertyUrl);
+  document.fillColor(COLORS.teal).font("Helvetica-Bold").fontSize(8.5).text("ABRIR PUBLICACIÓN", 320, ctaY + 4, { width: 233, link: propertyUrl, underline: true });
+  document.fillColor(COLORS.muted).font("Helvetica").fontSize(7.5).text(propertyUrl, 320, ctaY + 19, { width: 233, height: 22, link: propertyUrl, underline: false, ellipsis: true });
 
-  document.strokeColor(COLORS.line).lineWidth(1).moveTo(42, 742).lineTo(553, 742).stroke();
+  document.strokeColor(COLORS.line).lineWidth(1).moveTo(42, 752).lineTo(553, 752).stroke();
   document.fillColor(COLORS.muted).font("Helvetica").fontSize(7).text(
     String(options.disclaimer || "Información sujeta a disponibilidad, validación y cambios sin previo aviso."),
     42,
-    750,
-    { width: 390, height: 22, ellipsis: true }
+    762,
+    { width: 390, height: 24, ellipsis: true }
   );
-  if (branded) document.fillColor(COLORS.ink).font("Helvetica-Bold").fontSize(8).text("+52 1 998 216 6563", 442, 750, { width: 111, align: "right", lineBreak: false });
+  document.fillColor(COLORS.ink).font("Helvetica-Bold").fontSize(8).text("+52 1 998 216 6563", 442, 762, { width: 111, align: "right", lineBreak: false });
   document.fillColor(COLORS.muted).font("Helvetica").fontSize(6.8).text(
     `Generado: ${new Intl.DateTimeFormat("es-MX", { dateStyle: "long" }).format(new Date())}`,
     442,
-    764,
+    776,
     { width: 111, align: "right", lineBreak: false }
   );
 }

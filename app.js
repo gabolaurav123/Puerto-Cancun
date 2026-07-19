@@ -885,7 +885,6 @@ const state = {
   files: [],
   documents: [],
   campaigns: [],
-  instagramStatus: { connected: false, oauthUrl: "", profileUrl: "https://www.instagram.com/", aiConfigured: false },
   settings: {},
   messages: [],
   whatsapp: {
@@ -902,8 +901,7 @@ const state = {
   adminSection: "dashboard",
   leadFilter: "all",
   taskFilter: "all",
-  adminListingFilters: { search: "", type: "", zone: "", operation: "", status: "", quality: "" },
-  catalogFilters: { search: "", type: "" },
+  adminListingFilters: { search: "", type: "", zone: "", operation: "", status: "" },
   sidebarCollapsed: false,
   config: { googleClientId: "", googleMapsApiKey: "" },
   googleReady: false,
@@ -946,7 +944,6 @@ let draftDbPromise = null;
 let draftWriteQueue = Promise.resolve();
 const mapGeocodeTimers = new WeakMap();
 const mapGeocodeControllers = new WeakMap();
-const DEFAULT_MAP_CENTER = { lat: 21.1619, lng: -86.8515 };
 
 function safeParseStoredIds(key) {
   try {
@@ -1220,22 +1217,6 @@ function scheduleMapAddressGeocode(picker) {
   mapGeocodeTimers.set(picker, window.setTimeout(() => void geocodeMapAddress(picker), 700));
 }
 
-function setMapMarkerVisible(instance, visible) {
-  if (!instance) return;
-  if (instance.type === "google") instance.marker.setVisible(visible);
-  else instance.marker.setOpacity(visible ? 1 : 0);
-}
-
-function centerMapInstance(instance, center, zoom = 13) {
-  if (!instance) return;
-  if (instance.type === "google") {
-    instance.map.setCenter(center);
-    instance.map.setZoom(zoom);
-  } else {
-    instance.map.setView([center.lat, center.lng], zoom, { animate: false });
-  }
-}
-
 function updateMapPicker(picker) {
   if (!picker) return;
   const form = picker.closest("form");
@@ -1254,7 +1235,6 @@ function updateMapPicker(picker) {
       lat: Number(formField(form, "latitude").value),
       lng: Number(formField(form, "longitude").value),
     };
-    setMapMarkerVisible(instance, true);
     if (instance.type === "google") {
       instance.map.setCenter(center);
       instance.marker.setPosition(center);
@@ -1262,9 +1242,6 @@ function updateMapPicker(picker) {
       instance.marker.setLatLng([center.lat, center.lng]);
       instance.map.panTo([center.lat, center.lng], { animate: false });
     }
-  } else if (instance) {
-    setMapMarkerVisible(instance, false);
-    centerMapInstance(instance, DEFAULT_MAP_CENTER);
   }
 }
 
@@ -1281,20 +1258,6 @@ function setMapCoordinates(picker, latitude, longitude, messageKey = "") {
   updateMapPicker(picker);
   const message = form.querySelector(".form-message");
   if (message && messageKey) setFormMessage(message, t(messageKey));
-}
-
-function resetMapPickerForForm(form) {
-  const picker = form?.querySelector("[data-map-picker]");
-  if (!picker) return;
-  window.clearTimeout(mapGeocodeTimers.get(picker));
-  mapGeocodeControllers.get(picker)?.abort();
-  mapGeocodeTimers.delete(picker);
-  mapGeocodeControllers.delete(picker);
-  if (formField(form, "latitude")) formField(form, "latitude").value = "";
-  if (formField(form, "longitude")) formField(form, "longitude").value = "";
-  if (formField(form, "mapPlace")) formField(form, "mapPlace").value = "";
-  updateMapPicker(picker);
-  setMapStatus(picker, t("mapPickerHelp"));
 }
 
 async function initializeGoogleMaps() {
@@ -1412,7 +1375,6 @@ async function enhanceLeafletMapPicker(picker) {
   const resizeObserver = typeof ResizeObserver === "function" ? new ResizeObserver(resizeMap) : null;
   resizeObserver?.observe(canvas);
   googleMapInstances.set(picker, { type: "leaflet", map, marker, resizeObserver });
-  if (!formField(form, "latitude")?.value || !formField(form, "longitude")?.value) marker.setOpacity(0);
   window.requestAnimationFrame(() => window.requestAnimationFrame(resizeMap));
   window.setTimeout(resizeMap, 250);
   window.setTimeout(resizeMap, 900);
@@ -1458,7 +1420,6 @@ async function enhanceMapPicker(picker) {
   });
   marker.addListener("dragend", (event) => updateFromLatLng(event.latLng));
   googleMapInstances.set(picker, { type: "google", map, marker });
-  if (!formField(form, "latitude")?.value || !formField(form, "longitude")?.value) marker.setVisible(false);
   picker.classList.add("has-google-map");
 }
 
@@ -2760,7 +2721,6 @@ function renderAdminInsights() {
       <span>${escapeHtml(t("qualityIncomplete"))}</span>
       <strong>${incompleteProperties}</strong>
       <p>${escapeHtml(t("propertyQualityMissing"))}: fotos, SEO o precio</p>
-      <button class="mini-button" type="button" data-show-incomplete-listings>Revisar cuáles son</button>
     </article>
     <article class="insight-card">
       <span>${escapeHtml(t("adminTopZones"))}</span>
@@ -2799,108 +2759,43 @@ function renderAdminPrompts() {
 function renderLocationCatalogs() {
   const list = $("#locationCatalogList");
   if (!list) return;
-  const filters = state.catalogFilters || { search: "", type: "" };
-  const search = normalizeSearchText(filters.search);
-  const typeOrder = ["state", "city", "zone", "neighborhood"];
-  const allOptions = [...state.locationOptions].sort((a, b) => {
-    const typeDifference = typeOrder.indexOf(a.type) - typeOrder.indexOf(b.type);
-    return typeDifference || locationOptionPath(a).localeCompare(locationOptionPath(b), "es", { sensitivity: "base" });
-  });
-  const counts = Object.fromEntries(typeOrder.map((type) => [type, allOptions.filter((option) => option.type === type).length]));
-  const summary = $("#catalogSummary");
-  if (summary) {
-    summary.innerHTML = [
-      ["map-pinned", "Total de lugares", allOptions.length],
-      ["map", "Estados", counts.state],
-      ["building-2", "Municipios", counts.city],
-      ["route", "Zonas", counts.zone],
-      ["home", "Colonias", counts.neighborhood],
-    ]
-      .map(([icon, label, value]) => `<article><i data-lucide="${icon}"></i><div><strong>${value}</strong><span>${label}</span></div></article>`)
-      .join("");
-  }
-  const tabs = $("#catalogLevelTabs");
-  if (tabs) {
-    const tabOptions = [
-      ["", "Todos", allOptions.length],
-      ["state", "Estados", counts.state],
-      ["city", "Municipios", counts.city],
-      ["zone", "Zonas", counts.zone],
-      ["neighborhood", "Colonias", counts.neighborhood],
-    ];
-    tabs.innerHTML = tabOptions
-      .map(
-        ([value, label, count]) =>
-          `<button type="button" class="${filters.type === value ? "is-active" : ""}" data-catalog-level="${value}"><span>${label}</span><b>${count}</b></button>`
-      )
-      .join("");
-  }
-  const options = allOptions.filter((option) => {
-    if (filters.type && option.type !== filters.type) return false;
-    if (!search) return true;
-    return normalizeSearchText(`${option.name} ${locationOptionPath(option)} ${catalogTypeMeta(option.type).label}`).includes(search);
-  });
-  const resultCount = $("#catalogResultCount");
-  if (resultCount) resultCount.textContent = `${options.length} ubicación${options.length === 1 ? "" : "es"}`;
-  list.innerHTML = options.length
-    ? options
-        .map((option) => {
-          const meta = catalogTypeMeta(option.type);
-          const nextType = nextCatalogType(option.type);
-          const children = allOptions.filter((item) => item.parentId === option.id).length;
-          const properties = Number(option.propertyCount || 0);
-          return `
-            <article class="catalog-entry ${option.isActive === false ? "is-inactive" : ""} ${$("#locationCatalogForm")?.elements.id.value === option.id ? "is-editing" : ""}">
-              <div class="catalog-entry-icon"><i data-lucide="${meta.icon}"></i></div>
-              <div class="catalog-entry-copy">
-                <div class="catalog-entry-name">
-                  <strong>${escapeHtml(option.name)}</strong>
-                  <span class="catalog-type-badge">${escapeHtml(meta.label)}</span>
-                  ${option.isActive === false ? `<span class="catalog-status-badge">Inactivo</span>` : ""}
-                </div>
-                <small>${escapeHtml(locationOptionPath(option))}</small>
-              </div>
-              <div class="catalog-entry-metrics">
-                <span><b>${properties}</b> propiedad${properties === 1 ? "" : "es"}</span>
-                ${nextType ? `<span><b>${children}</b> subnivel${children === 1 ? "" : "es"}</span>` : ""}
-              </div>
-              <div class="catalog-actions">
-                ${nextType ? `<button class="catalog-child-button" type="button" data-add-location-child="${escapeHtml(option.id)}"><i data-lucide="corner-down-right"></i> Agregar debajo</button>` : ""}
-                <button class="catalog-icon-button" type="button" data-edit-location="${escapeHtml(option.id)}" aria-label="Editar ${escapeHtml(option.name)}" title="Editar"><i data-lucide="pencil"></i></button>
-                <button class="catalog-icon-button" type="button" data-toggle-location="${escapeHtml(option.id)}" aria-label="${option.isActive ? "Desactivar" : "Activar"} ${escapeHtml(option.name)}" title="${option.isActive ? "Desactivar" : "Activar"}"><i data-lucide="${option.isActive ? "eye-off" : "eye"}"></i></button>
-                <button class="catalog-icon-button danger" type="button" data-delete-location="${escapeHtml(option.id)}" aria-label="Eliminar ${escapeHtml(option.name)}" title="Eliminar"><i data-lucide="trash-2"></i></button>
-              </div>
-            </article>
-          `;
-        })
-        .join("")
-    : `<div class="catalog-empty-state"><i data-lucide="search-x"></i><h3>No encontramos ubicaciones</h3><p>Prueba otro término o limpia los filtros. También puedes agregar este lugar al catálogo.</p><button class="primary-button" type="button" data-new-location>Agregar ubicación</button></div>`;
-  refreshIcons();
-}
-
-function catalogTypeMeta(type) {
-  return {
-    state: { label: "Estado", icon: "map" },
-    city: { label: "Municipio", icon: "building-2" },
-    zone: { label: "Zona", icon: "route" },
-    neighborhood: { label: "Colonia", icon: "home" },
-  }[type] || { label: "Ubicación", icon: "map-pin" };
-}
-
-function nextCatalogType(type) {
-  return { state: "city", city: "zone", zone: "neighborhood" }[type] || "";
-}
-
-function locationOptionPath(option) {
-  const parts = [];
-  const visited = new Set();
-  let current = option;
-  while (current && !visited.has(current.id)) {
-    visited.add(current.id);
-    parts.unshift(current.name);
-    current = current.parentId ? state.locationOptions.find((item) => item.id === current.parentId) : null;
-  }
-  return parts.join(" › ");
+  const types = ["state", "city", "zone", "neighborhood"];
+  list.innerHTML = types
+    .map((type) => {
+      const options = locationOptionsByType(type);
+      const titleKey =
+        type === "state"
+          ? "catalogState"
+          : type === "city"
+            ? "catalogCity"
+            : type === "zone"
+              ? "catalogZone"
+              : "catalogNeighborhood";
+      return `
+        <article class="catalog-group">
+          <h3>${escapeHtml(t(titleKey))}</h3>
+          ${
+            options.length
+              ? options
+                  .map(
+                    (option) => `
+                      <div class="catalog-entry">
+                        <span>${escapeHtml(option.name)} · ${escapeHtml(option.propertyCount || 0)} propiedades ${option.isActive ? "" : "· inactivo"}</span>
+                        <div class="catalog-actions">
+                          <button class="text-button" type="button" data-edit-location="${escapeHtml(option.id)}">${escapeHtml(t("editCatalog"))}</button>
+                          <button class="text-button" type="button" data-toggle-location="${escapeHtml(option.id)}">${escapeHtml(option.isActive ? t("disableCatalog") : t("enableCatalog"))}</button>
+                          <button class="text-button danger" type="button" data-delete-location="${escapeHtml(option.id)}">${escapeHtml(t("delete"))}</button>
+                        </div>
+                      </div>
+                    `
+                  )
+                  .join("")
+              : `<p class="empty-state">${escapeHtml(t("catalogEmpty"))}</p>`
+          }
+        </article>
+      `;
+    })
+    .join("");
 }
 
 function renderCatalogParentOptions() {
@@ -2916,7 +2811,7 @@ function renderCatalogParentOptions() {
   }
   parentSelect.disabled = false;
   locationOptionsByType(parentType).forEach((option) => {
-    parentSelect.append(new Option(locationOptionPath(option), option.id));
+    parentSelect.append(new Option(option.name, option.id));
   });
 }
 
@@ -2945,7 +2840,10 @@ async function locationCatalogSubmit(event) {
         isActive: form.isActive.checked,
       },
     });
-    resetCatalogForm();
+    form.reset();
+    form.elements.id.value = "";
+    form.elements.isActive.checked = true;
+    form.elements.sortOrder.value = "0";
     await refreshLocationOptions();
     setFormMessage(message, t("catalogSaved"));
   } catch (error) {
@@ -2964,28 +2862,7 @@ function editLocationOption(id) {
   form.elements.name.value = option.name;
   form.elements.sortOrder.value = option.sortOrder || 0;
   form.elements.isActive.checked = option.isActive !== false;
-  $("#catalogFormTitle").textContent = `Editar ${option.name}`;
-  $("#catalogFormContext").textContent = `Ruta actual: ${locationOptionPath(option)}`;
-  $("#catalogEditor")?.classList.add("is-editing");
-  renderLocationCatalogs();
-  form.elements.name.focus({ preventScroll: true });
-  $("#catalogEditor")?.scrollIntoView({ behavior: "smooth", block: "nearest" });
-}
-
-function prepareChildLocation(parentId) {
-  const parent = state.locationOptions.find((item) => item.id === parentId);
-  const childType = parent ? nextCatalogType(parent.type) : "";
-  const form = $("#locationCatalogForm");
-  if (!parent || !childType || !form) return;
-  resetCatalogForm();
-  form.elements.type.value = childType;
-  renderCatalogParentOptions();
-  form.elements.parentId.value = parent.id;
-  const childLabel = catalogTypeMeta(childType).label.toLowerCase();
-  $("#catalogFormTitle").textContent = `Agregar ${childLabel}`;
-  $("#catalogFormContext").textContent = `Se guardará dentro de ${locationOptionPath(parent)}.`;
-  form.elements.name.focus({ preventScroll: true });
-  $("#catalogEditor")?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  form.scrollIntoView({ behavior: "smooth", block: "center" });
 }
 
 async function toggleLocationOption(id) {
@@ -3011,11 +2888,7 @@ function resetCatalogForm() {
   form.elements.isActive.checked = true;
   form.elements.sortOrder.value = "0";
   renderCatalogParentOptions();
-  $("#catalogFormTitle").textContent = "Agregar ubicación";
-  $("#catalogFormContext").textContent = "Selecciona el nivel y su ubicación superior. Los campos se adaptan automáticamente.";
-  $("#catalogEditor")?.classList.remove("is-editing");
   setFormMessage($("#catalogFormMessage"), "");
-  renderLocationCatalogs();
 }
 
 async function deleteLocationOption(id) {
@@ -3053,7 +2926,6 @@ function renderAdminListingFilters() {
   populateAdminListingFilter($("#adminListingZoneFilter"), state.properties.map((item) => item.zone), filters.zone, "Todas");
   if ($("#adminListingOperationFilter")) $("#adminListingOperationFilter").value = filters.operation;
   if ($("#adminListingStatusFilter")) $("#adminListingStatusFilter").value = filters.status;
-  if ($("#adminListingQualityFilter")) $("#adminListingQualityFilter").value = filters.quality;
 }
 
 function renderAdminListings() {
@@ -3067,8 +2939,6 @@ function renderAdminListings() {
     if (filters.zone && property.zone !== filters.zone) return false;
     if (filters.operation && property.operation !== filters.operation) return false;
     if (filters.status && property.status !== filters.status) return false;
-    if (filters.quality === "incomplete" && (property.qualityScore || 0) >= 70) return false;
-    if (filters.quality === "ready" && (property.qualityScore || 0) < 70) return false;
     if (!search) return true;
     const haystack = normalizeSearchText(
       [
@@ -3085,7 +2955,7 @@ function renderAdminListings() {
     summary.textContent = `${properties.length} de ${allProperties.length} ${t("adminListingSummary")} · ${featured} ${t("navFeatured")}`;
   }
   if (!properties.length) {
-    const filtered = search || filters.type || filters.zone || filters.operation || filters.status || filters.quality;
+    const filtered = search || filters.type || filters.zone || filters.operation || filters.status;
     list.innerHTML = `<p class="empty-state">${escapeHtml(filtered ? "No se encontraron publicaciones con esa búsqueda." : t("listingsEmpty"))}</p>`;
     return;
   }
@@ -3592,7 +3462,6 @@ function populateSelect(select, items, label, value = "id", emptyLabel = "Selecc
 function populateOperationalSelects() {
   populateSelect($("#aiPropertySelect"), state.properties, (item) => item.titleEs, "id", "Sin propiedad");
   populateSelect($("#campaignPropertySelect"), state.properties, (item) => item.titleEs, "id", "Sin propiedad");
-  populateSelect($("#instagramPropertySelect"), state.properties, (item) => `${item.titleEs} · ${displayLocation(item)}`, "id", "Selecciona una propiedad");
   populateSelect($("#pdfPropertySelect"), state.properties, (item) => item.titleEs, "id", "Selecciona una propiedad");
   populateSelect($("#pdfValuationSelect"), state.valuations, (item) => `${item.ownerName} · ${item.zone || "Sin zona"}`, "id", "Selecciona una valoración");
   populateSelect($("#aiRequestSelect"), state.leads, (item) => `${item.name} · ${leadTypeLabel(item.leadType)}`, "id", "Sin solicitud");
@@ -3609,21 +3478,6 @@ function populateOperationalSelects() {
 function renderMarketing() {
   const kpis = $("#adminMarketing");
   const list = $("#campaignList");
-  const instagramStatus = $("#instagramConnectionStatus");
-  const connectInstagram = $("#connectInstagram");
-  if (instagramStatus) {
-    const connected = state.instagramStatus?.connected === true;
-    instagramStatus.querySelector(".status").className = `status ${connected ? "approved" : "pending"}`;
-    instagramStatus.querySelector(".status").textContent = connected
-      ? "Instagram conectado"
-      : state.instagramStatus?.accountConfigured
-        ? "Cuenta pendiente de token"
-        : "Instagram sin configurar";
-    if (connectInstagram) {
-      connectInstagram.hidden = connected || !state.instagramStatus?.oauthUrl;
-      connectInstagram.href = state.instagramStatus?.oauthUrl || "#";
-    }
-  }
   if (kpis) {
     kpis.innerHTML = [
       operationCard("Leads premium", state.stats.premiumLeads || 0, "Prioridad comercial"),
@@ -3925,7 +3779,7 @@ function previewPdf() {
       <p>${escapeHtml(entity.comments || "Requiere revisión del asesor.")}</p>
     `
     : `
-      <span class="eyebrow">${form.brandMode.value === "neutral" ? "FICHA NEUTRA" : "FICHA COMERCIAL · PUERTO CANCÚN CENTER"}</span>
+      <span class="eyebrow">FICHA COMERCIAL</span>
       <h3>${escapeHtml(entity.titleEs)}</h3>
       <p>${escapeHtml(displayLocation(entity))} · ${escapeHtml(entity.type)}</p>
       ${form.showPrice.checked ? `<div class="preview-price">${escapeHtml(formatPriceSummary(entity))}</div>` : ""}
@@ -3948,7 +3802,6 @@ async function pdfSubmit(event) {
         valuationId: form.valuationId.value,
         options: {
           currency: form.currency.value,
-          brandMode: form.brandMode.value,
           showPrice: form.showPrice.checked,
           showAddress: form.showAddress.checked,
           disclaimer: form.disclaimer.value.trim(),
@@ -4549,7 +4402,6 @@ async function loadPanelData() {
       filesData,
       documentsData,
       campaignsData,
-      instagramStatusData,
       settingsData,
       notificationsData,
       whatsappOverviewData,
@@ -4571,7 +4423,6 @@ async function loadPanelData() {
       api("/api/admin/files"),
       api("/api/admin/documents"),
       api("/api/admin/campaigns"),
-      api("/api/admin/instagram/status"),
       api("/api/admin/settings"),
       api("/api/admin/notifications"),
       api("/api/admin/whatsapp/overview"),
@@ -4593,7 +4444,6 @@ async function loadPanelData() {
     state.files = filesData.files || [];
     state.documents = documentsData.documents || [];
     state.campaigns = campaignsData.campaigns || [];
-    state.instagramStatus = instagramStatusData || state.instagramStatus;
     state.settings = settingsData.settings || {};
     state.notifications = notificationsData.notifications || [];
     state.whatsapp.overview = whatsappOverviewData;
@@ -4623,7 +4473,6 @@ async function loadPanelData() {
     state.files = [];
     state.documents = [];
     state.campaigns = [];
-    state.instagramStatus = { connected: false, oauthUrl: "", profileUrl: "https://www.instagram.com/", aiConfigured: false };
     state.settings = {};
     state.whatsapp = {
       overview: null,
@@ -4749,11 +4598,6 @@ function updateAdminShell() {
 }
 
 function setAdminSection(section) {
-  const previousSection = state.adminSection;
-  const listingForm = $("#listingForm");
-  if (previousSection === "properties" && section !== "properties" && listingForm?.dataset.dirty !== "true" && listingForm?.dataset.saving !== "true") {
-    resetListingForm(true);
-  }
   state.adminSection = section || "dashboard";
   if (state.adminSection === "whatsapp") startWhatsappPolling();
   else stopWhatsappPolling();
@@ -5047,7 +4891,7 @@ async function sellerRequestSubmit(event) {
     form.reset();
     form.dataset.currentImages = "[]";
     refreshLocationSelects();
-    resetMapPickerForForm(form);
+    updateMapPickerForForm(form);
     updateSellerImagePreview([]);
     await renderPanel();
     setFormMessage($("#sellerFormMessage"), t("requestSent"));
@@ -5195,15 +5039,13 @@ function resetListingForm(clearDraft = true) {
   form.dataset.currentImages = "[]";
   form.dataset.removeImage = "false";
   form.dataset.mediaDirty = "false";
-  form.dataset.contentDirty = "false";
   form.dataset.persistentMediaDirty = "false";
   delete form.dataset.idempotencyKey;
   if (formField(form, "status")) formField(form, "status").value = "active";
   if (formField(form, "isPublic")) formField(form, "isPublic").checked = true;
   refreshLocationSelects();
-  resetMapPickerForForm(form);
+  updateMapPickerForForm(form);
   updateListingImagePreview([]);
-  if ($("#saveListingImages")) $("#saveListingImages").hidden = true;
   setListingQualityPreview(null);
   setFormMessage($("#listingFormMessage"), "");
   renderListingKeywordChips();
@@ -5268,71 +5110,8 @@ function setListingImages(images) {
   form.dataset.removeImage = list.length ? "false" : "true";
   form.dataset.mediaDirty = "true";
   form.dataset.persistentMediaDirty = "true";
-  const saveButton = $("#saveListingImages");
-  if (saveButton) saveButton.hidden = !formField(form, "id")?.value;
   updateListingImagePreview(list);
   saveListingDraft();
-}
-
-async function instagramPostSubmit(event) {
-  event.preventDefault();
-  const form = event.currentTarget;
-  const button = form.querySelector('[type="submit"]');
-  const property = state.properties.find((item) => item.id === form.propertyId.value);
-  if (!property) {
-    setFormMessage($("#instagramPostMessage"), "Selecciona una propiedad.", true);
-    return;
-  }
-  setButtonLoading(button, true, "Generando publicación...");
-  try {
-    const data = await api("/api/admin/ai/generate", {
-      method: "POST",
-      body: {
-        tool: "instagram",
-        propertyId: property.id,
-        input: `Objetivo: ${form.objective.value}. Tono: ${form.tone.value}. Hashtags sugeridos: ${form.hashtags.value}.`,
-      },
-      timeoutMs: 45000,
-    });
-    form.caption.value = data.result?.caption || data.result?.social || String(data.result || "");
-    setFormMessage(
-      $("#instagramPostMessage"),
-      data.provider === "openai"
-        ? "Borrador generado con ChatGPT. Revísalo antes de publicarlo."
-        : "Borrador generado con reglas internas. Configura OPENAI_API_KEY para usar ChatGPT."
-    );
-  } catch (error) {
-    setFormMessage($("#instagramPostMessage"), error.message, true);
-  } finally {
-    setButtonLoading(button, false);
-  }
-}
-
-async function copyInstagramPost() {
-  const caption = $("#instagramPostForm")?.elements.caption.value.trim();
-  if (!caption) {
-    setFormMessage($("#instagramPostMessage"), "Genera o escribe un texto antes de copiarlo.", true);
-    return;
-  }
-  try {
-    if (!navigator.clipboard?.writeText) throw new Error("Clipboard API unavailable");
-    await navigator.clipboard.writeText(caption);
-  } catch {
-    const helper = document.createElement("textarea");
-    helper.value = caption;
-    helper.setAttribute("readonly", "");
-    helper.style.position = "fixed";
-    helper.style.opacity = "0";
-    document.body.appendChild(helper);
-    helper.select();
-    const copied = document.execCommand("copy");
-    helper.remove();
-    if (!copied) {
-      setFormMessage($("#instagramPostMessage"), "No se pudo copiar automáticamente. Selecciona el texto y cópialo manualmente.", true);
-      return;
-    }
-  }
-  showToast("Texto de Instagram copiado.");
 }
 
 function moveListingImage(fromIndex, toIndex) {
@@ -5342,48 +5121,6 @@ function moveListingImage(fromIndex, toIndex) {
   const [image] = images.splice(fromIndex, 1);
   images.splice(toIndex, 0, image);
   setListingImages(images);
-}
-
-async function saveListingImagesOnly() {
-  const form = $("#listingForm");
-  const id = formField(form, "id")?.value;
-  if (!id) {
-    setFormMessage($("#listingFormMessage"), "Guarda primero la propiedad para crear su galería.", true);
-    return;
-  }
-  const button = $("#saveListingImages");
-  const images = safeParseImages(form.dataset.currentImages);
-  const currentProperty = state.properties.find((property) => property.id === id);
-  setButtonLoading(button, true, "Guardando galería...");
-  try {
-    const data = await api(`/api/admin/properties/${encodeURIComponent(id)}/images`, {
-      method: "PATCH",
-      body: {
-        images,
-        removeImage: images.length === 0,
-        expectedUpdatedAt: currentProperty?.updatedAt || null,
-      },
-      timeoutMs: 60000,
-    });
-    const saved = data.property;
-    const index = state.properties.findIndex((property) => property.id === saved.id);
-    if (index >= 0) state.properties.splice(index, 1, saved);
-    form.dataset.currentImages = JSON.stringify(storedImages(saved));
-    form.dataset.mediaDirty = "false";
-    form.dataset.persistentMediaDirty = "true";
-    updateListingImagePreview(storedImages(saved));
-    button.hidden = true;
-    if (form.dataset.contentDirty === "true") saveListingDraft();
-    else clearListingDraft();
-    renderAdminListings();
-    renderProperties();
-    setFormMessage($("#listingFormMessage"), "Galería guardada. La primera imagen es ahora la portada publicada.");
-    showToast("Galería y orden actualizados.");
-  } catch (error) {
-    setFormMessage($("#listingFormMessage"), error.message, true);
-  } finally {
-    setButtonLoading(button, false);
-  }
 }
 
 function validateImageFile(file) {
@@ -5570,8 +5307,13 @@ async function listingSubmit(event) {
     if (existingIndex >= 0) state.properties.splice(existingIndex, 1, saved);
     else state.properties.unshift(saved);
     clearListingDraft();
-    resetListingForm(true);
-    delete form.dataset.idempotencyKey;
+    if (id) {
+      editListing(saved.id);
+      form.dataset.dirty = "false";
+    } else {
+      resetListingForm(true);
+      delete form.dataset.idempotencyKey;
+    }
     renderAdminListingFilters();
     renderAdminListings();
     renderProperties();
@@ -5612,18 +5354,12 @@ function editListing(id) {
   field("longitude").value = property.longitude ?? "";
   field("mapPlace").value = property.mapPlace || "";
   updateMapPickerForForm(form);
-  if ((property.latitude === null || property.longitude === null) && property.address) {
-    const picker = form.querySelector("[data-map-picker]");
-    if (picker) void geocodeMapAddress(picker);
-  }
   field("imageFile").value = "";
   form.dataset.currentImages = JSON.stringify(storedImages(property));
   form.dataset.removeImage = "false";
   form.dataset.mediaDirty = "false";
-  form.dataset.contentDirty = "false";
   form.dataset.persistentMediaDirty = "true";
   updateListingImagePreview(storedImages(property));
-  if ($("#saveListingImages")) $("#saveListingImages").hidden = true;
   field("beds").value = property.beds || "";
   field("baths").value = property.baths || "";
   field("parking").value = property.parking || "";
@@ -6251,7 +5987,6 @@ function bindEvents() {
     ["#adminListingZoneFilter", "zone"],
     ["#adminListingOperationFilter", "operation"],
     ["#adminListingStatusFilter", "status"],
-    ["#adminListingQualityFilter", "quality"],
   ].forEach(([selector, key]) => {
     $(selector)?.addEventListener("change", (event) => {
       state.adminListingFilters[key] = event.target.value;
@@ -6259,17 +5994,9 @@ function bindEvents() {
     });
   });
   $("#clearAdminListingSearch")?.addEventListener("click", () => {
-    state.adminListingFilters = { search: "", type: "", zone: "", operation: "", status: "", quality: "" };
+    state.adminListingFilters = { search: "", type: "", zone: "", operation: "", status: "" };
     renderAdminListingFilters();
     renderAdminListings();
-  });
-  $("#adminInsights")?.addEventListener("click", (event) => {
-    if (!event.target.closest("[data-show-incomplete-listings]")) return;
-    state.adminListingFilters = { search: "", type: "", zone: "", operation: "", status: "", quality: "incomplete" };
-    setAdminSection("properties");
-    renderAdminListingFilters();
-    renderAdminListings();
-    $("#adminListingQualityFilter")?.focus();
   });
   $("[data-add-keyword]")?.addEventListener("click", renderListingKeywordChips);
   $("#listingKeywords")?.addEventListener("keydown", (event) => {
@@ -6285,49 +6012,21 @@ function bindEvents() {
     renderListingKeywordChips();
     saveListingDraft();
   });
-  $("#listingForm").addEventListener("input", (event) => {
-    if (event.target?.name !== "imageFile") event.currentTarget.dataset.contentDirty = "true";
+  $("#listingForm").addEventListener("input", () => {
     updateListingDescriptionCounter();
     window.clearTimeout(listingDraftTimer);
     listingDraftTimer = window.setTimeout(saveListingDraft, 500);
   });
-  $("#listingForm").addEventListener("change", (event) => {
-    if (event.target?.name !== "imageFile") event.currentTarget.dataset.contentDirty = "true";
+  $("#listingForm").addEventListener("change", () => {
     window.clearTimeout(listingDraftTimer);
     listingDraftTimer = window.setTimeout(saveListingDraft, 300);
   });
   $("#locationCatalogForm").addEventListener("submit", locationCatalogSubmit);
-  $("#catalogSearch")?.addEventListener("input", (event) => {
-    state.catalogFilters.search = event.target.value;
-    renderLocationCatalogs();
-  });
-  $("#catalogTypeFilter")?.addEventListener("change", (event) => {
-    state.catalogFilters.type = event.target.value;
-    renderLocationCatalogs();
-  });
-  $("#clearCatalogSearch")?.addEventListener("click", () => {
-    state.catalogFilters = { search: "", type: "" };
-    if ($("#catalogSearch")) $("#catalogSearch").value = "";
-    if ($("#catalogTypeFilter")) $("#catalogTypeFilter").value = "";
-    renderLocationCatalogs();
-  });
-  $("#catalogNewLocationButton")?.addEventListener("click", () => {
-    resetCatalogForm();
-    $("#locationCatalogForm")?.elements.name.focus({ preventScroll: true });
-    $("#catalogEditor")?.scrollIntoView({ behavior: "smooth", block: "nearest" });
-  });
-  $$('[data-open-location-catalog]').forEach((button) => button.addEventListener("click", () => {
-    saveListingDraft();
-    setAdminSection("catalogs");
-    $("#catalogSearch")?.focus();
-  }));
   $("#valuationForm")?.addEventListener("submit", valuationSubmit);
   $("#taskForm")?.addEventListener("submit", taskSubmit);
   $("#contactForm")?.addEventListener("submit", contactSubmit);
   $("#buyerForm")?.addEventListener("submit", buyerSubmit);
   $("#campaignForm")?.addEventListener("submit", campaignSubmit);
-  $("#instagramPostForm")?.addEventListener("submit", instagramPostSubmit);
-  $("#copyInstagramPost")?.addEventListener("click", () => void copyInstagramPost());
   $("#aiToolForm")?.addEventListener("submit", aiToolSubmit);
   $("#pdfForm")?.addEventListener("submit", pdfSubmit);
   $("#mediaUploadForm")?.addEventListener("submit", mediaUploadSubmit);
@@ -6413,20 +6112,9 @@ function bindEvents() {
   $("#closeAdminNotifications")?.addEventListener("click", () => {
     $("#adminNotificationDrawer").hidden = true;
   });
-  $("#locationCatalogForm").elements.type.addEventListener("change", () => {
-    const form = $("#locationCatalogForm");
-    renderCatalogParentOptions();
-    if (!form.elements.id.value) {
-      const meta = catalogTypeMeta(form.elements.type.value);
-      $("#catalogFormTitle").textContent = `Agregar ${meta.label.toLowerCase()}`;
-      $("#catalogFormContext").textContent = form.elements.type.value === "state"
-        ? "Los estados no necesitan una ubicación superior."
-        : "Ahora selecciona la ubicación superior para mantener el catálogo ordenado.";
-    }
-  });
+  $("#locationCatalogForm").elements.type.addEventListener("change", renderCatalogParentOptions);
   $("#resetCatalogForm")?.addEventListener("click", resetCatalogForm);
   $("#resetListingForm").addEventListener("click", () => resetListingForm(true));
-  $("#saveListingImages")?.addEventListener("click", saveListingImagesOnly);
   $("#clearListingImage").addEventListener("click", () => {
     const form = $("#listingForm");
     formField(form, "imageFile").value = "";
@@ -6572,23 +6260,6 @@ function bindEvents() {
 
     const duplicateListingButton = event.target.closest("[data-duplicate-listing]");
     if (duplicateListingButton) void duplicateListing(duplicateListingButton.dataset.duplicateListing);
-
-    const catalogLevel = event.target.closest("[data-catalog-level]");
-    if (catalogLevel) {
-      state.catalogFilters.type = catalogLevel.dataset.catalogLevel || "";
-      if ($("#catalogTypeFilter")) $("#catalogTypeFilter").value = state.catalogFilters.type;
-      renderLocationCatalogs();
-    }
-
-    const newLocation = event.target.closest("[data-new-location]");
-    if (newLocation) {
-      resetCatalogForm();
-      $("#locationCatalogForm")?.elements.name.focus({ preventScroll: true });
-      $("#catalogEditor")?.scrollIntoView({ behavior: "smooth", block: "nearest" });
-    }
-
-    const addLocationChild = event.target.closest("[data-add-location-child]");
-    if (addLocationChild) prepareChildLocation(addLocationChild.dataset.addLocationChild);
 
     const deleteLocation = event.target.closest("[data-delete-location]");
     if (deleteLocation) void deleteLocationOption(deleteLocation.dataset.deleteLocation);
