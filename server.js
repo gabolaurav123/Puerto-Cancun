@@ -4259,7 +4259,11 @@ app.get("/api/admin/documents", requireRole("admin"), async (_req, res, next) =>
 app.post("/api/admin/documents/generate", requireRole("admin"), async (req, res, next) => {
   try {
     const documentType = req.body.documentType === "valuation" ? "valuation" : "property";
-    const options = req.body.options || {};
+    const requestedOptions = req.body.options && typeof req.body.options === "object" ? req.body.options : {};
+    const options = {
+      ...requestedOptions,
+      brandMode: requestedOptions.brandMode === "neutral" ? "neutral" : "branded",
+    };
     let entity;
     let propertyPdfImages = [];
     if (documentType === "property") {
