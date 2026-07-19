@@ -36,7 +36,7 @@
       href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&family=Playfair+Display:wght@500;600;700&display=swap"
       rel="stylesheet"
     />
-    <link rel="stylesheet" href="/styles.css" />
+    <link rel="stylesheet" href="/styles.css?v=20260719.2" />
     <!-- SEO_JSON_LD -->
   </head>
   <body data-page="home">
@@ -923,7 +923,7 @@
                 </label>
                 <label>
                   <span data-i18n="area">M2 construccion</span>
-                  <input name="area" type="number" min="0" />
+                  <input name="area" type="number" min="0" step="0.01" />
                 </label>
                 <label>
                   <span>Estacionamientos</span>
@@ -1243,7 +1243,7 @@
               </div>
               <form id="whatsappChatbotForm" class="whatsapp-chatbot-form">
                 <label class="toggle-row"><input name="enabled" type="checkbox" /><span><strong>Activar respuestas automaticas</strong><small>Puede pausarse por cada conversacion.</small></span></label>
-                <label><span>Modelo</span><input name="model" value="gpt-5-mini" /></label>
+                <label><span>Modelo</span><input name="model" value="gpt-5.6-terra" /></label>
                 <label class="span-2"><span>Prompt del chatbot</span><textarea name="prompt" rows="10" required maxlength="8000"></textarea></label>
                 <label class="span-2"><span>Mensaje de bienvenida</span><textarea name="welcomeMessage" rows="3" maxlength="800"></textarea></label>
                 <label class="span-2"><span>Palabras para transferir a un asesor</span><input name="handoffKeywords" placeholder="asesor, humano, llamada, queja" /></label>
@@ -1416,46 +1416,93 @@
           </div>
         </article>
         <article class="panel-card admin-catalogs-card" id="adminCatalogsCard" data-admin-section-panel="catalogs">
-          <div class="admin-prompts-heading">
+          <div class="admin-prompts-heading catalog-page-heading">
             <div>
               <h2 data-i18n="locationCatalogTitle">Catálogos de ubicación</h2>
               <p data-i18n="locationCatalogCopy">
                 Da de alta estados, ciudades, zonas y colonias para registrar direcciones más precisas en cada inmueble.
               </p>
             </div>
+            <button class="primary-button" type="button" id="catalogNewLocationButton"><i data-lucide="plus"></i> Agregar ubicación</button>
           </div>
-          <form id="locationCatalogForm" class="catalog-form">
-            <input type="hidden" name="id" />
-            <label>
-              <span data-i18n="catalogType">Tipo</span>
-              <select name="type">
-                <option value="state" data-i18n="catalogState">Estado</option>
-                <option value="city" data-i18n="catalogCity">Ciudad / municipio</option>
-                <option value="zone" data-i18n="catalogZone">Zona</option>
-                <option value="neighborhood" data-i18n="catalogNeighborhood">Colonia / desarrollo</option>
-              </select>
-            </label>
-            <label>
-              <span data-i18n="catalogParent">Pertenece a</span>
-              <select name="parentId"></select>
-            </label>
-            <label>
-              <span data-i18n="catalogName">Nombre</span>
-              <input name="name" required />
-            </label>
-            <label>
-              <span data-i18n="catalogSortOrder">Orden</span>
-              <input name="sortOrder" type="number" min="0" step="1" value="0" />
-            </label>
-            <label class="checkbox-row catalog-active-row">
-              <input name="isActive" type="checkbox" checked />
-              <span data-i18n="catalogActive">Activo</span>
-            </label>
-            <button class="primary-button" type="submit" data-i18n="saveCatalog">Guardar catálogo</button>
-            <button class="ghost-button" type="button" id="resetCatalogForm" data-i18n="newCatalog">Nuevo catalogo</button>
-          </form>
-          <p class="form-message" id="catalogFormMessage"></p>
-          <div class="location-catalog-list" id="locationCatalogList"></div>
+          <div class="catalog-summary" id="catalogSummary" aria-label="Resumen del catálogo"></div>
+          <div class="catalog-workspace">
+            <section class="catalog-explorer" aria-label="Explorador de ubicaciones">
+              <div class="catalog-toolbar">
+                <label class="catalog-search">
+                  <span>Buscar en todo México</span>
+                  <div class="catalog-search-control">
+                    <i data-lucide="search"></i>
+                    <input id="catalogSearch" type="search" placeholder="Ej. Cancún, Puerto Cancún, Tulum..." autocomplete="off" />
+                  </div>
+                </label>
+                <label class="catalog-mobile-filter">
+                  <span>Nivel</span>
+                  <select id="catalogTypeFilter">
+                    <option value="">Todos</option>
+                    <option value="state">Estados</option>
+                    <option value="city">Municipios</option>
+                    <option value="zone">Zonas</option>
+                    <option value="neighborhood">Colonias</option>
+                  </select>
+                </label>
+                <button class="ghost-button catalog-clear-button" type="button" id="clearCatalogSearch"><i data-lucide="x"></i> Limpiar</button>
+              </div>
+              <div class="catalog-level-tabs" id="catalogLevelTabs" aria-label="Filtrar por nivel"></div>
+              <div class="catalog-results-heading">
+                <div>
+                  <span class="eyebrow">RESULTADOS</span>
+                  <strong id="catalogResultCount">0 ubicaciones</strong>
+                </div>
+                <small>La ruta indica exactamente dónde está cada lugar.</small>
+              </div>
+              <div class="location-catalog-list" id="locationCatalogList"></div>
+            </section>
+            <aside class="catalog-editor" id="catalogEditor">
+              <div class="catalog-editor-heading">
+                <span class="eyebrow">EDITOR</span>
+                <h3 id="catalogFormTitle">Agregar ubicación</h3>
+                <p id="catalogFormContext">Selecciona el nivel y su ubicación superior. Los campos se adaptan automáticamente.</p>
+              </div>
+              <form id="locationCatalogForm" class="catalog-form">
+                <input type="hidden" name="id" />
+                <label>
+                  <span data-i18n="catalogType">¿Qué vas a agregar?</span>
+                  <select name="type">
+                    <option value="state" data-i18n="catalogState">Estado</option>
+                    <option value="city" data-i18n="catalogCity">Ciudad / municipio</option>
+                    <option value="zone" data-i18n="catalogZone">Zona</option>
+                    <option value="neighborhood" data-i18n="catalogNeighborhood">Colonia / desarrollo</option>
+                  </select>
+                </label>
+                <label>
+                  <span data-i18n="catalogParent">¿Dentro de dónde?</span>
+                  <select name="parentId"></select>
+                </label>
+                <label>
+                  <span data-i18n="catalogName">Nombre del lugar</span>
+                  <input name="name" placeholder="Escribe el nombre" required />
+                </label>
+                <details class="catalog-advanced-fields">
+                  <summary>Opciones avanzadas</summary>
+                  <label>
+                    <span data-i18n="catalogSortOrder">Orden manual</span>
+                    <input name="sortOrder" type="number" min="0" step="1" value="0" />
+                  </label>
+                  <label class="checkbox-row catalog-active-row">
+                    <input name="isActive" type="checkbox" checked />
+                    <span data-i18n="catalogActive">Disponible para usar</span>
+                  </label>
+                </details>
+                <div class="catalog-form-actions">
+                  <button class="primary-button" type="submit" data-i18n="saveCatalog">Guardar ubicación</button>
+                  <button class="ghost-button" type="button" id="resetCatalogForm" data-i18n="newCatalog">Cancelar</button>
+                </div>
+              </form>
+              <p class="form-message" id="catalogFormMessage"></p>
+              <div class="catalog-editor-tip"><i data-lucide="lightbulb"></i><span>También puedes usar <b>Agregar debajo</b> en cualquier resultado para crear el siguiente nivel sin elegir la ruta manualmente.</span></div>
+            </aside>
+          </div>
         </article>
         <article class="panel-card admin-prompts-card" id="adminPromptsCard" data-admin-section-panel="prompts">
           <div class="admin-prompts-heading">
@@ -1589,6 +1636,32 @@
             </div>
           </div>
           <div class="marketing-kpis" id="adminMarketing"></div>
+          <section class="instagram-workspace">
+            <div class="instagram-heading">
+              <div>
+                <span class="eyebrow">INSTAGRAM + CHATGPT</span>
+                <h3>Crear publicación desde una propiedad</h3>
+                <p>Selecciona el inmueble, genera un borrador y revísalo antes de copiarlo o publicarlo.</p>
+              </div>
+              <div class="instagram-connection" id="instagramConnectionStatus">
+                <span class="status pending">Sin configurar</span>
+                <a class="ghost-button" id="connectInstagram" href="#" target="_blank" rel="noopener" hidden>Conectar Instagram</a>
+              </div>
+            </div>
+            <form id="instagramPostForm" class="module-form-grid">
+              <label><span>Propiedad</span><select name="propertyId" id="instagramPropertySelect" required></select></label>
+              <label><span>Objetivo</span><select name="objective"><option value="leads">Generar consultas</option><option value="sale">Promover venta</option><option value="rent">Promover renta</option><option value="investment">Destacar inversión</option></select></label>
+              <label><span>Tono</span><select name="tone"><option value="premium">Premium y claro</option><option value="friendly">Cercano</option><option value="investment">Enfoque inversionista</option></select></label>
+              <label><span>Hashtags</span><input name="hashtags" value="#PuertoCancun #BienesRaicesCancun #RealEstateMexico" /></label>
+              <label class="span-2"><span>Texto para Instagram</span><textarea name="caption" rows="9" placeholder="Aquí aparecerá el borrador generado..."></textarea></label>
+              <div class="form-actions span-2">
+                <button class="primary-button" type="submit"><i data-lucide="sparkles"></i> Generar con ChatGPT</button>
+                <button class="ghost-button" type="button" id="copyInstagramPost">Copiar texto</button>
+                <a class="ghost-button" id="openInstagramProfile" href="https://www.instagram.com/" target="_blank" rel="noopener">Abrir Instagram</a>
+              </div>
+              <p class="form-message span-2" id="instagramPostMessage"></p>
+            </form>
+          </section>
           <div class="module-split">
             <form id="campaignForm" class="module-form-grid">
               <h3 class="span-2">Crear campaña</h3>
@@ -1627,6 +1700,7 @@
               <label data-pdf-target="property"><span>Propiedad</span><select name="propertyId" id="pdfPropertySelect"></select></label>
               <label data-pdf-target="valuation" hidden><span>Valoración</span><select name="valuationId" id="pdfValuationSelect"></select></label>
               <label><span>Moneda</span><select name="currency"><option>USD</option><option>MXN</option></select></label>
+              <label data-pdf-target="property"><span>Diseño</span><select name="brandMode"><option value="branded">Con datos de Puerto Cancún Center</option><option value="neutral">Ficha neutra, sin datos de la agencia</option></select></label>
               <label class="checkbox-row"><input name="showPrice" type="checkbox" checked /><span>Mostrar precio</span></label>
               <label class="checkbox-row"><input name="showAddress" type="checkbox" /><span>Mostrar dirección exacta</span></label>
               <label class="span-2"><span>Disclaimer</span><textarea name="disclaimer" rows="3">Información sujeta a disponibilidad y cambios sin previo aviso.</textarea></label>
@@ -1849,6 +1923,10 @@
                   Arrastra el pin o haz clic en el mapa para ajustar la ubicación exacta. También puedes escribir las coordenadas manualmente.
                 </p>
               </div>
+              <div class="location-quick-help">
+                <span>¿No aparece el estado, municipio, zona o colonia?</span>
+                <button class="text-button" type="button" data-open-location-catalog>Agregar ubicación faltante</button>
+              </div>
               <label class="file-field">
                 <span data-i18n="imageUpload">Imagenes de la propiedad</span>
                 <input name="imageFile" type="file" accept="image/jpeg,image/jpg,image/png,image/webp" multiple />
@@ -1857,7 +1935,10 @@
               <div class="image-preview" id="listingImagePreview" hidden>
                 <div class="image-preview-header">
                   <span data-i18n="imageGalleryTitle">Galería y orden de publicación</span>
-                  <button class="text-button danger" type="button" id="clearListingImage" data-i18n="removeImage">Quitar imagenes</button>
+                  <div class="image-preview-header-actions">
+                    <button class="text-button" type="button" id="saveListingImages" hidden>Guardar galería</button>
+                    <button class="text-button danger" type="button" id="clearListingImage" data-i18n="removeImage">Quitar todas</button>
+                  </div>
                 </div>
                 <div class="image-preview-grid"></div>
                 <small data-i18n="imageGalleryHelp">La primera imagen será la portada. Arrastra las fotos o usa las flechas para cambiar su orden.</small>
@@ -1874,7 +1955,7 @@
                 </label>
                 <label>
                   <span data-i18n="area">M2 construccion</span>
-                  <input name="area" type="number" min="0" />
+                  <input name="area" type="number" min="0" step="0.01" />
                 </label>
                 <label>
                   <span>Estacionamientos</span>
@@ -1882,7 +1963,7 @@
                 </label>
                 <label>
                   <span>M2 terreno</span>
-                  <input name="lot" type="number" min="0" />
+                  <input name="lot" type="number" min="0" step="0.01" />
                 </label>
                 <label>
                   <span>MLS</span>
@@ -1950,6 +2031,7 @@
               <label><span>Zona</span><select id="adminListingZoneFilter"><option value="">Todas</option></select></label>
               <label><span>Operación</span><select id="adminListingOperationFilter"><option value="">Todas</option><option value="sale">Venta</option><option value="rent">Renta</option></select></label>
               <label><span>Estado</span><select id="adminListingStatusFilter"><option value="">Todos</option><option value="draft">Borrador</option><option value="pending">Pendiente</option><option value="active">Activa</option><option value="disabled">Deshabilitada</option><option value="sold">Vendida</option><option value="rented">Rentada</option><option value="archived">Archivada</option></select></label>
+              <label><span>Calidad</span><select id="adminListingQualityFilter"><option value="">Todas</option><option value="incomplete">Incompletas</option><option value="ready">Listas para publicar</option></select></label>
               <button class="ghost-button" id="clearAdminListingSearch" type="button"><i data-lucide="x"></i> Limpiar</button>
             </div>
             <div class="panel-card-subhead listings-subhead">
@@ -2183,6 +2265,6 @@
     </button>
 
     <script src="https://unpkg.com/lucide@latest"></script>
-    <script src="/app.js"></script>
+    <script src="/app.js?v=20260719.2"></script>
   </body>
 </html>
