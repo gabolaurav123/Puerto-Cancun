@@ -1416,64 +1416,93 @@
           </div>
         </article>
         <article class="panel-card admin-catalogs-card" id="adminCatalogsCard" data-admin-section-panel="catalogs">
-          <div class="admin-prompts-heading">
+          <div class="admin-prompts-heading catalog-page-heading">
             <div>
               <h2 data-i18n="locationCatalogTitle">Catálogos de ubicación</h2>
               <p data-i18n="locationCatalogCopy">
                 Da de alta estados, ciudades, zonas y colonias para registrar direcciones más precisas en cada inmueble.
               </p>
             </div>
+            <button class="primary-button" type="button" id="catalogNewLocationButton"><i data-lucide="plus"></i> Agregar ubicación</button>
           </div>
-          <form id="locationCatalogForm" class="catalog-form">
-            <input type="hidden" name="id" />
-            <label>
-              <span data-i18n="catalogType">Tipo</span>
-              <select name="type">
-                <option value="state" data-i18n="catalogState">Estado</option>
-                <option value="city" data-i18n="catalogCity">Ciudad / municipio</option>
-                <option value="zone" data-i18n="catalogZone">Zona</option>
-                <option value="neighborhood" data-i18n="catalogNeighborhood">Colonia / desarrollo</option>
-              </select>
-            </label>
-            <label>
-              <span data-i18n="catalogParent">Pertenece a</span>
-              <select name="parentId"></select>
-            </label>
-            <label>
-              <span data-i18n="catalogName">Nombre</span>
-              <input name="name" required />
-            </label>
-            <label>
-              <span data-i18n="catalogSortOrder">Orden</span>
-              <input name="sortOrder" type="number" min="0" step="1" value="0" />
-            </label>
-            <label class="checkbox-row catalog-active-row">
-              <input name="isActive" type="checkbox" checked />
-              <span data-i18n="catalogActive">Activo</span>
-            </label>
-            <button class="primary-button" type="submit" data-i18n="saveCatalog">Guardar catálogo</button>
-            <button class="ghost-button" type="button" id="resetCatalogForm" data-i18n="newCatalog">Nuevo catalogo</button>
-          </form>
-          <p class="form-message" id="catalogFormMessage"></p>
-          <div class="catalog-toolbar">
-            <label class="catalog-search">
-              <span>Buscar lugar</span>
-              <input id="catalogSearch" type="search" placeholder="Estado, municipio, zona o colonia..." autocomplete="off" />
-            </label>
-            <label>
-              <span>Mostrar</span>
-              <select id="catalogTypeFilter">
-                <option value="">Todos los niveles</option>
-                <option value="state">Estados</option>
-                <option value="city">Ciudades / municipios</option>
-                <option value="zone">Zonas</option>
-                <option value="neighborhood">Colonias / desarrollos</option>
-              </select>
-            </label>
-            <button class="ghost-button" type="button" id="clearCatalogSearch"><i data-lucide="x"></i> Limpiar</button>
+          <div class="catalog-summary" id="catalogSummary" aria-label="Resumen del catálogo"></div>
+          <div class="catalog-workspace">
+            <section class="catalog-explorer" aria-label="Explorador de ubicaciones">
+              <div class="catalog-toolbar">
+                <label class="catalog-search">
+                  <span>Buscar en todo México</span>
+                  <div class="catalog-search-control">
+                    <i data-lucide="search"></i>
+                    <input id="catalogSearch" type="search" placeholder="Ej. Cancún, Puerto Cancún, Tulum..." autocomplete="off" />
+                  </div>
+                </label>
+                <label class="catalog-mobile-filter">
+                  <span>Nivel</span>
+                  <select id="catalogTypeFilter">
+                    <option value="">Todos</option>
+                    <option value="state">Estados</option>
+                    <option value="city">Municipios</option>
+                    <option value="zone">Zonas</option>
+                    <option value="neighborhood">Colonias</option>
+                  </select>
+                </label>
+                <button class="ghost-button catalog-clear-button" type="button" id="clearCatalogSearch"><i data-lucide="x"></i> Limpiar</button>
+              </div>
+              <div class="catalog-level-tabs" id="catalogLevelTabs" aria-label="Filtrar por nivel"></div>
+              <div class="catalog-results-heading">
+                <div>
+                  <span class="eyebrow">RESULTADOS</span>
+                  <strong id="catalogResultCount">0 ubicaciones</strong>
+                </div>
+                <small>La ruta indica exactamente dónde está cada lugar.</small>
+              </div>
+              <div class="location-catalog-list" id="locationCatalogList"></div>
+            </section>
+            <aside class="catalog-editor" id="catalogEditor">
+              <div class="catalog-editor-heading">
+                <span class="eyebrow">EDITOR</span>
+                <h3 id="catalogFormTitle">Agregar ubicación</h3>
+                <p id="catalogFormContext">Selecciona el nivel y su ubicación superior. Los campos se adaptan automáticamente.</p>
+              </div>
+              <form id="locationCatalogForm" class="catalog-form">
+                <input type="hidden" name="id" />
+                <label>
+                  <span data-i18n="catalogType">¿Qué vas a agregar?</span>
+                  <select name="type">
+                    <option value="state" data-i18n="catalogState">Estado</option>
+                    <option value="city" data-i18n="catalogCity">Ciudad / municipio</option>
+                    <option value="zone" data-i18n="catalogZone">Zona</option>
+                    <option value="neighborhood" data-i18n="catalogNeighborhood">Colonia / desarrollo</option>
+                  </select>
+                </label>
+                <label>
+                  <span data-i18n="catalogParent">¿Dentro de dónde?</span>
+                  <select name="parentId"></select>
+                </label>
+                <label>
+                  <span data-i18n="catalogName">Nombre del lugar</span>
+                  <input name="name" placeholder="Escribe el nombre" required />
+                </label>
+                <details class="catalog-advanced-fields">
+                  <summary>Opciones avanzadas</summary>
+                  <label>
+                    <span data-i18n="catalogSortOrder">Orden manual</span>
+                    <input name="sortOrder" type="number" min="0" step="1" value="0" />
+                  </label>
+                  <label class="checkbox-row catalog-active-row">
+                    <input name="isActive" type="checkbox" checked />
+                    <span data-i18n="catalogActive">Disponible para usar</span>
+                  </label>
+                </details>
+                <div class="catalog-form-actions">
+                  <button class="primary-button" type="submit" data-i18n="saveCatalog">Guardar ubicación</button>
+                  <button class="ghost-button" type="button" id="resetCatalogForm" data-i18n="newCatalog">Cancelar</button>
+                </div>
+              </form>
+              <p class="form-message" id="catalogFormMessage"></p>
+              <div class="catalog-editor-tip"><i data-lucide="lightbulb"></i><span>También puedes usar <b>Agregar debajo</b> en cualquier resultado para crear el siguiente nivel sin elegir la ruta manualmente.</span></div>
+            </aside>
           </div>
-          <p class="catalog-base-note">Incluye los 32 estados de México y una base ampliada de municipios y zonas de Quintana Roo. Usa el buscador para editar o agregar sin recorrer toda la lista.</p>
-          <div class="location-catalog-list" id="locationCatalogList"></div>
         </article>
         <article class="panel-card admin-prompts-card" id="adminPromptsCard" data-admin-section-panel="prompts">
           <div class="admin-prompts-heading">
