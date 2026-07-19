@@ -36,7 +36,7 @@
       href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&family=Playfair+Display:wght@500;600;700&display=swap"
       rel="stylesheet"
     />
-    <link rel="stylesheet" href="/styles.css" />
+    <link rel="stylesheet" href="/styles.css?v=20260719.2" />
     <!-- SEO_JSON_LD -->
   </head>
   <body data-page="home">
@@ -1243,7 +1243,7 @@
               </div>
               <form id="whatsappChatbotForm" class="whatsapp-chatbot-form">
                 <label class="toggle-row"><input name="enabled" type="checkbox" /><span><strong>Activar respuestas automaticas</strong><small>Puede pausarse por cada conversacion.</small></span></label>
-                <label><span>Modelo</span><input name="model" value="gpt-5-mini" /></label>
+                <label><span>Modelo</span><input name="model" value="gpt-5.6-terra" /></label>
                 <label class="span-2"><span>Prompt del chatbot</span><textarea name="prompt" rows="10" required maxlength="8000"></textarea></label>
                 <label class="span-2"><span>Mensaje de bienvenida</span><textarea name="welcomeMessage" rows="3" maxlength="800"></textarea></label>
                 <label class="span-2"><span>Palabras para transferir a un asesor</span><input name="handoffKeywords" placeholder="asesor, humano, llamada, queja" /></label>
@@ -1657,7 +1657,7 @@
               <div class="form-actions span-2">
                 <button class="primary-button" type="submit"><i data-lucide="sparkles"></i> Generar con ChatGPT</button>
                 <button class="ghost-button" type="button" id="copyInstagramPost">Copiar texto</button>
-                <a class="ghost-button" href="https://www.instagram.com/" target="_blank" rel="noopener">Abrir Instagram</a>
+                <a class="ghost-button" id="openInstagramProfile" href="https://www.instagram.com/" target="_blank" rel="noopener">Abrir Instagram</a>
               </div>
               <p class="form-message span-2" id="instagramPostMessage"></p>
             </form>
@@ -2265,6 +2265,6 @@
     </button>
 
     <script src="https://unpkg.com/lucide@latest"></script>
-    <script src="/app.js"></script>
+    <script src="/app.js?v=20260719.2"></script>
   </body>
 </html>

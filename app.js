@@ -1178,30 +1178,16 @@ async function geocodeMapAddress(picker) {
   mapGeocodeControllers.set(picker, controller);
   setMapStatus(picker, t("mapSearching"));
   try {
-    let latitude;
-    let longitude;
-    if (window.google?.maps) {
-      const result = await new Promise((resolve, reject) => {
-        new google.maps.Geocoder().geocode({ address: query }, (results, status) => {
-          if (status === "OK" && results?.[0]) resolve(results[0]);
-          else reject(new Error("Direccion no encontrada"));
-        });
-      });
-      latitude = result.geometry.location.lat();
-      longitude = result.geometry.location.lng();
-    } else {
-      const response = await fetch(`https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&countrycodes=mx&q=${encodeURIComponent(query)}`, {
-        headers: { Accept: "application/json" },
-        signal: controller.signal,
-      });
-      if (!response.ok) throw new Error("No se pudo consultar la direccion");
-      const [result] = await response.json();
-      if (!result) throw new Error("Direccion no encontrada");
-      latitude = Number(result.lat);
-      longitude = Number(result.lon);
-    }
+    const response = await fetch(`/api/geocode?address=${encodeURIComponent(query)}`, {
+      credentials: "same-origin",
+      headers: { Accept: "application/json" },
+      signal: controller.signal,
+    });
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(result.error || "Dirección no encontrada");
     if (controller.signal.aborted) return;
-    setMapCoordinates(picker, latitude, longitude);
+    setMapCoordinates(picker, result.latitude, result.longitude);
+    if (formField(form, "mapPlace")) formField(form, "mapPlace").value = result.formattedAddress || query;
     setMapStatus(picker, t("mapAddressFound"));
   } catch (error) {
     if (error.name === "AbortError") return;
@@ -2841,7 +2827,7 @@ function renderLocationCatalogs() {
     return normalizeSearchText(`${option.name} ${locationOptionPath(option)} ${catalogTypeMeta(option.type).label}`).includes(search);
   });
   const resultCount = $("#catalogResultCount");
-  if (resultCount) resultCount.textContent = `${options.length} ubicación${options.length === 1 ? "" : "es"}`;
+  if (resultCount) resultCount.textContent = `${options.length} ${options.length === 1 ? "ubicación" : "ubicaciones"}`;
   list.innerHTML = options.length
     ? options
         .map((option) => {
@@ -3611,6 +3597,7 @@ function renderMarketing() {
   const list = $("#campaignList");
   const instagramStatus = $("#instagramConnectionStatus");
   const connectInstagram = $("#connectInstagram");
+  const openInstagramProfile = $("#openInstagramProfile");
   if (instagramStatus) {
     const connected = state.instagramStatus?.connected === true;
     instagramStatus.querySelector(".status").className = `status ${connected ? "approved" : "pending"}`;
@@ -3623,6 +3610,7 @@ function renderMarketing() {
       connectInstagram.hidden = connected || !state.instagramStatus?.oauthUrl;
       connectInstagram.href = state.instagramStatus?.oauthUrl || "#";
     }
+    if (openInstagramProfile) openInstagramProfile.href = state.instagramStatus?.profileUrl || "https://www.instagram.com/";
   }
   if (kpis) {
     kpis.innerHTML = [
@@ -4300,7 +4288,7 @@ function renderWhatsappOverview() {
   const chatbot = overview.chatbot || {};
   if (form && form.dataset.loaded !== "true") {
     form.enabled.checked = chatbot.enabled === true;
-    form.model.value = chatbot.model || "gpt-5-mini";
+    form.model.value = chatbot.model || "gpt-5.6-terra";
     form.prompt.value = chatbot.prompt || "";
     form.welcomeMessage.value = chatbot.welcomeMessage || "";
     form.handoffKeywords.value = chatbot.handoffKeywords || "";
@@ -4751,7 +4739,11 @@ function updateAdminShell() {
 function setAdminSection(section) {
   const previousSection = state.adminSection;
   const listingForm = $("#listingForm");
-  if (previousSection === "properties" && section !== "properties" && listingForm?.dataset.dirty !== "true" && listingForm?.dataset.saving !== "true") {
+  if (previousSection === "properties" && section !== "properties" && listingForm?.dataset.saving === "true") {
+    showToast("Espera a que termine de guardarse la publicación.");
+    return;
+  }
+  if (previousSection === "properties" && section !== "properties") {
     resetListingForm(true);
   }
   state.adminSection = section || "dashboard";
@@ -4947,6 +4939,12 @@ async function showPanel() {
 }
 
 function hidePanel() {
+  const listingForm = $("#listingForm");
+  if (listingForm?.dataset.saving === "true") {
+    showToast("Espera a que termine de guardarse la publicación.");
+    return;
+  }
+  if (listingForm) resetListingForm(true);
   $("#panelView").hidden = true;
   $("#siteShell").hidden = false;
   document.body.classList.remove("panel-open");
@@ -5290,7 +5288,9 @@ async function instagramPostSubmit(event) {
       body: {
         tool: "instagram",
         propertyId: property.id,
-        input: `Objetivo: ${form.objective.value}. Tono: ${form.tone.value}. Hashtags sugeridos: ${form.hashtags.value}.`,
+        objective: form.objective.value,
+        tone: form.tone.value,
+        hashtags: form.hashtags.value,
       },
       timeoutMs: 45000,
     });
@@ -5299,7 +5299,7 @@ async function instagramPostSubmit(event) {
       $("#instagramPostMessage"),
       data.provider === "openai"
         ? "Borrador generado con ChatGPT. Revísalo antes de publicarlo."
-        : "Borrador generado con reglas internas. Configura OPENAI_API_KEY para usar ChatGPT."
+        : data.warning || "Borrador generado localmente. Configura OPENAI_API_KEY para usar ChatGPT."
     );
   } catch (error) {
     setFormMessage($("#instagramPostMessage"), error.message, true);

@@ -47,7 +47,7 @@ test("prepara cuatro imágenes y genera ambas fichas en una sola página", async
     baths: 3,
     parking: 2,
     area: 105.08,
-    lot: 0,
+    lot: 250.75,
     mls: "TEST-001",
     descriptionEs: "Propiedad de prueba con superficie decimal para verificar la ficha comercial.",
   };
