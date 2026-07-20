@@ -3905,6 +3905,9 @@ function previewPdf() {
         entity.lot ? `${new Intl.NumberFormat("es-MX").format(entity.lot)} m² terreno` : "",
       ].filter(Boolean).join(" · ")
     : "";
+  const neutralAmenities = !isValuation && Array.isArray(entity.amenities)
+    ? entity.amenities.filter(Boolean).join(" · ")
+    : "";
   preview.innerHTML = isValuation
     ? `
       <span class="eyebrow">VALORACIÓN INMOBILIARIA</span>
@@ -3915,12 +3918,13 @@ function previewPdf() {
       <p>${escapeHtml(entity.comments || "Requiere revisión del asesor.")}</p>
     `
     : `
-      <span class="eyebrow">${form.brandMode.value === "neutral" ? "FICHA NEUTRA" : "FICHA COMERCIAL · PUERTO CANCÚN CENTER"}</span>
+      <span class="eyebrow">${form.brandMode.value === "neutral" ? "FICHA NEUTRA DETALLADA" : "FICHA COMERCIAL · PUERTO CANCÚN CENTER"}</span>
       <h3>${escapeHtml(entity.titleEs)}</h3>
       <p>${escapeHtml(displayLocation(entity))} · ${escapeHtml(entity.type)}</p>
       ${form.showPrice.checked ? `<div class="preview-price">${escapeHtml(formatPriceSummary(entity))}</div>` : ""}
       <p>${escapeHtml(propertyMetrics || "Sin características registradas")}</p>
-      <p>${escapeHtml(truncateText(entity.descriptionEs || "", 460))}</p>
+      ${form.brandMode.value === "neutral" && neutralAmenities ? `<p><strong>Amenidades:</strong> ${escapeHtml(neutralAmenities)}</p>` : ""}
+      <p>${escapeHtml(truncateText(entity.descriptionEs || "", form.brandMode.value === "neutral" ? 900 : 460))}</p>
     `;
 }
 

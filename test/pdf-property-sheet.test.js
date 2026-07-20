@@ -13,7 +13,7 @@ async function imageDataUrl(color) {
 
 function buildPdf(property, images, brandMode) {
   return new Promise((resolve, reject) => {
-    const document = new PDFDocument({ size: "LETTER", margin: 48, compress: false });
+    const document = new PDFDocument({ size: "A4", margin: 48, compress: false });
     const chunks = [];
     document.on("data", (chunk) => chunks.push(chunk));
     document.on("error", reject);
@@ -28,10 +28,21 @@ function buildPdf(property, images, brandMode) {
   });
 }
 
-test("prepara cuatro imágenes y genera ambas fichas en una sola página", async () => {
-  const sources = await Promise.all(["#184e77", "#52b788", "#f4a261", "#9d4edd"].map(imageDataUrl));
-  const images = await preparePropertyPdfImages(sources);
-  assert.equal(images.length, 4);
+test("genera la ficha institucional en una página y la neutra con información ampliada", async () => {
+  const sources = await Promise.all([
+    "#184e77",
+    "#52b788",
+    "#f4a261",
+    "#9d4edd",
+    "#e76f51",
+    "#457b9d",
+    "#2a9d8f",
+    "#e9c46a",
+  ].map(imageDataUrl));
+  const brandedImages = await preparePropertyPdfImages(sources);
+  const neutralImages = await preparePropertyPdfImages(sources, 12);
+  assert.equal(brandedImages.length, 4);
+  assert.equal(neutralImages.length, 8);
 
   const property = {
     titleEs: "Departamento frente al mar",
@@ -49,17 +60,24 @@ test("prepara cuatro imágenes y genera ambas fichas en una sola página", async
     area: 105.08,
     lot: 250.75,
     mls: "TEST-001",
-    descriptionEs: "Propiedad de prueba con superficie decimal para verificar la ficha comercial.",
+    amenities: ["Alberca", "Marina", "Gimnasio", "Seguridad 24/7", "Spa", "Terraza", "Elevador"],
+    descriptionEs: "Propiedad de prueba con superficie decimal, distribución funcional, acabados residenciales y espacios amplios. ".repeat(24),
   };
 
-  for (const brandMode of ["branded", "neutral"]) {
-    const pdf = await buildPdf(property, images, brandMode);
-    assert.ok(pdf.length > 10000);
-    assert.equal((pdf.toString("latin1").match(/\/Type \/Page\b/g) || []).length, 1);
-    if (process.env.PDF_FIXTURE_DIR) {
-      fs.mkdirSync(process.env.PDF_FIXTURE_DIR, { recursive: true });
-      fs.writeFileSync(path.join(process.env.PDF_FIXTURE_DIR, `property-${brandMode}.pdf`), pdf);
-    }
+  const brandedPdf = await buildPdf(property, brandedImages, "branded");
+  const neutralPdf = await buildPdf(property, neutralImages, "neutral");
+  const brandedPageCount = (brandedPdf.toString("latin1").match(/\/Type \/Page\b/g) || []).length;
+  const neutralPageCount = (neutralPdf.toString("latin1").match(/\/Type \/Page\b/g) || []).length;
+
+  assert.ok(brandedPdf.length > 10000);
+  assert.ok(neutralPdf.length > brandedPdf.length);
+  assert.equal(brandedPageCount, 1);
+  assert.ok(neutralPageCount >= 4);
+
+  if (process.env.PDF_FIXTURE_DIR) {
+    fs.mkdirSync(process.env.PDF_FIXTURE_DIR, { recursive: true });
+    fs.writeFileSync(path.join(process.env.PDF_FIXTURE_DIR, "property-branded.pdf"), brandedPdf);
+    fs.writeFileSync(path.join(process.env.PDF_FIXTURE_DIR, "property-neutral.pdf"), neutralPdf);
   }
 });
 
@@ -76,5 +94,6 @@ test("todas las propiedades ofrecen PDF institucional y neutro", () => {
   assert.match(appSource, /data-generate-property-pdf=.*data-pdf-mode="branded"/s);
   assert.match(appSource, /data-generate-property-pdf=.*data-pdf-mode="neutral"/s);
   assert.match(generateRoute, /SELECT \* FROM properties WHERE id = \$1/);
+  assert.match(generateRoute, /options\.brandMode === "neutral" \? 12 : 4/);
   assert.doesNotMatch(generateRoute, /is_public\s*=|status\s*=/i);
 });
