@@ -70,7 +70,7 @@ El servidor crea automáticamente las tablas necesarias y carga propiedades de e
 - Publicaciones con estados, score, ubicación jerárquica y hasta 20 imágenes.
 - Galería editable por imagen: agregar, eliminar, reordenar y elegir portada sin perder las fotos existentes.
 - Catálogo base con los 32 estados de México, los 11 municipios de Quintana Roo y una selección amplia de zonas, colonias y desarrollos inmobiliarios.
-- Fichas PDF de una página con hasta cuatro imágenes para cualquier propiedad, incluso borradores e incompletas. Cada inmueble ofrece dos acciones directas: institucional con logos y datos de Puerto Cancún Center, o neutra únicamente con información de la propiedad.
+- Fichas PDF para cualquier propiedad, incluso borradores e incompletas. La institucional concentra cuatro imágenes, logos y datos de Puerto Cancún Center en una sola página; la neutra incluye información técnica, amenidades, descripción completa y hasta doce fotografías en las páginas que hagan falta, sin datos de la inmobiliaria.
 - Espacio de Instagram para seleccionar una propiedad, generar captions con OpenAI, copiarlos y abrir el perfil configurado. No publica automáticamente: el texto siempre requiere revisión humana.
 - URL canónica individual por propiedad, categorías rastreables y versiones independientes en español e inglés.
 - Schema `RealEstateAgent`, `RealEstateListing`, `BreadcrumbList`, sitemap dinámico y medios públicos sin Base64 en el HTML.
@@ -96,7 +96,7 @@ Las campañas preparan y registran mensajes; no realizan envío masivo sin un pr
 - Una publicación pública debe conservar por lo menos una imagen; para retirar la última, primero se debe despublicar.
 - Al escribir una dirección nueva se eliminan las coordenadas anteriores y se geocodifica nuevamente. Al cambiar de sección o salir del panel se limpia el formulario de publicaciones y su borrador local.
 - El dashboard enlaza directamente al filtro de propiedades incompletas y cada registro muestra su porcentaje y datos faltantes.
-- Construcción y terreno aceptan dos decimales. Las fichas PDF institucional y neutra conservan esos valores y muestran hasta cuatro imágenes en una sola página.
+- Construcción y terreno aceptan dos decimales. Las fichas institucional y neutra conservan esos valores; la institucional muestra cuatro imágenes en una página y la neutra amplía la galería y los detalles en varias páginas cuando corresponde.
 
 ## Verificación
 

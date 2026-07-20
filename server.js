@@ -4269,7 +4269,10 @@ app.post("/api/admin/documents/generate", requireRole("admin"), async (req, res,
     if (documentType === "property") {
       const result = await query("SELECT * FROM properties WHERE id = $1", [String(req.body.propertyId || "")]);
       entity = result.rows[0] ? toProperty(result.rows[0]) : null;
-      if (result.rows[0]) propertyPdfImages = await preparePropertyPdfImages(mergeLegacyImages(result.rows[0].images, result.rows[0].image));
+      if (result.rows[0]) {
+        const imageLimit = options.brandMode === "neutral" ? 12 : 4;
+        propertyPdfImages = await preparePropertyPdfImages(mergeLegacyImages(result.rows[0].images, result.rows[0].image), imageLimit);
+      }
     } else {
       const result = await query("SELECT * FROM valuations WHERE id = $1", [String(req.body.valuationId || "")]);
       entity = result.rows[0] ? toValuation(result.rows[0]) : null;
