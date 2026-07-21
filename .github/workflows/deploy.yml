@@ -1,0 +1,45 @@
+name: Deploy main
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: production-deploy
+  cancel-in-progress: false
+
+jobs:
+  verify-and-deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      DEPLOY_HOOK_URL: ${{ secrets.SEENODE_DEPLOY_HOOK_URL }}
+      PUBLIC_DEPLOY_URL: ${{ vars.PUBLIC_DEPLOY_URL }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npm run verify
+      - name: Trigger Seenode deploy
+        if: env.DEPLOY_HOOK_URL != ''
+        run: curl --fail --silent --show-error --retry 2 --request POST "$DEPLOY_HOOK_URL"
+      - name: Explain manual deployment requirement
+        if: env.DEPLOY_HOOK_URL == ''
+        run: echo "Configure the SEENODE_DEPLOY_HOOK_URL repository secret to automate production deployment."
+      - name: Smoke test deployed service
+        if: env.DEPLOY_HOOK_URL != '' && env.PUBLIC_DEPLOY_URL != ''
+        run: |
+          for attempt in {1..20}; do
+            if curl --fail --silent "$PUBLIC_DEPLOY_URL/ready" > /dev/null; then
+              curl --fail --silent "$PUBLIC_DEPLOY_URL/api/version"
+              exit 0
+            fi
+            sleep 15
+          done
+          exit 1

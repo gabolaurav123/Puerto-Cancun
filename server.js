@@ -12,6 +12,20 @@ const { drawPropertyPdf, preparePropertyPdfImages } = require("./pdf-property-sh
 const { createWhatsappService, normalizeBotSettings } = require("./whatsapp-service");
 const { Pool } = require("pg");
 const { buildLocationSeedOptions } = require("./location-catalog");
+const packageMetadata = require("./package.json");
+const { ensureMigrationTable, recordMigration } = require("./db/migrations");
+const {
+  MUTATING_METHODS,
+  createRateLimiter,
+  inferAuditTarget,
+  isValidEmail,
+  normalizePhone,
+  requestContext,
+  resolveReleaseInfo,
+  sameOriginMutationGuard,
+  securityHeaders,
+  validateRuntimeConfig,
+} = require("./platform-utils");
 const {
   DEFAULT_SITE_URL,
   absoluteUrl,
@@ -36,6 +50,12 @@ const databaseUrl = String(process.env.DATABASE_URL || "").trim();
 const databaseSslMode = String(process.env.DATABASE_SSL || "require").trim().toLowerCase();
 const databasePoolMax = Math.max(1, Math.min(20, Number(process.env.DATABASE_POOL_MAX || 5)));
 const indexPath = path.join(__dirname, "index.html");
+const staticAssetVersion = crypto
+  .createHash("sha256")
+  .update(fs.readFileSync(path.join(__dirname, "app.js")))
+  .update(fs.readFileSync(path.join(__dirname, "styles.css")))
+  .digest("hex")
+  .slice(0, 12);
 const publicStaticFiles = new Set([
   "/app.js",
   "/styles.css",
@@ -100,6 +120,9 @@ const instagramAccessToken = (process.env.INSTAGRAM_ACCESS_TOKEN || "").trim();
 const instagramOauthUrl = (process.env.INSTAGRAM_OAUTH_URL || "").trim();
 const instagramProfileUrl = (process.env.INSTAGRAM_PROFILE_URL || "https://www.instagram.com/").trim();
 const geocodeCache = new Map();
+const releaseInfo = resolveReleaseInfo(process.env, packageMetadata.version);
+const runtimeValidation = validateRuntimeConfig(process.env);
+const whatsappAuthSecret = String(process.env.WHATSAPP_AUTH_SECRET || sessionSecret);
 
 function normalizeGeocodeQuery(value) {
   return String(value || "").trim().replace(/\s+/g, " ").slice(0, 320);
@@ -986,7 +1009,7 @@ async function query(sql, params = []) {
   return result;
 }
 
-const whatsappService = createWhatsappService({ pool, query, uuid, secret: sessionSecret });
+const whatsappService = createWhatsappService({ pool, query, uuid, secret: whatsappAuthSecret });
 
 const PROPERTY_SUMMARY_COLUMNS = `
   p.id, p.slug, p.title_es, p.title_en, p.type, p.state, p.city, p.zone, p.neighborhood, p.address,
@@ -1089,6 +1112,7 @@ async function initDatabase() {
   const client = await pool.connect();
   try {
     await client.query("BEGIN");
+    await ensureMigrationTable(client);
     await client.query(`
       CREATE TABLE IF NOT EXISTS seller_accounts (
         id TEXT PRIMARY KEY,
@@ -1193,6 +1217,8 @@ async function initDatabase() {
     await client.query("ALTER TABLE properties ADD COLUMN IF NOT EXISTS keywords JSONB NOT NULL DEFAULT '[]'::jsonb");
     await client.query("ALTER TABLE properties ADD COLUMN IF NOT EXISTS idempotency_key TEXT UNIQUE");
     await client.query("CREATE INDEX IF NOT EXISTS idx_properties_keywords_gin ON properties USING GIN (keywords)");
+    await client.query("CREATE INDEX IF NOT EXISTS idx_properties_public_status_updated ON properties (is_public, status, updated_at DESC)");
+    await client.query("CREATE INDEX IF NOT EXISTS idx_location_options_hierarchy ON location_options (type, parent_id, is_active, sort_order)");
     await client.query("ALTER TABLE properties ALTER COLUMN price_usd DROP NOT NULL");
     await client.query("ALTER TABLE properties ADD COLUMN IF NOT EXISTS state TEXT NOT NULL DEFAULT 'Quintana Roo'");
     await client.query("ALTER TABLE properties ADD COLUMN IF NOT EXISTS city TEXT NOT NULL DEFAULT 'Cancun'");
@@ -1301,6 +1327,11 @@ async function initDatabase() {
         created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
       );
     `);
+    await client.query("CREATE INDEX IF NOT EXISTS idx_activity_logs_created_at ON activity_logs (created_at DESC)");
+    await client.query("CREATE INDEX IF NOT EXISTS idx_lead_requests_status_created ON lead_requests (status, created_at DESC)");
+    await client.query("CREATE INDEX IF NOT EXISTS idx_contacts_type_updated ON contacts (contact_type, updated_at DESC)");
+    await client.query("CREATE INDEX IF NOT EXISTS idx_notifications_user_read_created ON notifications (user_id, is_read, created_at DESC)");
+    await client.query("CREATE INDEX IF NOT EXISTS idx_tasks_status_due ON tasks (status, due_date)");
     await client.query(`
       CREATE TABLE IF NOT EXISTS analytics_events (
         id TEXT PRIMARY KEY,
@@ -1680,6 +1711,7 @@ async function initDatabase() {
       }
     }
 
+    await recordMigration(client, "0001-legacy-schema", "Esquema base idempotente consolidado");
     await client.query("COMMIT");
   } catch (error) {
     await client.query("ROLLBACK");
@@ -1690,6 +1722,9 @@ async function initDatabase() {
 }
 
 app.set("trust proxy", 1);
+app.disable("x-powered-by");
+app.use(requestContext(releaseInfo));
+app.use(securityHeaders());
 app.use(express.json({ limit: "20mb" }));
 app.use("/assets", express.static(path.join(__dirname, "assets"), { immutable: true, maxAge: "1y" }));
 app.get("/health", (_req, res) => {
@@ -1697,38 +1732,140 @@ app.get("/health", (_req, res) => {
     ok: true,
     service: "puerto-cancun-center",
     databaseReady: databaseRuntimeState.ready,
+    version: releaseInfo.version,
+    release: releaseInfo.shortRelease,
+    assetVersion: staticAssetVersion,
   });
 });
-app.use(
-  session({
-    store: new PgSession({
-      pool,
-      tableName: "user_sessions",
-      createTableIfMissing: true,
-    }),
-    name: "pcc.sid",
-    secret: sessionSecret,
-    resave: false,
-    saveUninitialized: false,
-    cookie: {
-      httpOnly: true,
-      sameSite: "lax",
-      secure: process.env.NODE_ENV === "production",
-      maxAge: 1000 * 60 * 60 * 12,
-    },
-  })
-);
+app.get("/api/version", (_req, res) => {
+  res.json({
+    service: "puerto-cancun-center",
+    ...releaseInfo,
+    assetVersion: staticAssetVersion,
+    databaseReady: databaseRuntimeState.ready,
+  });
+});
+const sessionMiddleware = session({
+  store: new PgSession({
+    pool,
+    tableName: "user_sessions",
+    createTableIfMissing: true,
+  }),
+  name: "pcc.sid",
+  secret: sessionSecret,
+  resave: false,
+  saveUninitialized: false,
+  cookie: {
+    httpOnly: true,
+    sameSite: "lax",
+    secure: process.env.NODE_ENV === "production",
+    maxAge: 1000 * 60 * 60 * 12,
+  },
+});
+
+function anonymousSession(req) {
+  req.session = { user: null };
+}
+
+function publicRequestCanDegrade(req) {
+  return req.method === "GET" && !req.path.startsWith("/api/admin") && !req.path.startsWith("/api/seller");
+}
+
+app.use((req, res, next) => {
+  if (!databaseRuntimeState.ready) {
+    anonymousSession(req);
+    next();
+    return;
+  }
+  sessionMiddleware(req, res, (error) => {
+    if (!error) {
+      next();
+      return;
+    }
+    databaseRuntimeState.ready = false;
+    databaseRuntimeState.lastError = String(error.message || error).slice(0, 500);
+    if (publicRequestCanDegrade(req)) {
+      anonymousSession(req);
+      next();
+      return;
+    }
+    next(Object.assign(new Error("La base de datos se está reconectando. Intenta nuevamente en unos segundos."), { status: 503 }));
+  });
+});
+
+app.use(["/api/admin", "/api/seller", "/api/auth"], (req, res, next) => {
+  if (databaseRuntimeState.ready) {
+    next();
+    return;
+  }
+  res.status(503).json({
+    error: "El servicio de datos se está preparando. Intenta nuevamente en unos segundos.",
+    requestId: req.requestId,
+  });
+});
+
+app.use("/api", sameOriginMutationGuard());
+app.use("/api/auth", createRateLimiter({ windowMs: 15 * 60 * 1000, max: 12, message: "Demasiados intentos de acceso. Espera 15 minutos antes de volver a intentar." }));
+app.use("/api/geocode", createRateLimiter({ windowMs: 10 * 60 * 1000, max: 80, message: "Se alcanzó el límite temporal de búsquedas de dirección." }));
+app.use("/api/leads", createRateLimiter({ windowMs: 10 * 60 * 1000, max: 30, message: "Se recibieron demasiadas solicitudes desde esta conexión." }));
+app.use("/api/analytics", createRateLimiter({ windowMs: 5 * 60 * 1000, max: 180 }));
+app.use("/api/metrics", createRateLimiter({ windowMs: 5 * 60 * 1000, max: 180 }));
+
+app.use("/api/admin", (req, res, next) => {
+  if (!MUTATING_METHODS.has(req.method)) return next();
+  const startedAt = Date.now();
+  res.on("finish", () => {
+    if (res.statusCode >= 400 || !req.session?.user?.id) return;
+    const { entityType, entityId } = inferAuditTarget(req.originalUrl);
+    const metadata = {
+      method: req.method,
+      path: String(req.originalUrl || "").split("?")[0],
+      status: res.statusCode,
+      requestId: req.requestId,
+      durationMs: Date.now() - startedAt,
+    };
+    void query(
+      `INSERT INTO activity_logs (id, user_id, action, entity_type, entity_id, new_value)
+       VALUES ($1, $2, $3, $4, $5, $6::jsonb)`,
+      [uuid("activity"), req.session.user.id, `${req.method.toLowerCase()}_${entityType}`, entityType, entityId, JSON.stringify(metadata)]
+    ).catch((error) => console.warn("No fue posible registrar auditoría:", error.message));
+  });
+  next();
+});
 
 app.get("/api/health", async (_req, res) => {
   try {
     await query("SELECT 1");
-    databaseRuntimeState.ready = true;
-    databaseRuntimeState.lastError = "";
-    res.json({ ok: true, databaseReady: true });
+    res.json({
+      ok: true,
+      databaseReachable: true,
+      databaseReady: databaseRuntimeState.ready,
+      version: releaseInfo.version,
+      release: releaseInfo.shortRelease,
+      assetVersion: staticAssetVersion,
+    });
   } catch (error) {
     databaseRuntimeState.ready = false;
     databaseRuntimeState.lastError = String(error.message || "Database unavailable").slice(0, 240);
-    res.status(503).json({ ok: false, databaseReady: false, error: "Database unavailable" });
+    res.status(503).json({
+      ok: false,
+      databaseReachable: false,
+      databaseReady: false,
+      version: releaseInfo.version,
+      release: releaseInfo.shortRelease,
+      assetVersion: staticAssetVersion,
+      error: "Database unavailable",
+    });
+  }
+});
+
+app.get("/ready", async (_req, res) => {
+  try {
+    await query("SELECT 1");
+    if (!databaseRuntimeState.ready) throw new Error("Database initialization is still pending");
+    res.json({ ok: true, databaseReady: true, version: releaseInfo.version, release: releaseInfo.shortRelease });
+  } catch {
+    res.status(503).json({ ok: false, databaseReady: false, version: releaseInfo.version, release: releaseInfo.shortRelease });
   }
 });
 
@@ -1745,6 +1882,7 @@ app.get("/api/config", async (_req, res) => {
     googleClientId,
     googleMapsApiKey,
     exchangeRate,
+    platform: { ...releaseInfo, assetVersion: staticAssetVersion },
     publicSiteUrl: siteUrl,
     businessAddress: "Puerto Cancun Mall, Marina B., oficina 27, Zona Hotelera, Cancun 77500, Q Roo, Mexico.",
   });
@@ -1889,12 +2027,12 @@ app.post("/api/auth/register", async (req, res, next) => {
     const firstName = String(req.body.firstName || "").trim();
     const lastName = String(req.body.lastName || "").trim();
     const email = String(req.body.email || "").trim().toLowerCase();
-    const phone = String(req.body.phone || "").trim();
+    const phone = normalizePhone(req.body.phone);
     const preferredContact = req.body.preferredContact === "phone" ? "phone" : "email";
     const password = String(req.body.password || "");
 
-    if (!firstName || !lastName || !email || !phone || password.length < 6) {
-      res.status(400).json({ error: "Missing required fields" });
+    if (!firstName || !lastName || !isValidEmail(email) || !phone || password.length < 10) {
+      res.status(400).json({ error: "Completa los datos con un correo válido, teléfono de 10 a 15 dígitos y contraseña de al menos 10 caracteres." });
       return;
     }
 
@@ -2078,7 +2216,8 @@ app.post("/api/leads", async (req, res, next) => {
     const body = req.body || {};
     const leadType = String(body.leadType || "general").trim().slice(0, 80);
     const name = String(body.name || body.firstName || "Visitante web").trim();
-    const phone = String(body.whatsapp || body.phone || "").trim();
+    const rawPhone = String(body.whatsapp || body.phone || "").trim();
+    const phone = rawPhone ? normalizePhone(rawPhone) : "";
     const email = String(body.email || "").trim().toLowerCase() || null;
     const sourcePath = String(body.sourcePath || "").trim().slice(0, 220) || null;
     const propertyId = String(body.propertyId || "").trim() || null;
@@ -2086,6 +2225,11 @@ app.post("/api/leads", async (req, res, next) => {
     if (!name && !phone && !email) {
       await client.query("ROLLBACK");
       res.status(400).json({ error: "Agrega al menos un dato de contacto." });
+      return;
+    }
+    if ((rawPhone && !phone) || (email && !isValidEmail(email))) {
+      await client.query("ROLLBACK");
+      res.status(400).json({ error: "Revisa el teléfono o correo antes de enviar la solicitud." });
       return;
     }
 
@@ -2565,7 +2709,9 @@ app.get("/api/admin/stats", requireRole("admin"), async (_req, res, next) => {
       query("SELECT COUNT(*)::int AS count FROM properties"),
       query("SELECT COUNT(*)::int AS count FROM properties WHERE status = 'active' AND is_public = TRUE"),
       query("SELECT COUNT(*)::int AS count FROM properties WHERE status IN ('disabled', 'archived', 'draft') OR is_public = FALSE"),
-      query("SELECT COUNT(*)::int AS count FROM properties WHERE images = '[]'::jsonb OR price_usd IS NULL OR description_es IS NULL OR LENGTH(description_es) < 120"),
+      query(`SELECT image, images, latitude, longitude, address, price_usd, price_mxn,
+                    description_es, zone, beds, baths, area, featured
+             FROM properties`),
       query("SELECT COUNT(*)::int AS count FROM properties WHERE featured = TRUE"),
       query("SELECT COUNT(*)::int AS count FROM seller_requests WHERE status = 'pending'"),
       query("SELECT COUNT(*)::int AS count FROM lead_requests WHERE status = 'new'"),
@@ -2597,7 +2743,7 @@ app.get("/api/admin/stats", requireRole("admin"), async (_req, res, next) => {
       properties: properties.rows[0].count,
       activeProperties: activeProperties.rows[0].count,
       disabledProperties: disabledProperties.rows[0].count,
-      incompleteProperties: incompleteProperties.rows[0].count,
+      incompleteProperties: incompleteProperties.rows.filter((property) => propertyQuality(property).score < 70).length,
       featuredProperties: featuredProperties.rows[0].count,
       pendingRequests: pending.rows[0].count,
       newLeads: leads.rows[0].count,
@@ -3725,10 +3871,19 @@ app.patch("/api/admin/properties/:id/images", requireRole("admin"), async (req, 
 app.delete("/api/admin/properties/:id", requireRole("admin"), async (req, res, next) => {
   try {
     const existing = await query("SELECT * FROM properties WHERE id = $1", [req.params.id]);
-    await query("DELETE FROM properties WHERE id = $1", [req.params.id]);
+    if (!existing.rows[0]) {
+      res.status(404).json({ error: "Propiedad no encontrada." });
+      return;
+    }
+    await query(
+      `UPDATE properties
+       SET status = 'archived', is_public = FALSE, archived_at = NOW(), updated_at = NOW()
+       WHERE id = $1`,
+      [req.params.id]
+    );
     invalidatePublicPropertyCache();
-    if (existing.rows[0]) void notifyIndexNow(propertyIndexPaths(toProperty(existing.rows[0])));
-    res.json({ ok: true });
+    void notifyIndexNow(propertyIndexPaths(toProperty(existing.rows[0])));
+    res.json({ ok: true, archived: true });
   } catch (error) {
     next(error);
   }
@@ -3843,8 +3998,8 @@ app.post("/api/admin/users", requireRole("admin"), async (req, res, next) => {
     const name = String(body.name || "").trim();
     const email = String(body.email || "").trim().toLowerCase();
     const password = String(body.password || "");
-    if (!name || !email || password.length < 8) {
-      res.status(400).json({ error: "Nombre, correo y contraseña de al menos 8 caracteres son obligatorios." });
+    if (!name || !isValidEmail(email) || password.length < 12) {
+      res.status(400).json({ error: "Nombre, correo válido y contraseña de al menos 12 caracteres son obligatorios." });
       return;
     }
     const passwordHash = await bcrypt.hash(password, 10);
@@ -3875,6 +4030,14 @@ app.post("/api/admin/users", requireRole("admin"), async (req, res, next) => {
 app.patch("/api/admin/users/:id", requireRole("admin"), async (req, res, next) => {
   try {
     const body = req.body || {};
+    if (body.email !== undefined && !isValidEmail(body.email)) {
+      res.status(400).json({ error: "Escribe un correo válido." });
+      return;
+    }
+    if (body.password && String(body.password).length < 12) {
+      res.status(400).json({ error: "La contraseña debe contener al menos 12 caracteres." });
+      return;
+    }
     const passwordHash = body.password ? await bcrypt.hash(String(body.password), 10) : null;
     const result = await query(
       `UPDATE internal_users SET
@@ -3907,6 +4070,32 @@ app.get("/api/admin/settings", requireRole("admin"), async (_req, res, next) => 
   try {
     const result = await query("SELECT key, value, updated_at FROM app_settings ORDER BY key");
     res.json({ settings: Object.fromEntries(result.rows.map((row) => [row.key, row.value])) });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.get("/api/admin/activity", requireRole("admin"), async (req, res, next) => {
+  try {
+    const limit = Math.max(10, Math.min(200, Number(req.query.limit || 80)));
+    const result = await query(
+      `SELECT id, user_id, action, entity_type, entity_id, new_value, created_at
+       FROM activity_logs
+       ORDER BY created_at DESC
+       LIMIT $1`,
+      [limit]
+    );
+    res.json({
+      activity: result.rows.map((row) => ({
+        id: row.id,
+        userId: row.user_id || "",
+        action: row.action,
+        entityType: row.entity_type,
+        entityId: row.entity_id,
+        metadata: row.new_value || {},
+        createdAt: row.created_at,
+      })),
+    });
   } catch (error) {
     next(error);
   }
@@ -4802,6 +4991,9 @@ function replaceMetaTag(html, pattern, replacement) {
 
 function decoratePublicHtml({ page, seo, pageContent = "", bodyPage = "seo", noindex = false }) {
   let html = fs.readFileSync(indexPath, "utf8");
+  const assetVersion = encodeURIComponent(staticAssetVersion);
+  html = html.replace(/styles\.css\?v=[^"']+/g, `styles.css?v=${assetVersion}`);
+  html = html.replace(/app\.js\?v=[^"']+/g, `app.js?v=${assetVersion}`);
   const alternateUrl = absoluteUrl(seo.alternate || "/", siteUrl);
   const spanishUrl = seo.lang === "en" ? alternateUrl : seo.canonical;
   const englishUrl = seo.lang === "en" ? seo.canonical : alternateUrl;
@@ -4854,7 +5046,7 @@ function decoratePublicHtml({ page, seo, pageContent = "", bodyPage = "seo", noi
     html = html.replace(/<h1 data-i18n="heroTitle">([\s\S]*?)<\/h1>/, '<p class="hero-title" data-i18n="heroTitle">$1</p>');
   }
   html = html.replace('<html lang="es">', `<html lang="${seo.lang === "en" ? "en" : "es-MX"}">`);
-  html = html.replace('<body data-page="home">', `<body data-page="${bodyPage}" data-lang="${seo.lang === "en" ? "en" : "es"}" data-alternate-url="${escapeHtml(seo.alternate || "/")}">`);
+  html = html.replace('<body data-page="home">', `<body data-page="${bodyPage}" data-lang="${seo.lang === "en" ? "en" : "es"}" data-release="${escapeHtml(releaseInfo.shortRelease)}" data-alternate-url="${escapeHtml(seo.alternate || "/")}">`);
   return html;
 }
 
@@ -4915,6 +5107,7 @@ app.get(["/propiedades/:slug", "/en/properties/:slug"], async (req, res, next) =
     const staticPage = getPageByPath(req.path);
     if (staticPage) {
       const html = await renderPublicHtml(req.path, req.hostname.endsWith("seenode.app"));
+      res.set("Cache-Control", "public, max-age=0, must-revalidate");
       res.send(html);
       return;
     }
@@ -4930,6 +5123,7 @@ app.get(["/propiedades/:slug", "/en/properties/:slug"], async (req, res, next) =
       .sort((a, b) => Number(b.zone === property.zone) - Number(a.zone === property.zone));
     const rendered = renderPropertyPage(property, lang, similar);
     const seo = renderPropertyHead(property, siteUrl, lang);
+    res.set("Cache-Control", "public, max-age=0, must-revalidate");
     res.send(decoratePublicHtml({ page: rendered.page, seo, pageContent: rendered.html, bodyPage: "property", noindex: req.hostname.endsWith("seenode.app") }));
   } catch (error) {
     next(error);
@@ -4937,6 +5131,7 @@ app.get(["/propiedades/:slug", "/en/properties/:slug"], async (req, res, next) =
 });
 
 app.get(Array.from(publicStaticFiles), (req, res) => {
+  res.set("Cache-Control", req.query.v ? "public, max-age=31536000, immutable" : "public, max-age=0, must-revalidate");
   res.sendFile(path.join(__dirname, req.path.slice(1)));
 });
 
@@ -4947,24 +5142,32 @@ app.get("*", async (req, res, next) => {
       res.status(404).send("Pagina no encontrada");
       return;
     }
+    res.set("Cache-Control", "public, max-age=0, must-revalidate");
     res.send(html);
   } catch (error) {
     next(error);
   }
 });
 
-app.use((error, _req, res, _next) => {
+app.use((error, req, res, _next) => {
   const status = error.type === "entity.too.large" ? 413 : error.code === "57014" ? 504 : error.status || 500;
   if (status >= 500) {
     console.error(error);
   }
-  const message =
+  const publicMessage =
     status === 413
       ? "El contenido es demasiado grande. Reduce el peso o la cantidad de imagenes e intenta nuevamente."
       : status === 504
         ? "El servidor tardo demasiado en guardar. Los datos permanecen en el formulario para reintentar."
-        : error.message || "Server error";
-  res.status(status).json({ error: message });
+        : status >= 500 && process.env.NODE_ENV === "production"
+          ? "Ocurrió un error inesperado. Intenta nuevamente o comparte el identificador de soporte."
+          : error.message || "Server error";
+  const payload = { error: publicMessage, requestId: req.requestId };
+  if (req.path.startsWith("/api/")) {
+    res.status(status).json(payload);
+    return;
+  }
+  res.status(status).type("html").send(`<!doctype html><html lang="es"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Error | Puerto Cancún Center</title><style>body{font-family:system-ui;margin:0;background:#eef4f4;color:#073b4c;display:grid;place-items:center;min-height:100vh}.box{max-width:620px;background:white;padding:40px;border-top:5px solid #c9a13b;box-shadow:0 20px 60px #073b4c22}a{color:#006b7a;font-weight:700}</style><div class="box"><h1>No pudimos cargar esta página</h1><p>${escapeHtml(publicMessage)}</p><p><small>Referencia: ${escapeHtml(req.requestId || "sin referencia")}</small></p><a href="/">Volver al inicio</a></div></html>`);
 });
 
 let databaseRetryTimer = null;
@@ -4998,11 +5201,55 @@ async function initializeDatabaseWithRetry() {
   }
 }
 
+function installShutdownHandlers(server) {
+  let shuttingDown = false;
+  const shutdown = (signal) => {
+    if (shuttingDown) return;
+    shuttingDown = true;
+    console.log(`[shutdown] ${signal} received; stopping HTTP and database connections.`);
+    if (databaseRetryTimer) {
+      clearTimeout(databaseRetryTimer);
+      databaseRetryTimer = null;
+    }
+    const forceExitTimer = setTimeout(() => {
+      console.error("[shutdown] Graceful shutdown timed out.");
+      server.closeAllConnections?.();
+      process.exit(1);
+    }, 10_000);
+    forceExitTimer.unref?.();
+    server.close(async (error) => {
+      clearTimeout(forceExitTimer);
+      try {
+        await pool.end();
+      } catch (poolError) {
+        console.error("[shutdown] PostgreSQL pool close failed:", poolError.message);
+        process.exitCode = 1;
+      }
+      if (error) {
+        console.error("[shutdown] HTTP server close failed:", error.message);
+        process.exitCode = 1;
+      }
+    });
+  };
+  process.once("SIGTERM", shutdown);
+  process.once("SIGINT", shutdown);
+  server.once("close", () => {
+    process.removeListener("SIGTERM", shutdown);
+    process.removeListener("SIGINT", shutdown);
+  });
+  return shutdown;
+}
+
 function startServer() {
+  if (runtimeValidation.errors.length) {
+    throw new Error(`Configuración de producción inválida: ${runtimeValidation.errors.join(" ")}`);
+  }
+  runtimeValidation.warnings.forEach((warning) => console.warn(`[config] ${warning}`));
   const server = app.listen(port, "0.0.0.0", () => {
-    console.log(`Puerto Cancun Center listening on http://0.0.0.0:${port}`);
+    console.log(`Puerto Cancun Center ${releaseInfo.version} (${releaseInfo.shortRelease}) listening on http://0.0.0.0:${port}`);
     void initializeDatabaseWithRetry();
   });
+  installShutdownHandlers(server);
   return server;
 }
 
@@ -5017,6 +5264,7 @@ module.exports = {
   geocodeAddress,
   initDatabase,
   initializeDatabaseWithRetry,
+  installShutdownHandlers,
   normalizeGeocodeQuery,
   parseNonNegativeNumber,
   parseUploadedImages,

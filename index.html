@@ -36,10 +36,14 @@
       href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&family=Playfair+Display:wght@500;600;700&display=swap"
       rel="stylesheet"
     />
-    <link rel="stylesheet" href="/styles.css?v=20260721.5" />
+    <link rel="stylesheet" href="/styles.css?v=20260722.1" />
     <!-- SEO_JSON_LD -->
   </head>
   <body data-page="home">
+    <div class="network-status" id="networkStatus" role="status" aria-live="polite" hidden>
+      <i data-lucide="wifi-off"></i>
+      <span>Sin conexión. Conservaremos los datos del formulario para que puedas reintentar.</span>
+    </div>
     <div class="site-shell" id="siteShell">
       <header class="main-header" id="mainHeader">
         <div class="brand-row">
@@ -617,7 +621,7 @@
             Los precios de los inmuebles se expresan en Pesos Mexicanos (MXN), moneda oficial para operaciones
             inmobiliarias en Mexico. Los precios en Dolares de Estados Unidos (USD) se presentan como referencia.
           </p>
-          <p>© 2026 Puerto Cancún Center. <span data-i18n="rights">Todos los derechos reservados.</span></p>
+          <p>© 2026 Puerto Cancún Center. <span data-i18n="rights">Todos los derechos reservados.</span> <small id="appRelease" class="app-release"></small></p>
         </div>
       </footer>
     </div>
@@ -1736,6 +1740,17 @@
             <div class="form-actions span-2"><button class="primary-button" type="submit">Guardar configuración</button></div>
           </form>
           <p class="form-message" id="settingsFormMessage"></p>
+          <section class="system-health-panel" aria-labelledby="systemHealthTitle">
+            <div class="table-heading">
+              <div><span class="eyebrow">OPERACIÓN</span><h3 id="systemHealthTitle">Estado del sistema</h3></div>
+              <button class="ghost-button" id="refreshSystemHealth" type="button"><i data-lucide="refresh-cw"></i> Actualizar</button>
+            </div>
+            <div class="system-health-grid" id="systemHealthGrid"></div>
+          </section>
+          <section class="admin-activity-panel" aria-labelledby="adminActivityTitle">
+            <div class="table-heading"><div><span class="eyebrow">AUDITORÍA</span><h3 id="adminActivityTitle">Actividad administrativa reciente</h3></div><span>Los cambios no incluyen contraseñas ni contenido sensible.</span></div>
+            <div class="wide-data-list admin-activity-list" id="adminActivityList"></div>
+          </section>
         </article>
         <article class="panel-card admin-roles-card" id="adminRolesCard" data-admin-section-panel="roles">
           <div class="admin-module-heading">
@@ -1749,7 +1764,7 @@
             <input type="hidden" name="id" />
             <label><span>Nombre</span><input name="name" required /></label>
             <label><span>Correo</span><input name="email" type="email" required /></label>
-            <label><span>Contraseña temporal</span><input name="password" type="password" minlength="8" /></label>
+            <label><span>Contraseña temporal</span><input name="password" type="password" minlength="12" autocomplete="new-password" /><small>Mínimo 12 caracteres.</small></label>
             <label><span>Rol</span><select name="role"><option value="super_admin">Super admin</option><option value="administrator">Administrador</option><option value="advisor">Asesor</option><option value="editor">Editor</option><option value="marketing">Marketing</option><option value="viewer">Solo lectura</option></select></label>
             <label><span>Estado</span><select name="status"><option value="active">Activo</option><option value="inactive">Inactivo</option></select></label>
             <fieldset class="permission-grid span-2">
@@ -2210,7 +2225,8 @@
           </label>
           <label>
             <span data-i18n="password">Contrasena</span>
-            <input name="password" type="password" autocomplete="new-password" minlength="6" required />
+            <input name="password" type="password" autocomplete="new-password" minlength="10" required />
+            <small>Usa por lo menos 10 caracteres y evita reutilizar otra contraseña.</small>
           </label>
           <button class="primary-button" type="submit" data-i18n="createAccount">Crear cuenta</button>
           <p class="form-message" id="registerMessage"></p>
@@ -2241,6 +2257,6 @@
     </button>
 
     <script src="https://unpkg.com/lucide@latest"></script>
-    <script src="/app.js?v=20260721.5"></script>
+    <script src="/app.js?v=20260722.1"></script>
   </body>
 </html>

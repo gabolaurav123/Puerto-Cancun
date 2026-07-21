@@ -108,6 +108,8 @@ CREATE TABLE IF NOT EXISTS location_options (
 );
 
 CREATE INDEX IF NOT EXISTS idx_properties_keywords_gin ON properties USING GIN (keywords);
+CREATE INDEX IF NOT EXISTS idx_properties_public_status_updated ON properties (is_public, status, updated_at DESC);
+CREATE INDEX IF NOT EXISTS idx_location_options_hierarchy ON location_options (type, parent_id, is_active, sort_order);
 
 CREATE TABLE IF NOT EXISTS app_metrics (
   id INTEGER PRIMARY KEY CHECK (id = 1),
@@ -193,6 +195,18 @@ CREATE TABLE IF NOT EXISTS activity_logs (
   old_value JSONB,
   new_value JSONB,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_activity_logs_created_at ON activity_logs (created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_lead_requests_status_created ON lead_requests (status, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_contacts_type_updated ON contacts (contact_type, updated_at DESC);
+CREATE INDEX IF NOT EXISTS idx_notifications_user_read_created ON notifications (user_id, is_read, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_tasks_status_due ON tasks (status, due_date);
+
+CREATE TABLE IF NOT EXISTS schema_migrations (
+  id TEXT PRIMARY KEY,
+  description TEXT NOT NULL,
+  applied_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 CREATE TABLE IF NOT EXISTS analytics_events (
