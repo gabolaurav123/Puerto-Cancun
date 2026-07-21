@@ -1211,6 +1211,37 @@ body[data-page="property"] .home-only {
   font-weight: 700;
 }
 
+.home-catalog-cta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  margin-top: 28px;
+  padding: 24px 28px;
+  border-left: 5px solid var(--gold);
+  background: #edf5f4;
+}
+
+.home-catalog-cta[hidden] {
+  display: none;
+}
+
+.home-catalog-cta strong {
+  display: block;
+  color: var(--blue-950);
+  font-family: "Playfair Display", Georgia, serif;
+  font-size: 1.65rem;
+}
+
+.home-catalog-cta p {
+  margin: 5px 0 0;
+  color: var(--muted);
+}
+
+.home-catalog-cta .primary-button {
+  flex: 0 0 auto;
+}
+
 .property-toolbar {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto auto;
@@ -3842,11 +3873,17 @@ button[aria-busy="true"]::before {
 
   .section-heading,
   .properties-title-row,
+  .home-catalog-cta,
   .sell-cta .content-wrap,
   .admin-command-bar,
   .panel-hero {
     align-items: flex-start;
     flex-direction: column;
+  }
+
+  .home-catalog-cta .primary-button {
+    width: 100%;
+    text-align: center;
   }
 
   .property-grid,
