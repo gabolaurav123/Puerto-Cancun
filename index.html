@@ -2199,6 +2199,9 @@
           </label>
           <button class="primary-button" type="submit" data-i18n="navLogin">Iniciar sesion</button>
           <p class="form-message" id="loginMessage"></p>
+          <button class="text-button" type="button" data-auth-tab="passwordUpdate" data-i18n="updateExistingPassword">
+            Ya tenías cuenta? Actualizar contraseña
+          </button>
           <button class="text-button" type="button" data-auth-tab="register" data-i18n="noAccount">
             No tienes cuenta? Crear una cuenta para vender
           </button>
@@ -2232,11 +2235,34 @@
           </label>
           <label>
             <span data-i18n="password">Contrasena</span>
-            <input name="password" type="password" autocomplete="new-password" minlength="10" required />
-            <small>Usa por lo menos 10 caracteres y evita reutilizar otra contraseña.</small>
+            <input name="password" type="password" autocomplete="new-password" minlength="12" required />
+            <small data-i18n="passwordRule">Usa por lo menos 12 caracteres y evita reutilizar otra contraseña.</small>
           </label>
           <button class="primary-button" type="submit" data-i18n="createAccount">Crear cuenta</button>
           <p class="form-message" id="registerMessage"></p>
+        </form>
+
+        <form id="passwordUpdateForm" class="auth-form">
+          <div>
+            <h3 data-i18n="updatePasswordTitle">Actualizar contraseña</h3>
+            <p data-i18n="updatePasswordIntro">Si ya tenías una cuenta, confirma tu contraseña actual y crea una nueva de al menos 12 caracteres.</p>
+          </div>
+          <label>
+            <span data-i18n="emailOrUser">Correo o usuario</span>
+            <input name="username" autocomplete="username" required />
+          </label>
+          <label>
+            <span data-i18n="currentPassword">Contraseña actual</span>
+            <input name="currentPassword" type="password" autocomplete="current-password" required />
+          </label>
+          <label>
+            <span data-i18n="newPassword">Nueva contraseña</span>
+            <input name="newPassword" type="password" autocomplete="new-password" minlength="12" required />
+            <small data-i18n="passwordRule">Usa por lo menos 12 caracteres y evita reutilizar otra contraseña.</small>
+          </label>
+          <button class="primary-button" type="submit" data-i18n="updatePasswordAction">Actualizar contraseña</button>
+          <p class="form-message" id="passwordUpdateMessage"></p>
+          <button class="text-button" type="button" data-auth-tab="login" data-i18n="backToLogin">Volver a iniciar sesión</button>
         </form>
       </section>
     </div>
