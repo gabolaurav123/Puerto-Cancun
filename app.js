@@ -1045,6 +1045,12 @@ function primaryImage(item) {
   return storedImages(item)[0] || fallbackImage;
 }
 
+function optimizedMediaUrl(value, width) {
+  const image = String(value || "");
+  if (!image.startsWith("/media/properties/")) return image;
+  return `${image}${image.includes("?") ? "&" : "?"}w=${width}`;
+}
+
 function displayLocation(item) {
   const parts = [item.neighborhood, item.zone, item.city, item.state].filter(Boolean);
   return parts.filter((part, index) => parts.indexOf(part) === index).join(", ");
@@ -1920,7 +1926,25 @@ function renderProperties() {
   updateActiveFilterSummary();
   renderCategoryPage();
   const properties = sortedProperties(state.properties.filter(propertyMatches));
-  $("#resultCount").textContent = `${properties.length} ${t("resultText")}`;
+  const isHome = document.body.dataset.page === "home";
+  const displayedProperties = isHome ? properties.slice(0, 6) : properties;
+  const propertiesTitle = $("#propertiesTitle");
+  const catalogCta = $("#homeCatalogCta");
+  if (propertiesTitle) propertiesTitle.textContent = isHome
+    ? state.lang === "en" ? "Selected properties" : "Propiedades seleccionadas"
+    : t("allProperties");
+  $("#resultCount").textContent = isHome && properties.length > displayedProperties.length
+    ? `${displayedProperties.length} ${state.lang === "en" ? "of" : "de"} ${properties.length} ${t("resultText")}`
+    : `${properties.length} ${t("resultText")}`;
+  if (catalogCta) {
+    catalogCta.hidden = !isHome || properties.length <= displayedProperties.length;
+    $("#homeCatalogCtaTitle").textContent = state.lang === "en" ? "Explore the complete catalog" : "Explora el catálogo completo";
+    $("#homeCatalogCtaCopy").textContent = state.lang === "en"
+      ? "Browse every available property with dedicated filters and details."
+      : "Consulta todas las propiedades disponibles con sus filtros y detalles.";
+    $("#homeCatalogLink").textContent = state.lang === "en" ? "View all properties" : "Ver todas las propiedades";
+    $("#homeCatalogLink").href = state.lang === "en" ? "/en/properties" : "/propiedades";
+  }
 
   if (!properties.length) {
     grid.innerHTML = `<p class="empty-state">${escapeHtml(t("noResults"))}</p>`;
@@ -1928,7 +1952,7 @@ function renderProperties() {
     return;
   }
 
-  grid.innerHTML = properties
+  grid.innerHTML = displayedProperties
     .map((property) => {
       const badges = [...(property.badges || [])];
       if (property.operation === "rent") badges.unshift("rent");
@@ -1955,7 +1979,7 @@ function renderProperties() {
       return `
         <article class="property-card" id="property-${escapeHtml(property.id)}">
           <div class="property-image">
-            <a href="${escapeHtml(propertyUrl || `/propiedades/${property.slug || property.id}`)}" aria-label="${escapeHtml(localizedTitle(property))}"><img src="${escapeHtml(primaryImage(property))}" alt="${escapeHtml(localizedTitle(property))}" width="640" height="420" loading="lazy" onerror="this.onerror=null;this.src='${escapeHtml(fallbackImage)}';" /></a>
+            <a href="${escapeHtml(propertyUrl || `/propiedades/${property.slug || property.id}`)}" aria-label="${escapeHtml(localizedTitle(property))}"><img src="${escapeHtml(optimizedMediaUrl(primaryImage(property), 640))}" alt="${escapeHtml(localizedTitle(property))}" width="640" height="420" loading="lazy" decoding="async" onerror="this.onerror=null;this.src='${escapeHtml(fallbackImage)}';" /></a>
             <div class="badge-row">${badgeHtml}</div>
             <div class="property-save-actions">
               <button class="${state.favorites.includes(property.id) ? "active" : ""}" type="button" data-favorite="${escapeHtml(property.id)}" title="Guardar favorito" aria-label="Guardar favorito"><i data-lucide="heart"></i></button>
@@ -6281,6 +6305,26 @@ function initializePropertyGallery() {
   let zoom = 1;
 
   const normalizeIndex = (index) => (index + slides.length) % slides.length;
+  const loadDeferredImage = (image) => {
+    if (!image?.dataset.gallerySrc) return;
+    image.src = image.dataset.gallerySrc;
+    delete image.dataset.gallerySrc;
+  };
+  const ensureImage = (index) => {
+    const normalized = normalizeIndex(index);
+    loadDeferredImage(slides[normalized]?.querySelector("img"));
+    $$(`[data-gallery-go="${normalized}"] img`).forEach(loadDeferredImage);
+  };
+  if ("IntersectionObserver" in window) {
+    const thumbnailObserver = new IntersectionObserver((entries) => {
+      entries.forEach((entry) => {
+        if (!entry.isIntersecting) return;
+        loadDeferredImage(entry.target);
+        thumbnailObserver.unobserve(entry.target);
+      });
+    }, { rootMargin: "160px" });
+    $$('[data-gallery-go] img[data-gallery-src]').forEach((image) => thumbnailObserver.observe(image));
+  }
   const resetZoom = () => {
     zoom = 1;
     modalImage.style.transform = "scale(1)";
@@ -6288,6 +6332,7 @@ function initializePropertyGallery() {
   };
   const showImage = (index) => {
     activeIndex = normalizeIndex(index);
+    ensureImage(activeIndex);
     slides.forEach((slide, slideIndex) => {
       const active = slideIndex === activeIndex;
       slide.classList.toggle("is-active", active);
@@ -6304,6 +6349,7 @@ function initializePropertyGallery() {
       modalImage.src = image.currentSrc || image.src;
       modalImage.alt = image.alt;
     }
+    window.setTimeout(() => ensureImage(activeIndex + 1), 0);
     resetZoom();
   };
   const move = (direction) => showImage(activeIndex + direction);

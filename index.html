@@ -423,7 +423,7 @@
             </form>
             <div class="properties-title-row">
               <div>
-                <h2 data-i18n="allProperties">Todas las propiedades</h2>
+                <h2 id="propertiesTitle" data-i18n="allProperties">Todas las propiedades</h2>
                 <p class="active-filter-summary" id="activeFilterSummary"></p>
               </div>
               <button class="ghost-button" type="button" id="clearFilters">
@@ -479,6 +479,13 @@
               <span class="result-count" id="resultCount"></span>
             </div>
             <div class="property-grid" id="propertyGrid"></div>
+            <div class="home-catalog-cta" id="homeCatalogCta">
+              <div>
+                <strong id="homeCatalogCtaTitle">Explora el catálogo completo</strong>
+                <p id="homeCatalogCtaCopy">Consulta todas las propiedades disponibles con sus filtros y detalles.</p>
+              </div>
+              <a class="primary-button" id="homeCatalogLink" href="/propiedades">Ver todas las propiedades</a>
+            </div>
             <aside class="compare-tray" id="compareTray" hidden>
               <div>
                 <span class="eyebrow">COMPARADOR</span>

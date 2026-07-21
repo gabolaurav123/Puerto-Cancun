@@ -54,3 +54,32 @@ test("la automatización de calidad se ejecuta para cambios y pull requests", ()
   assert.match(quality, /npm ci/);
   assert.match(quality, /npm run verify/);
 });
+
+test("el catálogo inicial tolera ubicaciones existentes sin bloquear PostgreSQL", () => {
+  const server = read("server.js");
+  const seedLoop = server.match(/for \(const option of seedLocationOptions\)[\s\S]*?\n    }/);
+  assert.ok(seedLoop, "debe existir la carga inicial del catálogo");
+  assert.match(seedLoop[0], /ON CONFLICT DO NOTHING/);
+  assert.doesNotMatch(seedLoop[0], /ON CONFLICT \(id\) DO UPDATE/);
+});
+
+test("las galerías descargan una imagen y variantes dimensionadas bajo demanda", () => {
+  const server = read("server.js");
+  const seo = read("seo-pages.js");
+  const app = read("app.js");
+  assert.match(server, /END AS selected_image/);
+  assert.match(server, /\[240, 640, 1200, 1600\]/);
+  assert.match(server, /\.webp\(\{ quality:/);
+  assert.match(seo, /data-gallery-src/);
+  assert.match(seo, /optimizedPublicImage\(image, 240\)/);
+  assert.match(app, /const loadDeferredImage/);
+  assert.match(app, /IntersectionObserver/);
+});
+
+test("la portada limita el inventario y enlaza al catálogo completo", () => {
+  const app = read("app.js");
+  const index = read("index.html");
+  assert.match(app, /properties\.slice\(0, 6\)/);
+  assert.match(index, /id="homeCatalogCta"/);
+  assert.match(index, /id="homeCatalogLink" href="\/propiedades"/);
+});

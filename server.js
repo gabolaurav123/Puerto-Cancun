@@ -8,6 +8,7 @@ const session = require("express-session");
 const PgSession = require("connect-pg-simple")(session);
 const bcrypt = require("bcryptjs");
 const PDFDocument = require("pdfkit");
+const sharp = require("sharp");
 const { drawPropertyPdf, preparePropertyPdfImages } = require("./pdf-property-sheet");
 const { createWhatsappService, normalizeBotSettings } = require("./whatsapp-service");
 const { Pool } = require("pg");
@@ -1625,12 +1626,7 @@ async function initDatabase() {
       await client.query(
         `INSERT INTO location_options (id, type, name, parent_id, is_active)
          VALUES ($1, $2, $3, $4, true)
-         ON CONFLICT (id) DO UPDATE
-         SET type = EXCLUDED.type,
-             name = EXCLUDED.name,
-             parent_id = EXCLUDED.parent_id,
-             is_active = TRUE,
-             updated_at = NOW()`,
+         ON CONFLICT DO NOTHING`,
         [option.id, option.type, option.name, option.parentId]
       );
     }
@@ -1908,9 +1904,21 @@ app.get("/api/geocode", async (req, res, next) => {
 
 app.get("/media/properties/:id/:index", async (req, res, next) => {
   try {
+    const imageIndex = Number(req.params.index);
+    if (!Number.isInteger(imageIndex) || imageIndex < 0 || imageIndex >= IMAGE_MAX_COUNT) {
+      res.status(404).end();
+      return;
+    }
     const result = await query(
-      "SELECT id, image, images, is_public, status, updated_at FROM properties WHERE id = $1",
-      [req.params.id]
+      `SELECT id, is_public, status, updated_at,
+              CASE
+                WHEN jsonb_array_length(COALESCE(images, '[]'::jsonb)) > 0 THEN images ->> ($2::int)
+                WHEN $2::int = 0 THEN image
+                ELSE NULL
+              END AS selected_image
+       FROM properties
+       WHERE id = $1`,
+      [req.params.id, imageIndex]
     );
     const property = result.rows[0];
     const canViewPrivate = req.session.user?.role === "admin";
@@ -1918,14 +1926,22 @@ app.get("/media/properties/:id/:index", async (req, res, next) => {
       res.status(404).end();
       return;
     }
-    const image = mergeLegacyImages(property.images, property.image)[Number(req.params.index)];
-    const decoded = decodeDataImage(image);
+    const decoded = decodeDataImage(property.selected_image);
     if (!decoded) {
       res.status(404).end();
       return;
     }
-    res.set({ "Content-Type": decoded.type, "Cache-Control": "public, max-age=86400, stale-while-revalidate=604800", ETag: `W/\"${property.id}-${req.params.index}-${new Date(property.updated_at || 0).getTime()}\"` });
-    res.send(decoded.buffer);
+    const requestedWidth = Number(req.query.w || 0);
+    const width = [240, 640, 1200, 1600].includes(requestedWidth) ? requestedWidth : 0;
+    const buffer = width
+      ? await sharp(decoded.buffer).rotate().resize({ width, withoutEnlargement: true }).webp({ quality: width <= 240 ? 72 : 82 }).toBuffer()
+      : decoded.buffer;
+    res.set({
+      "Content-Type": width ? "image/webp" : decoded.type,
+      "Cache-Control": "public, max-age=86400, stale-while-revalidate=604800",
+      ETag: `W/\"${property.id}-${imageIndex}-${width || "original"}-${new Date(property.updated_at || 0).getTime()}\"`,
+    });
+    res.send(buffer);
   } catch (error) {
     next(error);
   }
