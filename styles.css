@@ -1787,6 +1787,16 @@ body[data-page="property"] .home-only {
   gap: 14px;
 }
 
+.auth-form h3,
+.auth-form > div p {
+  margin: 0;
+}
+
+.auth-form > div p {
+  margin-top: 6px;
+  color: var(--muted);
+}
+
 .google-auth-box {
   display: grid;
   gap: 10px;

@@ -123,7 +123,7 @@ const REQUEST_STATUSES = new Set([
   "approved",
 ]);
 const REQUEST_PRIORITIES = new Set(["low", "medium", "high", "premium", "urgent"]);
-const adminUser = (process.env.ADMIN_USER || "admin prueba").trim().toLowerCase();
+const adminUser = (process.env.ADMIN_USER || "adminprueba").trim().toLowerCase();
 const adminPassword = process.env.ADMIN_PASSWORD || "";
 const googleClientId = (process.env.GOOGLE_CLIENT_ID || "").trim();
 const googleMapsApiKey = (process.env.GOOGLE_MAPS_API_KEY || "").trim();
@@ -137,6 +137,20 @@ const geocodeCache = new Map();
 const releaseInfo = resolveReleaseInfo(process.env, packageMetadata.version);
 const runtimeValidation = validateRuntimeConfig(process.env);
 const whatsappAuthSecret = String(process.env.WHATSAPP_AUTH_SECRET || sessionSecret);
+
+function normalizeLoginName(value) {
+  return String(value || "").trim().toLowerCase();
+}
+
+function adminUsernameMatches(value, configuredUsername = adminUser) {
+  const candidate = normalizeLoginName(value);
+  const configured = normalizeLoginName(configuredUsername);
+  if (!candidate) return false;
+  if (candidate === configured) return true;
+  if (candidate.includes("@") || configured.includes("@")) return false;
+  const compact = (username) => username.replace(/[\s._-]+/g, "");
+  return compact(candidate) === compact(configured);
+}
 
 function normalizeGeocodeQuery(value) {
   return String(value || "").trim().replace(/\s+/g, " ").slice(0, 320);
@@ -1005,6 +1019,7 @@ function publicUser(user) {
     preferredContact: user.preferredContact,
     internalRole: user.internalRole,
     permissions: user.permissions || [],
+    mustUpdatePassword: user.mustUpdatePassword === true,
   };
 }
 
@@ -1994,9 +2009,7 @@ app.post("/api/auth/login", async (req, res, next) => {
   try {
     const username = String(req.body.username || "").trim();
     const password = String(req.body.password || "");
-    const normalized = username.toLowerCase();
-
-    if (normalized === adminUser) {
+    if (adminUsernameMatches(username)) {
       if (!adminPassword || password !== adminPassword) {
         res.status(401).json({ error: "Invalid credentials" });
         return;
@@ -2025,6 +2038,7 @@ app.post("/api/auth/login", async (req, res, next) => {
         permissions: safeJsonArray(internalAccount.permissions),
         name: internalAccount.name,
         email: internalAccount.email,
+        mustUpdatePassword: password.length < 12,
       };
       res.json({ user: publicUser(req.session.user) });
       return;
@@ -2044,6 +2058,7 @@ app.post("/api/auth/login", async (req, res, next) => {
       email: account.email,
       phone: account.phone,
       preferredContact: account.preferred_contact,
+      mustUpdatePassword: password.length < 12,
     };
     res.json({ user: publicUser(req.session.user) });
   } catch (error) {
@@ -2060,8 +2075,8 @@ app.post("/api/auth/register", async (req, res, next) => {
     const preferredContact = req.body.preferredContact === "phone" ? "phone" : "email";
     const password = String(req.body.password || "");
 
-    if (!firstName || !lastName || !isValidEmail(email) || !phone || password.length < 10) {
-      res.status(400).json({ error: "Completa los datos con un correo válido, teléfono de 10 a 15 dígitos y contraseña de al menos 10 caracteres." });
+    if (!firstName || !lastName || !isValidEmail(email) || !phone || password.length < 12) {
+      res.status(400).json({ error: "Completa los datos con un correo válido, teléfono de 10 a 15 dígitos y contraseña de al menos 12 caracteres.", code: "PASSWORD_TOO_SHORT" });
       return;
     }
 
@@ -2088,6 +2103,67 @@ app.post("/api/auth/register", async (req, res, next) => {
       res.status(409).json({ error: "Account exists" });
       return;
     }
+    next(error);
+  }
+});
+
+app.post("/api/auth/update-password", async (req, res, next) => {
+  try {
+    const username = String(req.body.username || "").trim();
+    const currentPassword = String(req.body.currentPassword || "");
+    const newPassword = String(req.body.newPassword || "");
+    if (!username || !currentPassword) {
+      res.status(400).json({ error: "Indica tu usuario y contraseña actual.", code: "CURRENT_CREDENTIALS_REQUIRED" });
+      return;
+    }
+    if (newPassword.length < 12) {
+      res.status(400).json({ error: "La nueva contraseña debe tener al menos 12 caracteres.", code: "PASSWORD_TOO_SHORT" });
+      return;
+    }
+    if (currentPassword === newPassword) {
+      res.status(400).json({ error: "La nueva contraseña debe ser diferente de la actual.", code: "PASSWORD_UNCHANGED" });
+      return;
+    }
+
+    if (adminUsernameMatches(username)) {
+      if (!adminPassword || currentPassword !== adminPassword) {
+        res.status(401).json({ error: "La contraseña actual no coincide.", code: "INVALID_CURRENT_PASSWORD" });
+        return;
+      }
+      res.status(409).json({
+        error: "La contraseña de esta cuenta administradora se gestiona en Seenode. Actualiza ADMIN_PASSWORD y vuelve a desplegar.",
+        code: "ADMIN_PASSWORD_ENV_MANAGED",
+      });
+      return;
+    }
+
+    const internalResult = await query(
+      "SELECT id, password_hash FROM internal_users WHERE lower(email) = lower($1) AND status = 'active'",
+      [username]
+    );
+    const internalAccount = internalResult.rows[0];
+    if (internalAccount && (await bcrypt.compare(currentPassword, internalAccount.password_hash))) {
+      const passwordHash = await bcrypt.hash(newPassword, 10);
+      await query("UPDATE internal_users SET password_hash = $2, updated_at = NOW() WHERE id = $1", [internalAccount.id, passwordHash]);
+      if (req.session.user?.id === internalAccount.id) req.session.user.mustUpdatePassword = false;
+      res.json({ ok: true });
+      return;
+    }
+
+    const sellerResult = await query(
+      "SELECT id, password_hash FROM seller_accounts WHERE lower(email) = lower($1)",
+      [username]
+    );
+    const sellerAccount = sellerResult.rows[0];
+    if (!sellerAccount || !(await bcrypt.compare(currentPassword, sellerAccount.password_hash))) {
+      res.status(401).json({ error: "La contraseña actual no coincide.", code: "INVALID_CURRENT_PASSWORD" });
+      return;
+    }
+    const passwordHash = await bcrypt.hash(newPassword, 10);
+    await query("UPDATE seller_accounts SET password_hash = $2 WHERE id = $1", [sellerAccount.id, passwordHash]);
+    if (req.session.user?.id === sellerAccount.id) req.session.user.mustUpdatePassword = false;
+    res.json({ ok: true });
+  } catch (error) {
     next(error);
   }
 });
@@ -5288,6 +5364,7 @@ function startServer() {
 if (require.main === module) startServer();
 
 module.exports = {
+  adminUsernameMatches,
   app,
   buildInstagramFallbackCaption,
   buildInstagramPropertyContext,

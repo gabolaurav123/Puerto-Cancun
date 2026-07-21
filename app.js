@@ -221,6 +221,17 @@ const translations = {
     createAccount: "Crear cuenta",
     emailOrUser: "Correo o usuario",
     password: "Contraseña",
+    currentPassword: "Contraseña actual",
+    newPassword: "Nueva contraseña",
+    passwordRule: "Usa por lo menos 12 caracteres y evita reutilizar otra contraseña.",
+    updateExistingPassword: "¿Ya tenías cuenta? Actualizar contraseña",
+    updatePasswordTitle: "Actualizar contraseña",
+    updatePasswordIntro: "Si ya tenías una cuenta, confirma tu contraseña actual y crea una nueva de al menos 12 caracteres.",
+    updatePasswordAction: "Actualizar contraseña",
+    backToLogin: "Volver a iniciar sesión",
+    passwordUpdated: "Contraseña actualizada. Ya puedes iniciar sesión.",
+    passwordUpgradeRequired: "Tu contraseña anterior sigue siendo válida, pero ahora debes actualizarla a un mínimo de 12 caracteres.",
+    adminPasswordManaged: "La contraseña de la cuenta administradora se cambia en ADMIN_PASSWORD dentro de Seenode y requiere un nuevo despliegue.",
     noAccount: "No tienes cuenta? Crear una cuenta para vender",
     googleAuthCopy: "Tambien puedes entrar con tu cuenta de Google.",
     googleLoginUnavailable: "Configura GOOGLE_CLIENT_ID para activar el acceso con Google.",
@@ -633,6 +644,17 @@ const translations = {
     createAccount: "Create account",
     emailOrUser: "Email or user",
     password: "Password",
+    currentPassword: "Current password",
+    newPassword: "New password",
+    passwordRule: "Use at least 12 characters and avoid reusing another password.",
+    updateExistingPassword: "Already have an account? Update password",
+    updatePasswordTitle: "Update password",
+    updatePasswordIntro: "If you already had an account, confirm your current password and create a new one with at least 12 characters.",
+    updatePasswordAction: "Update password",
+    backToLogin: "Back to sign in",
+    passwordUpdated: "Password updated. You can now sign in.",
+    passwordUpgradeRequired: "Your previous password is still valid, but it must now be updated to at least 12 characters.",
+    adminPasswordManaged: "The administrator password is changed through ADMIN_PASSWORD in Seenode and requires a new deployment.",
     noAccount: "No account? Create a seller account",
     googleAuthCopy: "You can also continue with your Google account.",
     googleLoginUnavailable: "Set GOOGLE_CLIENT_ID to enable Google sign-in.",
@@ -5122,9 +5144,11 @@ function closeAuth() {
   $("#loginMessage").textContent = "";
   $("#registerMessage").textContent = "";
   $("#googleAuthMessage").textContent = "";
+  $("#passwordUpdateMessage").textContent = "";
   $("#loginMessage").classList.remove("error");
   $("#registerMessage").classList.remove("error");
   $("#googleAuthMessage").classList.remove("error");
+  $("#passwordUpdateMessage").classList.remove("error");
 }
 
 function switchAuthTab(tab) {
@@ -5134,6 +5158,8 @@ function switchAuthTab(tab) {
   $$(".auth-form").forEach((form) => {
     form.classList.toggle("active", form.id === `${tab}Form`);
   });
+  const googleBox = $("#googleAuthBox");
+  if (googleBox && state.config.googleClientId) googleBox.hidden = tab !== "login";
 }
 
 async function handleGoogleCredential(response) {
@@ -5234,6 +5260,15 @@ async function loginSubmit(event) {
       },
     });
     state.session = data.user;
+    if (data.user.mustUpdatePassword) {
+      const updateForm = $("#passwordUpdateForm");
+      updateForm.username.value = form.username.value.trim();
+      updateForm.currentPassword.value = form.password.value;
+      updateForm.newPassword.value = "";
+      switchAuthTab("passwordUpdate");
+      setFormMessage($("#passwordUpdateMessage"), t("passwordUpgradeRequired"), true);
+      return;
+    }
     closeAuth();
     updateAuthNav();
     await showPanel();
@@ -5281,6 +5316,39 @@ async function registerSubmit(event) {
       : error.status === 409
         ? t("accountExists")
         : error.message;
+    setFormMessage(message, text, true);
+  }
+}
+
+async function passwordUpdateSubmit(event) {
+  event.preventDefault();
+  const form = event.currentTarget;
+  const message = $("#passwordUpdateMessage");
+  setFormMessage(message, "");
+  try {
+    await api("/api/auth/update-password", {
+      method: "POST",
+      body: {
+        username: form.username.value.trim(),
+        currentPassword: form.currentPassword.value,
+        newPassword: form.newPassword.value,
+      },
+    });
+    const username = form.username.value.trim();
+    form.reset();
+    if (state.session) {
+      state.session.mustUpdatePassword = false;
+      closeAuth();
+      updateAuthNav();
+      await showPanel();
+      return;
+    }
+    switchAuthTab("login");
+    $("#loginForm").username.value = username;
+    $("#loginForm").password.value = "";
+    setFormMessage($("#loginMessage"), t("passwordUpdated"));
+  } catch (error) {
+    const text = error.code === "ADMIN_PASSWORD_ENV_MANAGED" ? t("adminPasswordManaged") : error.message;
     setFormMessage(message, text, true);
   }
 }
@@ -6555,10 +6623,18 @@ function bindEvents() {
     }
   });
   $$("[data-auth-tab]").forEach((button) => {
-    button.addEventListener("click", () => switchAuthTab(button.dataset.authTab));
+    button.addEventListener("click", () => {
+      const tab = button.dataset.authTab;
+      if (tab === "passwordUpdate") {
+        $("#passwordUpdateForm").username.value = $("#loginForm").username.value.trim();
+        $("#passwordUpdateForm").currentPassword.value = $("#loginForm").password.value;
+      }
+      switchAuthTab(tab);
+    });
   });
   $("#loginForm").addEventListener("submit", loginSubmit);
   $("#registerForm").addEventListener("submit", registerSubmit);
+  $("#passwordUpdateForm").addEventListener("submit", passwordUpdateSubmit);
 
   $("#backToSite").addEventListener("click", hidePanel);
   $("#logoutButton").addEventListener("click", async () => {
