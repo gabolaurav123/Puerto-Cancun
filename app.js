@@ -408,6 +408,7 @@ const translations = {
     requestSent: "Solicitud enviada. El administrador podrá revisarla en su panel.",
     leadSent: "Solicitud enviada. Un asesor puede revisar tu información.",
     loginError: "La contraseña no coincide con esa cuenta.",
+    loginUnavailable: "La base de datos no está disponible en este momento. Tus cuentas y publicaciones no fueron eliminadas; vuelve a intentar después del redeploy.",
     accountExists: "Ya existe una cuenta con ese correo.",
     accountCreated: "Cuenta creada. Bienvenido al panel de vendedor.",
     listingSaved: "Publicación guardada.",
@@ -819,6 +820,7 @@ const translations = {
     requestSent: "Request submitted. The administrator can review it in the panel.",
     leadSent: "Request submitted. An advisor can review your information.",
     loginError: "The password does not match that account.",
+    loginUnavailable: "The database is currently unavailable. Your accounts and listings were not deleted; try again after the redeploy.",
     accountExists: "An account already exists with that email.",
     accountCreated: "Account created. Welcome to the seller panel.",
     listingSaved: "Listing saved.",
@@ -1556,6 +1558,8 @@ async function api(path, options = {}) {
       }
       const error = new Error(data.error || "Request failed");
       error.status = response.status;
+      error.code = data.code || "";
+      error.retryable = data.retryable === true;
       error.requestId = data.requestId || response.headers.get("X-Request-Id") || "";
       if (error.requestId && error.status >= 500) error.message += ` · Referencia ${error.requestId}`;
       throw error;
@@ -5104,6 +5108,9 @@ function openAuth(tab = "login") {
   $("#authModal").hidden = false;
   document.body.classList.add("modal-open");
   switchAuthTab(tab);
+  if (state.platform?.databaseStatus && state.platform.databaseReady !== true) {
+    setFormMessage(tab === "register" ? $("#registerMessage") : $("#loginMessage"), t("loginUnavailable"), true);
+  }
   void initializeGoogleAuth().catch(() => {
     setFormMessage($("#googleAuthMessage"), t("googleLoginUnavailable"), true);
   });
@@ -5231,13 +5238,17 @@ async function loginSubmit(event) {
     updateAuthNav();
     await showPanel();
   } catch (error) {
+    if (error.status === 503 || error.code === "DATABASE_UNAVAILABLE") {
+      setFormMessage(message, t("loginUnavailable"), true);
+      return;
+    }
     if (error.status === 401 && form.username.value.includes("@")) {
       switchAuthTab("register");
       $("#registerForm").email.value = form.username.value.trim();
       setFormMessage($("#registerMessage"), t("accountPrompt"));
       return;
     }
-    setFormMessage(message, t("loginError"), true);
+    setFormMessage(message, error.status === 429 ? error.message : t("loginError"), true);
   }
 }
 
@@ -5265,7 +5276,12 @@ async function registerSubmit(event) {
     updateAuthNav();
     await showPanel();
   } catch (error) {
-    setFormMessage(message, error.status === 409 ? t("accountExists") : error.message, true);
+    const text = error.status === 503 || error.code === "DATABASE_UNAVAILABLE"
+      ? t("loginUnavailable")
+      : error.status === 409
+        ? t("accountExists")
+        : error.message;
+    setFormMessage(message, text, true);
   }
 }
 

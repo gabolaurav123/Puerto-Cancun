@@ -31,6 +31,16 @@ Recomendación operativa:
 4. Revisar PostgreSQL antes de reiniciar repetidamente.
 5. Revertir al último despliegue estable si el problema comenzó con una publicación.
 
+### Si ninguna cuenta puede iniciar sesión
+
+1. Consultar `/api/version` y confirmar `databaseReady: true`.
+2. Si aparece `databaseIssue: DATABASE_URL_MISSING`, restaurar la misma `DATABASE_URL`; no crear otra base.
+3. Si PostgreSQL está inicializando, revisar el primer error de los logs y no cambiar contraseñas todavía.
+4. Confirmar que Seenode desplegó el commit actual de `main`.
+5. Solo después de recuperar PostgreSQL validar `ADMIN_USER` y `ADMIN_PASSWORD`.
+
+La inicialización nunca debe borrar ni reemplazar `seller_accounts` o `internal_users`. El catálogo geográfico reconcilia registros existentes por tipo, nombre y jerarquía, y conserva los IDs administrados.
+
 ## Seguridad
 
 - Rotar secretos inmediatamente si aparecen en capturas o logs.
