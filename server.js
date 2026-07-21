@@ -1732,10 +1732,19 @@ app.get("/api/health", async (_req, res) => {
   }
 });
 
-app.get("/api/config", (_req, res) => {
+app.get("/api/config", async (_req, res) => {
+  let exchangeRate = 18.5;
+  try {
+    const result = await query("SELECT value FROM app_settings WHERE key = 'site'");
+    const configuredRate = Number(result.rows[0]?.value?.exchangeRate);
+    if (Number.isFinite(configuredRate) && configuredRate > 0) exchangeRate = configuredRate;
+  } catch {
+    // Public navigation can keep working with the documented fallback rate while the database reconnects.
+  }
   res.json({
     googleClientId,
     googleMapsApiKey,
+    exchangeRate,
     publicSiteUrl: siteUrl,
     businessAddress: "Puerto Cancun Mall, Marina B., oficina 27, Zona Hotelera, Cancun 77500, Q Roo, Mexico.",
   });

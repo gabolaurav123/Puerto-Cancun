@@ -502,7 +502,7 @@ function pageShell(page, content) {
       <div class="content-wrap seo-page-content">
         ${content}
         ${InternalLinksBlock(relatedLinks.filter((link) => link.href !== page.path).slice(0, 6), page.lang === "en" ? "Related resources" : "Recursos relacionados")}
-        <p class="last-updated">${page.lang === "en" ? "Last updated" : "Ultima actualizacion"}: ${LAST_UPDATED}</p>
+        ${page.hideLastUpdated ? "" : `<p class="last-updated">${page.lang === "en" ? "Last updated" : "Ultima actualizacion"}: ${LAST_UPDATED}</p>`}
       </div>
     </article>
   `;
@@ -591,6 +591,17 @@ const pages = [
                 <li>Los interesados tienen rutas claras para pedir informacion o contactar por WhatsApp.</li>
                 <li>La valoracion ayuda a evitar publicar con un precio sin sustento.</li>
               </ul>
+            </div>
+          </section>
+          <section class="seller-onboarding-cta">
+            <div>
+              <span>PUBLICA CON ACOMPAÑAMIENTO</span>
+              <h2>Regístrate y anuncia con nosotros</h2>
+              <p>Crea tu cuenta después de conocer el proceso. Podrás cargar los datos y fotografías de tu propiedad, guardar tus avances y recibir seguimiento del equipo.</p>
+            </div>
+            <div class="seller-onboarding-actions">
+              <button class="primary-button" type="button" data-seller-access="register">Registrarme para anunciar</button>
+              <button class="outline-dark-button" type="button" data-seller-access="login">Ya tengo cuenta</button>
             </div>
           </section>
           ${AIValidationCTA()}
@@ -828,9 +839,9 @@ const englishPages = [
 ];
 
 const companyPages = [
-  { path: "/nosotros", alternate: "/en/about", lang: "es", title: "Equipo inmobiliario en Cancun | Puerto Cancun Center", description: "Conoce el enfoque de Puerto Cancun Center para conectar propietarios, compradores e inventario inmobiliario en Cancun.", h1: "Equipo de asesores de Puerto Cancun Center", eyebrow: "Asesoria inmobiliaria local", intro: "Coordinamos publicaciones, solicitudes, seguimiento y contacto para que compradores y propietarios avancen dentro de una misma plataforma.", cta: "Ver propiedades", ctaHref: "/propiedades" },
+  { path: "/nosotros", alternate: "/en/about", lang: "es", title: "Nosotros | Puerto Cancun Center", description: "Conoce el enfoque, los valores y el proceso de Puerto Cancun Center para conectar propietarios, compradores e inventario inmobiliario en Cancun.", h1: "Nosotros: experiencia inmobiliaria en Cancún", eyebrow: "Puerto Cancún Center", intro: "Coordinamos publicaciones, solicitudes, seguimiento y contacto para que compradores y propietarios avancen con información clara y acompañamiento local.", cta: "Ver propiedades", ctaHref: "/propiedades" },
   { path: "/contacto", alternate: "/en/contact", lang: "es", title: "Contacto | Puerto Cancun Center", description: "Contacta a Puerto Cancun Center por WhatsApp o visita nuestra oficina en Zona Hotelera de Cancun.", h1: "Contacta a Puerto Cancun Center", eyebrow: "Atencion a compradores y propietarios", intro: "Puerto Cancun Mall, Marina B., oficina 27, Zona Hotelera, Cancun 77500, Q Roo, Mexico.", cta: "Contactar por WhatsApp", ctaHref: "https://wa.me/5219982166563" },
-  { path: "/en/about", alternate: "/nosotros", lang: "en", title: "Cancun real estate team | Puerto Cancun Center", description: "Learn how Puerto Cancun Center connects property owners, buyers and active Cancun inventory.", h1: "Puerto Cancun Center advisor team", eyebrow: "Local real estate guidance", intro: "We coordinate listings, requests and follow-up so buyers and property owners can move forward within one platform.", cta: "Browse properties", ctaHref: "/en/properties" },
+  { path: "/en/about", alternate: "/nosotros", lang: "en", title: "About us | Puerto Cancun Center", description: "Learn about the approach, values and process Puerto Cancun Center uses to connect property owners, buyers and active Cancun inventory.", h1: "About us: Cancun real estate experience", eyebrow: "Puerto Cancun Center", intro: "We coordinate listings, requests and follow-up so buyers and property owners can move forward with clear information and local guidance.", cta: "Browse properties", ctaHref: "/en/properties" },
   { path: "/en/contact", alternate: "/contacto", lang: "en", title: "Contact | Puerto Cancun Center", description: "Contact Puerto Cancun Center by WhatsApp or visit our Cancun Hotel Zone office.", h1: "Contact Puerto Cancun Center", eyebrow: "Buyer and owner support", intro: "Puerto Cancun Mall, Marina B., office 27, Hotel Zone, Cancun 77500, Q Roo, Mexico.", cta: "Contact by WhatsApp", ctaHref: "https://wa.me/5219982166563" },
 ];
 
@@ -855,10 +866,20 @@ function propertyMatchesCategory(property, filter = {}) {
   return (!filter.zone || property.zone === filter.zone) && (!filter.type || property.type === filter.type) && (!filter.operation || property.operation === filter.operation) && (!filter.featured || property.featured);
 }
 
+function localizedListingPrice(property, lang = "es", exchangeRate = 18.5) {
+  const safeRate = Number(exchangeRate) > 0 ? Number(exchangeRate) : 18.5;
+  if (lang === "en") {
+    const amount = property.priceUsd ?? (property.priceMxn ? Number(property.priceMxn) / safeRate : null);
+    return amount ? { amount, currency: "USD" } : null;
+  }
+  const amount = property.priceMxn ?? (property.priceUsd ? Number(property.priceUsd) * safeRate : null);
+  return amount ? { amount, currency: "MXN" } : null;
+}
+
 function formatListingPrice(property, lang = "es") {
   const locale = lang === "en" ? "en-US" : "es-MX";
-  if (property.priceUsd) return `USD $${new Intl.NumberFormat(locale, { maximumFractionDigits: 0 }).format(Number(property.priceUsd))}`;
-  if (property.priceMxn) return `MXN $${new Intl.NumberFormat(locale, { maximumFractionDigits: 0 }).format(Number(property.priceMxn))}`;
+  const selected = localizedListingPrice(property, lang);
+  if (selected) return `${selected.currency} $${new Intl.NumberFormat(locale, { maximumFractionDigits: 0 }).format(selected.amount)}`;
   return lang === "en" ? "Price on request" : "Precio a consultar";
 }
 
@@ -891,8 +912,7 @@ function propertySchema(property, baseUrl = DEFAULT_SITE_URL, lang = "es") {
   const images = safePublicImages(property).map((image) => absoluteUrl(image, baseUrl));
   const title = lang === "en" ? property.titleEn || property.titleEs : property.titleEs || property.titleEn;
   const description = lang === "en" ? property.descriptionEn || property.descriptionEs : property.descriptionEs || property.descriptionEn;
-  const price = property.priceUsd || property.priceMxn;
-  const currency = property.priceUsd ? "USD" : "MXN";
+  const localizedPrice = localizedListingPrice(property, lang);
   const mainEntity = {
     "@type": property.type === "Casa" ? "House" : property.type === "Departamento" ? "Apartment" : "Residence",
     name: title,
@@ -906,7 +926,7 @@ function propertySchema(property, baseUrl = DEFAULT_SITE_URL, lang = "es") {
   };
   return {
     "@context": "https://schema.org", "@type": "RealEstateListing", "@id": `${url}#listing`, url, name: title, description, keywords: Array.isArray(property.keywords) ? property.keywords.join(", ") : undefined, image: images, datePosted: property.createdAt, dateModified: property.updatedAt || property.createdAt, inLanguage: lang === "en" ? "en" : "es-MX", identifier: property.mls || property.id, mainEntity,
-    offers: price ? { "@type": "Offer", price: Number(price), priceCurrency: currency, availability: "https://schema.org/InStock", url, seller: { "@id": `${absoluteUrl("/", baseUrl)}#real-estate-agent` } } : undefined,
+    offers: localizedPrice ? { "@type": "Offer", price: Number(localizedPrice.amount.toFixed(2)), priceCurrency: localizedPrice.currency, availability: "https://schema.org/InStock", url, seller: { "@id": `${absoluteUrl("/", baseUrl)}#real-estate-agent` } } : undefined,
   };
 }
 
@@ -918,13 +938,16 @@ function renderPropertyPage(property, lang = "es", similar = []) {
   const path = propertyPath(property, lang);
   const otherPath = propertyPath(property, english ? "es" : "en");
   const facts = [english ? "Available" : "Disponible", property.type, property.operation === "rent" ? (english ? "For rent" : "En renta") : (english ? "For sale" : "En venta"), property.beds ? `${property.beds} ${english ? "bedrooms" : "recamaras"}` : "", property.baths ? `${property.baths} ${english ? "bathrooms" : "banos"}` : "", property.parking ? `${property.parking} ${english ? "parking spaces" : "estacionamientos"}` : "", property.area ? `${property.area} m2` : "", property.lot ? `${property.lot} m2 ${english ? "lot" : "terreno"}` : "", property.mls ? `MLS# ${property.mls}` : ""].filter(Boolean);
-  const verifiedDate = new Intl.DateTimeFormat(english ? "en-US" : "es-MX", { year: "numeric", month: "long", day: "numeric" }).format(new Date(property.updatedAt || property.createdAt || LAST_UPDATED));
-  const page = { path, alternate: otherPath, lang, h1: title, title: `${title} | Puerto Cancun Center`, description: String(description || title).slice(0, 158), eyebrow: english ? "Verified property listing" : "Ficha inmobiliaria verificada", intro: `${property.zone || "Cancun"} · ${formatListingPrice(property, lang)}`, cta: english ? "Contact by WhatsApp" : "Contactar por WhatsApp", ctaHref: `https://wa.me/5219982166563?text=${encodeURIComponent(`${english ? "Hello, I would like information about" : "Hola, deseo informacion sobre"}: ${title} - ${absoluteUrl(path)}`)}` };
-  const gallery = (images.length ? images : ["/assets/og-puerto-cancun-center.webp"]).map((image, index) => `<figure><img src="${escapeHtml(image)}" width="1200" height="800" ${index ? 'loading="lazy"' : 'fetchpriority="high"'} alt="${escapeHtml(`${title} - ${index + 1}`)}" /></figure>`).join("");
+  const page = { path, alternate: otherPath, lang, h1: title, title: `${title} | Puerto Cancun Center`, description: String(description || title).slice(0, 158), eyebrow: english ? "Verified property listing" : "Ficha inmobiliaria verificada", intro: `${property.zone || "Cancun"} · ${formatListingPrice(property, lang)}`, cta: english ? "Contact by WhatsApp" : "Contactar por WhatsApp", ctaHref: `https://wa.me/5219982166563?text=${encodeURIComponent(`${english ? "Hello, I would like information about" : "Hola, deseo informacion sobre"}: ${title} - ${absoluteUrl(path)}`)}`, hideLastUpdated: true };
+  const galleryImages = images.length ? images : ["/assets/og-puerto-cancun-center.webp"];
+  const gallerySlides = galleryImages.map((image, index) => `<figure class="property-gallery-slide ${index === 0 ? "is-active" : ""}" data-gallery-slide="${index}" aria-hidden="${index === 0 ? "false" : "true"}"><img src="${escapeHtml(image)}" width="1200" height="800" ${index ? 'loading="lazy"' : 'fetchpriority="high"'} alt="${escapeHtml(`${title} - ${index + 1}`)}" /></figure>`).join("");
+  const galleryThumbs = galleryImages.map((image, index) => `<button class="property-gallery-thumb ${index === 0 ? "is-active" : ""}" type="button" data-gallery-go="${index}" aria-label="${english ? "View photo" : "Ver foto"} ${index + 1}"><img src="${escapeHtml(image)}" width="160" height="110" loading="lazy" alt="" /></button>`).join("");
+  const gallery = `<section class="property-page-gallery" data-property-carousel aria-label="${english ? "Property image gallery" : "Galeria de imagenes de la propiedad"}"><div class="property-gallery-stage">${gallerySlides}<button class="property-gallery-open" type="button" data-open-property-gallery><span>${english ? "View property gallery" : "Ver galería de la propiedad"}</span><b>${galleryImages.length}</b></button>${galleryImages.length > 1 ? `<button class="property-gallery-arrow previous" type="button" data-gallery-previous aria-label="${english ? "Previous photo" : "Foto anterior"}">‹</button><button class="property-gallery-arrow next" type="button" data-gallery-next aria-label="${english ? "Next photo" : "Foto siguiente"}">›</button>` : ""}<span class="property-gallery-counter" data-gallery-counter>1 / ${galleryImages.length}</span></div>${galleryImages.length > 1 ? `<div class="property-gallery-thumbs">${galleryThumbs}</div>` : ""}</section>`;
+  const galleryModal = `<div class="property-gallery-modal" data-property-gallery-modal hidden><section class="property-gallery-dialog" role="dialog" aria-modal="true" aria-label="${english ? "Property gallery" : "Galeria de la propiedad"}"><button class="property-gallery-close" type="button" data-close-property-gallery aria-label="${english ? "Close gallery" : "Cerrar galeria"}">×</button><div class="property-gallery-modal-stage"><img data-gallery-modal-image src="${escapeHtml(galleryImages[0])}" alt="${escapeHtml(`${title} - 1`)}" /><button class="property-gallery-arrow previous" type="button" data-gallery-previous aria-label="${english ? "Previous photo" : "Foto anterior"}">‹</button><button class="property-gallery-arrow next" type="button" data-gallery-next aria-label="${english ? "Next photo" : "Foto siguiente"}">›</button></div><div class="property-gallery-toolbar"><button type="button" data-gallery-zoom-out aria-label="${english ? "Zoom out" : "Alejar"}">−</button><button type="button" data-gallery-zoom-reset>${english ? "Reset" : "Restablecer"}</button><button type="button" data-gallery-zoom-in aria-label="${english ? "Zoom in" : "Acercar"}">+</button><span data-gallery-modal-counter>1 / ${galleryImages.length}</span></div><div class="property-gallery-modal-thumbs">${galleryThumbs}</div></section></div>`;
   const mapLink = property.googleMapsUrl && /^https?:\/\//i.test(property.googleMapsUrl) ? `<a class="text-link" href="${escapeHtml(property.googleMapsUrl)}" target="_blank" rel="noopener">${english ? "Open location in Google Maps" : "Abrir ubicacion en Google Maps"}</a>` : "";
   const similarSection = similar.length ? `<section class="similar-properties"><div class="section-heading"><h2>${english ? "Similar properties" : "Propiedades similares"}</h2></div>${renderInventoryCards(similar.slice(0, 3), lang)}</section>` : "";
   const amenities = Array.isArray(property.amenities) && property.amenities.length ? `<section class="property-amenities"><h2>${english ? "Amenities" : "Amenidades"}</h2><ul>${property.amenities.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ul></section>` : "";
-  const content = `<section class="property-page-layout"><div class="property-page-gallery">${gallery}</div><aside class="property-page-summary"><p class="property-page-price">${escapeHtml(formatListingPrice(property, lang))}</p><div class="property-facts">${facts.map((fact) => `<span>${escapeHtml(fact)}</span>`).join("")}</div><p class="property-verified">${english ? "Last verified" : "Ultima verificacion"}: ${escapeHtml(verifiedDate)}</p><h2>${english ? "Property details" : "Detalles de la propiedad"}</h2><p class="property-address">${escapeHtml([property.address, property.neighborhood, property.zone, property.city, property.state].filter(Boolean).join(", "))}</p>${mapLink}<div class="property-long-description">${String(description || "").split(/\n+/).filter(Boolean).map((part) => `<p>${escapeHtml(part)}</p>`).join("")}</div>${amenities}<a class="primary-button property-whatsapp" href="${page.ctaHref}" target="_blank" rel="noopener">${page.cta}</a></aside></section><section class="property-lead"><h2>${english ? "Schedule a visit or request details" : "Agenda una visita o solicita informacion"}</h2>${BuyerLeadForm(lang)}</section>${similarSection}${InternalLinksBlock([{ label: english ? "All properties" : "Todas las propiedades", href: english ? "/en/properties" : "/propiedades" }, { label: english ? "Puerto Cancun properties" : "Propiedades en Puerto Cancun", href: english ? "/en/properties/puerto-cancun" : "/propiedades/puerto-cancun" }], english ? "Related resources" : "Recursos relacionados")}`;
+  const content = `<section class="property-page-layout">${gallery}<aside class="property-page-summary"><p class="property-page-price">${escapeHtml(formatListingPrice(property, lang))}</p><div class="property-facts">${facts.map((fact) => `<span>${escapeHtml(fact)}</span>`).join("")}</div><h2>${english ? "Property details" : "Detalles de la propiedad"}</h2><p class="property-address">${escapeHtml([property.address, property.neighborhood, property.zone, property.city, property.state].filter(Boolean).join(", "))}</p>${mapLink}<div class="property-long-description">${String(description || "").split(/\n+/).filter(Boolean).map((part) => `<p>${escapeHtml(part)}</p>`).join("")}</div>${amenities}<a class="primary-button property-whatsapp" href="${page.ctaHref}" target="_blank" rel="noopener">${page.cta}</a></aside></section>${galleryModal}<section class="property-lead"><h2>${english ? "Schedule a visit or request details" : "Agenda una visita o solicita informacion"}</h2>${BuyerLeadForm(lang)}</section>${similarSection}${InternalLinksBlock([{ label: english ? "All properties" : "Todas las propiedades", href: english ? "/en/properties" : "/propiedades" }, { label: english ? "Puerto Cancun properties" : "Propiedades en Puerto Cancun", href: english ? "/en/properties/puerto-cancun" : "/propiedades/puerto-cancun" }], english ? "Related resources" : "Recursos relacionados")}`;
   return { page, html: pageShell(page, content) };
 }
 
@@ -1058,11 +1081,70 @@ function renderSeoHead(page, baseUrl = DEFAULT_SITE_URL) {
   };
 }
 
+function renderAboutPage(page) {
+  const english = page.lang === "en";
+  const copy = english
+    ? {
+        storyTitle: "Local knowledge, clear process and close follow-up",
+        story: "Puerto Cancun Center brings property owners, buyers and active inventory together in one professional workflow. We review the information, organize each opportunity and accompany the conversation from the first inquiry through the next commercial step.",
+        valuesTitle: "How we work",
+        values: [
+          ["Local criteria", "We interpret location, demand, property type and market context before recommending a course of action."],
+          ["Clear information", "We prepare understandable listings and requests so every party knows what is available and what remains to be reviewed."],
+          ["Human follow-up", "Technology helps us organize; an advisor remains responsible for validating and following up on each case."],
+          ["Connected service", "Sales, purchases, valuations, marketing and property documents share the same operating flow."],
+        ],
+        processTitle: "A team for the complete property journey",
+        process: ["Understand your goal", "Review the property or search profile", "Prepare a clear strategy", "Connect and follow up"],
+        areasTitle: "Where we specialize",
+        areas: "Puerto Cancun, Cancun Hotel Zone, Cancun Downtown, Playa Mujeres, Isla Mujeres and selected Riviera Maya opportunities.",
+        ownerCta: "I want to sell a property",
+        buyerCta: "I want to browse properties",
+      }
+    : {
+        storyTitle: "Conocimiento local, proceso claro y seguimiento cercano",
+        story: "Puerto Cancún Center reúne propietarios, compradores e inventario activo dentro de un mismo flujo profesional. Revisamos la información, organizamos cada oportunidad y acompañamos la conversación desde la primera solicitud hasta el siguiente paso comercial.",
+        valuesTitle: "Cómo trabajamos",
+        values: [
+          ["Criterio local", "Interpretamos ubicación, demanda, tipo de propiedad y contexto del mercado antes de recomendar una estrategia."],
+          ["Información clara", "Preparamos publicaciones y solicitudes comprensibles para que cada parte sepa qué está disponible y qué falta revisar."],
+          ["Seguimiento humano", "La tecnología ayuda a organizar; un asesor sigue siendo responsable de validar y acompañar cada caso."],
+          ["Servicio conectado", "Venta, compra, valoración, marketing y documentos de propiedad comparten el mismo flujo operativo."],
+        ],
+        processTitle: "Un equipo para todo el recorrido inmobiliario",
+        process: ["Entender tu objetivo", "Revisar la propiedad o búsqueda", "Preparar una estrategia clara", "Conectar y dar seguimiento"],
+        areasTitle: "Dónde nos especializamos",
+        areas: "Puerto Cancún, Zona Hotelera, Cancún Centro, Playa Mujeres, Isla Mujeres y oportunidades seleccionadas de Riviera Maya.",
+        ownerCta: "Quiero vender una propiedad",
+        buyerCta: "Quiero ver propiedades",
+      };
+  return pageShell(page, `
+    <section class="about-story">
+      <div><span class="seo-eyebrow">PUERTO CANCÚN CENTER</span><h2>${copy.storyTitle}</h2><p>${copy.story}</p></div>
+      <img src="/assets/cancun-hotel-zone-hero-1280.webp" width="1280" height="720" loading="lazy" alt="${english ? "Cancun real estate market" : "Mercado inmobiliario de Cancún"}" />
+    </section>
+    <section class="about-values"><div class="section-heading"><h2>${copy.valuesTitle}</h2></div><div class="about-values-grid">${copy.values.map(([title, description], index) => `<article><span>0${index + 1}</span><h3>${title}</h3><p>${description}</p></article>`).join("")}</div></section>
+    <section class="about-process"><h2>${copy.processTitle}</h2><ol>${copy.process.map((step) => `<li><span>${step}</span></li>`).join("")}</ol></section>
+    <section class="about-areas"><div><h2>${copy.areasTitle}</h2><p>${copy.areas}</p></div><div class="seller-onboarding-actions"><a class="primary-button" href="${english ? "/en/sell-property-cancun" : "/vender-casa-cancun"}">${copy.ownerCta}</a><a class="outline-dark-button" href="${english ? "/en/properties" : "/propiedades"}">${copy.buyerCta}</a></div></section>
+  `);
+}
+
+function renderEnglishSellPage(page) {
+  return pageShell(page, `
+    <section class="quick-answer"><span>SELLING GUIDE</span><h2>Understand the process before registering</h2><p>Learn how the listing process works before creating an account. An advisor reviews the property information, pricing context and images before publication.</p></section>
+    <section class="seo-columns"><div><h2>How we support your sale</h2><ul><li>Collect the essential property information.</li><li>Review price, location and selling points.</li><li>Prepare a clear presentation for prospective buyers.</li><li>Follow up on inquiries and next steps.</li></ul></div><div><h2>Benefits of listing with us</h2><ul><li>Connected buyer and advisor workflows.</li><li>Individual image management and organized property information.</li><li>Professional property sheets and marketing support.</li><li>A single panel to follow your requests.</li></ul></div></section>
+    <section class="seller-onboarding-cta"><div><span>LIST WITH GUIDANCE</span><h2>Register and list with us</h2><p>Create your account after reviewing the process. You can submit the property details and photos and receive advisor follow-up.</p></div><div class="seller-onboarding-actions"><button class="primary-button" type="button" data-seller-access="register">Register to list</button><button class="outline-dark-button" type="button" data-seller-access="login">I already have an account</button></div></section>
+    <section class="seo-form-block"><h2>Request an initial valuation</h2>${PropertyValuationForm()}</section>
+  `);
+}
+
 function renderSeoPage(pathname) {
   const page = getPageByPath(pathname);
   if (!page || page.path === "/") return "";
   if (page.category) return renderCategoryPage(page, []);
   if (typeof page.render === "function") return page.render();
+  if (["/nosotros", "/en/about"].includes(page.path)) return renderAboutPage(page);
+  if (page.path === "/en/sell-property-cancun") return renderEnglishSellPage(page);
   if (["/contacto", "/en/contact"].includes(page.path)) {
     const english = page.lang === "en";
     const mapsUrl = "https://www.google.com/maps/search/?api=1&query=Puerto%20Cancun%20Mall%2C%20Marina%20B.%2C%20oficina%2027%2C%20Zona%20Hotelera%2C%20Cancun%2077500%2C%20Q%20Roo%2C%20Mexico";
@@ -1156,6 +1238,7 @@ module.exports = {
   propertySlug,
   propertyPath,
   propertyMatchesCategory,
+  localizedListingPrice,
   renderCategoryPage,
   renderPropertyPage,
   renderPropertyHead,

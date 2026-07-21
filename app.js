@@ -11,7 +11,6 @@ const LOCATION_FIELD_ORDER = ["state", "city", "zone", "neighborhood"];
 
 const keys = {
   lang: "pcc.lang",
-  currency: "pcc.currency",
   favorites: "pcc.favorites",
   compare: "pcc.compare",
 };
@@ -61,6 +60,7 @@ const translations = {
     typeDevelopments: "Desarrollos",
     navPuerto: "Puerto Cancún",
     navZones: "Zonas",
+    navAbout: "Nosotros",
     menuAllZones: "Ver todas las zonas",
     navSell: "Vender",
     navLogin: "Iniciar sesión",
@@ -141,8 +141,8 @@ const translations = {
     teamRoleInvestment: "Consultor de inversión",
     sellTitle: "Quieres vender una propiedad?",
     sellCopy:
-      "Crea una cuenta, envía tu solicitud y el equipo administrativo revisará la información antes de publicar.",
-    startSellerRequest: "Iniciar solicitud",
+      "Conoce el proceso, los beneficios y el acompañamiento que recibirás antes de registrarte para anunciar tu propiedad.",
+    startSellerRequest: "Conocer cómo vender",
     footerCommunities: "Comunidades",
     footerBuy: "Compra de propiedad",
     footerSell: "Asesoría de venta",
@@ -151,7 +151,7 @@ const translations = {
     aboutPuerto: "Sobre Puerto Cancún Center",
     location: "Ubicación",
     legalCopy:
-      "Los precios de los inmuebles se expresan en Pesos Mexicanos (MXN), moneda oficial para operaciones inmobiliarias en México. Los precios en Dólares de Estados Unidos (USD) se presentan como referencia.",
+      "Al navegar en español, los precios se muestran directamente en Pesos Mexicanos (MXN). La versión en inglés los presenta en Dólares de Estados Unidos (USD).",
     rights: "Todos los derechos reservados.",
     backToSite: "Volver al sitio",
     logout: "Cerrar sesión",
@@ -217,6 +217,7 @@ const translations = {
     saveListing: "Guardar publicación",
     newListing: "Nueva publicación",
     authTitle: "Acceso Puerto Cancún Center",
+    authIntro: "Regístrate y anuncia con nosotros. Podrás enviar tu propiedad, agregar fotografías y seguir el proceso con un asesor.",
     createAccount: "Crear cuenta",
     emailOrUser: "Correo o usuario",
     password: "Contraseña",
@@ -472,6 +473,7 @@ const translations = {
     typeDevelopments: "Developments",
     navPuerto: "Puerto Cancun",
     navZones: "Areas",
+    navAbout: "About us",
     menuAllZones: "View all areas",
     navSell: "Sell",
     navLogin: "Log in",
@@ -550,8 +552,8 @@ const translations = {
     teamRoleListings: "Property coordinator",
     teamRoleInvestment: "Investment consultant",
     sellTitle: "Want to sell a property?",
-    sellCopy: "Create an account, submit your request, and the admin team will review it before publishing.",
-    startSellerRequest: "Start request",
+    sellCopy: "Learn about the process, benefits and support you will receive before registering to list your property.",
+    startSellerRequest: "Learn how to sell",
     footerCommunities: "Communities",
     footerBuy: "Property purchase",
     footerSell: "Seller advisory",
@@ -560,7 +562,7 @@ const translations = {
     aboutPuerto: "About Puerto Cancun Center",
     location: "Location",
     legalCopy:
-      "Property prices are expressed in Mexican Pesos (MXN), the official currency for real estate operations in Mexico. Prices in United States Dollars (USD) are shown as a reference.",
+      "When browsing in English, property prices are shown directly in United States Dollars (USD). The Spanish version presents them in Mexican Pesos (MXN).",
     rights: "All rights reserved.",
     backToSite: "Back to site",
     logout: "Log out",
@@ -625,6 +627,7 @@ const translations = {
     saveListing: "Save listing",
     newListing: "New listing",
     authTitle: "Puerto Cancun Center access",
+    authIntro: "Register and list with us. You can submit your property, add photos, and follow the process with an advisor.",
     createAccount: "Create account",
     emailOrUser: "Email or user",
     password: "Password",
@@ -869,7 +872,7 @@ const translations = {
 
 const state = {
   lang: document.body.dataset.lang || localStorage.getItem(keys.lang) || "es",
-  currency: localStorage.getItem(keys.currency) || "USD",
+  currency: (document.body.dataset.lang || localStorage.getItem(keys.lang) || "es") === "en" ? "USD" : "MXN",
   session: null,
   properties: [],
   requests: [],
@@ -902,10 +905,10 @@ const state = {
   adminSection: "dashboard",
   leadFilter: "all",
   taskFilter: "all",
-  adminListingFilters: { search: "", type: "", zone: "", operation: "", status: "", quality: "" },
+  adminListingFilters: { search: "", type: "", zone: "", operation: "", status: "", quality: "", missingCover: false },
   catalogFilters: { search: "", type: "" },
   sidebarCollapsed: false,
-  config: { googleClientId: "", googleMapsApiKey: "" },
+  config: { googleClientId: "", googleMapsApiKey: "", exchangeRate: 18.5 },
   googleReady: false,
   stats: {
     properties: 0,
@@ -1698,20 +1701,19 @@ function formatCurrencyLine(code, amount, operation = "sale") {
   return `${code} ${formatted}${operation === "rent" ? t("perMonth") : ""}`;
 }
 
+function localizedPropertyPrice(property) {
+  const exchangeRate = Number(state.config.exchangeRate || 18.5) || 18.5;
+  if (state.lang === "en") {
+    const amount = property.priceUsd ?? (property.priceMxn ? Number(property.priceMxn) / exchangeRate : null);
+    return amount ? ["USD", amount] : null;
+  }
+  const amount = property.priceMxn ?? (property.priceUsd ? Number(property.priceUsd) * exchangeRate : null);
+  return amount ? ["MXN", amount] : null;
+}
+
 function formatPriceLines(property) {
-  const preferred =
-    state.currency === "MXN"
-      ? [
-          ["MXN", property.priceMxn],
-          ["USD", property.priceUsd],
-        ]
-      : [
-          ["USD", property.priceUsd],
-          ["MXN", property.priceMxn],
-        ];
-  const firstAvailable = preferred.find(([, amount]) => amount !== null && amount !== undefined && amount !== "");
-  if (!firstAvailable) return [];
-  return [formatCurrencyLine(firstAvailable[0], firstAvailable[1], property.operation)];
+  const selected = localizedPropertyPrice(property);
+  return selected ? [formatCurrencyLine(selected[0], selected[1], property.operation)] : [];
 }
 
 function formatPriceSummary(property) {
@@ -1720,21 +1722,11 @@ function formatPriceSummary(property) {
 }
 
 function selectedPrice(property) {
-  const preferred =
-    state.currency === "MXN"
-      ? [
-          ["MXN", property.priceMxn],
-          ["USD", property.priceUsd],
-        ]
-      : [
-          ["USD", property.priceUsd],
-          ["MXN", property.priceMxn],
-        ];
-  return preferred.find(([, amount]) => amount !== null && amount !== undefined && amount !== "") || null;
+  return localizedPropertyPrice(property);
 }
 
 function comparablePrice(property) {
-  return Number(property.priceUsd || property.priceMxn || 0);
+  return Number(localizedPropertyPrice(property)?.[1] || 0);
 }
 
 function truncateText(text, maxLength = 145) {
@@ -1866,7 +1858,7 @@ function propertyMatches(property) {
   if (filters.zone && property.zone !== filters.zone) return false;
   if (filters.operation && property.operation !== filters.operation) return false;
   if (filters.featured && !property.featured) return false;
-  if (state.guided.budget && property.priceUsd && Number(property.priceUsd) > Number(state.guided.budget)) return false;
+  if (state.guided.budget && comparablePrice(property) > Number(state.guided.budget)) return false;
   if (state.guided.beds && Number(property.beds || 0) < Number(state.guided.beds)) return false;
   if (filters.text) {
     const haystack = [
@@ -2671,24 +2663,41 @@ function renderAdminContacts() {
 
 function renderStats() {
   const stats = [
-    [state.stats.properties, t("statProperties")],
-    [state.stats.activeProperties || 0, t("statusActive")],
-    [state.stats.incompleteProperties || 0, t("qualityIncomplete")],
-    [state.stats.pendingRequests, t("statRequests")],
-    [state.stats.newLeads || 0, t("statLeads")],
-    [state.stats.premiumLeads || 0, t("leadScorePremium")],
-    [state.stats.valuationLeads || 0, t("adminJumpValuations")],
-    [state.stats.pendingTasks || 0, t("adminJumpTasks")],
-    [state.stats.contacts || 0, t("crmTitle")],
-    [state.stats.searches, t("statSearches")],
-    [state.stats.propertiesWithoutCover || 0, "Sin portada"],
-    [state.stats.averageResponseHours ? `${state.stats.averageResponseHours} h` : "N/D", "Respuesta promedio"],
-    [state.stats.generatedDocuments || 0, "Fichas PDF"],
-    [state.stats.whatsappClicks || 0, "Clicks WhatsApp"],
+    [state.stats.properties, t("statProperties"), "properties"],
+    [state.stats.activeProperties || 0, t("statusActive"), "active-properties"],
+    [state.stats.incompleteProperties || 0, t("qualityIncomplete"), "incomplete-properties"],
+    [state.stats.pendingRequests, t("statRequests"), "requests"],
+    [state.stats.newLeads || 0, t("statLeads"), "leads"],
+    [state.stats.premiumLeads || 0, t("leadScorePremium"), "leads"],
+    [state.stats.valuationLeads || 0, t("adminJumpValuations"), "valuations"],
+    [state.stats.pendingTasks || 0, t("adminJumpTasks"), "tasks"],
+    [state.stats.contacts || 0, t("crmTitle"), "contacts"],
+    [state.stats.searches, t("statSearches"), "analytics"],
+    [state.stats.propertiesWithoutCover || 0, "Sin portada", "properties-without-cover"],
+    [state.stats.averageResponseHours ? `${state.stats.averageResponseHours} h` : "N/D", "Respuesta promedio", "leads"],
+    [state.stats.generatedDocuments || 0, "Fichas PDF", "pdf"],
+    [state.stats.whatsappClicks || 0, "Clicks WhatsApp", "analytics"],
   ];
   $("#statsGrid").innerHTML = stats
-    .map(([value, label]) => `<article class="stat-card"><strong>${value}</strong><span>${escapeHtml(label)}</span></article>`)
+    .map(([value, label, target]) => `<button class="stat-card" type="button" data-admin-metric="${escapeHtml(target)}" aria-label="${escapeHtml(`${label}: ${value}. Abrir detalle`)}"><strong>${value}</strong><span>${escapeHtml(label)}</span><small>Ver detalle</small></button>`)
     .join("");
+}
+
+function openAdminMetric(metric) {
+  const emptyFilters = { search: "", type: "", zone: "", operation: "", status: "", quality: "" };
+  if (["properties", "active-properties", "incomplete-properties", "properties-without-cover"].includes(metric)) {
+    state.adminListingFilters = { ...emptyFilters };
+    if (metric === "active-properties") state.adminListingFilters.status = "active";
+    if (metric === "incomplete-properties") state.adminListingFilters.quality = "incomplete";
+    if (metric === "properties-without-cover") state.adminListingFilters.missingCover = true;
+    setAdminSection("properties");
+    renderAdminListingFilters();
+    renderAdminListings();
+    $("#adminListingsCard")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    return;
+  }
+  const section = ["requests", "leads", "valuations", "tasks", "contacts", "analytics", "pdf"].includes(metric) ? metric : "dashboard";
+  setAdminSection(section);
 }
 
 function renderAdminInsights() {
@@ -3055,6 +3064,7 @@ function renderAdminListings() {
     if (filters.status && property.status !== filters.status) return false;
     if (filters.quality === "incomplete" && (property.qualityScore || 0) >= 70) return false;
     if (filters.quality === "ready" && (property.qualityScore || 0) < 70) return false;
+    if (filters.missingCover && storedImages(property).length > 0) return false;
     if (!search) return true;
     const haystack = normalizeSearchText(
       [
@@ -3071,7 +3081,7 @@ function renderAdminListings() {
     summary.textContent = `${properties.length} de ${allProperties.length} ${t("adminListingSummary")} · ${featured} ${t("navFeatured")}`;
   }
   if (!properties.length) {
-    const filtered = search || filters.type || filters.zone || filters.operation || filters.status || filters.quality;
+    const filtered = search || filters.type || filters.zone || filters.operation || filters.status || filters.quality || filters.missingCover;
     list.innerHTML = `<p class="empty-state">${escapeHtml(filtered ? "No se encontraron publicaciones con esa búsqueda." : t("listingsEmpty"))}</p>`;
     return;
   }
@@ -4867,6 +4877,8 @@ function updateHeaderVisibility() {
 
 function applyTranslations() {
   document.documentElement.lang = state.lang;
+  document.body.dataset.lang = state.lang;
+  state.currency = state.lang === "en" ? "USD" : "MXN";
   $$("[data-i18n]").forEach((element) => {
     const key = element.dataset.i18n;
     element.textContent = t(key);
@@ -4875,6 +4887,10 @@ function applyTranslations() {
     element.setAttribute("placeholder", t(element.dataset.i18nPlaceholder));
   });
   $("#languageToggle").textContent = state.lang === "es" ? "English" : "Español";
+  if ($("#aboutNavLink")) $("#aboutNavLink").href = state.lang === "en" ? "/en/about" : "/nosotros";
+  if ($("#sellNavLink")) $("#sellNavLink").href = state.lang === "en" ? "/en/sell-property-cancun" : "/vender-casa-cancun";
+  if ($("#heroSellButton")) $("#heroSellButton").href = state.lang === "en" ? "/en/sell-property-cancun" : "/vender-casa-cancun";
+  if ($("#sellCtaButton")) $("#sellCtaButton").href = state.lang === "en" ? "/en/sell-property-cancun" : "/vender-casa-cancun";
   refreshLocationSelects();
   renderCatalogParentOptions();
   renderLocationCatalogs();
@@ -6083,6 +6099,117 @@ async function handleSellEntry(event) {
   openAuth("register");
 }
 
+function initializePropertyGallery() {
+  const carousel = $("[data-property-carousel]");
+  const modal = $("[data-property-gallery-modal]");
+  if (!carousel || !modal || carousel.dataset.ready === "true") return;
+  carousel.dataset.ready = "true";
+  const slides = $$('[data-gallery-slide]');
+  const modalImage = modal.querySelector("[data-gallery-modal-image]");
+  const mainCounter = carousel.querySelector("[data-gallery-counter]");
+  const modalCounter = modal.querySelector("[data-gallery-modal-counter]");
+  let activeIndex = 0;
+  let zoom = 1;
+
+  const normalizeIndex = (index) => (index + slides.length) % slides.length;
+  const resetZoom = () => {
+    zoom = 1;
+    modalImage.style.transform = "scale(1)";
+    modalImage.dataset.zoom = "1";
+  };
+  const showImage = (index) => {
+    activeIndex = normalizeIndex(index);
+    slides.forEach((slide, slideIndex) => {
+      const active = slideIndex === activeIndex;
+      slide.classList.toggle("is-active", active);
+      slide.setAttribute("aria-hidden", active ? "false" : "true");
+    });
+    $$('[data-gallery-go]').forEach((button) => {
+      button.classList.toggle("is-active", Number(button.dataset.galleryGo) === activeIndex);
+    });
+    const current = `${activeIndex + 1} / ${slides.length}`;
+    if (mainCounter) mainCounter.textContent = current;
+    if (modalCounter) modalCounter.textContent = current;
+    const image = slides[activeIndex]?.querySelector("img");
+    if (image && modalImage) {
+      modalImage.src = image.currentSrc || image.src;
+      modalImage.alt = image.alt;
+    }
+    resetZoom();
+  };
+  const move = (direction) => showImage(activeIndex + direction);
+  const openGallery = () => {
+    showImage(activeIndex);
+    modal.hidden = false;
+    document.body.classList.add("modal-open");
+    modal.querySelector("[data-close-property-gallery]")?.focus();
+  };
+  const closeGallery = () => {
+    modal.hidden = true;
+    document.body.classList.remove("modal-open");
+    resetZoom();
+    carousel.querySelector("[data-open-property-gallery]")?.focus();
+  };
+  const handleGalleryAction = (event) => {
+    const target = event.target;
+    if (target.closest("[data-gallery-previous]")) move(-1);
+    else if (target.closest("[data-gallery-next]")) move(1);
+    else if (target.closest("[data-gallery-go]")) showImage(Number(target.closest("[data-gallery-go]").dataset.galleryGo));
+    else if (target.closest("[data-open-property-gallery]") || target.closest("[data-gallery-slide] img")) openGallery();
+  };
+  carousel.addEventListener("click", handleGalleryAction);
+  modal.addEventListener("click", (event) => {
+    if (event.target === modal || event.target.closest("[data-close-property-gallery]")) {
+      closeGallery();
+      return;
+    }
+    if (event.target.closest("[data-gallery-zoom-in]")) {
+      zoom = Math.min(3, zoom + 0.5);
+      modalImage.style.transform = `scale(${zoom})`;
+      modalImage.dataset.zoom = String(zoom);
+      return;
+    }
+    if (event.target.closest("[data-gallery-zoom-out]")) {
+      zoom = Math.max(1, zoom - 0.5);
+      modalImage.style.transform = `scale(${zoom})`;
+      modalImage.dataset.zoom = String(zoom);
+      return;
+    }
+    if (event.target.closest("[data-gallery-zoom-reset]")) {
+      resetZoom();
+      return;
+    }
+    handleGalleryAction(event);
+  });
+  const bindSwipe = (element) => {
+    if (!element) return;
+    let startX = null;
+    element.addEventListener("pointerdown", (event) => {
+      startX = event.clientX;
+    });
+    element.addEventListener("pointerup", (event) => {
+      if (startX === null || zoom > 1) return;
+      const distance = event.clientX - startX;
+      startX = null;
+      if (Math.abs(distance) > 45) move(distance > 0 ? -1 : 1);
+    });
+    element.addEventListener("pointercancel", () => {
+      startX = null;
+    });
+  };
+  bindSwipe(carousel.querySelector(".property-gallery-stage"));
+  bindSwipe(modal.querySelector(".property-gallery-modal-stage"));
+  document.addEventListener("keydown", (event) => {
+    if (modal.hidden) return;
+    if (event.key === "Escape") closeGallery();
+    if (event.key === "ArrowLeft") move(-1);
+    if (event.key === "ArrowRight") move(1);
+    if (event.key === "+" || event.key === "=") modal.querySelector("[data-gallery-zoom-in]")?.click();
+    if (event.key === "-") modal.querySelector("[data-gallery-zoom-out]")?.click();
+  });
+  showImage(0);
+}
+
 function bindEvents() {
   document.addEventListener("click", async (event) => {
     const link = event.target.closest('a[href^="/api/admin/documents/"][href$="/download"], a[href^="/api/seller/documents/"][href$="/download"]');
@@ -6100,14 +6227,6 @@ function bindEvents() {
       link.dataset.downloading = "false";
       link.removeAttribute("aria-busy");
     }
-  });
-
-  $("#currencySelect").value = state.currency;
-  $("#currencySelect").addEventListener("change", (event) => {
-    state.currency = event.target.value;
-    localStorage.setItem(keys.currency, state.currency);
-    renderProperties();
-    if (!$("#panelView").hidden) void renderPanel();
   });
 
   $("#languageToggle").addEventListener("click", () => {
@@ -6178,10 +6297,6 @@ function bindEvents() {
     if (state.session) await showPanel();
     else openAuth("login");
   });
-  $("#sellNavLink").addEventListener("click", handleSellEntry);
-  $("#sellCtaButton").addEventListener("click", handleSellEntry);
-  $("#footerSellButton").addEventListener("click", handleSellEntry);
-
   $("#authClose").addEventListener("click", closeAuth);
   $("#authModal").addEventListener("click", (event) => {
     if (event.target.id === "authModal") closeAuth();
@@ -6288,6 +6403,7 @@ function bindEvents() {
   $("#adminListingSearch")?.addEventListener("input", (event) => {
     window.clearTimeout(adminListingSearchTimer);
     adminListingSearchTimer = window.setTimeout(() => {
+      state.adminListingFilters.missingCover = false;
       state.adminListingFilters.search = event.target.value;
       renderAdminListings();
     }, 350);
@@ -6300,18 +6416,19 @@ function bindEvents() {
     ["#adminListingQualityFilter", "quality"],
   ].forEach(([selector, key]) => {
     $(selector)?.addEventListener("change", (event) => {
+      state.adminListingFilters.missingCover = false;
       state.adminListingFilters[key] = event.target.value;
       renderAdminListings();
     });
   });
   $("#clearAdminListingSearch")?.addEventListener("click", () => {
-    state.adminListingFilters = { search: "", type: "", zone: "", operation: "", status: "", quality: "" };
+    state.adminListingFilters = { search: "", type: "", zone: "", operation: "", status: "", quality: "", missingCover: false };
     renderAdminListingFilters();
     renderAdminListings();
   });
   $("#adminInsights")?.addEventListener("click", (event) => {
     if (!event.target.closest("[data-show-incomplete-listings]")) return;
-    state.adminListingFilters = { search: "", type: "", zone: "", operation: "", status: "", quality: "incomplete" };
+    state.adminListingFilters = { search: "", type: "", zone: "", operation: "", status: "", quality: "incomplete", missingCover: false };
     setAdminSection("properties");
     renderAdminListingFilters();
     renderAdminListings();
@@ -6583,6 +6700,16 @@ function bindEvents() {
   });
 
   document.addEventListener("click", (event) => {
+    const adminMetric = event.target.closest("[data-admin-metric]");
+    if (adminMetric) openAdminMetric(adminMetric.dataset.adminMetric);
+
+    const sellerAccess = event.target.closest("[data-seller-access]");
+    if (sellerAccess) {
+      event.preventDefault();
+      if (state.session) void showPanel();
+      else openAuth(sellerAccess.dataset.sellerAccess === "login" ? "login" : "register");
+    }
+
     const detail = event.target.closest("[data-detail]");
     if (detail) viewDetails(detail.dataset.detail);
 
@@ -6759,6 +6886,7 @@ function bindEvents() {
 
 async function init() {
   bindEvents();
+  initializePropertyGallery();
   try {
     await loadPublicData();
   } catch (error) {
