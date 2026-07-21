@@ -1,3 +1,5 @@
+const crypto = require("node:crypto");
+
 const mexicoStates = [
   "Aguascalientes", "Baja California", "Baja California Sur", "Campeche", "Chiapas", "Chihuahua",
   "Ciudad de México", "Coahuila", "Colima", "Durango", "Estado de México", "Guanajuato", "Guerrero",
@@ -109,8 +111,74 @@ function buildLocationSeedOptions() {
   return [...states, ...cities, ...zones, ...neighborhoods];
 }
 
+function fallbackLocationSeedId(option, parentId, attempt = 0) {
+  const fingerprint = crypto
+    .createHash("sha256")
+    .update([option.type, option.name, parentId || "root", attempt].join("|"))
+    .digest("hex")
+    .slice(0, 12);
+  return `${option.id}-${fingerprint}`;
+}
+
+async function findLocationIdentity(client, option, parentId) {
+  const result = await client.query(
+    `SELECT id
+     FROM location_options
+     WHERE type = $1
+       AND lower(name) = lower($2)
+       AND parent_id IS NOT DISTINCT FROM $3
+     ORDER BY CASE WHEN id = $4 THEN 0 ELSE 1 END, created_at
+     LIMIT 1`,
+    [option.type, option.name, parentId, option.id]
+  );
+  return result.rows[0]?.id || "";
+}
+
+async function insertLocationSeed(client, id, option, parentId) {
+  const result = await client.query(
+    `INSERT INTO location_options (id, type, name, parent_id, is_active)
+     VALUES ($1, $2, $3, $4, true)
+     ON CONFLICT DO NOTHING
+     RETURNING id`,
+    [id, option.type, option.name, parentId]
+  );
+  return result.rows[0]?.id || "";
+}
+
+async function reconcileLocationSeedOptions(client, options = buildLocationSeedOptions()) {
+  const resolvedIds = new Map();
+
+  for (const option of options) {
+    const parentId = option.parentId
+      ? resolvedIds.get(option.parentId) || option.parentId
+      : null;
+    let actualId = await findLocationIdentity(client, option, parentId);
+
+    if (!actualId) {
+      actualId = await insertLocationSeed(client, option.id, option, parentId);
+    }
+    if (!actualId) {
+      actualId = await findLocationIdentity(client, option, parentId);
+    }
+
+    for (let attempt = 0; !actualId && attempt < 3; attempt += 1) {
+      const fallbackId = fallbackLocationSeedId(option, parentId, attempt);
+      actualId = await insertLocationSeed(client, fallbackId, option, parentId);
+      if (!actualId) actualId = await findLocationIdentity(client, option, parentId);
+    }
+
+    if (!actualId) {
+      throw new Error(`No fue posible reconciliar la ubicación inicial: ${option.type}/${option.name}`);
+    }
+    resolvedIds.set(option.id, actualId);
+  }
+
+  return resolvedIds;
+}
+
 module.exports = {
   buildLocationSeedOptions,
+  reconcileLocationSeedOptions,
   locationSeedSlug,
   mexicoStates,
   quintanaRooCities,

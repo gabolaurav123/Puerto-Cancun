@@ -12,7 +12,7 @@ const sharp = require("sharp");
 const { drawPropertyPdf, preparePropertyPdfImages } = require("./pdf-property-sheet");
 const { createWhatsappService, normalizeBotSettings } = require("./whatsapp-service");
 const { Pool } = require("pg");
-const { buildLocationSeedOptions } = require("./location-catalog");
+const { buildLocationSeedOptions, reconcileLocationSeedOptions } = require("./location-catalog");
 const packageMetadata = require("./package.json");
 const { ensureMigrationTable, recordMigration } = require("./db/migrations");
 const {
@@ -82,8 +82,21 @@ const databaseRuntimeState = {
   initializing: false,
   attempts: 0,
   lastError: "",
+  lastErrorCode: "",
   lastReadyAt: null,
 };
+
+function publicDatabaseState() {
+  return {
+    databaseReady: databaseRuntimeState.ready,
+    databaseStatus: databaseRuntimeState.ready
+      ? "ready"
+      : databaseRuntimeState.initializing
+        ? "initializing"
+        : "unavailable",
+    databaseIssue: databaseRuntimeState.ready ? "" : databaseRuntimeState.lastErrorCode || "DATABASE_UNAVAILABLE",
+  };
+}
 
 const IMAGE_MAX_BYTES = 240 * 1024;
 const IMAGE_MAX_COUNT = 20;
@@ -1622,14 +1635,7 @@ async function initDatabase() {
        SET value = jsonb_set(value, '{model}', '"gpt-5.6-terra"'::jsonb, true), updated_at = NOW()
        WHERE key = 'whatsapp_bot' AND COALESCE(value->>'model', '') IN ('', 'gpt-5-mini')`
     );
-    for (const option of seedLocationOptions) {
-      await client.query(
-        `INSERT INTO location_options (id, type, name, parent_id, is_active)
-         VALUES ($1, $2, $3, $4, true)
-         ON CONFLICT DO NOTHING`,
-        [option.id, option.type, option.name, option.parentId]
-      );
-    }
+    await reconcileLocationSeedOptions(client, seedLocationOptions);
 
     const propertiesCount = await client.query("SELECT COUNT(*)::int AS count FROM properties");
     if (propertiesCount.rows[0].count === 0) {
@@ -1738,7 +1744,7 @@ app.get("/api/version", (_req, res) => {
     service: "puerto-cancun-center",
     ...releaseInfo,
     assetVersion: staticAssetVersion,
-    databaseReady: databaseRuntimeState.ready,
+    ...publicDatabaseState(),
   });
 });
 const sessionMiddleware = session({
@@ -1780,6 +1786,8 @@ app.use((req, res, next) => {
     }
     databaseRuntimeState.ready = false;
     databaseRuntimeState.lastError = String(error.message || error).slice(0, 500);
+    databaseRuntimeState.lastErrorCode = "SESSION_STORE_ERROR";
+    void initializeDatabaseWithRetry();
     if (publicRequestCanDegrade(req)) {
       anonymousSession(req);
       next();
@@ -1795,7 +1803,9 @@ app.use(["/api/admin", "/api/seller", "/api/auth"], (req, res, next) => {
     return;
   }
   res.status(503).json({
-    error: "El servicio de datos se está preparando. Intenta nuevamente en unos segundos.",
+    error: "La base de datos no está disponible. Tus cuentas y datos permanecen guardados; intenta nuevamente después de revisar el despliegue.",
+    code: "DATABASE_UNAVAILABLE",
+    retryable: true,
     requestId: req.requestId,
   });
 });
@@ -1839,18 +1849,21 @@ app.get("/api/health", async (_req, res) => {
       version: releaseInfo.version,
       release: releaseInfo.shortRelease,
       assetVersion: staticAssetVersion,
+      ...publicDatabaseState(),
     });
   } catch (error) {
     databaseRuntimeState.ready = false;
     databaseRuntimeState.lastError = String(error.message || "Database unavailable").slice(0, 240);
+    databaseRuntimeState.lastErrorCode = String(error.code || "DATABASE_CONNECTION_FAILED");
+    void initializeDatabaseWithRetry();
     res.status(503).json({
       ok: false,
       databaseReachable: false,
-      databaseReady: false,
       version: releaseInfo.version,
       release: releaseInfo.shortRelease,
       assetVersion: staticAssetVersion,
       error: "Database unavailable",
+      ...publicDatabaseState(),
     });
   }
 });
@@ -1878,7 +1891,7 @@ app.get("/api/config", async (_req, res) => {
     googleClientId,
     googleMapsApiKey,
     exchangeRate,
-    platform: { ...releaseInfo, assetVersion: staticAssetVersion },
+    platform: { ...releaseInfo, assetVersion: staticAssetVersion, ...publicDatabaseState() },
     publicSiteUrl: siteUrl,
     businessAddress: "Puerto Cancun Mall, Marina B., oficina 27, Zona Hotelera, Cancun 77500, Q Roo, Mexico.",
   });
@@ -5192,6 +5205,7 @@ async function initializeDatabaseWithRetry() {
   if (databaseRuntimeState.initializing || databaseRuntimeState.ready) return;
   if (!databaseUrl) {
     databaseRuntimeState.lastError = "DATABASE_URL is not configured";
+    databaseRuntimeState.lastErrorCode = "DATABASE_URL_MISSING";
     console.error("DATABASE_URL is required. Configure the PostgreSQL connection in Seenode.");
     return;
   }
@@ -5202,12 +5216,14 @@ async function initializeDatabaseWithRetry() {
     await getPublicProperties();
     databaseRuntimeState.ready = true;
     databaseRuntimeState.lastError = "";
+    databaseRuntimeState.lastErrorCode = "";
     databaseRuntimeState.lastReadyAt = new Date().toISOString();
     console.log("PostgreSQL schema and seed data are ready.");
     void whatsappService.resume().catch((error) => console.warn("WhatsApp resume failed:", error.message));
   } catch (error) {
     databaseRuntimeState.ready = false;
     databaseRuntimeState.lastError = String(error.message || error).slice(0, 500);
+    databaseRuntimeState.lastErrorCode = String(error.code || "DATABASE_INITIALIZATION_FAILED");
     console.error(`Database initialization attempt ${databaseRuntimeState.attempts} failed.`);
     console.error(error);
     databaseRetryTimer = setTimeout(() => void initializeDatabaseWithRetry(), 15000);

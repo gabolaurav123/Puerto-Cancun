@@ -57,10 +57,21 @@ test("la automatización de calidad se ejecuta para cambios y pull requests", ()
 
 test("el catálogo inicial tolera ubicaciones existentes sin bloquear PostgreSQL", () => {
   const server = read("server.js");
-  const seedLoop = server.match(/for \(const option of seedLocationOptions\)[\s\S]*?\n    }/);
-  assert.ok(seedLoop, "debe existir la carga inicial del catálogo");
-  assert.match(seedLoop[0], /ON CONFLICT DO NOTHING/);
-  assert.doesNotMatch(seedLoop[0], /ON CONFLICT \(id\) DO UPDATE/);
+  const catalog = read("location-catalog.js");
+  assert.match(server, /reconcileLocationSeedOptions\(client, seedLocationOptions\)/);
+  assert.match(catalog, /parent_id IS NOT DISTINCT FROM \$3/);
+  assert.match(catalog, /ON CONFLICT DO NOTHING/);
+  assert.match(catalog, /resolvedIds\.get\(option\.parentId\)/);
+});
+
+test("el acceso distingue una base indisponible de una contraseña incorrecta", () => {
+  const server = read("server.js");
+  const app = read("app.js");
+  assert.match(server, /code: "DATABASE_UNAVAILABLE"/);
+  assert.match(server, /Tus cuentas y datos permanecen guardados/);
+  assert.match(app, /error\.code = data\.code/);
+  assert.match(app, /error\.status === 503 \|\| error\.code === "DATABASE_UNAVAILABLE"/);
+  assert.match(app, /loginUnavailable/);
 });
 
 test("las galerías descargan una imagen y variantes dimensionadas bajo demanda", () => {

@@ -144,4 +144,19 @@ test("el servidor expone versión y cabeceras sin depender de PostgreSQL", async
 
   const privateResponse = await fetch(`http://127.0.0.1:${address.port}/api/admin/stats`);
   assert.equal(privateResponse.status, 503);
+
+  const configResponse = await fetch(`http://127.0.0.1:${address.port}/api/config`);
+  const config = await configResponse.json();
+  assert.equal(config.platform.databaseReady, false);
+  assert.equal(config.platform.databaseStatus, "unavailable");
+
+  const loginResponse = await fetch(`http://127.0.0.1:${address.port}/api/auth/login`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ username: "diagnostic@example.invalid", password: "diagnostic-only" }),
+  });
+  const loginPayload = await loginResponse.json();
+  assert.equal(loginResponse.status, 503);
+  assert.equal(loginPayload.code, "DATABASE_UNAVAILABLE");
+  assert.match(loginPayload.error, /cuentas y datos permanecen guardados/);
 });
