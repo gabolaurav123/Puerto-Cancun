@@ -36,7 +36,7 @@
       href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&family=Playfair+Display:wght@500;600;700&display=swap"
       rel="stylesheet"
     />
-    <link rel="stylesheet" href="/styles.css?v=20260719.4" />
+    <link rel="stylesheet" href="/styles.css?v=20260721.5" />
     <!-- SEO_JSON_LD -->
   </head>
   <body data-page="home">
@@ -54,13 +54,6 @@
           </a>
 
           <div class="header-tools">
-            <label class="currency-control" for="currencySelect">
-              <span data-i18n="currencyLabel">Seleccione una moneda:</span>
-              <select id="currencySelect" aria-label="Currency">
-                <option value="USD">USD Dollar</option>
-                <option value="MXN">Peso Mexicano</option>
-              </select>
-            </label>
             <button class="language-toggle" type="button" id="languageToggle">English</button>
             <button class="menu-toggle" type="button" id="menuToggle" aria-label="Menu">
               <i data-lucide="menu"></i>
@@ -123,7 +116,8 @@
             </div>
           </div>
 
-          <a href="#sell" id="sellNavLink" data-i18n="navSell">Vender</a>
+          <a href="/nosotros" id="aboutNavLink" data-i18n="navAbout">Nosotros</a>
+          <a href="/vender-casa-cancun" id="sellNavLink" data-i18n="navSell">Vender</a>
           <button class="login-link" type="button" id="loginOpen" data-i18n="navLogin">Iniciar sesion</button>
           <a class="phone-link" href="tel:+5219982166563">998-216-6563</a>
         </nav>
@@ -144,7 +138,7 @@
               decisiones inmobiliarias en Cancun.
             </p>
             <div class="hero-actions">
-              <a class="accent-button" href="#sell" id="heroSellButton" data-i18n="heroSellCta">Quiero vender mi propiedad</a>
+              <a class="accent-button" href="/vender-casa-cancun" id="heroSellButton" data-i18n="heroSellCta">Quiero vender mi propiedad</a>
               <a class="outline-button" href="/comprar-casa-cancun" data-i18n="heroBuyCta">Quiero comprar en Cancun</a>
               <a class="outline-button" href="/valuacion-inmobiliaria-cancun" data-i18n="heroValuationCta">Validar precio con asesor</a>
             </div>
@@ -171,26 +165,6 @@
           <h2 data-i18n="contactToday">Contactanos Hoy</h2>
           <div class="contact-numbers">
             <a href="tel:+5219982166563">MEX +52 1 998-216-6563</a>
-          </div>
-        </section>
-
-        <section class="ai-home-section home-only">
-          <div class="content-wrap ai-home-grid">
-            <div>
-              <p class="section-kicker" data-i18n="aiHomeKicker">IA + criterio local</p>
-              <h2 data-i18n="aiHomeTitle">Usa la IA para informarte. Usa un asesor local para decidir bien.</h2>
-              <p data-i18n="aiHomeCopy">
-                Hoy muchos propietarios y compradores usan ChatGPT, Gemini o Claude para estimar precios, crear anuncios o
-                comparar zonas. Eso puede ser util, pero una operacion real en Cancun depende de factores que la IA no
-                siempre puede validar: documentacion, demanda por zona, estado fisico, negociacion, perfil del comprador,
-                tiempos de cierre y condiciones reales del mercado.
-              </p>
-              <a class="primary-button" href="/validar-respuesta-ia" data-i18n="aiHomeCta">Validar mi decision con un asesor local</a>
-            </div>
-            <div class="ai-note-card">
-              <h3 data-i18n="aiNoteTitle">La IA orienta. Cancun confirma.</h3>
-              <p data-i18n="aiNoteCopy">Convertimos la informacion de la IA en una estrategia inmobiliaria revisada con criterio local.</p>
-            </div>
           </div>
         </section>
 
@@ -584,14 +558,13 @@
             <div>
               <h2 data-i18n="sellTitle">Quieres vender una propiedad?</h2>
               <p data-i18n="sellCopy">
-                Crea una cuenta, envia tu solicitud y el equipo administrativo revisara la informacion antes de
-                publicar.
+                Conoce cómo anunciamos tu propiedad, qué información necesitas y los beneficios de trabajar con nuestro equipo.
               </p>
             </div>
-            <button class="accent-button" type="button" id="sellCtaButton">
+            <a class="accent-button" href="/vender-casa-cancun" id="sellCtaButton">
               <i data-lucide="home"></i>
-              <span data-i18n="startSellerRequest">Iniciar solicitud</span>
-            </button>
+              <span data-i18n="startSellerRequest">Conocer cómo vender</span>
+            </a>
           </div>
         </section>
       </main>
@@ -627,7 +600,7 @@
           </div>
           <div>
             <h3 data-i18n="footerSell">Asesoria de venta</h3>
-            <button type="button" id="footerSellButton" data-i18n="saleProperty">Venta de propiedad</button>
+            <a href="/vender-casa-cancun" id="footerSellButton" data-i18n="saleProperty">Venta de propiedad</a>
             <a href="/vender-casa-cancun" data-i18n="resourceSellHere">Vender mi propiedad aqui</a>
             <a href="/valuacion-inmobiliaria-cancun" data-i18n="resourceValuation">Valoracion inmobiliaria</a>
             <a href="/faq-inmobiliario-cancun" data-i18n="resourceFaq">Preguntas frecuentes</a>
@@ -2183,6 +2156,7 @@
           <i data-lucide="x"></i>
         </button>
         <h2 id="authTitle" data-i18n="authTitle">Acceso Puerto Cancún Center</h2>
+        <p class="auth-intro" data-i18n="authIntro">Regístrate y anuncia con nosotros. Podrás enviar tu propiedad, agregar fotografías y seguir el proceso con un asesor.</p>
         <div class="modal-tabs" role="tablist">
           <button class="active" type="button" data-auth-tab="login" data-i18n="navLogin">Iniciar sesion</button>
           <button type="button" data-auth-tab="register" data-i18n="createAccount">Crear cuenta</button>
@@ -2267,6 +2241,6 @@
     </button>
 
     <script src="https://unpkg.com/lucide@latest"></script>
-    <script src="/app.js?v=20260719.4"></script>
+    <script src="/app.js?v=20260721.5"></script>
   </body>
 </html>
