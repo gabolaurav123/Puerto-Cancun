@@ -411,7 +411,7 @@ const translations = {
     accountExists: "Ya existe una cuenta con ese correo.",
     accountCreated: "Cuenta creada. Bienvenido al panel de vendedor.",
     listingSaved: "Publicación guardada.",
-    listingDeleted: "Publicación eliminada.",
+    listingDeleted: "Publicación enviada al archivo. Puedes restaurarla marcándola como activa.",
     requestApproved: "Solicitud aprobada y publicada.",
     requestRejected: "Solicitud rechazada.",
     leadUpdated: "Solicitud de asesoria actualizada.",
@@ -442,6 +442,7 @@ const translations = {
     priority: "Prioridad",
     edit: "Editar",
     delete: "Borrar",
+    archiveListing: "Archivar",
     approve: "Aprobar",
     reject: "Rechazar",
     requestBy: "Solicitud de",
@@ -455,7 +456,7 @@ const translations = {
     mls: "MLS#",
     sellerPanelShort: "Panel vendedor",
     adminPanelShort: "Panel admin",
-    confirmDelete: "Eliminar esta publicación?",
+    confirmDelete: "Archivar esta publicación? Dejará de ser pública, pero podrás restaurarla.",
     apiError: "No se pudo conectar con la base de datos. Revisa DATABASE_URL y el servidor.",
   },
   en: {
@@ -821,7 +822,7 @@ const translations = {
     accountExists: "An account already exists with that email.",
     accountCreated: "Account created. Welcome to the seller panel.",
     listingSaved: "Listing saved.",
-    listingDeleted: "Listing deleted.",
+    listingDeleted: "Listing archived. You can restore it by marking it active.",
     requestApproved: "Request approved and published.",
     requestRejected: "Request rejected.",
     leadUpdated: "Advisor request updated.",
@@ -852,6 +853,7 @@ const translations = {
     priority: "Priority",
     edit: "Edit",
     delete: "Delete",
+    archiveListing: "Archive",
     approve: "Approve",
     reject: "Reject",
     requestBy: "Request from",
@@ -865,7 +867,7 @@ const translations = {
     mls: "MLS#",
     sellerPanelShort: "Seller panel",
     adminPanelShort: "Admin panel",
-    confirmDelete: "Delete this listing?",
+    confirmDelete: "Archive this listing? It will no longer be public, but you can restore it.",
     apiError: "Could not connect to the database. Check DATABASE_URL and the server.",
   },
 };
@@ -890,6 +892,9 @@ const state = {
   campaigns: [],
   instagramStatus: { connected: false, oauthUrl: "", profileUrl: "https://www.instagram.com/", aiConfigured: false },
   settings: {},
+  platform: { version: "", release: "", shortRelease: "", environment: "", databaseReady: false },
+  systemHealth: { ok: false, databaseReady: false },
+  activity: [],
   messages: [],
   whatsapp: {
     overview: null,
@@ -904,6 +909,9 @@ const state = {
   locationOptions: [],
   adminSection: "dashboard",
   leadFilter: "all",
+  adminLeadStatusFilter: "all",
+  adminLeadPriorityFilter: "all",
+  adminRequestFilter: "all",
   taskFilter: "all",
   adminListingFilters: { search: "", type: "", zone: "", operation: "", status: "", quality: "", missingCover: false },
   catalogFilters: { search: "", type: "" },
@@ -1504,35 +1512,51 @@ function escapeHtml(value) {
 }
 
 async function api(path, options = {}) {
-  const { timeoutMs = 45000, body, headers = {}, ...fetchOptions } = options;
-  const controller = new AbortController();
-  const timeout = window.setTimeout(() => controller.abort(), timeoutMs);
-  let response;
-  try {
-    response = await fetch(path, {
-      credentials: "same-origin",
-      headers: { "Content-Type": "application/json", ...headers },
-      ...fetchOptions,
-      signal: controller.signal,
-      body: body ? JSON.stringify(body) : undefined,
-    });
-  } catch (error) {
-    if (error.name === "AbortError") {
-      const timeoutError = new Error("No se recibió confirmación del servidor. La información permanece en pantalla para reintentar.");
-      timeoutError.status = 504;
-      throw timeoutError;
+  const { timeoutMs = 45000, body, headers = {}, retry = true, ...fetchOptions } = options;
+  const method = String(fetchOptions.method || "GET").toUpperCase();
+  const attempts = retry && method === "GET" ? 2 : 1;
+  for (let attempt = 0; attempt < attempts; attempt += 1) {
+    const controller = new AbortController();
+    const timeout = window.setTimeout(() => controller.abort(), timeoutMs);
+    let response;
+    try {
+      response = await fetch(path, {
+        credentials: "same-origin",
+        headers: { "Content-Type": "application/json", ...headers },
+        ...fetchOptions,
+        signal: controller.signal,
+        body: body ? JSON.stringify(body) : undefined,
+      });
+    } catch (error) {
+      window.clearTimeout(timeout);
+      if (attempt + 1 < attempts) {
+        await new Promise((resolve) => window.setTimeout(resolve, 300));
+        continue;
+      }
+      if (error.name === "AbortError") {
+        const timeoutError = new Error("No se recibió confirmación del servidor. La información permanece en pantalla para reintentar.");
+        timeoutError.status = 504;
+        throw timeoutError;
+      }
+      throw new Error("No fue posible conectar con el servidor. Revisa tu conexión y vuelve a intentar.", { cause: error });
+    } finally {
+      window.clearTimeout(timeout);
     }
-    throw error;
-  } finally {
-    window.clearTimeout(timeout);
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      if (attempt + 1 < attempts && [502, 503, 504].includes(response.status)) {
+        await new Promise((resolve) => window.setTimeout(resolve, 300));
+        continue;
+      }
+      const error = new Error(data.error || "Request failed");
+      error.status = response.status;
+      error.requestId = data.requestId || response.headers.get("X-Request-Id") || "";
+      if (error.requestId && error.status >= 500) error.message += ` · Referencia ${error.requestId}`;
+      throw error;
+    }
+    return data;
   }
-  const data = await response.json().catch(() => ({}));
-  if (!response.ok) {
-    const error = new Error(data.error || "Request failed");
-    error.status = response.status;
-    throw error;
-  }
-  return data;
+  throw new Error("No fue posible completar la solicitud.");
 }
 
 function downloadFileName(response, fallbackName) {
@@ -2373,11 +2397,17 @@ function renderAdminRequests() {
     const pending = state.requests.filter((request) => request.status === "pending").length;
     summary.textContent = `${state.requests.length} ${t("adminRequestSummary")} · ${pending ? `${pending} ${t("pending")}` : t("adminNoPending")}`;
   }
-  if (!state.requests.length) {
+  const requests = state.adminRequestFilter === "pending"
+    ? state.requests.filter((request) => request.status === "pending")
+    : state.requests;
+  if (!requests.length) {
     list.innerHTML = `<p class="empty-state">${escapeHtml(t("noRequests"))}</p>`;
     return;
   }
-  list.innerHTML = state.requests
+  const activeFilter = state.adminRequestFilter !== "all"
+    ? `<div class="active-admin-filter"><span>Mostrando solicitudes pendientes</span><button type="button" data-clear-admin-drilldown="requests">Ver todas</button></div>`
+    : "";
+  list.innerHTML = activeFilter + requests
     .map((request) => {
       const actions =
         request.status === "pending"
@@ -2537,16 +2567,12 @@ function renderAdminLeads() {
   $$("[data-lead-filter]").forEach((button) => {
     button.classList.toggle("active", button.dataset.leadFilter === state.leadFilter);
   });
-  $$("[data-task-filter]").forEach((button) => {
-    button.addEventListener("click", () => {
-      state.taskFilter = button.dataset.taskFilter;
-      renderAdminTasks();
-    });
-  });
   const summary = $("#adminLeadSummary");
   const newCount = state.leads.filter((lead) => lead.status === "new").length;
-  const leads =
+  let leads =
     state.leadFilter === "all" ? state.leads : state.leads.filter((lead) => leadCategory(lead.leadType) === state.leadFilter);
+  if (state.adminLeadStatusFilter !== "all") leads = leads.filter((lead) => lead.status === state.adminLeadStatusFilter);
+  if (state.adminLeadPriorityFilter !== "all") leads = leads.filter((lead) => lead.priority === state.adminLeadPriorityFilter || lead.leadScore === state.adminLeadPriorityFilter);
   if (summary) {
     summary.textContent = `${leads.length} ${t("adminLeadSummary")} · ${newCount ? `${newCount} ${t("leadStatusNew")}` : t("adminNoPending")}`;
   }
@@ -2554,7 +2580,15 @@ function renderAdminLeads() {
     list.innerHTML = `<p class="empty-state">${escapeHtml(t("adminNoLeads"))}</p>`;
     return;
   }
-  list.innerHTML = leads
+  const drilldownCopy = state.adminLeadPriorityFilter !== "all"
+    ? `Mostrando leads ${state.adminLeadPriorityFilter}`
+    : state.adminLeadStatusFilter !== "all"
+      ? `Mostrando leads con estado ${state.adminLeadStatusFilter}`
+      : "";
+  const activeFilter = drilldownCopy
+    ? `<div class="active-admin-filter"><span>${escapeHtml(drilldownCopy)}</span><button type="button" data-clear-admin-drilldown="leads">Ver todos</button></div>`
+    : "";
+  list.innerHTML = activeFilter + leads
     .map((lead) => {
       const phoneUrl = leadPhoneForWhatsApp(lead.phone) ? leadWhatsAppUrl(lead) : "";
       const source = lead.sourcePath ? `<small>${escapeHtml(lead.sourcePath)}</small>` : "";
@@ -2666,9 +2700,9 @@ function renderStats() {
     [state.stats.properties, t("statProperties"), "properties"],
     [state.stats.activeProperties || 0, t("statusActive"), "active-properties"],
     [state.stats.incompleteProperties || 0, t("qualityIncomplete"), "incomplete-properties"],
-    [state.stats.pendingRequests, t("statRequests"), "requests"],
-    [state.stats.newLeads || 0, t("statLeads"), "leads"],
-    [state.stats.premiumLeads || 0, t("leadScorePremium"), "leads"],
+    [state.stats.pendingRequests, t("statRequests"), "pending-requests"],
+    [state.stats.newLeads || 0, t("statLeads"), "new-leads"],
+    [state.stats.premiumLeads || 0, t("leadScorePremium"), "premium-leads"],
     [state.stats.valuationLeads || 0, t("adminJumpValuations"), "valuations"],
     [state.stats.pendingTasks || 0, t("adminJumpTasks"), "tasks"],
     [state.stats.contacts || 0, t("crmTitle"), "contacts"],
@@ -2694,6 +2728,19 @@ function openAdminMetric(metric) {
     renderAdminListingFilters();
     renderAdminListings();
     $("#adminListingsCard")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    return;
+  }
+  if (metric === "pending-requests") {
+    state.adminRequestFilter = "pending";
+    setAdminSection("requests");
+    renderAdminRequests();
+    return;
+  }
+  if (["new-leads", "premium-leads"].includes(metric)) {
+    state.adminLeadStatusFilter = metric === "new-leads" ? "new" : "all";
+    state.adminLeadPriorityFilter = metric === "premium-leads" ? "premium" : "all";
+    setAdminSection("leads");
+    renderAdminLeads();
     return;
   }
   const section = ["requests", "leads", "valuations", "tasks", "contacts", "analytics", "pdf"].includes(metric) ? metric : "dashboard";
@@ -3137,7 +3184,7 @@ function renderAdminListings() {
               <button class="mini-button pdf-neutral-button" type="button" data-generate-property-pdf="${escapeHtml(property.id)}" data-pdf-mode="neutral">PDF neutro</button>
               <button class="mini-button" type="button" data-pdf-property="${escapeHtml(property.id)}">Configurar PDF</button>
               <button class="mini-button" type="button" data-detail="${escapeHtml(property.id)}">Ver detalle público</button>
-              <button class="mini-button danger" type="button" data-delete-listing="${escapeHtml(property.id)}">${escapeHtml(t("delete"))}</button>
+              <button class="mini-button danger" type="button" data-delete-listing="${escapeHtml(property.id)}">${escapeHtml(t("archiveListing"))}</button>
             </div>
           </div>
         </div>
@@ -3576,7 +3623,91 @@ function renderOperationalModules() {
   renderMediaLibrary();
   renderInternalUsers();
   renderAdminNotifications();
+  renderSystemHealth();
+  renderAdminActivity();
   populateOperationalSelects();
+}
+
+let networkStatusTimer = 0;
+function updateNetworkStatus(online = navigator.onLine, announceRecovery = false) {
+  const banner = $("#networkStatus");
+  if (!banner) return;
+  window.clearTimeout(networkStatusTimer);
+  banner.classList.toggle("is-online", online);
+  const icon = banner.querySelector("i");
+  const copy = banner.querySelector("span");
+  if (icon) icon.setAttribute("data-lucide", online ? "wifi" : "wifi-off");
+  if (copy) copy.textContent = online
+    ? "La conexión se restableció. Ya puedes reintentar la operación."
+    : "Sin conexión. Conservaremos los datos del formulario para que puedas reintentar.";
+  banner.hidden = online && !announceRecovery;
+  if (online && announceRecovery) networkStatusTimer = window.setTimeout(() => { banner.hidden = true; }, 3500);
+  refreshIcons();
+}
+
+function healthItem(label, value, detail, ok = true) {
+  return `<article class="system-health-item ${ok ? "is-ok" : "is-warning"}"><span>${escapeHtml(label)}</span><strong>${escapeHtml(value)}</strong><small>${escapeHtml(detail)}</small></article>`;
+}
+
+function renderReleaseInfo() {
+  const element = $("#appRelease");
+  if (!element) return;
+  const version = state.platform?.version || "";
+  const release = state.platform?.shortRelease || state.platform?.release || document.body.dataset.release || "";
+  element.textContent = version || release ? `v${version || "?"} · ${release || "sin commit"}` : "";
+  element.title = "Versión actualmente desplegada";
+}
+
+function renderSystemHealth() {
+  const container = $("#systemHealthGrid");
+  if (!container) return;
+  const databaseReady = state.systemHealth?.databaseReady === true;
+  const mapsReady = Boolean(state.config?.googleMapsApiKey);
+  const aiReady = state.instagramStatus?.aiConfigured === true;
+  const instagramReady = state.instagramStatus?.connected === true;
+  const whatsappStatus = state.whatsapp?.overview?.status?.state || state.whatsapp?.overview?.status?.status || "disconnected";
+  const whatsappReady = whatsappStatus === "connected";
+  container.innerHTML = [
+    healthItem("Versión", state.platform?.version || "No informada", state.platform?.shortRelease || state.platform?.release || "Commit no disponible", Boolean(state.platform?.version)),
+    healthItem("PostgreSQL", databaseReady ? "Disponible" : "Revisar conexión", databaseReady ? "Consultas y sesiones operativas" : "La base no confirmó disponibilidad", databaseReady),
+    healthItem("Google Maps", mapsReady ? "Configurado" : "Modo OpenStreetMap", mapsReady ? "Geocodificación de Google activa" : "Se utiliza el proveedor de respaldo", true),
+    healthItem("OpenAI", aiReady ? "Configurado" : "Borrador local", aiReady ? "Generación asistida disponible" : "La IA usa contenido de respaldo", true),
+    healthItem("Instagram", instagramReady ? "Conectado" : "Pendiente", instagramReady ? "Cuenta vinculada" : "Se puede copiar y abrir Instagram manualmente", instagramReady),
+    healthItem("WhatsApp", whatsappReady ? "Conectado" : whatsappStatusLabels[whatsappStatus] || "Pendiente", "Estado de la integración operativa", whatsappReady),
+  ].join("");
+}
+
+function activityActionLabel(activity) {
+  const method = String(activity.metadata?.method || "").toUpperCase();
+  const labels = { POST: "Creó", PUT: "Actualizó", PATCH: "Modificó", DELETE: "Eliminó" };
+  return `${labels[method] || "Gestionó"} ${activity.entityType || "registro"}`;
+}
+
+function renderAdminActivity() {
+  const container = $("#adminActivityList");
+  if (!container) return;
+  container.innerHTML = state.activity.length
+    ? state.activity.map((activity) => `<article class="activity-row"><div><strong>${escapeHtml(activityActionLabel(activity))}</strong><p>${escapeHtml(activity.entityId || "colección")}</p></div><div><span>${escapeHtml(activity.userId || "sistema")}</span><small>${escapeHtml(activity.metadata?.requestId ? `Referencia ${activity.metadata.requestId}` : "Cambio registrado")}</small></div><time datetime="${escapeHtml(activity.createdAt || "")}">${escapeHtml(formatDate(activity.createdAt))}</time></article>`).join("")
+    : `<p class="empty-state">Todavía no hay cambios administrativos registrados con el nuevo sistema de auditoría.</p>`;
+}
+
+async function refreshSystemHealth(button) {
+  setButtonLoading(button, true, "Actualizando...");
+  try {
+    const [health, activity] = await Promise.all([
+      api("/api/health", { retry: false }),
+      api("/api/admin/activity?limit=80", { retry: false }),
+    ]);
+    state.systemHealth = health;
+    state.activity = activity.activity || [];
+    renderSystemHealth();
+    renderAdminActivity();
+    showToast("Estado operativo actualizado.");
+  } catch (error) {
+    showToast(error.message, "error");
+  } finally {
+    setButtonLoading(button, false);
+  }
 }
 
 function populateSelect(select, items, label, value = "id", emptyLabel = "Seleccionar") {
@@ -4562,21 +4693,57 @@ async function saveWhatsappLead(button) {
 }
 
 async function loadPublicData() {
-  const [propertiesData, sessionData, locationData, configData] = await Promise.all([
+  const results = await Promise.allSettled([
     api("/api/properties"),
     api("/api/session"),
     api("/api/location-options"),
     api("/api/config"),
   ]);
+  const value = (index, fallback) => results[index].status === "fulfilled" ? results[index].value : fallback;
+  const propertiesData = value(0, { properties: [] });
+  const sessionData = value(1, { user: null });
+  const locationData = value(2, { options: [] });
+  const configData = value(3, state.config);
   state.properties = propertiesData.properties || [];
   state.session = sessionData.user;
   state.locationOptions = locationData.options || [];
   state.config = configData || state.config;
+  state.platform = configData?.platform || state.platform;
+  if (results.every((result) => result.status === "rejected")) throw results[0].reason;
+  if (results.some((result) => result.status === "rejected")) {
+    showToast("Algunos datos tardaron en responder. El portal continúa disponible y puedes reintentar.", "error");
+  }
 }
 
 async function loadPanelData() {
   if (!state.session) return;
   if (state.session.role === "admin") {
+    const adminResults = await Promise.allSettled([
+      api("/api/admin/stats"),
+      api("/api/admin/requests"),
+      api("/api/properties"),
+      api("/api/admin/prompts"),
+      api("/api/admin/leads"),
+      api("/api/admin/contacts"),
+      api("/api/admin/valuations"),
+      api("/api/admin/tasks"),
+      api("/api/admin/matches"),
+      api("/api/admin/analytics"),
+      api("/api/admin/buyers"),
+      api("/api/admin/users"),
+      api("/api/admin/files"),
+      api("/api/admin/documents"),
+      api("/api/admin/campaigns"),
+      api("/api/admin/instagram/status"),
+      api("/api/admin/settings"),
+      api("/api/admin/notifications"),
+      api("/api/admin/whatsapp/overview"),
+      api("/api/admin/whatsapp/chats"),
+      api("/api/admin/whatsapp/leads"),
+      api("/api/admin/activity?limit=80"),
+      api("/api/health"),
+    ]);
+    const adminValue = (index, fallback = {}) => adminResults[index].status === "fulfilled" ? adminResults[index].value : fallback;
     const [
       statsData,
       requestsData,
@@ -4599,63 +4766,50 @@ async function loadPanelData() {
       whatsappOverviewData,
       whatsappChatsData,
       whatsappLeadsData,
-    ] = await Promise.all([
-      api("/api/admin/stats"),
-      api("/api/admin/requests"),
-      api("/api/properties"),
-      api("/api/admin/prompts"),
-      api("/api/admin/leads"),
-      api("/api/admin/contacts"),
-      api("/api/admin/valuations"),
-      api("/api/admin/tasks"),
-      api("/api/admin/matches"),
-      api("/api/admin/analytics"),
-      api("/api/admin/buyers"),
-      api("/api/admin/users"),
-      api("/api/admin/files"),
-      api("/api/admin/documents"),
-      api("/api/admin/campaigns"),
-      api("/api/admin/instagram/status"),
-      api("/api/admin/settings"),
-      api("/api/admin/notifications"),
-      api("/api/admin/whatsapp/overview"),
-      api("/api/admin/whatsapp/chats"),
-      api("/api/admin/whatsapp/leads"),
-    ]);
-    state.stats = statsData;
-    state.requests = requestsData.requests || [];
-    state.properties = propertiesData.properties || [];
-    state.adminPrompts = promptsData.prompts || [];
-    state.leads = leadsData.leads || [];
-    state.contacts = contactsData.contacts || [];
-    state.valuations = valuationsData.valuations || [];
-    state.tasks = tasksData.tasks || [];
-    state.matches = matchesData.matches || [];
-    state.analytics = analyticsData || state.analytics;
-    state.buyers = buyersData.buyers || [];
-    state.internalUsers = usersData.users || [];
-    state.files = filesData.files || [];
-    state.documents = documentsData.documents || [];
-    state.campaigns = campaignsData.campaigns || [];
-    state.instagramStatus = instagramStatusData || state.instagramStatus;
-    state.settings = settingsData.settings || {};
-    state.notifications = notificationsData.notifications || [];
-    state.whatsapp.overview = whatsappOverviewData;
-    state.whatsapp.chats = whatsappChatsData.chats || [];
-    state.whatsapp.leads = whatsappLeadsData.leads || [];
+      activityData,
+      systemHealthData,
+    ] = adminResults.map((result, index) => adminValue(index));
+    if (adminResults[0].status === "fulfilled") state.stats = statsData;
+    state.requests = requestsData.requests || state.requests;
+    state.properties = propertiesData.properties || state.properties;
+    state.adminPrompts = promptsData.prompts || state.adminPrompts;
+    state.leads = leadsData.leads || state.leads;
+    state.contacts = contactsData.contacts || state.contacts;
+    state.valuations = valuationsData.valuations || state.valuations;
+    state.tasks = tasksData.tasks || state.tasks;
+    state.matches = matchesData.matches || state.matches;
+    if (adminResults[9].status === "fulfilled") state.analytics = analyticsData || state.analytics;
+    state.buyers = buyersData.buyers || state.buyers;
+    state.internalUsers = usersData.users || state.internalUsers;
+    state.files = filesData.files || state.files;
+    state.documents = documentsData.documents || state.documents;
+    state.campaigns = campaignsData.campaigns || state.campaigns;
+    if (adminResults[15].status === "fulfilled") state.instagramStatus = instagramStatusData || state.instagramStatus;
+    state.settings = settingsData.settings || state.settings;
+    state.notifications = notificationsData.notifications || state.notifications;
+    if (adminResults[18].status === "fulfilled") state.whatsapp.overview = whatsappOverviewData;
+    state.whatsapp.chats = whatsappChatsData.chats || state.whatsapp.chats;
+    state.whatsapp.leads = whatsappLeadsData.leads || state.whatsapp.leads;
+    state.activity = activityData.activity || state.activity;
+    if (adminResults[22].status === "fulfilled") state.systemHealth = systemHealthData || state.systemHealth;
+    const failedModules = adminResults.filter((result) => result.status === "rejected").length;
+    if (failedModules) showToast(`${failedModules} módulo${failedModules === 1 ? "" : "s"} no respondió. El resto del panel continúa disponible.`, "error");
     state.serviceRequests = [];
     state.messages = [];
   } else {
-    const [requestsData, serviceData, notificationsData, messagesData] = await Promise.all([
+    const sellerResults = await Promise.allSettled([
       api("/api/seller/requests"),
       api("/api/seller/service-requests"),
       api("/api/seller/notifications"),
       api("/api/seller/messages"),
     ]);
-    state.requests = requestsData.requests || [];
-    state.serviceRequests = serviceData.requests || [];
-    state.notifications = notificationsData.notifications || [];
-    state.messages = messagesData.messages || [];
+    const sellerValue = (index, fallback = {}) => sellerResults[index].status === "fulfilled" ? sellerResults[index].value : fallback;
+    state.requests = sellerValue(0).requests || state.requests;
+    state.serviceRequests = sellerValue(1).requests || state.serviceRequests;
+    state.notifications = sellerValue(2).notifications || state.notifications;
+    state.messages = sellerValue(3).messages || state.messages;
+    const failedModules = sellerResults.filter((result) => result.status === "rejected").length;
+    if (failedModules) showToast("Parte de tu panel tardó en responder. Conservamos la información disponible para que puedas reintentar.", "error");
     state.adminPrompts = [];
     state.leads = [];
     state.contacts = [];
@@ -4669,6 +4823,7 @@ async function loadPanelData() {
     state.campaigns = [];
     state.instagramStatus = { connected: false, oauthUrl: "", profileUrl: "https://www.instagram.com/", aiConfigured: false };
     state.settings = {};
+    state.activity = [];
     state.whatsapp = {
       overview: null,
       chats: [],
@@ -4891,6 +5046,7 @@ function applyTranslations() {
   if ($("#sellNavLink")) $("#sellNavLink").href = state.lang === "en" ? "/en/sell-property-cancun" : "/vender-casa-cancun";
   if ($("#heroSellButton")) $("#heroSellButton").href = state.lang === "en" ? "/en/sell-property-cancun" : "/vender-casa-cancun";
   if ($("#sellCtaButton")) $("#sellCtaButton").href = state.lang === "en" ? "/en/sell-property-cancun" : "/vender-casa-cancun";
+  renderReleaseInfo();
   refreshLocationSelects();
   renderCatalogParentOptions();
   renderLocationCatalogs();
@@ -5016,8 +5172,21 @@ function hidePanel() {
 }
 
 function setFormMessage(element, text, error = false) {
+  if (!element) return;
   element.classList.toggle("error", error);
+  element.setAttribute("role", error ? "alert" : "status");
+  element.setAttribute("aria-live", error ? "assertive" : "polite");
   element.textContent = text;
+}
+
+function installImageFallbacks() {
+  document.addEventListener("error", (event) => {
+    const image = event.target;
+    if (!(image instanceof HTMLImageElement) || image.dataset.fallbackApplied === "true") return;
+    if (!/^https?:\/\//i.test(image.currentSrc || image.src)) return;
+    image.dataset.fallbackApplied = "true";
+    image.src = fallbackImage;
+  }, true);
 }
 
 async function loginSubmit(event) {
@@ -5704,7 +5873,7 @@ function editListing(id) {
 }
 
 async function deleteListing(id) {
-  if (!(await confirmAction(t("confirmDelete"), "Eliminar publicación"))) return;
+  if (!(await confirmAction(t("confirmDelete"), "Archivar publicación"))) return;
   try {
     await api(`/api/admin/properties/${encodeURIComponent(id)}`, { method: "DELETE" });
     await renderPanel();
@@ -6254,6 +6423,8 @@ function bindEvents() {
   });
 
   window.addEventListener("scroll", updateHeaderVisibility, { passive: true });
+  window.addEventListener("offline", () => updateNetworkStatus(false));
+  window.addEventListener("online", () => updateNetworkStatus(true, true));
   window.addEventListener("beforeunload", (event) => {
     const hasUnsavedAdminDraft = $("#listingForm")?.dataset.dirty === "true";
     const hasUnsavedSellerDraft = $("#sellerRequestForm")?.dataset.dirty === "true";
@@ -6496,6 +6667,7 @@ function bindEvents() {
   $("#mediaUploadForm")?.addEventListener("submit", mediaUploadSubmit);
   $("#internalUserForm")?.addEventListener("submit", internalUserSubmit);
   $("#settingsForm")?.addEventListener("submit", settingsSubmit);
+  $("#refreshSystemHealth")?.addEventListener("click", (event) => void refreshSystemHealth(event.currentTarget));
   $("#whatsappChatbotForm")?.addEventListener("submit", whatsappChatbotSubmit);
   $("#whatsappMessageForm")?.addEventListener("submit", whatsappMessageSubmit);
   $("#refreshWhatsapp")?.addEventListener("click", () => void refreshWhatsappData({ includeLists: true }));
@@ -6690,7 +6862,16 @@ function bindEvents() {
   $$("[data-lead-filter]").forEach((button) => {
     button.addEventListener("click", () => {
       state.leadFilter = button.dataset.leadFilter;
+      state.adminLeadStatusFilter = "all";
+      state.adminLeadPriorityFilter = "all";
       renderAdminLeads();
+    });
+  });
+
+  $$("[data-task-filter]").forEach((button) => {
+    button.addEventListener("click", () => {
+      state.taskFilter = button.dataset.taskFilter;
+      renderAdminTasks();
     });
   });
 
@@ -6702,6 +6883,17 @@ function bindEvents() {
   document.addEventListener("click", (event) => {
     const adminMetric = event.target.closest("[data-admin-metric]");
     if (adminMetric) openAdminMetric(adminMetric.dataset.adminMetric);
+
+    const clearDrilldown = event.target.closest("[data-clear-admin-drilldown]");
+    if (clearDrilldown?.dataset.clearAdminDrilldown === "requests") {
+      state.adminRequestFilter = "all";
+      renderAdminRequests();
+    }
+    if (clearDrilldown?.dataset.clearAdminDrilldown === "leads") {
+      state.adminLeadStatusFilter = "all";
+      state.adminLeadPriorityFilter = "all";
+      renderAdminLeads();
+    }
 
     const sellerAccess = event.target.closest("[data-seller-access]");
     if (sellerAccess) {
@@ -6885,8 +7077,10 @@ function bindEvents() {
 }
 
 async function init() {
+  installImageFallbacks();
   bindEvents();
   initializePropertyGallery();
+  updateNetworkStatus(navigator.onLine);
   try {
     await loadPublicData();
   } catch (error) {

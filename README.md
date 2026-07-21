@@ -4,10 +4,10 @@ Plataforma inmobiliaria con portal público, panel de propietarios y centro de o
 
 ## Configuración
 
-1. Instala dependencias:
+1. Instala dependencias reproducibles:
 
 ```bash
-npm install
+npm ci
 ```
 
 2. Crea un archivo `.env` basado en `.env.example`.
@@ -19,6 +19,8 @@ DATABASE_URL=postgresql://usuario:password@host:5432/base
 DATABASE_SSL=require
 DATABASE_POOL_MAX=5
 NODE_ENV=production
+APP_VERSION=1.0.0
+RELEASE_SHA=commit-del-despliegue
 PUBLIC_SITE_URL=https://www.puertocancun.center
 SESSION_SECRET=un-secreto-largo-y-aleatorio
 ADMIN_USER=admin prueba
@@ -41,9 +43,9 @@ No subas `.env` al repositorio. La conexión PostgreSQL, las claves y la contras
 ### Despliegue en Seenode
 
 - Base de datos: PostgreSQL administrado, en la misma región que el servicio web.
-- Build command: `npm install`.
+- Build command: `npm ci`.
 - Start command: `npm start`.
-- Health check: `/health` (confirma que el proceso está vivo sin bloquearse por una migración); `/api/health` también valida PostgreSQL.
+- Liveness: `/health`. Readiness: `/ready`, que solo responde correctamente cuando PostgreSQL y la inicialización están disponibles.
 - Puerto: el mismo valor configurado en `PORT` y en el servicio de Seenode.
 - Para una conexión privada sin TLS, usa `DATABASE_SSL=disable`; para una conexión pública o protegida usa `DATABASE_SSL=require`.
 
@@ -59,7 +61,7 @@ El servidor crea automáticamente las tablas necesarias y carga propiedades de e
 
 ## Funcionalidad
 
-- Selector USD/MXN e idioma Español/Inglés.
+- Idioma Español/Inglés con moneda vinculada: MXN en español y USD en inglés.
 - Búsqueda guiada, filtros, favoritos, comparación y alertas.
 - Panel del propietario con venta, valoración, validación de precio, validación de IA, respuestas y notificaciones.
 - Solicitudes con modal de respuesta, historial, adjuntos, responsables, prioridades y tareas.
@@ -76,6 +78,11 @@ El servidor crea automáticamente las tablas necesarias y carga propiedades de e
 - Schema `RealEstateAgent`, `RealEstateListing`, `BreadcrumbList`, sitemap dinámico y medios públicos sin Base64 en el HTML.
 - Hero responsive WebP, Open Graph 1200×630 y staging Seenode bloqueado para indexación.
 - Persistencia PostgreSQL para operación, documentos, archivos, campañas, métricas y sesiones.
+- Identificación de versión, commit, recursos estáticos y solicitudes mediante `/api/version` y cabeceras de soporte.
+- Protección de origen, límites de solicitudes, cabeceras de seguridad y validación reforzada de cuentas.
+- Auditoría automática de mutaciones administrativas sin registrar contraseñas ni contenido sensible.
+- Carga aislada de módulos: una integración caída no bloquea todo el panel.
+- Archivo recuperable de propiedades en lugar de borrado físico inmediato.
 
 ## Rutas públicas
 
@@ -103,4 +110,7 @@ Las campañas preparan y registran mensajes; no realizan envío masivo sin un pr
 ```bash
 npm run check
 npm test
+npm run verify
 ```
+
+Cada pull request y cada actualización de `main` ejecutan estas verificaciones mediante GitHub Actions. El despliegue automático puede conectarse con el secret `SEENODE_DEPLOY_HOOK_URL`; consulta [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) y [docs/OPERATIONS.md](docs/OPERATIONS.md).
