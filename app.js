@@ -221,6 +221,8 @@ const translations = {
     createAccount: "Crear cuenta",
     emailOrUser: "Correo o usuario",
     password: "Contraseña",
+    showPassword: "Mostrar contraseña",
+    hidePassword: "Ocultar contraseña",
     currentPassword: "Contraseña actual",
     newPassword: "Nueva contraseña",
     passwordRule: "Usa por lo menos 12 caracteres y evita reutilizar otra contraseña.",
@@ -644,6 +646,8 @@ const translations = {
     createAccount: "Create account",
     emailOrUser: "Email or user",
     password: "Password",
+    showPassword: "Show password",
+    hidePassword: "Hide password",
     currentPassword: "Current password",
     newPassword: "New password",
     passwordRule: "Use at least 12 characters and avoid reusing another password.",
@@ -5092,6 +5096,7 @@ function applyTranslations() {
     element.setAttribute("placeholder", t(element.dataset.i18nPlaceholder));
   });
   $("#languageToggle").textContent = state.lang === "es" ? "English" : "Español";
+  $$('[data-password-visibility]').forEach(updatePasswordVisibilityButton);
   if ($("#aboutNavLink")) $("#aboutNavLink").href = state.lang === "en" ? "/en/about" : "/nosotros";
   if ($("#sellNavLink")) $("#sellNavLink").href = state.lang === "en" ? "/en/sell-property-cancun" : "/vender-casa-cancun";
   if ($("#heroSellButton")) $("#heroSellButton").href = state.lang === "en" ? "/en/sell-property-cancun" : "/vender-casa-cancun";
@@ -5318,6 +5323,41 @@ async function registerSubmit(event) {
         : error.message;
     setFormMessage(message, text, true);
   }
+}
+
+function updatePasswordVisibilityButton(button) {
+  const input = button.closest(".password-input-wrap")?.querySelector("input");
+  if (!input) return;
+  const visible = input.type === "text";
+  const label = t(visible ? "hidePassword" : "showPassword");
+  button.setAttribute("aria-label", label);
+  button.setAttribute("title", label);
+  button.setAttribute("aria-pressed", String(visible));
+  button.innerHTML = `<i data-lucide="${visible ? "eye-off" : "eye"}"></i>`;
+}
+
+function installPasswordVisibilityToggles() {
+  $$('input[type="password"]').forEach((input) => {
+    if (input.dataset.passwordVisibilityReady === "true") return;
+    input.dataset.passwordVisibilityReady = "true";
+    const wrapper = document.createElement("span");
+    wrapper.className = "password-input-wrap";
+    input.parentNode.insertBefore(wrapper, input);
+    wrapper.append(input);
+    const button = document.createElement("button");
+    button.className = "password-visibility-button";
+    button.type = "button";
+    button.dataset.passwordVisibility = "true";
+    button.addEventListener("click", () => {
+      input.type = input.type === "password" ? "text" : "password";
+      updatePasswordVisibilityButton(button);
+      refreshIcons();
+      input.focus({ preventScroll: true });
+    });
+    wrapper.append(button);
+    updatePasswordVisibilityButton(button);
+  });
+  refreshIcons();
 }
 
 async function passwordUpdateSubmit(event) {
@@ -7216,6 +7256,7 @@ function bindEvents() {
 
 async function init() {
   installImageFallbacks();
+  installPasswordVisibilityToggles();
   bindEvents();
   initializePropertyGallery();
   updateNetworkStatus(navigator.onLine);

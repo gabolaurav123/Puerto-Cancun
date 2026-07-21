@@ -1797,6 +1797,43 @@ body[data-page="property"] .home-only {
   color: var(--muted);
 }
 
+.password-input-wrap {
+  position: relative;
+  display: block;
+  width: 100%;
+}
+
+.password-input-wrap > input {
+  width: 100%;
+  padding-right: 52px;
+}
+
+.password-visibility-button {
+  position: absolute;
+  top: 50%;
+  right: 5px;
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--blue-800);
+  transform: translateY(-50%);
+}
+
+.password-visibility-button:hover,
+.password-visibility-button:focus-visible {
+  background: #edf5f4;
+  color: var(--blue-950);
+}
+
+.password-visibility-button svg {
+  width: 21px;
+  height: 21px;
+}
+
 .google-auth-box {
   display: grid;
   gap: 10px;
