@@ -2112,6 +2112,7 @@ function renderProperties() {
         property.mls ? `${t("mls")} ${property.mls}` : "",
       ].filter(Boolean);
       const propertyUrl = state.lang === "en" ? property.urlEn : property.urlEs;
+      const descriptionSummary = truncateText(localizedDescription(property), 190);
 
       return `
         <article class="property-card" id="property-${escapeHtml(property.id)}">
@@ -2128,7 +2129,7 @@ function renderProperties() {
             <h3 class="property-title">${escapeHtml(localizedTitle(property))}</h3>
             <p class="property-location">${escapeHtml(displayLocation(property))}</p>
             <p class="property-meta">${escapeHtml(meta.join(" • "))}</p>
-            <p class="property-description">${escapeHtml(localizedDescription(property))}</p>
+            <p class="property-description">${escapeHtml(descriptionSummary)}</p>
             <div class="property-actions">
               <a class="mini-button primary" href="${escapeHtml(propertyUrl || `/propiedades/${property.slug || property.id}`)}">${escapeHtml(state.lang === "en" ? "View property" : "Ver propiedad")}</a>
               <button class="mini-button icon-only" type="button" data-detail="${escapeHtml(property.id)}" title="${escapeHtml(state.lang === "en" ? "Quick view" : "Vista rapida")}" aria-label="${escapeHtml(state.lang === "en" ? "Quick view" : "Vista rapida")}"><i data-lucide="search"></i></button>
@@ -3899,7 +3900,9 @@ function populateOperationalSelects() {
 
 function renderMarketing() {
   const kpis = $("#adminMarketing");
+  const mailingKpis = $("#adminMailing");
   const list = $("#campaignList");
+  const emailCampaigns = state.campaigns.filter((campaign) => campaign.channel === "email");
   const instagramStatus = $("#instagramConnectionStatus");
   const connectInstagram = $("#connectInstagram");
   const openInstagramProfile = $("#openInstagramProfile");
@@ -3919,15 +3922,23 @@ function renderMarketing() {
   }
   if (kpis) {
     kpis.innerHTML = [
-      operationCard("Leads premium", state.stats.premiumLeads || 0, "Prioridad comercial"),
-      operationCard("Compradores activos", state.buyers.filter((buyer) => buyer.status === "active").length, "Con perfil y presupuesto"),
-      operationCard("Campañas preparadas", state.campaigns.filter((campaign) => campaign.status !== "sent").length, "Borradores y programadas"),
-      operationCard("Campañas enviadas", state.campaigns.filter((campaign) => campaign.status === "sent").length, "Registro de seguimiento"),
+      operationCard("Publicaciones activas", state.properties.filter((property) => property.status === "active").length, "Contenido disponible"),
+      operationCard("Propiedades destacadas", state.properties.filter((property) => property.featured).length, "Prioridad editorial"),
+      operationCard("Desarrollos", state.properties.filter((property) => property.publicationSection === "developments").length, "Inventario para contenido"),
+      operationCard("Instagram", state.instagramStatus?.connected ? "Conectado" : "Pendiente", "Estado del canal"),
+    ].join("");
+  }
+  if (mailingKpis) {
+    mailingKpis.innerHTML = [
+      operationCard("Contactos con correo", state.contacts.filter((contact) => contact.email).length, "Destinatarios disponibles"),
+      operationCard("Correos preparados", state.campaigns.filter((campaign) => campaign.channel === "email" && campaign.status !== "sent").length, "Borradores y programados"),
+      operationCard("Correos enviados", state.campaigns.filter((campaign) => campaign.channel === "email" && campaign.status === "sent").length, "Historial completado"),
+      operationCard("Envios parciales", state.campaigns.filter((campaign) => campaign.channel === "email" && campaign.status === "partial").length, "Requieren revision"),
     ].join("");
   }
   if (!list) return;
-  list.innerHTML = state.campaigns.length
-    ? state.campaigns
+  list.innerHTML = emailCampaigns.length
+    ? emailCampaigns
         .map(
           (campaign) => `
             <article class="wide-row compact-row">
@@ -3940,14 +3951,13 @@ function renderMarketing() {
               <div class="item-actions">
                 <a class="mini-button" href="/api/admin/campaigns/${encodeURIComponent(campaign.id)}/export">Exportar CSV</a>
                 ${campaign.channel === "email" && campaign.status !== "sent" ? `<button class="mini-button primary" type="button" data-send-campaign-email="${escapeHtml(campaign.id)}">Enviar mailing</button>` : ""}
-                ${campaign.status !== "sent" ? `<button class="mini-button primary" type="button" data-campaign-sent="${escapeHtml(campaign.id)}">Marcar enviada</button>` : ""}
                 <button class="mini-button danger" type="button" data-delete-campaign="${escapeHtml(campaign.id)}">Eliminar</button>
               </div>
             </article>
           `
         )
         .join("")
-    : `<p class="empty-state">No hay campañas. Crea una para preparar mensajes y segmentar contactos sin simular envíos masivos.</p>`;
+    : `<p class="empty-state">No hay correos preparados. Crea el primero, selecciona el segmento y guardalo antes de enviarlo.</p>`;
 }
 
 function renderDocuments() {
@@ -4140,7 +4150,7 @@ async function campaignSubmit(event) {
     });
     form.reset();
     await renderPanel();
-    showToast("Campaña guardada. Ya puedes exportar su segmento o marcarla como enviada.");
+    showToast("Correo guardado. Ya puedes revisar el segmento y enviarlo desde Mailing.");
   } catch (error) {
     setFormMessage($("#campaignFormMessage"), error.message, true);
   } finally {
@@ -4181,7 +4191,7 @@ async function generateCampaignCopy() {
     method: "POST",
     body: { tool: "campaign", propertyId: form.propertyId.value, input: form.message.value },
   });
-  form.message.value = data.result.whatsapp || data.result.emailBody || JSON.stringify(data.result, null, 2);
+  form.message.value = data.result.emailBody || data.result.whatsapp || JSON.stringify(data.result, null, 2);
   showToast("Borrador generado. Revísalo antes de guardarlo.");
 }
 
@@ -5166,18 +5176,22 @@ const panelStaticEnglish = {
   "Inventario": "Inventory",
   "Desarrollos públicos": "Public developments",
   "Contactos y cuentas": "Contacts and accounts",
-  "Campañas y mailing": "Campaigns and mailing",
+  "Crear y enviar correos": "Create and send emails",
+  "Instagram y contenido": "Instagram and content",
   "Conexión, chatbot y chats": "Connection, chatbot and chats",
   "Generar e historial": "Generate and history",
   "Crear contacto": "Create contact",
-  "Crear campaña": "Create campaign",
+  "Crear correo": "Create email",
+  "Asunto del correo": "Email subject",
+  "Contenido del correo": "Email content",
+  "Guardar correo": "Save email",
   "Crear usuario": "Create user",
   "Generar PDF": "Generate PDF",
   "Solicitudes": "Requests",
   "Asesorías": "Advisory",
   "Catálogos": "Catalogs",
   "Herramientas IA": "AI tools",
-  "Campañas preparadas": "Prepared campaigns",
+  "Correos preparados": "Prepared emails",
   "Nombre": "Name",
   "Correo": "Email",
   "Objetivo": "Objective",
@@ -6644,6 +6658,11 @@ function renderPropertyDetail(property) {
       `
     )
     .join("");
+  const mapsUrl = /^https?:\/\//i.test(String(property.googleMapsUrl || ""))
+    ? property.googleMapsUrl
+    : property.latitude && property.longitude
+      ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${property.latitude},${property.longitude}`)}`
+      : "";
 
   content.innerHTML = `
     <div class="property-detail-layout">
@@ -6655,9 +6674,10 @@ function renderPropertyDetail(property) {
         <p class="property-detail-price">${escapeHtml(formatPriceSummary(property))}</p>
         <h2 id="propertyDetailTitle">${escapeHtml(localizedTitle(property))}</h2>
         <div class="property-detail-meta">${facts}</div>
+        ${mapsUrl ? `<a class="property-detail-map-link" href="${escapeHtml(mapsUrl)}" target="_blank" rel="noopener"><i data-lucide="map-pin"></i><span>${escapeHtml(state.lang === "en" ? "Open location in Google Maps" : "Abrir ubicacion en Google Maps")}</span></a>` : ""}
         <div class="property-detail-description">${paragraphs || `<p>${escapeHtml(t("noResults"))}</p>`}</div>
         <div class="property-detail-actions">
-          <button class="primary-button" type="button" data-detail-contact="${escapeHtml(property.id)}">${escapeHtml(t("contactWhatsApp"))}</button>
+          <button class="primary-button whatsapp-detail-button" type="button" data-detail-contact="${escapeHtml(property.id)}"><i data-lucide="message-circle"></i><span>${escapeHtml(t("contactWhatsApp"))}</span></button>
         </div>
       </div>
     </div>

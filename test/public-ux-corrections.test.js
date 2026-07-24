@@ -38,6 +38,8 @@ test("las publicaciones usan carrusel y no muestran fecha de modificación", () 
     priceMxn: null,
     images: ["/assets/one.webp", "/assets/two.webp", "/assets/three.webp"],
     amenities: ["Alberca", "Marina"],
+    latitude: 21.1619,
+    longitude: -86.8515,
     updatedAt: "2026-07-20T00:00:00.000Z",
   };
   const spanish = renderPropertyPage(property, "es").html;
@@ -53,6 +55,12 @@ test("las publicaciones usan carrusel y no muestran fecha de modificación", () 
   assert.match(spanish, /data-property-gallery-modal/);
   assert.match(spanish, /data-gallery-zoom-in/);
   assert.equal((spanish.match(/data-gallery-slide=/g) || []).length, 3);
+  assert.match(spanish, /Descripción completa de la propiedad\./);
+  assert.match(spanish, /class="property-location-map"/);
+  assert.match(spanish, /class="primary-button property-whatsapp"/);
+  assert.ok(spanish.indexOf("property-page-gallery") < spanish.indexOf("property-page-summary"));
+  assert.ok(spanish.indexOf("property-long-description") < spanish.indexOf("property-amenities"));
+  assert.ok(spanish.indexOf("property-amenities") < spanish.indexOf("property-whatsapp"));
 });
 
 test("la navegación explica cómo vender y presenta un Nosotros completo", () => {
@@ -66,6 +74,7 @@ test("la navegación explica cómo vender y presenta un Nosotros completo", () =
   assert.match(indexSource, /href="\/vender-casa-cancun" id="sellNavLink"/);
   assert.doesNotMatch(indexSource, /class="ai-home-section/);
   assert.match(indexSource, /class="ai-validation-home/);
+  assert.doesNotMatch(indexSource, /class="audience-section home-only"/);
   assert.match(sellingPage, /Regístrate y anuncia con nosotros/);
   assert.match(sellingPage, /data-seller-access="register"/);
   assert.match(sellingPage, /data-seller-access="login"/);
@@ -74,6 +83,21 @@ test("la navegación explica cómo vender y presenta un Nosotros completo", () =
   assert.match(aboutPage, /about-process/);
   assert.match(appSource, /initializePropertyGallery\(\)/);
   assert.match(stylesSource, /\.property-gallery-modal/);
+});
+
+test("mailing es independiente de marketing y los controles PDF permanecen juntos", () => {
+  const indexSource = fs.readFileSync(path.join(root, "index.html"), "utf8");
+  const stylesSource = fs.readFileSync(path.join(root, "styles.css"), "utf8");
+
+  assert.match(indexSource, /data-admin-section="mailing"/);
+  assert.match(indexSource, /data-admin-section-panel="mailing"/);
+  assert.match(indexSource, /id="adminMailingCard"/);
+  assert.match(indexSource, /id="adminMarketingCard" data-admin-section-panel="marketing"/);
+  assert.match(indexSource, /<input name="channel" type="hidden" value="email"/);
+  assert.match(indexSource, /class="pdf-display-options span-2"/);
+  assert.match(stylesSource, /\.pdf-display-options/);
+  assert.match(stylesSource, /\.seller-onboarding-actions \.outline-dark-button/);
+  assert.match(stylesSource, /background: #25d366/);
 });
 
 test("todas las métricas superiores del administrador abren un detalle", () => {

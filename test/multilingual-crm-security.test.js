@@ -18,8 +18,10 @@ test("el idioma se guarda antes de navegar y tambien se controla desde los panel
   assert.match(seoSource, /localizedAmenity\(item, lang\)/);
   assert.match(seoSource, /"seguridad 24\/7": "24\/7 security"/);
   assert.match(serverSource, /Original property description:\\n\$\{descriptionEs\}/);
-  assert.match(appSource, /class="property-description">\$\{escapeHtml\(localizedDescription\(property\)\)\}/);
-  assert.match(seoSource, /class="seo-property-description">\$\{escapeHtml\(description\)\}/);
+  assert.match(appSource, /descriptionSummary = truncateText\(localizedDescription\(property\), 190\)/);
+  assert.match(appSource, /class="property-description">\$\{escapeHtml\(descriptionSummary\)\}/);
+  assert.match(seoSource, /descriptionSummary = excerptText\(description\)/);
+  assert.match(seoSource, /class="seo-property-description">\$\{escapeHtml\(descriptionSummary\)\}/);
 });
 
 test("desarrollos tiene destino editorial y pagina publica propia", () => {

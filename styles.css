@@ -7295,7 +7295,7 @@ button[aria-busy="true"] {
   display: none;
 }
 
-/* Keep the final cascade aligned with the inventory redesign. */
+/* Public inventory cards are concise; the complete copy belongs to the detail page. */
 .property-card {
   display: grid;
   grid-template-rows: auto 1fr;
@@ -7314,8 +7314,11 @@ button[aria-busy="true"] {
 }
 
 .property-card .property-description {
+  display: block;
   min-height: 0;
-  -webkit-line-clamp: 2;
+  margin-bottom: 16px;
+  overflow: visible;
+  white-space: normal;
 }
 
 .property-card .property-actions,
@@ -7325,35 +7328,317 @@ button[aria-busy="true"] {
 
 .whatsapp-card-button,
 .seo-whatsapp-button {
-  border-color: #128c4b;
-  background: #128c4b;
+  border-color: #25d366;
+  background: #25d366;
   color: #fff;
 }
 
-.property-page-layout {
-  grid-template-columns: minmax(0, 1.15fr) minmax(420px, 0.85fr);
-}
-
-/* Property information stays complete in every public inventory view. */
-.property-card .property-description {
-  display: block;
-  min-height: 0;
-  overflow: visible;
-  white-space: pre-line;
-  -webkit-box-orient: initial;
-  -webkit-line-clamp: unset;
+.whatsapp-card-button:hover,
+.seo-whatsapp-button:hover {
+  border-color: #1ebe5d;
+  background: #1ebe5d;
+  color: #fff;
 }
 
 .seo-property-description {
+  display: block;
+  min-height: 4.8em;
   margin: 12px 0 18px;
+  overflow: visible;
   color: var(--muted);
   line-height: 1.65;
   overflow-wrap: anywhere;
-  white-space: pre-line;
+  white-space: normal;
+}
+
+/* Type tiles use the image as the whole surface so no empty color bars remain. */
+.type-tile {
+  position: relative;
+  min-height: 270px;
+  border: 0;
+  background: #eaf4f2;
+  color: #fff;
+}
+
+.type-tile::after {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  content: "";
+  background: linear-gradient(180deg, transparent 48%, rgba(3, 47, 58, 0.82));
+  pointer-events: none;
+}
+
+.type-tile span {
+  position: absolute;
+  z-index: 2;
+  left: 20px;
+  right: 20px;
+  bottom: 18px;
+  margin: 0;
+  color: #fff;
+  font-size: 1.7rem;
+  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.42);
+}
+
+.type-tile img {
+  display: block;
+  width: 100%;
+  height: 270px;
+  object-fit: cover;
+}
+
+/* Complete property pages are vertical: gallery, overview, map and full copy. */
+.property-page-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 28px;
+  width: 100%;
+}
+
+.property-page-gallery {
+  width: 100%;
+}
+
+.property-gallery-stage,
+.property-gallery-slide {
+  min-height: 560px;
+}
+
+.property-gallery-slide img {
+  min-height: 540px;
+  max-height: 720px;
+}
+
+.property-page-summary {
+  width: 100%;
+  padding: 38px;
+  border-top: 4px solid var(--blue-700);
+}
+
+.property-summary-heading {
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(280px, 0.85fr);
+  gap: 34px;
+  align-items: start;
+  padding-bottom: 28px;
+  border-bottom: 1px solid #d8e2df;
+}
+
+.property-summary-location {
+  padding-left: 28px;
+  border-left: 1px solid #d8e2df;
+}
+
+.property-summary-location .property-address {
+  margin: 0 0 12px;
+  color: var(--ink);
+  line-height: 1.65;
+}
+
+.property-location-map {
+  margin-top: 30px;
+}
+
+.property-location-map-heading {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 20px;
+  margin-bottom: 14px;
+}
+
+.property-location-map-heading h2 {
+  margin: 0;
+  color: var(--blue-900);
+  font-size: 1.8rem;
+}
+
+.property-location-map iframe {
+  display: block;
+  width: 100%;
+  height: 390px;
+  border: 1px solid #cfdedb;
+  background: #eaf4f2;
+}
+
+.property-description-section {
+  margin-top: 36px;
+  padding-top: 32px;
+  border-top: 1px solid #d8e2df;
+}
+
+.property-description-section h2 {
+  margin: 0 0 18px;
+  color: var(--blue-900);
+  font-size: 2.35rem;
+}
+
+.property-long-description {
+  max-width: 92ch;
+  max-height: none;
+  overflow: visible;
+  color: #40565b;
+  font-size: 1rem;
+  line-height: 1.82;
+}
+
+.property-long-description p {
+  margin: 0 0 18px;
+}
+
+.property-amenities {
+  max-width: 920px;
+  margin-top: 30px;
+}
+
+.property-whatsapp,
+.whatsapp-detail-button {
+  display: inline-flex;
+  width: auto;
+  min-width: min(100%, 320px);
+  min-height: 50px;
+  margin-top: 24px;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  border-color: #25d366;
+  background: #25d366;
+  color: #fff;
+  box-shadow: 0 10px 24px rgba(37, 211, 102, 0.2);
+}
+
+.property-whatsapp:hover,
+.whatsapp-detail-button:hover {
+  border-color: #1ebe5d;
+  background: #1ebe5d;
+  color: #fff;
+}
+
+/* Quick view follows the same readable vertical composition. */
+.property-detail-layout {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.property-detail-image {
+  min-height: 0;
+}
+
+.property-detail-track {
+  height: auto;
+}
+
+.property-detail-slide {
+  min-height: 420px;
+  aspect-ratio: 16 / 9;
+}
+
+.property-detail-copy {
+  padding: 34px 42px 42px;
+}
+
+.property-detail-description {
+  max-width: 92ch;
+  max-height: none;
+  overflow: visible;
+}
+
+.property-detail-map-link {
+  display: inline-flex;
+  width: max-content;
+  max-width: 100%;
+  align-items: center;
+  gap: 8px;
+  color: var(--blue-900);
+  font-weight: 800;
+  text-decoration: underline;
+  text-decoration-color: var(--gold);
+  text-underline-offset: 4px;
+}
+
+.property-detail-map-link svg {
+  width: 18px;
+  height: 18px;
+}
+
+/* Admin controls that belong together stay on the same visual row. */
+.pdf-display-options {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.admin-mailing-card .module-split {
+  align-items: start;
+}
+
+.admin-mailing-card .module-help {
+  margin: 6px 0 18px;
+  color: var(--muted);
+  line-height: 1.6;
+}
+
+/* The account action must remain legible on the dark seller banner. */
+.seller-onboarding-actions .outline-dark-button {
+  border-color: #fff;
+  background: #fff;
+  color: #063d48;
+}
+
+.seller-onboarding-actions .outline-dark-button:hover {
+  border-color: #e7f3f0;
+  background: #e7f3f0;
+  color: #032f3a;
 }
 
 @media (max-width: 1050px) {
-  .property-page-layout {
+  .property-summary-heading {
     grid-template-columns: 1fr;
+  }
+
+  .property-summary-location {
+    padding: 24px 0 0;
+    border-top: 1px solid #d8e2df;
+    border-left: 0;
+  }
+}
+
+@media (max-width: 760px) {
+  .property-page-summary,
+  .property-detail-copy {
+    padding: 24px 18px;
+  }
+
+  .property-gallery-stage,
+  .property-gallery-slide {
+    min-height: 280px;
+  }
+
+  .property-gallery-slide img {
+    min-height: 260px;
+    max-height: 430px;
+  }
+
+  .property-location-map-heading {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .property-location-map iframe {
+    height: 300px;
+  }
+
+  .property-description-section h2 {
+    font-size: 1.9rem;
+  }
+
+  .property-amenities ul,
+  .pdf-display-options {
+    grid-template-columns: 1fr;
+  }
+
+  .property-whatsapp,
+  .whatsapp-detail-button {
+    width: 100%;
   }
 }

@@ -227,26 +227,6 @@
           </div>
         </section>
 
-        <section class="audience-section home-only">
-          <div class="content-wrap audience-grid">
-            <article>
-              <h2 data-i18n="sellerAudienceTitle">Para propietarios que quieren vender mejor</h2>
-              <p data-i18n="sellerAudienceCopy">
-                Te ayudamos a definir un precio competitivo, preparar tu propiedad, crear una estrategia de difusion y
-                negociar con compradores reales.
-              </p>
-              <a class="primary-button" href="/vender-casa-cancun" data-i18n="valuationRequest">Solicitar valoracion</a>
-            </article>
-            <article>
-              <h2 data-i18n="buyerAudienceTitle">Para compradores que buscan elegir bien</h2>
-              <p data-i18n="buyerAudienceCopy">
-                Te ayudamos a encontrar propiedades segun tu presupuesto, zona, estilo de vida y objetivo de inversion.
-              </p>
-              <a class="primary-button" href="/comprar-casa-cancun" data-i18n="searchProperty">Buscar propiedad</a>
-            </article>
-          </div>
-        </section>
-
         <section class="resource-section home-only">
           <div class="content-wrap">
             <div class="center-heading">
@@ -351,25 +331,25 @@
               <a class="type-tile" href="/propiedades/casas-cancun">
                 <span data-i18n="typeHouses">Casas</span>
                 <img
-                  src="https://images.unsplash.com/photo-1613977257363-707ba9348227?auto=format&fit=crop&w=900&q=80"
+                  src="/assets/type-houses-cancun.jpg"
                   alt="Luxury house pool"
-                  width="900" height="600" loading="lazy"
+                  width="1200" height="800"
                 />
               </a>
               <a class="type-tile" href="/propiedades/departamentos-cancun">
                 <span data-i18n="typeCondos">Departamentos</span>
                 <img
-                  src="https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?auto=format&fit=crop&w=900&q=80"
+                  src="/assets/type-apartments-cancun.jpg"
                   alt="Luxury apartment"
-                  width="900" height="600" loading="lazy"
+                  width="1200" height="800"
                 />
               </a>
               <a class="type-tile" href="/propiedades/puerto-cancun/terrenos">
                 <span data-i18n="typeLand">Terrenos</span>
                 <img
-                  src="https://images.unsplash.com/photo-1572120360610-d971b9d7767c?auto=format&fit=crop&w=900&q=80"
+                  src="/assets/type-land-cancun.jpg"
                   alt="Waterfront land"
-                  width="900" height="600" loading="lazy"
+                  width="1200" height="800"
                 />
               </a>
             </div>
@@ -1000,7 +980,13 @@
               </button>
               <div class="admin-sidebar-subnav">
                 <button type="button" data-admin-section-link="contacts">Contactos y cuentas</button>
-                <button type="button" data-admin-section-link="marketing">Mailing</button>
+              </div>
+              <button type="button" data-admin-section="mailing">
+                <i data-lucide="mail"></i>
+                <span>Mailing</span>
+              </button>
+              <div class="admin-sidebar-subnav">
+                <button type="button" data-admin-section-link="mailing">Crear y enviar correos</button>
               </div>
               <button type="button" data-admin-section="whatsapp">
                 <i data-lucide="message-circle-more"></i>
@@ -1040,7 +1026,7 @@
                 <span data-i18n="adminJumpMarketing">Marketing</span>
               </button>
               <div class="admin-sidebar-subnav">
-                <button type="button" data-admin-section-link="marketing">Campañas y mailing</button>
+                <button type="button" data-admin-section-link="marketing">Instagram y contenido</button>
               </div>
               <button type="button" data-admin-section="pdf">
                 <i data-lucide="file-text"></i>
@@ -1638,8 +1624,8 @@
         <article class="panel-card admin-marketing-card" id="adminMarketingCard" data-admin-section-panel="marketing">
           <div class="admin-module-heading">
             <div>
-              <h2>Campañas / Marketing</h2>
-              <p>Prepara, segmenta, programa, exporta y registra campañas comerciales.</p>
+              <h2>Marketing y contenido</h2>
+              <p>Crea contenido para redes sociales a partir del inventario inmobiliario.</p>
             </div>
           </div>
           <div class="marketing-kpis" id="adminMarketing"></div>
@@ -1669,21 +1655,32 @@
               <p class="form-message span-2" id="instagramPostMessage"></p>
             </form>
           </section>
+        </article>
+        <article class="panel-card admin-mailing-card" id="adminMailingCard" data-admin-section-panel="mailing">
+          <div class="admin-module-heading">
+            <div>
+              <span class="eyebrow">CRM / CORREO</span>
+              <h2>Mailing</h2>
+              <p>Redacta, segmenta y envía correos a los contactos registrados desde un espacio independiente de Marketing.</p>
+            </div>
+          </div>
+          <div class="marketing-kpis" id="adminMailing"></div>
           <div class="module-split">
             <form id="campaignForm" class="module-form-grid">
-              <h3 class="span-2">Crear campaña</h3>
-              <label><span>Nombre</span><input name="name" required /></label>
+              <h3 class="span-2">Crear correo</h3>
+              <label><span>Asunto del correo</span><input name="name" required /></label>
               <label><span>Objetivo</span><select name="objective"><option value="promote_property">Promocionar propiedad</option><option value="buyers_followup">Recontactar compradores</option><option value="sellers_followup">Recontactar vendedores</option><option value="valuation">Enviar valoración</option><option value="zone">Promocionar zona</option><option value="presale">Preventa</option></select></label>
               <label><span>Segmento</span><select name="segment"><option value="all">Todos los contactos</option><option value="buyers">Compradores</option><option value="sellers">Vendedores</option><option value="premium">Leads premium</option><option value="unanswered">Sin seguimiento reciente</option></select></label>
-              <label><span>Canal</span><select name="channel"><option value="whatsapp">WhatsApp</option><option value="email">Correo</option><option value="social">Redes</option><option value="csv">Exportar CSV</option></select></label>
+              <input name="channel" type="hidden" value="email" />
               <label><span>Propiedad</span><select name="propertyId" id="campaignPropertySelect"><option value="">Sin propiedad</option></select></label>
               <label><span>Programar</span><input name="scheduledAt" type="datetime-local" /></label>
-              <label class="span-2"><span>Mensaje</span><textarea name="message" rows="7" required></textarea></label>
-              <div class="form-actions span-2"><button class="primary-button" type="submit">Guardar campaña</button><button class="ghost-button" type="button" id="generateCampaignCopy">Generar texto con IA</button></div>
+              <label class="span-2"><span>Contenido del correo</span><textarea name="message" rows="9" required></textarea></label>
+              <div class="form-actions span-2"><button class="primary-button" type="submit">Guardar correo</button><button class="ghost-button" type="button" id="generateCampaignCopy">Generar borrador con IA</button></div>
               <p class="form-message span-2" id="campaignFormMessage"></p>
             </form>
             <section>
-              <h3>Campañas preparadas</h3>
+              <h3>Correos preparados</h3>
+              <p class="module-help">Guarda el correo y luego usa <strong>Enviar mailing</strong> para enviarlo al segmento seleccionado.</p>
               <div class="wide-data-list" id="campaignList"></div>
             </section>
           </div>
@@ -1708,8 +1705,10 @@
               <label data-pdf-target="property"><span>Propiedad</span><select name="propertyId" id="pdfPropertySelect"></select></label>
               <label data-pdf-target="valuation" hidden><span>Valoración</span><select name="valuationId" id="pdfValuationSelect"></select></label>
               <label><span>Moneda</span><select name="currency"><option>USD</option><option>MXN</option></select></label>
-              <label class="checkbox-row pdf-checkbox"><input name="showPrice" type="checkbox" checked /><span>Mostrar precio</span></label>
-              <label class="checkbox-row pdf-checkbox"><input name="showAddress" type="checkbox" /><span>Mostrar dirección exacta</span></label>
+              <div class="pdf-display-options span-2">
+                <label class="checkbox-row pdf-checkbox"><input name="showPrice" type="checkbox" checked /><span>Mostrar precio</span></label>
+                <label class="checkbox-row pdf-checkbox"><input name="showAddress" type="checkbox" /><span>Mostrar dirección exacta</span></label>
+              </div>
               <label class="span-2"><span>Disclaimer</span><textarea name="disclaimer" rows="3">Información sujeta a disponibilidad y cambios sin previo aviso.</textarea></label>
               <div class="form-actions span-2">
                 <button class="ghost-button" type="button" id="previewPdf">Vista previa</button>
