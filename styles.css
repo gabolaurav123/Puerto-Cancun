@@ -7334,6 +7334,24 @@ button[aria-busy="true"] {
   grid-template-columns: minmax(0, 1.15fr) minmax(420px, 0.85fr);
 }
 
+/* Property information stays complete in every public inventory view. */
+.property-card .property-description {
+  display: block;
+  min-height: 0;
+  overflow: visible;
+  white-space: pre-line;
+  -webkit-box-orient: initial;
+  -webkit-line-clamp: unset;
+}
+
+.seo-property-description {
+  margin: 12px 0 18px;
+  color: var(--muted);
+  line-height: 1.65;
+  overflow-wrap: anywhere;
+  white-space: pre-line;
+}
+
 @media (max-width: 1050px) {
   .property-page-layout {
     grid-template-columns: 1fr;

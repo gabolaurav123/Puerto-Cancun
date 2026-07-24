@@ -690,11 +690,15 @@ function propertyEnglishFallback(row) {
     Number(row.lot || 0) ? `${new Intl.NumberFormat("en-US", { maximumFractionDigits: 2 }).format(Number(row.lot))} m² of land` : "",
   ].filter(Boolean);
   const fallbackTitle = `${type} ${operation} in ${location}${row.mls ? ` · MLS# ${row.mls}` : ""}`;
-  const fallbackDescription = [
+  const fallbackOverview = [
     `This ${type.toLowerCase()} is available ${operation} in ${location}, ${row.city || "Cancun"}, ${row.state || "Quintana Roo"}.`,
     details.length ? `The listing includes ${details.join(", ")}.` : "",
     "Review the property gallery, location and available features, then contact Puerto Cancun Center for current availability and complete details.",
   ].filter(Boolean).join(" ");
+  const fallbackDescription = [
+    fallbackOverview,
+    descriptionEs ? `Original property description:\n${descriptionEs}` : "",
+  ].filter(Boolean).join("\n\n");
   return {
     title: !titleEn || normalize(titleEn) === normalize(titleEs) || titleLooksSpanish ? fallbackTitle : titleEn,
     description:

@@ -17,6 +17,9 @@ test("el idioma se guarda antes de navegar y tambien se controla desde los panel
   assert.match(indexSource, /name="descriptionEn"/);
   assert.match(seoSource, /localizedAmenity\(item, lang\)/);
   assert.match(seoSource, /"seguridad 24\/7": "24\/7 security"/);
+  assert.match(serverSource, /Original property description:\\n\$\{descriptionEs\}/);
+  assert.match(appSource, /class="property-description">\$\{escapeHtml\(localizedDescription\(property\)\)\}/);
+  assert.match(seoSource, /class="seo-property-description">\$\{escapeHtml\(description\)\}/);
 });
 
 test("desarrollos tiene destino editorial y pagina publica propia", () => {

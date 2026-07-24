@@ -2128,7 +2128,7 @@ function renderProperties() {
             <h3 class="property-title">${escapeHtml(localizedTitle(property))}</h3>
             <p class="property-location">${escapeHtml(displayLocation(property))}</p>
             <p class="property-meta">${escapeHtml(meta.join(" • "))}</p>
-            <p class="property-description">${escapeHtml(truncateText(localizedDescription(property)))}</p>
+            <p class="property-description">${escapeHtml(localizedDescription(property))}</p>
             <div class="property-actions">
               <a class="mini-button primary" href="${escapeHtml(propertyUrl || `/propiedades/${property.slug || property.id}`)}">${escapeHtml(state.lang === "en" ? "View property" : "Ver propiedad")}</a>
               <button class="mini-button icon-only" type="button" data-detail="${escapeHtml(property.id)}" title="${escapeHtml(state.lang === "en" ? "Quick view" : "Vista rapida")}" aria-label="${escapeHtml(state.lang === "en" ? "Quick view" : "Vista rapida")}"><i data-lucide="search"></i></button>

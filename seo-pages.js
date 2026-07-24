@@ -958,11 +958,12 @@ function renderInventoryCards(properties, lang = "es") {
   return `<div class="seo-property-grid">${properties.map((property) => {
     const image = optimizedPublicImage(safePublicImages(property)[0], 640) || "/assets/og-puerto-cancun-center.webp";
     const title = lang === "en" ? property.titleEn || property.titleEs : property.titleEs || property.titleEn;
+    const description = lang === "en" ? property.descriptionEn || property.descriptionEs : property.descriptionEs || property.descriptionEn;
     const url = propertyPath(property, lang);
     const whatsappUrl = `https://wa.me/5219982166563?text=${encodeURIComponent(`${lang === "en" ? "Hello, I would like information about" : "Hola, quisiera información sobre"}: ${title} ${absoluteUrl(url)}`)}`;
     return `<article class="seo-property-card">
       <a class="seo-property-image" href="${escapeHtml(url)}"><img src="${escapeHtml(image)}" width="640" height="420" loading="lazy" alt="${escapeHtml(title)}" /></a>
-      <div><p class="seo-property-price">${escapeHtml(formatListingPrice(property, lang))}</p><h2><a href="${escapeHtml(url)}">${escapeHtml(title)}</a></h2><p>${escapeHtml([property.zone, localizedPropertyType(property.type, lang), property.mls ? `MLS# ${property.mls}` : ""].filter(Boolean).join(" · "))}</p><div class="seo-property-actions"><a class="text-link" href="${escapeHtml(url)}">${lang === "en" ? "View property" : "Ver propiedad"}</a><a class="seo-whatsapp-button" href="${escapeHtml(whatsappUrl)}" target="_blank" rel="noopener">${lang === "en" ? "WhatsApp" : "Contactar por WhatsApp"}</a></div></div>
+      <div><p class="seo-property-price">${escapeHtml(formatListingPrice(property, lang))}</p><h2><a href="${escapeHtml(url)}">${escapeHtml(title)}</a></h2><p>${escapeHtml([property.zone, localizedPropertyType(property.type, lang), property.mls ? `MLS# ${property.mls}` : ""].filter(Boolean).join(" · "))}</p><div class="seo-property-description">${escapeHtml(description)}</div><div class="seo-property-actions"><a class="text-link" href="${escapeHtml(url)}">${lang === "en" ? "View property" : "Ver propiedad"}</a><a class="seo-whatsapp-button" href="${escapeHtml(whatsappUrl)}" target="_blank" rel="noopener">${lang === "en" ? "WhatsApp" : "Contactar por WhatsApp"}</a></div></div>
     </article>`;
   }).join("")}</div>`;
 }
