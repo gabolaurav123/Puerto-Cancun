@@ -914,6 +914,45 @@ function localizedPropertyType(type, lang = "es") {
   }[type] || type;
 }
 
+function localizedAmenity(amenity, lang = "es") {
+  if (lang !== "en") return amenity;
+  const key = String(amenity || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim()
+    .toLowerCase();
+  return {
+    "acceso a playa": "Beach access",
+    "acceso a playa privada": "Private beach access",
+    alberca: "Swimming pool",
+    albercas: "Swimming pools",
+    "cancha de tenis": "Tennis court",
+    "canchas deportivas": "Sports courts",
+    cenote: "Cenote",
+    "centro de negocios": "Business center",
+    ciclovia: "Bike path",
+    "club de playa": "Beach club",
+    elevador: "Elevator",
+    "frente a marina": "Marina front",
+    "frente a playa": "Beachfront",
+    "frente al mar": "Oceanfront",
+    gimnasio: "Gym",
+    jacuzzi: "Jacuzzi",
+    malecon: "Waterfront promenade",
+    marina: "Marina",
+    muelle: "Dock",
+    palapa: "Palapa",
+    "playa privada": "Private beach",
+    "salon de usos multiples": "Multipurpose room",
+    seguridad: "Security",
+    "seguridad 24/7": "24/7 security",
+    "senderos peatonales": "Walking paths",
+    spa: "Spa",
+    "terraza - bar": "Terrace bar",
+    "vista a la marina": "Marina view",
+  }[key] || amenity;
+}
+
 function renderInventoryCards(properties, lang = "es") {
   if (!properties.length) return `<p class="inventory-empty">${lang === "en" ? "No public listings are available in this category right now. Contact us to receive options." : "No hay publicaciones activas en esta categoria por el momento. Contactanos para recibir opciones."}</p>`;
   return `<div class="seo-property-grid">${properties.map((property) => {
@@ -950,7 +989,7 @@ function propertySchema(property, baseUrl = DEFAULT_SITE_URL, lang = "es") {
     numberOfBedrooms: property.beds || undefined,
     numberOfBathroomsTotal: property.baths || undefined,
     numberOfParkingSpaces: property.parking || undefined,
-    amenityFeature: Array.isArray(property.amenities) ? property.amenities.map((name) => ({ "@type": "LocationFeatureSpecification", name, value: true })) : undefined,
+    amenityFeature: Array.isArray(property.amenities) ? property.amenities.map((name) => ({ "@type": "LocationFeatureSpecification", name: localizedAmenity(name, lang), value: true })) : undefined,
     floorSize: property.area ? { "@type": "QuantitativeValue", value: property.area, unitCode: "MTK" } : undefined,
     address: { "@type": "PostalAddress", streetAddress: property.address || undefined, addressLocality: property.city || "Cancun", addressRegion: property.state || "Quintana Roo", addressCountry: "MX" },
   };
@@ -986,7 +1025,7 @@ function renderPropertyPage(property, lang = "es", similar = []) {
   const galleryModal = `<div class="property-gallery-modal" data-property-gallery-modal hidden><section class="property-gallery-dialog" role="dialog" aria-modal="true" aria-label="${english ? "Property gallery" : "Galeria de la propiedad"}"><button class="property-gallery-close" type="button" data-close-property-gallery aria-label="${english ? "Close gallery" : "Cerrar galeria"}">×</button><div class="property-gallery-modal-stage"><img data-gallery-modal-image src="${escapeHtml(optimizedPublicImage(galleryImages[0], 1200))}" alt="${escapeHtml(`${title} - 1`)}" /><button class="property-gallery-arrow previous" type="button" data-gallery-previous aria-label="${english ? "Previous photo" : "Foto anterior"}">‹</button><button class="property-gallery-arrow next" type="button" data-gallery-next aria-label="${english ? "Next photo" : "Foto siguiente"}">›</button></div><div class="property-gallery-toolbar"><button type="button" data-gallery-zoom-out aria-label="${english ? "Zoom out" : "Alejar"}">−</button><button type="button" data-gallery-zoom-reset>${english ? "Reset" : "Restablecer"}</button><button type="button" data-gallery-zoom-in aria-label="${english ? "Zoom in" : "Acercar"}">+</button><span data-gallery-modal-counter>1 / ${galleryImages.length}</span></div><div class="property-gallery-modal-thumbs">${galleryThumbs}</div></section></div>`;
   const mapLink = property.googleMapsUrl && /^https?:\/\//i.test(property.googleMapsUrl) ? `<a class="text-link" href="${escapeHtml(property.googleMapsUrl)}" target="_blank" rel="noopener">${english ? "Open location in Google Maps" : "Abrir ubicacion en Google Maps"}</a>` : "";
   const similarSection = similar.length ? `<section class="similar-properties"><div class="section-heading"><h2>${english ? "Similar properties" : "Propiedades similares"}</h2></div>${renderInventoryCards(similar.slice(0, 3), lang)}</section>` : "";
-  const amenities = Array.isArray(property.amenities) && property.amenities.length ? `<section class="property-amenities"><h2>${english ? "Amenities" : "Amenidades"}</h2><ul>${property.amenities.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ul></section>` : "";
+  const amenities = Array.isArray(property.amenities) && property.amenities.length ? `<section class="property-amenities"><h2>${english ? "Amenities" : "Amenidades"}</h2><ul>${property.amenities.map((item) => `<li>${escapeHtml(localizedAmenity(item, lang))}</li>`).join("")}</ul></section>` : "";
   const content = `<section class="property-page-layout">${gallery}<aside class="property-page-summary"><p class="property-page-price">${escapeHtml(formatListingPrice(property, lang))}</p><div class="property-facts">${facts.map((fact) => `<span>${escapeHtml(fact)}</span>`).join("")}</div><h2>${english ? "Property details" : "Detalles de la propiedad"}</h2><p class="property-address">${escapeHtml([property.address, property.neighborhood, property.zone, property.city, property.state].filter(Boolean).join(", "))}</p>${mapLink}<div class="property-long-description">${String(description || "").split(/\n+/).filter(Boolean).map((part) => `<p>${escapeHtml(part)}</p>`).join("")}</div>${amenities}<a class="primary-button property-whatsapp" href="${page.ctaHref}" target="_blank" rel="noopener">${page.cta}</a></aside></section>${galleryModal}<section class="property-lead"><h2>${english ? "Schedule a visit or request details" : "Agenda una visita o solicita informacion"}</h2>${BuyerLeadForm(lang)}</section>${similarSection}${InternalLinksBlock([{ label: english ? "All properties" : "Todas las propiedades", href: english ? "/en/properties" : "/propiedades" }, { label: english ? "Puerto Cancun properties" : "Propiedades en Puerto Cancun", href: english ? "/en/properties/puerto-cancun" : "/propiedades/puerto-cancun" }], english ? "Related resources" : "Recursos relacionados")}`;
   return { page, html: pageShell(page, content) };
 }

@@ -6,6 +6,7 @@ const test = require("node:test");
 const root = path.resolve(__dirname, "..");
 const appSource = fs.readFileSync(path.join(root, "app.js"), "utf8");
 const indexSource = fs.readFileSync(path.join(root, "index.html"), "utf8");
+const seoSource = fs.readFileSync(path.join(root, "seo-pages.js"), "utf8");
 const serverSource = fs.readFileSync(path.join(root, "server.js"), "utf8");
 
 test("el idioma se guarda antes de navegar y tambien se controla desde los paneles", () => {
@@ -14,6 +15,8 @@ test("el idioma se guarda antes de navegar y tambien se controla desde los panel
   assert.match(indexSource, /id="panelLanguageToggle"/);
   assert.match(indexSource, /name="titleEn"/);
   assert.match(indexSource, /name="descriptionEn"/);
+  assert.match(seoSource, /localizedAmenity\(item, lang\)/);
+  assert.match(seoSource, /"seguridad 24\/7": "24\/7 security"/);
 });
 
 test("desarrollos tiene destino editorial y pagina publica propia", () => {
