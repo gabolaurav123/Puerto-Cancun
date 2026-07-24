@@ -61,6 +61,7 @@ test("las publicaciones usan carrusel y no muestran fecha de modificación", () 
   assert.ok(spanish.indexOf("property-page-gallery") < spanish.indexOf("property-page-summary"));
   assert.ok(spanish.indexOf("property-long-description") < spanish.indexOf("property-amenities"));
   assert.ok(spanish.indexOf("property-amenities") < spanish.indexOf("property-whatsapp"));
+  assert.ok(spanish.indexOf("property-whatsapp") < spanish.indexOf("property-location-map"));
 });
 
 test("la navegación explica cómo vender y presenta un Nosotros completo", () => {
@@ -94,8 +95,16 @@ test("mailing es independiente de marketing y los controles PDF permanecen junto
   assert.match(indexSource, /id="adminMailingCard"/);
   assert.match(indexSource, /id="adminMarketingCard" data-admin-section-panel="marketing"/);
   assert.match(indexSource, /<input name="channel" type="hidden" value="email"/);
+  assert.match(indexSource, /name="recipientMode" type="radio" value="selected"/);
+  assert.match(indexSource, /id="campaignRecipientList"/);
+  assert.match(indexSource, /Enviar correo ahora/);
+  assert.match(indexSource, /data-admin-section-link="new-property"/);
+  assert.match(indexSource, /data-admin-listing-view="new-property"/);
+  assert.match(indexSource, /data-admin-listing-view="properties"/);
   assert.match(indexSource, /class="pdf-display-options span-2"/);
   assert.match(stylesSource, /\.pdf-display-options/);
+  assert.match(stylesSource, /\.mailing-contact-list/);
+  assert.match(stylesSource, /\.admin-sidebar-subnav\.is-open/);
   assert.match(stylesSource, /\.seller-onboarding-actions \.outline-dark-button/);
   assert.match(stylesSource, /background: #25d366/);
 });

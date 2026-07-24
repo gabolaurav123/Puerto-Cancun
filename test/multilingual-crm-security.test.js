@@ -43,6 +43,11 @@ test("las cuentas registradas alimentan el CRM y las campanas pueden enviar mail
   assert.match(serverSource, /\/api\/admin\/campaigns\/:id\/send-email/);
   assert.match(serverSource, /RESEND_API_KEY/);
   assert.match(serverSource, /MAIL_FROM/);
+  assert.match(serverSource, /recipient_mode TEXT NOT NULL DEFAULT 'segment'/);
+  assert.match(serverSource, /normalizeRecipientEmails/);
+  assert.match(appSource, /data-compose-email/);
+  assert.match(appSource, /function openEmailComposer/);
+  assert.doesNotMatch(appSource, /mailto:/);
 });
 
 test("la biblioteca rechaza PDF con acciones activas", async () => {

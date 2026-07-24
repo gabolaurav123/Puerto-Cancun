@@ -971,7 +971,7 @@
               </button>
               <div class="admin-sidebar-subnav">
                 <button type="button" data-admin-section-link="properties">Inventario</button>
-                <button type="button" data-admin-jump="listingForm">Nueva publicación</button>
+                <button type="button" data-admin-section-link="new-property">Nueva publicación</button>
                 <a href="/propiedades/desarrollos-cancun" target="_blank" rel="noopener">Desarrollos públicos</a>
               </div>
               <button type="button" data-admin-section="contacts">
@@ -1086,7 +1086,7 @@
               <i data-lucide="inbox"></i>
               <span data-i18n="adminJumpLeads">Asesorias</span>
             </button>
-            <button class="primary-button" type="button" data-admin-jump="listingForm">
+            <button class="primary-button" type="button" data-admin-section-link="new-property">
               <i data-lucide="plus"></i>
               <span data-i18n="adminJumpNew">Nueva propiedad</span>
             </button>
@@ -1674,13 +1674,44 @@
               <input name="channel" type="hidden" value="email" />
               <label><span>Propiedad</span><select name="propertyId" id="campaignPropertySelect"><option value="">Sin propiedad</option></select></label>
               <label><span>Programar</span><input name="scheduledAt" type="datetime-local" /></label>
+              <fieldset class="mailing-recipient-fieldset span-2">
+                <legend>Destinatarios</legend>
+                <div class="mailing-recipient-modes" role="radiogroup" aria-label="Modo de destinatarios">
+                  <label>
+                    <input name="recipientMode" type="radio" value="segment" checked />
+                    <span>Usar el segmento seleccionado</span>
+                  </label>
+                  <label>
+                    <input name="recipientMode" type="radio" value="selected" />
+                    <span>Elegir correos específicos</span>
+                  </label>
+                </div>
+                <div class="mailing-contact-picker" id="campaignContactPicker" hidden>
+                  <div class="mailing-contact-toolbar">
+                    <label>
+                      <span>Buscar correos registrados</span>
+                      <input id="campaignRecipientSearch" type="search" placeholder="Nombre o correo" />
+                    </label>
+                    <div class="inline-actions">
+                      <button class="text-button" type="button" id="selectAllCampaignRecipients">Seleccionar visibles</button>
+                      <button class="text-button" type="button" id="clearCampaignRecipients">Quitar selección</button>
+                    </div>
+                  </div>
+                  <p class="mailing-recipient-count" id="campaignRecipientCount">0 correos seleccionados</p>
+                  <div class="mailing-contact-list" id="campaignRecipientList"></div>
+                </div>
+              </fieldset>
               <label class="span-2"><span>Contenido del correo</span><textarea name="message" rows="9" required></textarea></label>
-              <div class="form-actions span-2"><button class="primary-button" type="submit">Guardar correo</button><button class="ghost-button" type="button" id="generateCampaignCopy">Generar borrador con IA</button></div>
+              <div class="form-actions span-2">
+                <button class="primary-button" type="submit" name="campaignAction" value="send">Enviar correo ahora</button>
+                <button class="ghost-button" type="submit" name="campaignAction" value="draft">Guardar borrador</button>
+                <button class="ghost-button" type="button" id="generateCampaignCopy">Generar borrador con IA</button>
+              </div>
               <p class="form-message span-2" id="campaignFormMessage"></p>
             </form>
             <section>
               <h3>Correos preparados</h3>
-              <p class="module-help">Guarda el correo y luego usa <strong>Enviar mailing</strong> para enviarlo al segmento seleccionado.</p>
+              <p class="module-help">Los borradores conservan el segmento o los correos exactos elegidos. <strong>Enviar correo ahora</strong> entrega el mensaje desde la plataforma.</p>
               <div class="wide-data-list" id="campaignList"></div>
             </section>
           </div>
@@ -1829,9 +1860,9 @@
             <div class="request-list" id="adminRequests"></div>
           </article>
 
-          <article class="panel-card admin-listings-card" id="adminListingsCard" data-admin-section-panel="properties">
-            <h2 data-i18n="manageListings">Administrar publicaciones</h2>
-            <div class="listing-workspace">
+          <article class="panel-card admin-listings-card" id="adminListingsCard" data-admin-section-panel="properties new-property">
+            <h2 id="adminListingsTitle" data-i18n="manageListings">Administrar publicaciones</h2>
+            <div class="listing-workspace" data-admin-listing-view="new-property">
             <form id="listingForm" class="stacked-form">
               <input type="hidden" name="id" />
               <fieldset class="publication-destination">
@@ -2069,7 +2100,7 @@
               </article>
             </aside>
             </div>
-            <div class="admin-listing-toolbar" aria-label="Buscar y filtrar publicaciones">
+            <div class="admin-listing-toolbar" data-admin-listing-view="properties" aria-label="Buscar y filtrar publicaciones">
               <label class="admin-listing-search">
                 <span>Buscar publicaciones</span>
                 <div class="search-input-with-icon">
@@ -2084,11 +2115,11 @@
               <label><span>Calidad</span><select id="adminListingQualityFilter"><option value="">Todas</option><option value="incomplete">Incompletas</option><option value="ready">Listas para publicar</option></select></label>
               <button class="ghost-button" id="clearAdminListingSearch" type="button"><i data-lucide="x"></i> Limpiar</button>
             </div>
-            <div class="panel-card-subhead listings-subhead">
+            <div class="panel-card-subhead listings-subhead" data-admin-listing-view="properties">
               <span id="adminListingSummary"></span>
               <span data-i18n="adminListingsHint">Edita, revisa y elimina publicaciones existentes.</span>
             </div>
-            <div class="admin-listings" id="adminListings"></div>
+            <div class="admin-listings" id="adminListings" data-admin-listing-view="properties"></div>
           </article>
         </div>
           </div>

@@ -335,6 +335,8 @@ CREATE TABLE IF NOT EXISTS campaigns (
   template TEXT,
   message TEXT NOT NULL,
   property_id TEXT,
+  recipient_mode TEXT NOT NULL DEFAULT 'segment',
+  recipient_emails JSONB NOT NULL DEFAULT '[]'::jsonb,
   scheduled_at TIMESTAMPTZ,
   status TEXT NOT NULL DEFAULT 'draft',
   created_by TEXT,

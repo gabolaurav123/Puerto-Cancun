@@ -994,6 +994,7 @@ const state = {
   files: [],
   documents: [],
   campaigns: [],
+  campaignRecipientEmails: new Set(),
   instagramStatus: { connected: false, oauthUrl: "", profileUrl: "https://www.instagram.com/", aiConfigured: false },
   settings: {},
   platform: { version: "", release: "", shortRelease: "", environment: "", databaseReady: false },
@@ -2709,20 +2710,6 @@ function leadWhatsAppUrl(lead) {
   return `https://wa.me/${phone}?text=${encodeURIComponent(message)}`;
 }
 
-function leadEmailUrl(lead) {
-  const subject = "Solicitud Puerto Cancun Center";
-  const body = [
-    `Hola ${lead.name || ""},`,
-    "",
-    "Recibimos tu solicitud en Puerto Cancun Center y queremos apoyarte con la informacion que enviaste.",
-    "",
-    `Tipo de solicitud: ${leadTypeLabel(lead.leadType)}`,
-    "",
-    "Quedamos atentos para continuar con la asesoria.",
-  ].join("\n");
-  return `mailto:${lead.email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-}
-
 function renderAdminLeads() {
   const list = $("#adminLeads");
   if (!list) return;
@@ -2794,7 +2781,7 @@ function renderAdminLeads() {
             }
             ${
               lead.email
-                ? `<a class="mini-button" href="${escapeHtml(leadEmailUrl(lead))}">${escapeHtml(t("respondEmail"))}</a>`
+                ? `<button class="mini-button" type="button" data-compose-email data-email="${escapeHtml(lead.email)}" data-email-name="${escapeHtml(lead.name || "")}" data-email-context="${escapeHtml(leadTypeLabel(lead.leadType))}">${escapeHtml(t("respondEmail"))}</button>`
                 : ""
             }
             <button class="mini-button" type="button" data-respond-lead="${escapeHtml(lead.id)}">${escapeHtml(t("adminRespond"))}</button>
@@ -2849,7 +2836,7 @@ function renderAdminContacts() {
           </div>
           <div class="item-actions">
             ${phoneUrl ? `<a class="mini-button primary" href="${escapeHtml(phoneUrl)}" target="_blank" rel="noopener noreferrer">${escapeHtml(t("respondWhatsApp"))}</a>` : ""}
-            ${contact.email ? `<a class="mini-button" href="mailto:${escapeHtml(contact.email)}">${escapeHtml(t("respondEmail"))}</a>` : ""}
+            ${contact.email ? `<button class="mini-button" type="button" data-compose-email data-email="${escapeHtml(contact.email)}" data-email-name="${escapeHtml(contact.name || "")}" data-email-context="${escapeHtml(contactTypeLabel(contact.contactType))}">${escapeHtml(t("respondEmail"))}</button>` : ""}
           </div>
         </article>
       `;
@@ -3416,7 +3403,7 @@ function renderAdminValuations() {
           <p>${escapeHtml(truncateText(valuation.comments || "", 220))}</p>
           <div class="item-actions">
             ${valuation.phone ? `<a class="mini-button primary" href="https://wa.me/${leadPhoneForWhatsApp(valuation.phone)}" target="_blank" rel="noopener noreferrer">${escapeHtml(t("respondWhatsApp"))}</a>` : ""}
-            ${valuation.email ? `<a class="mini-button" href="mailto:${escapeHtml(valuation.email)}">${escapeHtml(t("respondEmail"))}</a>` : ""}
+            ${valuation.email ? `<button class="mini-button" type="button" data-compose-email data-email="${escapeHtml(valuation.email)}" data-email-name="${escapeHtml(valuation.ownerName || "")}" data-email-context="Valoracion inmobiliaria">${escapeHtml(t("respondEmail"))}</button>` : ""}
             <button class="mini-button" type="button" data-task-from="valuation" data-task-title="${escapeHtml(`Seguimiento valoracion ${valuation.ownerName || ""}`)}" data-related-id="${escapeHtml(valuation.requestId || valuation.id)}">${escapeHtml(t("createTask"))}</button>
             ${!String(valuation.id).startsWith("lead-") ? `<button class="mini-button" type="button" data-pdf-valuation="${escapeHtml(valuation.id)}">Generar PDF</button>` : ""}
             ${valuation.requestId ? `<button class="mini-button" type="button" data-respond-lead="${escapeHtml(valuation.requestId)}">Responder</button>` : ""}
@@ -3780,6 +3767,73 @@ function operationCard(title, value, copy) {
   return `<article class="operation-card"><span>${escapeHtml(title)}</span><strong>${escapeHtml(value)}</strong><p>${escapeHtml(copy)}</p></article>`;
 }
 
+function campaignContactsWithEmail() {
+  const byEmail = new Map();
+  state.contacts.forEach((contact) => {
+    const email = String(contact.email || "").trim().toLowerCase();
+    if (email && !byEmail.has(email)) byEmail.set(email, { ...contact, email });
+  });
+  return [...byEmail.values()].sort((a, b) => String(a.name || a.email).localeCompare(String(b.name || b.email), state.lang));
+}
+
+function renderCampaignRecipientPicker() {
+  const form = $("#campaignForm");
+  const picker = $("#campaignContactPicker");
+  const list = $("#campaignRecipientList");
+  const count = $("#campaignRecipientCount");
+  if (!form || !picker || !list || !count) return;
+  const mode = form.elements.recipientMode?.value || "segment";
+  picker.hidden = mode !== "selected";
+  const search = String($("#campaignRecipientSearch")?.value || "").trim().toLowerCase();
+  const contacts = campaignContactsWithEmail().filter((contact) =>
+    !search || `${contact.name || ""} ${contact.email}`.toLowerCase().includes(search)
+  );
+  list.innerHTML = contacts.length
+    ? contacts.map((contact) => `
+        <label class="mailing-contact-option">
+          <input
+            type="checkbox"
+            name="recipientEmails"
+            value="${escapeHtml(contact.email)}"
+            ${state.campaignRecipientEmails.has(contact.email) ? "checked" : ""}
+          />
+          <span>
+            <strong>${escapeHtml(contact.name || "Sin nombre")}</strong>
+            <small>${escapeHtml(contact.email)} · ${escapeHtml(contactTypeLabel(contact.contactType))}</small>
+          </span>
+        </label>
+      `).join("")
+    : `<p class="empty-state">No hay correos registrados que coincidan con la busqueda.</p>`;
+  count.textContent = `${state.campaignRecipientEmails.size} ${state.campaignRecipientEmails.size === 1 ? "correo seleccionado" : "correos seleccionados"}`;
+}
+
+function openEmailComposer(button) {
+  const email = String(button.dataset.email || "").trim().toLowerCase();
+  if (!email) return;
+  const name = String(button.dataset.emailName || "").trim();
+  const context = String(button.dataset.emailContext || "Seguimiento").trim();
+  state.campaignRecipientEmails = new Set([email]);
+  setAdminSection("mailing");
+  const form = $("#campaignForm");
+  if (!form) return;
+  const selectedMode = form.querySelector('[name="recipientMode"][value="selected"]');
+  if (selectedMode) selectedMode.checked = true;
+  form.elements.name.value = `Seguimiento Puerto Cancun Center - ${context}`;
+  form.elements.message.value = [
+    `Hola ${name || ""},`,
+    "",
+    "Gracias por contactar a Puerto Cancun Center. Recibimos tu informacion y queremos ayudarte a continuar con tu proceso inmobiliario.",
+    "",
+    `Motivo del seguimiento: ${context}.`,
+    "",
+    "Quedamos atentos para resolver tus dudas y coordinar el siguiente paso.",
+  ].join("\n");
+  renderCampaignRecipientPicker();
+  form.scrollIntoView({ behavior: "smooth", block: "start" });
+  form.elements.name.focus({ preventScroll: true });
+  showToast(`Correo preparado para ${email}. Revisa el contenido y presiona Enviar correo ahora.`);
+}
+
 function renderOperationalModules() {
   renderMarketing();
   renderDocuments();
@@ -3936,6 +3990,7 @@ function renderMarketing() {
       operationCard("Envios parciales", state.campaigns.filter((campaign) => campaign.channel === "email" && campaign.status === "partial").length, "Requieren revision"),
     ].join("");
   }
+  renderCampaignRecipientPicker();
   if (!list) return;
   list.innerHTML = emailCampaigns.length
     ? emailCampaigns
@@ -3945,7 +4000,7 @@ function renderMarketing() {
               <div class="wide-row-main">
                 <span class="status ${escapeHtml(campaign.status)}">${escapeHtml(campaign.status)}</span>
                 <h3>${escapeHtml(campaign.name)}</h3>
-                <p>${escapeHtml(campaign.segment)} · ${escapeHtml(campaign.channel)} · ${escapeHtml(campaign.scheduledAt ? formatDate(campaign.scheduledAt) : "Sin programar")}</p>
+                <p>${escapeHtml(campaign.recipientMode === "selected" ? `${(campaign.recipientEmails || []).length} destinatarios elegidos` : `Segmento: ${campaign.segment}`)} · ${escapeHtml(campaign.scheduledAt ? formatDate(campaign.scheduledAt) : "Sin programar")}</p>
               </div>
               <p>${escapeHtml(truncateText(campaign.message, 180))}</p>
               <div class="item-actions">
@@ -4141,18 +4196,44 @@ async function buyerSubmit(event) {
 async function campaignSubmit(event) {
   event.preventDefault();
   const form = event.currentTarget;
-  const button = form.querySelector('[type="submit"]');
-  setButtonLoading(button, true);
+  const button = event.submitter || form.querySelector('[type="submit"]');
+  const action = event.submitter?.value === "draft" ? "draft" : "send";
+  const formData = new FormData(form);
+  const payload = Object.fromEntries(formData.entries());
+  payload.recipientEmails = [...state.campaignRecipientEmails];
+  payload.status = "draft";
+  setButtonLoading(button, true, action === "send" ? "Enviando..." : "Guardando...");
+  let campaign = null;
   try {
-    await api("/api/admin/campaigns", {
+    const created = await api("/api/admin/campaigns", {
       method: "POST",
-      body: Object.fromEntries(new FormData(form).entries()),
+      body: payload,
     });
+    campaign = created.campaign;
+    let delivery = null;
+    if (action === "send") {
+      delivery = await api(`/api/admin/campaigns/${encodeURIComponent(campaign.id)}/send-email`, {
+        method: "POST",
+        timeoutMs: 120000,
+      });
+    }
     form.reset();
+    state.campaignRecipientEmails = new Set();
     await renderPanel();
-    showToast("Correo guardado. Ya puedes revisar el segmento y enviarlo desde Mailing.");
+    if (delivery) {
+      showToast(`Correo enviado desde la plataforma: ${delivery.sent} entregas${delivery.failed ? `, ${delivery.failed} fallidas` : ""}.`);
+    } else {
+      showToast("Borrador guardado con sus destinatarios. Puedes enviarlo cuando este listo.");
+    }
   } catch (error) {
-    setFormMessage($("#campaignFormMessage"), error.message, true);
+    if (campaign) {
+      await renderPanel();
+      const message = `El correo quedo guardado, pero no se pudo enviar: ${error.message}`;
+      setFormMessage($("#campaignFormMessage"), message, true);
+      showToast(message, "error");
+    } else {
+      setFormMessage($("#campaignFormMessage"), error.message, true);
+    }
   } finally {
     setButtonLoading(button, false);
   }
@@ -4165,7 +4246,11 @@ async function markCampaignSent(id) {
 }
 
 async function sendCampaignEmail(id, button) {
-  if (!(await confirmAction("Se enviará este correo a todos los contactos con email del segmento seleccionado.", "Enviar mailing"))) return;
+  const campaign = state.campaigns.find((item) => item.id === id);
+  const target = campaign?.recipientMode === "selected"
+    ? `${(campaign.recipientEmails || []).length} correos seleccionados`
+    : `el segmento ${campaign?.segment || "seleccionado"}`;
+  if (!(await confirmAction(`Se enviara este correo a ${target}.`, "Enviar correo"))) return;
   setButtonLoading(button, true, "Enviando...");
   try {
     const result = await api(`/api/admin/campaigns/${encodeURIComponent(id)}/send-email`, { method: "POST" });
@@ -5132,13 +5217,33 @@ function updateAdminShell() {
   if (!$("#adminPanel")) return;
   const section = state.adminSection || "dashboard";
   $$("[data-admin-section]").forEach((button) => {
-    button.classList.toggle("active", button.dataset.adminSection === section);
+    const active = button.dataset.adminSection === section || (button.dataset.adminSection === "properties" && section === "new-property");
+    button.classList.toggle("active", active);
   });
   $$("[data-admin-section-panel]").forEach((panel) => {
-    panel.hidden = panel.dataset.adminSectionPanel !== section;
+    panel.hidden = !String(panel.dataset.adminSectionPanel || "").split(/\s+/).includes(section);
   });
+  $$("[data-admin-listing-view]").forEach((view) => {
+    view.hidden = view.dataset.adminListingView !== section;
+  });
+  const listingsTitle = $("#adminListingsTitle");
+  if (listingsTitle) {
+    listingsTitle.textContent = section === "new-property"
+      ? (state.lang === "en" ? "New listing" : "Nueva publicación")
+      : (state.lang === "en" ? "Listing inventory" : "Inventario de publicaciones");
+  }
   const operationsGrid = $("#adminOperationsGrid");
-  if (operationsGrid) operationsGrid.hidden = !["requests", "properties"].includes(section);
+  if (operationsGrid) operationsGrid.hidden = !["requests", "properties", "new-property"].includes(section);
+  $$(".admin-sidebar-subnav").forEach((subnav) => {
+    const parent = subnav.previousElementSibling;
+    const childSections = Array.from(subnav.querySelectorAll("[data-admin-section-link]")).map((item) => item.dataset.adminSectionLink);
+    const belongsToSection = parent?.dataset.adminSection === section
+      || childSections.includes(section)
+      || (parent?.dataset.adminSection === "properties" && section === "new-property");
+    const open = belongsToSection && subnav.dataset.userCollapsed !== "true";
+    subnav.classList.toggle("is-open", open);
+    if (parent?.matches("[data-admin-section]")) parent.setAttribute("aria-expanded", String(open));
+  });
   const leadBadge = $("#sidebarLeadBadge");
   const requestBadge = $("#sidebarRequestBadge");
   const valuationBadge = $("#sidebarValuationBadge");
@@ -5155,11 +5260,11 @@ function updateAdminShell() {
 function setAdminSection(section) {
   const previousSection = state.adminSection;
   const listingForm = $("#listingForm");
-  if (previousSection === "properties" && section !== "properties" && listingForm?.dataset.saving === "true") {
+  if (previousSection === "new-property" && section !== "new-property" && listingForm?.dataset.saving === "true") {
     showToast("Espera a que termine de guardarse la publicación.");
     return;
   }
-  if (previousSection === "properties" && section !== "properties") {
+  if (previousSection === "new-property" && section !== "new-property") {
     resetListingForm(true);
   }
   state.adminSection = section || "dashboard";
@@ -5192,6 +5297,15 @@ const panelStaticEnglish = {
   "Catálogos": "Catalogs",
   "Herramientas IA": "AI tools",
   "Correos preparados": "Prepared emails",
+  "Destinatarios": "Recipients",
+  "Usar el segmento seleccionado": "Use selected segment",
+  "Elegir correos específicos": "Choose specific emails",
+  "Buscar correos registrados": "Search registered emails",
+  "Seleccionar visibles": "Select visible",
+  "Quitar selección": "Clear selection",
+  "Enviar correo ahora": "Send email now",
+  "Guardar borrador": "Save draft",
+  "Generar borrador con IA": "Generate draft with AI",
   "Nombre": "Name",
   "Correo": "Email",
   "Objetivo": "Objective",
@@ -5231,7 +5345,7 @@ const panelStaticEnglish = {
 
 function translatePanelStaticCopy() {
   if (!$("#panelView")) return;
-  $$("#panelView h2, #panelView h3, #panelView label > span, #panelView legend, #panelView option, #panelView button > span, #panelView .admin-sidebar-subnav button, #panelView .admin-sidebar-subnav a").forEach((element) => {
+  $$("#panelView h2, #panelView h3, #panelView label > span, #panelView legend, #panelView option, #panelView button > span, #panelView .admin-sidebar-subnav button, #panelView .admin-sidebar-subnav a, #campaignForm button").forEach((element) => {
     if (element.dataset.i18n || element.childElementCount) return;
     const original = element.dataset.panelOriginal || element.textContent.trim();
     if (!element.dataset.panelOriginal) element.dataset.panelOriginal = original;
@@ -6231,6 +6345,7 @@ async function listingSubmit(event) {
   const slowTimer = window.setTimeout(() => {
     setFormMessage(message, "El guardado está tardando más de lo normal. No cierres esta ventana.");
   }, 12000);
+  let savedSuccessfully = false;
   try {
     Object.assign(payload, await getListingImagePayload(form));
     const data = await api(id ? `/api/admin/properties/${encodeURIComponent(id)}` : "/api/admin/properties", {
@@ -6252,6 +6367,7 @@ async function listingSubmit(event) {
     const savedMessage = `Publicación guardada correctamente · ${new Date().toLocaleTimeString("es-MX", { hour: "2-digit", minute: "2-digit" })}`;
     setFormMessage(message, savedMessage);
     showToast(savedMessage);
+    savedSuccessfully = true;
     void api("/api/admin/stats").then((stats) => {
       state.stats = stats;
       renderStats();
@@ -6264,6 +6380,7 @@ async function listingSubmit(event) {
     window.clearTimeout(slowTimer);
     form.dataset.saving = "false";
     setButtonLoading(submit, false);
+    if (savedSuccessfully) setAdminSection("properties");
   }
 }
 
@@ -6297,6 +6414,7 @@ async function translateListingToEnglish() {
 function editListing(id) {
   const property = state.properties.find((item) => item.id === id);
   if (!property) return;
+  if (state.adminSection !== "new-property") setAdminSection("new-property");
   const form = $("#listingForm");
   const field = (name) => formField(form, name);
   field("id").value = property.id;
@@ -7165,6 +7283,23 @@ function bindEvents() {
   $("#contactForm")?.addEventListener("submit", contactSubmit);
   $("#buyerForm")?.addEventListener("submit", buyerSubmit);
   $("#campaignForm")?.addEventListener("submit", campaignSubmit);
+  $$('[name="recipientMode"]').forEach((input) => input.addEventListener("change", renderCampaignRecipientPicker));
+  $("#campaignRecipientSearch")?.addEventListener("input", renderCampaignRecipientPicker);
+  $("#campaignRecipientList")?.addEventListener("change", (event) => {
+    const checkbox = event.target.closest('input[name="recipientEmails"]');
+    if (!checkbox) return;
+    if (checkbox.checked) state.campaignRecipientEmails.add(checkbox.value);
+    else state.campaignRecipientEmails.delete(checkbox.value);
+    renderCampaignRecipientPicker();
+  });
+  $("#selectAllCampaignRecipients")?.addEventListener("click", () => {
+    $$('#campaignRecipientList input[name="recipientEmails"]').forEach((checkbox) => state.campaignRecipientEmails.add(checkbox.value));
+    renderCampaignRecipientPicker();
+  });
+  $("#clearCampaignRecipients")?.addEventListener("click", () => {
+    state.campaignRecipientEmails = new Set();
+    renderCampaignRecipientPicker();
+  });
   $("#instagramPostForm")?.addEventListener("submit", instagramPostSubmit);
   $("#copyInstagramPost")?.addEventListener("click", () => void copyInstagramPost());
   $("#aiToolForm")?.addEventListener("submit", aiToolSubmit);
@@ -7347,7 +7482,7 @@ function bindEvents() {
         adminPdfCard: "pdf",
         adminMarketingCard: "marketing",
         adminRolesCard: "roles",
-        listingForm: "properties",
+        listingForm: "new-property",
       };
       if (sectionMap[button.dataset.adminJump]) {
         setAdminSection(sectionMap[button.dataset.adminJump]);
@@ -7358,7 +7493,14 @@ function bindEvents() {
   });
 
   $$("[data-admin-section]").forEach((button) => {
-    button.addEventListener("click", () => setAdminSection(button.dataset.adminSection));
+    button.addEventListener("click", () => {
+      const subnav = button.nextElementSibling?.matches(".admin-sidebar-subnav") ? button.nextElementSibling : null;
+      if (subnav) {
+        const isOpen = subnav.classList.contains("is-open");
+        subnav.dataset.userCollapsed = state.adminSection === button.dataset.adminSection && isOpen ? "true" : "false";
+      }
+      setAdminSection(button.dataset.adminSection);
+    });
   });
 
   $("#adminSidebarToggle")?.addEventListener("click", () => {
@@ -7517,7 +7659,14 @@ function bindEvents() {
     if (readAdmin) void readAdminNotification(readAdmin.dataset.readAdminNotification);
 
     const adminSectionLink = event.target.closest("[data-admin-section-link]");
-    if (adminSectionLink) setAdminSection(adminSectionLink.dataset.adminSectionLink);
+    if (adminSectionLink) {
+      const subnav = adminSectionLink.closest(".admin-sidebar-subnav");
+      if (subnav) subnav.dataset.userCollapsed = "false";
+      setAdminSection(adminSectionLink.dataset.adminSectionLink);
+    }
+
+    const composeEmailButton = event.target.closest("[data-compose-email]");
+    if (composeEmailButton) openEmailComposer(composeEmailButton);
 
     const sendCampaignEmailButton = event.target.closest("[data-send-campaign-email]");
     if (sendCampaignEmailButton) void sendCampaignEmail(sendCampaignEmailButton.dataset.sendCampaignEmail, sendCampaignEmailButton);

@@ -7246,6 +7246,38 @@ button[aria-busy="true"] {
   margin: -2px 10px 5px 42px;
   padding-left: 10px;
   border-left: 1px solid rgba(255, 255, 255, 0.24);
+  max-height: 0;
+  overflow: hidden;
+  opacity: 0;
+  transform: translateY(-4px);
+  transition: max-height 180ms ease, opacity 150ms ease, transform 180ms ease;
+}
+
+.admin-sidebar-subnav.is-open {
+  max-height: 190px;
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.admin-sidebar-nav > button:has(+ .admin-sidebar-subnav) {
+  position: relative;
+  padding-right: 34px;
+}
+
+.admin-sidebar-nav > button:has(+ .admin-sidebar-subnav)::after {
+  position: absolute;
+  right: 11px;
+  content: "+";
+  font-size: 1rem;
+  line-height: 1;
+}
+
+.admin-sidebar-nav > button[aria-expanded="true"]:has(+ .admin-sidebar-subnav)::after {
+  content: "-";
+}
+
+.admin-sidebar-nav > button:has(+ .admin-sidebar-subnav) b {
+  margin-right: 14px;
 }
 
 .admin-sidebar-subnav button,
@@ -7437,7 +7469,9 @@ button[aria-busy="true"] {
 }
 
 .property-location-map {
-  margin-top: 30px;
+  margin-top: 42px;
+  padding-top: 34px;
+  border-top: 1px solid #d8e2df;
 }
 
 .property-location-map-heading {
@@ -7569,6 +7603,7 @@ button[aria-busy="true"] {
 }
 
 .admin-mailing-card .module-split {
+  grid-template-columns: minmax(420px, 1.05fr) minmax(330px, 0.95fr);
   align-items: start;
 }
 
@@ -7576,6 +7611,130 @@ button[aria-busy="true"] {
   margin: 6px 0 18px;
   color: var(--muted);
   line-height: 1.6;
+}
+
+.mailing-recipient-fieldset {
+  margin: 2px 0 0;
+  padding: 18px;
+  border: 1px solid #cbdedb;
+  background: #f7fbfa;
+}
+
+.mailing-recipient-fieldset legend {
+  padding: 0 8px;
+  color: var(--blue-900);
+  font-family: "Playfair Display", Georgia, serif;
+  font-size: 1.15rem;
+  font-weight: 700;
+}
+
+.mailing-recipient-modes {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 10px;
+}
+
+.mailing-recipient-modes label {
+  display: flex;
+  min-height: 48px;
+  align-items: center;
+  gap: 10px;
+  padding: 11px 13px;
+  border: 1px solid #cbdedb;
+  background: #fff;
+  cursor: pointer;
+}
+
+.mailing-recipient-modes label:has(input:checked) {
+  border-color: var(--blue-700);
+  background: #eaf6f4;
+  box-shadow: inset 3px 0 0 var(--blue-700);
+}
+
+.mailing-recipient-modes input,
+.mailing-contact-option input {
+  width: 18px;
+  height: 18px;
+  flex: 0 0 auto;
+  accent-color: var(--blue-700);
+}
+
+.mailing-contact-picker {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid #d8e5e2;
+}
+
+.mailing-contact-toolbar {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 14px;
+}
+
+.mailing-contact-toolbar > label {
+  min-width: 0;
+}
+
+.mailing-contact-toolbar .inline-actions {
+  justify-content: flex-start;
+}
+
+.mailing-contact-toolbar .text-button {
+  padding: 8px 0;
+  white-space: nowrap;
+}
+
+.mailing-recipient-count {
+  margin: 12px 0 8px;
+  color: var(--blue-800);
+  font-size: 0.82rem;
+  font-weight: 800;
+}
+
+.mailing-contact-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  max-height: 310px;
+  overflow: auto;
+  padding: 4px 6px 4px 0;
+}
+
+.mailing-contact-option {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 10px;
+  padding: 11px 12px;
+  border: 1px solid #d8e5e2;
+  background: #fff;
+  cursor: pointer;
+}
+
+.mailing-contact-option:has(input:checked) {
+  border-color: var(--blue-700);
+  background: #edf8f6;
+}
+
+.mailing-contact-option span {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+}
+
+.mailing-contact-option strong,
+.mailing-contact-option small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mailing-contact-option small {
+  color: var(--muted);
+}
+
+[data-admin-listing-view="new-property"] {
+  margin-top: 8px;
 }
 
 /* The account action must remain legible on the dark seller banner. */
@@ -7604,6 +7763,16 @@ button[aria-busy="true"] {
 }
 
 @media (max-width: 760px) {
+  .mailing-recipient-modes,
+  .mailing-contact-list {
+    grid-template-columns: 1fr;
+  }
+
+  .mailing-contact-toolbar {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
   .property-page-summary,
   .property-detail-copy {
     padding: 24px 18px;

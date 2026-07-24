@@ -480,6 +480,11 @@ function safeJsonArray(value) {
   return [];
 }
 
+function normalizeRecipientEmails(value) {
+  const source = Array.isArray(value) ? value : safeJsonArray(value);
+  return [...new Set(source.map((email) => String(email || "").trim().toLowerCase()).filter(isValidEmail))].slice(0, 500);
+}
+
 function mergeLegacyImages(images, image) {
   const list = safeJsonArray(images).filter(Boolean);
   if (image && !list.includes(image)) list.unshift(image);
@@ -918,6 +923,8 @@ function toCampaign(row) {
     template: row.template || "",
     message: row.message,
     propertyId: row.property_id || "",
+    recipientMode: row.recipient_mode || "segment",
+    recipientEmails: normalizeRecipientEmails(row.recipient_emails),
     scheduledAt: row.scheduled_at,
     status: row.status,
     createdBy: row.created_by || "",
@@ -1588,6 +1595,8 @@ async function initDatabase() {
         template TEXT,
         message TEXT NOT NULL,
         property_id TEXT,
+        recipient_mode TEXT NOT NULL DEFAULT 'segment',
+        recipient_emails JSONB NOT NULL DEFAULT '[]'::jsonb,
         scheduled_at TIMESTAMPTZ,
         status TEXT NOT NULL DEFAULT 'draft',
         created_by TEXT,
@@ -1718,6 +1727,8 @@ async function initDatabase() {
     await client.query("ALTER TABLE contacts ADD COLUMN IF NOT EXISTS status TEXT NOT NULL DEFAULT 'active'");
     await client.query("ALTER TABLE contacts ADD COLUMN IF NOT EXISTS bedrooms INTEGER NOT NULL DEFAULT 0");
     await client.query("ALTER TABLE contacts ADD COLUMN IF NOT EXISTS bathrooms INTEGER NOT NULL DEFAULT 0");
+    await client.query("ALTER TABLE campaigns ADD COLUMN IF NOT EXISTS recipient_mode TEXT NOT NULL DEFAULT 'segment'");
+    await client.query("ALTER TABLE campaigns ADD COLUMN IF NOT EXISTS recipient_emails JSONB NOT NULL DEFAULT '[]'::jsonb");
     await client.query("ALTER TABLE seller_requests ADD COLUMN IF NOT EXISTS assigned_to TEXT");
     await client.query("ALTER TABLE seller_requests ADD COLUMN IF NOT EXISTS next_action TEXT");
     await client.query("ALTER TABLE notifications ADD COLUMN IF NOT EXISTS read_at TIMESTAMPTZ");
@@ -4813,10 +4824,16 @@ app.post("/api/admin/campaigns", requireRole("admin"), async (req, res, next) =>
       res.status(400).json({ error: "Nombre y mensaje son obligatorios." });
       return;
     }
+    const recipientMode = body.recipientMode === "selected" ? "selected" : "segment";
+    const recipientEmails = normalizeRecipientEmails(body.recipientEmails);
+    if (recipientMode === "selected" && !recipientEmails.length) {
+      res.status(400).json({ error: "Selecciona por lo menos un correo valido." });
+      return;
+    }
     const result = await query(
       `INSERT INTO campaigns
-        (id, name, objective, segment, channel, template, message, property_id, scheduled_at, status, created_by)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+        (id, name, objective, segment, channel, template, message, property_id, recipient_mode, recipient_emails, scheduled_at, status, created_by)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10::jsonb, $11, $12, $13)
        RETURNING *`,
       [
         uuid("campaign"),
@@ -4827,6 +4844,8 @@ app.post("/api/admin/campaigns", requireRole("admin"), async (req, res, next) =>
         String(body.template || "").trim(),
         String(body.message).trim(),
         String(body.propertyId || "").trim() || null,
+        recipientMode,
+        JSON.stringify(recipientEmails),
         body.scheduledAt ? new Date(body.scheduledAt) : null,
         String(body.status || "draft"),
         req.session.user.id,
@@ -4892,14 +4911,28 @@ app.post("/api/admin/campaigns/:id/send-email", requireRole("admin"), async (req
       res.status(404).json({ error: "Campaña no encontrada." });
       return;
     }
-    let where = "email IS NOT NULL AND email <> ''";
-    if (campaign.segment === "buyers") where += " AND contact_type = 'buyer'";
-    if (campaign.segment === "sellers") where += " AND contact_type = 'seller'";
-    if (campaign.segment === "premium") where += " AND lead_score = 'premium'";
-    if (campaign.segment === "unanswered") where += " AND (last_activity_at IS NULL OR last_activity_at < NOW() - INTERVAL '7 days')";
-    const recipients = await query(`SELECT name, email FROM contacts WHERE ${where} ORDER BY name LIMIT 500`);
-    if (!recipients.rows.length) {
-      res.status(400).json({ error: "El segmento no tiene contactos con correo válido." });
+    const selectedEmails = normalizeRecipientEmails(campaign.recipient_emails);
+    let recipientRows = [];
+    if (campaign.recipient_mode === "selected" && selectedEmails.length) {
+      const contacts = await query(
+        "SELECT DISTINCT ON (LOWER(email)) name, email FROM contacts WHERE LOWER(email) = ANY($1::text[]) ORDER BY LOWER(email), updated_at DESC",
+        [selectedEmails]
+      );
+      const contactByEmail = new Map(contacts.rows.map((contact) => [String(contact.email).toLowerCase(), contact]));
+      recipientRows = selectedEmails.map((email) => contactByEmail.get(email) || { name: "", email });
+    } else {
+      let where = "email IS NOT NULL AND email <> ''";
+      if (campaign.segment === "buyers") where += " AND contact_type = 'buyer'";
+      if (campaign.segment === "sellers") where += " AND contact_type = 'seller'";
+      if (campaign.segment === "premium") where += " AND lead_score = 'premium'";
+      if (campaign.segment === "unanswered") where += " AND (last_activity_at IS NULL OR last_activity_at < NOW() - INTERVAL '7 days')";
+      const recipients = await query(
+        `SELECT DISTINCT ON (LOWER(email)) name, email FROM contacts WHERE ${where} ORDER BY LOWER(email), updated_at DESC LIMIT 500`
+      );
+      recipientRows = recipients.rows;
+    }
+    if (!recipientRows.length) {
+      res.status(400).json({ error: "No hay destinatarios con correo valido." });
       return;
     }
     const messageHtml = escapeHtml(campaign.message).replace(/\n/g, "<br>");
@@ -4922,8 +4955,8 @@ app.post("/api/admin/campaigns/:id/send-email", requireRole("admin"), async (req
     };
     let sent = 0;
     const failed = [];
-    for (let index = 0; index < recipients.rows.length; index += 5) {
-      const batch = recipients.rows.slice(index, index + 5);
+    for (let index = 0; index < recipientRows.length; index += 5) {
+      const batch = recipientRows.slice(index, index + 5);
       const results = await Promise.allSettled(batch.map(sendOne));
       results.forEach((result, batchIndex) => {
         if (result.status === "fulfilled") sent += 1;
@@ -4948,15 +4981,33 @@ app.get("/api/admin/campaigns/:id/export", requireRole("admin"), async (req, res
       res.status(404).json({ error: "Campaña no encontrada." });
       return;
     }
-    let where = "1=1";
-    if (campaign.segment === "buyers") where = "contact_type = 'buyer'";
-    if (campaign.segment === "sellers") where = "contact_type = 'seller'";
-    if (campaign.segment === "premium") where = "lead_score = 'premium'";
-    if (campaign.segment === "unanswered") where = "last_activity_at IS NULL OR last_activity_at < NOW() - INTERVAL '7 days'";
-    const contacts = await query(`SELECT name, email, phone, contact_type, lead_score FROM contacts WHERE ${where} ORDER BY name`);
+    const selectedEmails = normalizeRecipientEmails(campaign.recipient_emails);
+    let contactRows = [];
+    if (campaign.recipient_mode === "selected" && selectedEmails.length) {
+      const contacts = await query(
+        "SELECT DISTINCT ON (LOWER(email)) name, email, phone, contact_type, lead_score FROM contacts WHERE LOWER(email) = ANY($1::text[]) ORDER BY LOWER(email), updated_at DESC",
+        [selectedEmails]
+      );
+      const contactByEmail = new Map(contacts.rows.map((contact) => [String(contact.email).toLowerCase(), contact]));
+      contactRows = selectedEmails.map((email) => contactByEmail.get(email) || {
+        name: "",
+        email,
+        phone: "",
+        contact_type: "selected",
+        lead_score: "",
+      });
+    } else {
+      let where = "1=1";
+      if (campaign.segment === "buyers") where = "contact_type = 'buyer'";
+      if (campaign.segment === "sellers") where = "contact_type = 'seller'";
+      if (campaign.segment === "premium") where = "lead_score = 'premium'";
+      if (campaign.segment === "unanswered") where = "last_activity_at IS NULL OR last_activity_at < NOW() - INTERVAL '7 days'";
+      const contacts = await query(`SELECT name, email, phone, contact_type, lead_score FROM contacts WHERE ${where} ORDER BY name`);
+      contactRows = contacts.rows;
+    }
     const csv = [
       ["Nombre", "Correo", "WhatsApp", "Tipo", "Score", "Campaña"],
-      ...contacts.rows.map((contact) => [contact.name, contact.email || "", contact.phone || "", contact.contact_type, contact.lead_score, campaign.name]),
+      ...contactRows.map((contact) => [contact.name, contact.email || "", contact.phone || "", contact.contact_type, contact.lead_score, campaign.name]),
     ]
       .map((row) => row.map((value) => `"${String(value).replace(/"/g, '""')}"`).join(","))
       .join("\n");
