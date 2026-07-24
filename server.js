@@ -665,15 +665,56 @@ function propertyQuality(property) {
   return { score, level, missing };
 }
 
+function propertyEnglishFallback(row) {
+  const normalize = (value) => String(value || "").trim().toLocaleLowerCase("es-MX").replace(/\s+/g, " ");
+  const titleEs = String(row.title_es || "").trim();
+  const titleEn = String(row.title_en || "").trim();
+  const descriptionEs = String(row.description_es || "").trim();
+  const descriptionEn = String(row.description_en || "").trim();
+  const titleLooksSpanish = /[áéíóúñ¿¡]|\b(en venta|en renta|departamento|casa|terreno|lote|frente al mar|oportunidad|residencia)\b/i.test(titleEn);
+  const descriptionLooksSpanish = /[áéíóúñ¿¡]|\b(la|el|de|del|en|con|para|una|cuenta|propiedad|ubicad[oa]|ofrece|recámaras|baños)\b/i.test(descriptionEn);
+  const type = {
+    Casa: "Home",
+    Departamento: "Condo",
+    Terreno: "Land",
+    Comercial: "Commercial property",
+    Preventa: "Presale property",
+    Desarrollo: "Real estate development",
+  }[row.type] || "Property";
+  const operation = row.operation === "rent" ? "for rent" : "for sale";
+  const location = row.zone || row.neighborhood || row.city || "Cancun";
+  const details = [
+    Number(row.beds || 0) ? `${Number(row.beds)} bedroom${Number(row.beds) === 1 ? "" : "s"}` : "",
+    Number(row.baths || 0) ? `${Number(row.baths)} bathroom${Number(row.baths) === 1 ? "" : "s"}` : "",
+    Number(row.area || 0) ? `${new Intl.NumberFormat("en-US", { maximumFractionDigits: 2 }).format(Number(row.area))} m² of construction` : "",
+    Number(row.lot || 0) ? `${new Intl.NumberFormat("en-US", { maximumFractionDigits: 2 }).format(Number(row.lot))} m² of land` : "",
+  ].filter(Boolean);
+  const fallbackTitle = `${type} ${operation} in ${location}${row.mls ? ` · MLS# ${row.mls}` : ""}`;
+  const fallbackDescription = [
+    `This ${type.toLowerCase()} is available ${operation} in ${location}, ${row.city || "Cancun"}, ${row.state || "Quintana Roo"}.`,
+    details.length ? `The listing includes ${details.join(", ")}.` : "",
+    "Review the property gallery, location and available features, then contact Puerto Cancun Center for current availability and complete details.",
+  ].filter(Boolean).join(" ");
+  return {
+    title: !titleEn || normalize(titleEn) === normalize(titleEs) || titleLooksSpanish ? fallbackTitle : titleEn,
+    description:
+      !descriptionEn || normalize(descriptionEn) === normalize(descriptionEs) || descriptionLooksSpanish
+        ? fallbackDescription
+        : descriptionEn,
+  };
+}
+
 function toProperty(row) {
   const stored = mergeLegacyImages(row.images, row.image);
   const images = publicMediaUrls(stored, "properties", row.id);
   const quality = propertyQuality(row);
+  const english = propertyEnglishFallback(row);
   const property = {
     id: row.id,
     titleEs: row.title_es,
-    titleEn: row.title_en,
+    titleEn: english.title,
     type: row.type,
+    publicationSection: row.publication_section || (row.type === "Desarrollo" ? "developments" : "properties"),
     state: row.state || "Quintana Roo",
     city: row.city || "Cancun",
     zone: row.zone,
@@ -707,7 +748,7 @@ function toProperty(row) {
     createdAt: row.created_at,
     updatedAt: row.updated_at,
     descriptionEs: row.description_es,
-    descriptionEn: row.description_en,
+    descriptionEn: english.description,
     sourceRequestId: row.source_request_id,
   };
   property.slug = row.slug || propertySlug(property);
@@ -890,6 +931,50 @@ function parseDataUrl(value) {
   return { mimeType: match[1].toLowerCase(), buffer, content: input };
 }
 
+async function sanitizeUploadedFile(parsed) {
+  const allowedTypes = new Set(["image/jpeg", "image/jpg", "image/png", "image/webp", "application/pdf", "text/plain"]);
+  if (!parsed || !allowedTypes.has(parsed.mimeType)) {
+    const error = new Error("Solo se permiten JPG, PNG, WEBP, PDF y TXT.");
+    error.status = 400;
+    throw error;
+  }
+  if (parsed.mimeType.startsWith("image/")) {
+    let safeBuffer;
+    try {
+      const metadata = await sharp(parsed.buffer, { limitInputPixels: 40_000_000, failOn: "warning" }).metadata();
+      if (!["jpeg", "png", "webp"].includes(metadata.format)) throw new Error("Formato no permitido");
+      safeBuffer = await sharp(parsed.buffer, { limitInputPixels: 40_000_000, failOn: "warning" })
+        .rotate()
+        .resize({ width: 2400, height: 2400, fit: "inside", withoutEnlargement: true })
+        .webp({ quality: 84 })
+        .toBuffer();
+    } catch {
+      const error = new Error("La imagen no es válida o contiene datos que no se pueden procesar.");
+      error.status = 400;
+      throw error;
+    }
+    return { mimeType: "image/webp", buffer: safeBuffer, content: `data:image/webp;base64,${safeBuffer.toString("base64")}` };
+  }
+  if (parsed.mimeType === "application/pdf") {
+    const header = parsed.buffer.subarray(0, 8).toString("latin1");
+    const searchable = parsed.buffer.toString("latin1");
+    if (!header.startsWith("%PDF-") || /\/(?:JavaScript|JS|Launch|EmbeddedFile)\b/i.test(searchable)) {
+      const error = new Error("El PDF no es válido o contiene acciones o archivos incrustados no permitidos.");
+      error.status = 400;
+      throw error;
+    }
+    return parsed;
+  }
+  const text = parsed.buffer.toString("utf8");
+  if (text.includes("\u0000") || /<script\b|javascript:|<iframe\b/i.test(text)) {
+    const error = new Error("El archivo de texto contiene contenido activo no permitido.");
+    error.status = 400;
+    throw error;
+  }
+  const safeBuffer = Buffer.from(text, "utf8");
+  return { mimeType: "text/plain", buffer: safeBuffer, content: `data:text/plain;base64,${safeBuffer.toString("base64")}` };
+}
+
 function pdfBuffer(build) {
   return new Promise((resolve, reject) => {
     const document = new PDFDocument({ size: "A4", margin: 48, info: { Producer: "Puerto Cancún Center" } });
@@ -1041,7 +1126,7 @@ async function query(sql, params = []) {
 const whatsappService = createWhatsappService({ pool, query, uuid, secret: whatsappAuthSecret });
 
 const PROPERTY_SUMMARY_COLUMNS = `
-  p.id, p.slug, p.title_es, p.title_en, p.type, p.state, p.city, p.zone, p.neighborhood, p.address,
+  p.id, p.slug, p.title_es, p.title_en, p.type, p.publication_section, p.state, p.city, p.zone, p.neighborhood, p.address,
   p.latitude, p.longitude, p.map_place, p.location_precision, p.google_maps_url, p.operation,
   p.price_usd, p.price_mxn, p.beds, p.baths, p.parking, p.area, p.lot, p.amenities, p.keywords,
   p.mls, p.featured, p.badges, p.status, p.is_public, p.created_at, p.updated_at, p.published_at,
@@ -1194,6 +1279,7 @@ async function initDatabase() {
         title_es TEXT NOT NULL,
         title_en TEXT NOT NULL,
         type TEXT NOT NULL,
+        publication_section TEXT NOT NULL DEFAULT 'properties',
         state TEXT NOT NULL DEFAULT 'Quintana Roo',
         city TEXT NOT NULL DEFAULT 'Cancun',
         zone TEXT NOT NULL,
@@ -1237,6 +1323,8 @@ async function initDatabase() {
     await client.query("ALTER TABLE seller_accounts ADD COLUMN IF NOT EXISTS google_sub TEXT UNIQUE");
     await client.query("ALTER TABLE seller_accounts ADD COLUMN IF NOT EXISTS auth_provider TEXT NOT NULL DEFAULT 'password'");
     await client.query("ALTER TABLE properties ADD COLUMN IF NOT EXISTS price_mxn NUMERIC");
+    await client.query("ALTER TABLE properties ADD COLUMN IF NOT EXISTS publication_section TEXT NOT NULL DEFAULT 'properties'");
+    await client.query("UPDATE properties SET publication_section = 'developments' WHERE type = 'Desarrollo' AND publication_section = 'properties'");
     await ensureNumericColumn(client, "properties", "area");
     await ensureNumericColumn(client, "properties", "lot");
     await ensureNumericColumn(client, "seller_requests", "area");
@@ -1597,6 +1685,7 @@ async function initDatabase() {
     await client.query("ALTER TABLE properties ADD COLUMN IF NOT EXISTS sold_at TIMESTAMPTZ");
     await client.query("ALTER TABLE properties ADD COLUMN IF NOT EXISTS archived_at TIMESTAMPTZ");
     await client.query("ALTER TABLE properties ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()");
+    await client.query("CREATE INDEX IF NOT EXISTS idx_properties_publication_section ON properties (publication_section, status, updated_at DESC)");
     await client.query("CREATE INDEX IF NOT EXISTS idx_properties_updated_at ON properties (updated_at DESC)");
     await client.query("UPDATE properties SET status = 'active', is_public = TRUE WHERE status IS NULL");
     const slugRows = await client.query("SELECT id, slug, title_es, title_en, zone, mls FROM properties ORDER BY created_at");
@@ -2088,6 +2177,14 @@ app.post("/api/auth/register", async (req, res, next) => {
        VALUES ($1, $2, $3, $4, $5, $6, $7)`,
       [id, firstName, lastName, email, phone, preferredContact, passwordHash]
     );
+    await upsertContact({ query }, {
+      name: `${firstName} ${lastName}`,
+      email,
+      phone,
+      contactType: "seller",
+      source: "registered_account",
+      leadScore: "warm",
+    });
 
     req.session.user = {
       id,
@@ -2212,6 +2309,14 @@ app.post("/api/auth/google", async (req, res, next) => {
         [id, firstName, lastName, profile.email, passwordHash, profile.sub]
       );
       account = created.rows[0];
+      await upsertContact({ query }, {
+        name: `${firstName} ${lastName}`,
+        email: profile.email,
+        phone: "",
+        contactType: "seller",
+        source: "google_account",
+        leadScore: "warm",
+      });
     }
 
     req.session.user = {
@@ -3334,6 +3439,15 @@ app.delete("/api/admin/location-options/:id", requireRole("admin"), async (req, 
 
 app.get("/api/admin/contacts", requireRole("admin"), async (req, res, next) => {
   try {
+    const accounts = await query("SELECT first_name, last_name, email, phone FROM seller_accounts ORDER BY created_at DESC LIMIT 500");
+    await Promise.all(accounts.rows.map((account) => upsertContact({ query }, {
+      name: `${account.first_name} ${account.last_name}`.trim(),
+      email: account.email,
+      phone: account.phone,
+      contactType: "seller",
+      source: "registered_account",
+      leadScore: "warm",
+    })));
     const type = String(req.query.type || "").trim();
     const score = String(req.query.score || "").trim();
     const conditions = [];
@@ -3747,6 +3861,13 @@ app.post("/api/admin/requests/:id/approve", requireRole("admin"), async (req, re
         ]
       );
       property = propertyResult.rows[0];
+      if (normalizeText(request.type).includes("desarrollo")) {
+        const sectionResult = await client.query(
+          "UPDATE properties SET publication_section = 'developments' WHERE id = $1 RETURNING *",
+          [property.id]
+        );
+        property = sectionResult.rows[0];
+      }
       const approvedSlug = propertySlug(toProperty(property));
       const slugResult = await client.query("UPDATE properties SET slug = COALESCE(slug, $2) WHERE id = $1 RETURNING *", [property.id, approvedSlug]);
       property = slugResult.rows[0];
@@ -3836,6 +3957,7 @@ app.post("/api/admin/properties", requireRole("admin"), async (req, res, next) =
         JSON.stringify(property.amenities),
       ]
     );
+    await query("UPDATE properties SET publication_section = $2 WHERE id = $1", [result.rows[0].id, property.publicationSection]);
     const createdRow = await getPropertySummary(result.rows[0].id);
     invalidatePublicPropertyCache();
     const createdProperty = toProperty(createdRow);
@@ -3923,6 +4045,7 @@ app.put("/api/admin/properties/:id", requireRole("admin"), async (req, res, next
       res.status(409).json({ error: "Esta propiedad fue modificada en otra sesión. Recarga el panel para conservar la versión más reciente antes de volver a editar." });
       return;
     }
+    await query("UPDATE properties SET publication_section = $2 WHERE id = $1", [result.rows[0].id, property.publicationSection]);
     const updatedProperty = toProperty(await getPropertySummary(result.rows[0].id));
     invalidatePublicPropertyCache();
     if (updatedProperty.isPublic && PUBLIC_PROPERTY_STATUSES.has(updatedProperty.status)) void notifyIndexNow(propertyIndexPaths(updatedProperty));
@@ -4006,10 +4129,11 @@ app.post("/api/admin/properties/:id/duplicate", requireRole("admin"), async (req
       `INSERT INTO properties
         (id, title_es, title_en, type, state, city, zone, neighborhood, address, latitude, longitude, map_place,
          location_precision, google_maps_url, operation, price_usd, price_mxn, beds, baths, area, lot, mls,
-         image, images, featured, status, is_public, badges, description_es, description_en, keywords)
+         image, images, featured, status, is_public, badges, description_es, description_en, keywords, publication_section)
        SELECT $2, title_es || ' (copia)', title_en || ' (copy)', type, state, city, zone, neighborhood, address,
          latitude, longitude, map_place, location_precision, google_maps_url, operation, price_usd, price_mxn,
-          beds, baths, area, lot, $3, image, images, FALSE, 'draft', FALSE, badges, description_es, description_en, keywords
+          beds, baths, area, lot, $3, image, images, FALSE, 'draft', FALSE, badges, description_es, description_en, keywords,
+          publication_section
        FROM properties WHERE id = $1
        RETURNING *`,
       [req.params.id, uuid("prop"), String(Math.floor(2000 + Math.random() * 8000))]
@@ -4488,11 +4612,7 @@ app.post("/api/admin/files", requireRole("admin"), async (req, res, next) => {
       res.status(400).json({ error: "Archivo inválido o mayor a 5 MB." });
       return;
     }
-    const allowed = parsed.mimeType.startsWith("image/") || parsed.mimeType === "application/pdf" || parsed.mimeType.startsWith("text/");
-    if (!allowed) {
-      res.status(400).json({ error: "Solo se permiten imágenes, PDF y archivos de texto." });
-      return;
-    }
+    const safeFile = await sanitizeUploadedFile(parsed);
     const result = await query(
       `INSERT INTO media_files
         (id, name, mime_type, size_bytes, content, category, related_entity_type, related_entity_id, uploaded_by, metadata)
@@ -4501,10 +4621,10 @@ app.post("/api/admin/files", requireRole("admin"), async (req, res, next) => {
       [
         uuid("file"),
         String(req.body.name || "archivo").trim().slice(0, 180),
-        parsed.mimeType,
-        parsed.buffer.length,
-        parsed.content,
-        String(req.body.category || (parsed.mimeType.startsWith("image/") ? "property_image" : "document")),
+        safeFile.mimeType,
+        safeFile.buffer.length,
+        safeFile.content,
+        String(req.body.category || (safeFile.mimeType.startsWith("image/") ? "property_image" : "document")),
         String(req.body.relatedEntityType || "").trim() || null,
         String(req.body.relatedEntityId || "").trim() || null,
         req.session.user.id,
@@ -4655,6 +4775,15 @@ app.get("/api/admin/documents/:id/download", requireRole("admin"), async (req, r
   }
 });
 
+app.delete("/api/admin/documents", requireRole("admin"), async (req, res, next) => {
+  try {
+    const result = await query("DELETE FROM generated_documents RETURNING id");
+    res.json({ ok: true, deleted: result.rowCount });
+  } catch (error) {
+    next(error);
+  }
+});
+
 app.delete("/api/admin/documents/:id", requireRole("admin"), async (req, res, next) => {
   try {
     await query("DELETE FROM generated_documents WHERE id = $1", [req.params.id]);
@@ -4742,6 +4871,66 @@ app.delete("/api/admin/campaigns/:id", requireRole("admin"), async (req, res, ne
   try {
     await query("DELETE FROM campaigns WHERE id = $1", [req.params.id]);
     res.json({ ok: true });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.post("/api/admin/campaigns/:id/send-email", requireRole("admin"), async (req, res, next) => {
+  try {
+    if (!process.env.RESEND_API_KEY || !process.env.MAIL_FROM) {
+      res.status(503).json({ error: "Configura RESEND_API_KEY y MAIL_FROM para habilitar el envío de correos." });
+      return;
+    }
+    const campaignResult = await query("SELECT * FROM campaigns WHERE id = $1", [req.params.id]);
+    const campaign = campaignResult.rows[0];
+    if (!campaign) {
+      res.status(404).json({ error: "Campaña no encontrada." });
+      return;
+    }
+    let where = "email IS NOT NULL AND email <> ''";
+    if (campaign.segment === "buyers") where += " AND contact_type = 'buyer'";
+    if (campaign.segment === "sellers") where += " AND contact_type = 'seller'";
+    if (campaign.segment === "premium") where += " AND lead_score = 'premium'";
+    if (campaign.segment === "unanswered") where += " AND (last_activity_at IS NULL OR last_activity_at < NOW() - INTERVAL '7 days')";
+    const recipients = await query(`SELECT name, email FROM contacts WHERE ${where} ORDER BY name LIMIT 500`);
+    if (!recipients.rows.length) {
+      res.status(400).json({ error: "El segmento no tiene contactos con correo válido." });
+      return;
+    }
+    const messageHtml = escapeHtml(campaign.message).replace(/\n/g, "<br>");
+    const sendOne = async (contact) => {
+      const response = await fetch("https://api.resend.com/emails", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          from: process.env.MAIL_FROM,
+          to: [contact.email],
+          subject: campaign.name,
+          html: `<!doctype html><html><body style="margin:0;background:#edf7f5;font-family:Arial,sans-serif;color:#12343b"><table role="presentation" width="100%" cellspacing="0" cellpadding="0"><tr><td align="center" style="padding:28px 14px"><table role="presentation" width="620" cellspacing="0" cellpadding="0" style="max-width:620px;background:#fff;border-top:6px solid #0a8292"><tr><td style="padding:28px"><p style="margin:0 0 8px;color:#0a8292;font-weight:700">PUERTO CANCÚN CENTER</p><h1 style="margin:0 0 20px;font-family:Georgia,serif;color:#032f3a">${escapeHtml(campaign.name)}</h1><p style="line-height:1.7">Hola ${escapeHtml(contact.name || "")},</p><p style="line-height:1.7">${messageHtml}</p><p style="margin-top:28px"><a href="https://wa.me/5219982166563" style="display:inline-block;padding:13px 18px;background:#128c4b;color:#fff;text-decoration:none;font-weight:700">Contactar por WhatsApp</a></p><p style="margin-top:30px;color:#5d7478;font-size:12px">Puerto Cancún Center · Cancún, Quintana Roo</p></td></tr></table></td></tr></table></body></html>`,
+        }),
+        signal: AbortSignal.timeout(20000),
+      });
+      if (!response.ok) throw new Error(`Proveedor de correo: ${response.status}`);
+    };
+    let sent = 0;
+    const failed = [];
+    for (let index = 0; index < recipients.rows.length; index += 5) {
+      const batch = recipients.rows.slice(index, index + 5);
+      const results = await Promise.allSettled(batch.map(sendOne));
+      results.forEach((result, batchIndex) => {
+        if (result.status === "fulfilled") sent += 1;
+        else failed.push(batch[batchIndex].email);
+      });
+    }
+    await query(
+      "UPDATE campaigns SET status = $2, sent_at = CASE WHEN $2 = 'sent' THEN NOW() ELSE sent_at END, updated_at = NOW() WHERE id = $1",
+      [campaign.id, failed.length ? "partial" : "sent"]
+    );
+    res.json({ ok: failed.length === 0, sent, failed: failed.length });
   } catch (error) {
     next(error);
   }
@@ -4880,6 +5069,47 @@ app.post("/api/admin/ai/generate", requireRole("admin"), async (req, res, next) 
   }
 });
 
+app.post("/api/admin/ai/translate-property", requireRole("admin"), async (req, res, next) => {
+  try {
+    if (!process.env.OPENAI_API_KEY) {
+      res.status(503).json({ error: "Configura OPENAI_API_KEY para traducir contenido automáticamente." });
+      return;
+    }
+    const title = String(req.body.title || "").trim().slice(0, 500);
+    const description = String(req.body.description || "").trim().slice(0, 24000);
+    if (!title || !description) {
+      res.status(400).json({ error: "Completa primero el título y la descripción en español." });
+      return;
+    }
+    const response = await fetch("https://api.openai.com/v1/responses", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${process.env.OPENAI_API_KEY}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model: process.env.OPENAI_MODEL || "gpt-5.6-terra",
+        reasoning: { effort: "none" },
+        text: { verbosity: "low" },
+        instructions: "Translate Cancun real-estate copy from Mexican Spanish to natural professional English. Preserve facts, measurements, proper names and paragraph breaks. Do not add claims. Return only valid JSON with keys titleEn and descriptionEn.",
+        input: JSON.stringify({ title, description }),
+        max_output_tokens: 5000,
+        store: false,
+      }),
+      signal: AbortSignal.timeout(45000),
+    });
+    if (!response.ok) throw new Error(`El servicio de traducción respondió ${response.status}.`);
+    const payload = await response.json();
+    const raw = String(payload.output_text || payload.output?.flatMap((item) => item.content || []).find((item) => item.type === "output_text")?.text || "").trim();
+    const translated = JSON.parse(raw.replace(/^```json\s*|\s*```$/gi, ""));
+    if (!translated.titleEn || !translated.descriptionEn) throw new Error("La traducción no devolvió los campos esperados.");
+    res.json({
+      titleEn: String(translated.titleEn).trim().slice(0, 500),
+      descriptionEn: String(translated.descriptionEn).trim().slice(0, DESCRIPTION_MAX_LENGTH),
+      requiresApproval: true,
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
 function parseOptionalPrice(value, fieldName) {
   if (value === undefined || value === null || value === "") return null;
   const number = Number(value);
@@ -5009,6 +5239,7 @@ function parseUploadedImages(body, existingImages = [], propertyId = "") {
 function normalizePropertyInput(body, id, existingImages = []) {
   const title = String(body.title || body.titleEs || "").trim();
   const type = String(body.type || "").trim();
+  const publicationSection = body.publicationSection === "developments" ? "developments" : "properties";
   const state = String(body.state || "Quintana Roo").trim();
   const city = String(body.city || "Cancun").trim();
   const zone = String(body.zone || "").trim();
@@ -5055,6 +5286,7 @@ function normalizePropertyInput(body, id, existingImages = []) {
     titleEs: title,
     titleEn: String(body.titleEn || title).trim(),
     type,
+    publicationSection,
     state,
     city,
     zone,
@@ -5159,11 +5391,12 @@ async function renderPublicHtml(requestPath, noindex = false) {
   const page = getPageByPath(requestPath);
   if (!page) return null;
   const seo = renderSeoHead(page, siteUrl);
-  let pageContent = page.path === "/" ? "" : renderSeoPage(page.path);
+  const isHome = page.path === "/" || page.path === "/en";
+  let pageContent = isHome ? "" : renderSeoPage(page.path);
   if (page.category) {
     pageContent = renderCategoryPage(page, await getPublicProperties());
   }
-  return decoratePublicHtml({ page, seo, pageContent, bodyPage: page.path === "/" ? "home" : "seo", noindex });
+  return decoratePublicHtml({ page, seo, pageContent, bodyPage: isHome ? "home" : "seo", noindex });
 }
 
 app.get("/robots.txt", (req, res) => {
@@ -5377,5 +5610,6 @@ module.exports = {
   normalizeGeocodeQuery,
   parseNonNegativeNumber,
   parseUploadedImages,
+  sanitizeUploadedFile,
   startServer,
 };

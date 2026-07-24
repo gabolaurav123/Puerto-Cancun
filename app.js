@@ -60,6 +60,7 @@ const translations = {
     typeDevelopments: "Desarrollos",
     navPuerto: "Puerto Cancún",
     navZones: "Zonas",
+    navDevelopments: "Desarrollos",
     navAbout: "Nosotros",
     menuAllZones: "Ver todas las zonas",
     navSell: "Vender",
@@ -121,6 +122,26 @@ const translations = {
     presaleCopy:
       "Conozca de la mano de nuestros expertos opciones en preventa, con información clara de entrega, plusvalía y esquema de pago.",
     allProperties: "Todas las propiedades",
+    guidedKicker: "Búsqueda guiada",
+    guidedTitle: "Encuentra tu propiedad ideal",
+    guidedOperation: "Comprar o rentar",
+    guidedBoth: "Ambas",
+    guidedBuy: "Comprar",
+    guidedRent: "Rentar",
+    guidedBudget: "Presupuesto máximo USD",
+    guidedBedrooms: "Recámaras",
+    guidedGoal: "Objetivo",
+    goalLive: "Vivir",
+    goalInvest: "Invertir",
+    goalVacation: "Vacacionar",
+    goalIncome: "Generar renta",
+    viewProperties: "Ver propiedades",
+    alertKicker: "Alerta de propiedades",
+    alertTitle: "Recibe opciones compatibles",
+    alertCopy: "Registraremos tu zona, tipo y presupuesto para que un asesor pueda avisarte.",
+    alertCreate: "Crear alerta",
+    fieldName: "Nombre",
+    fieldEmail: "Correo",
     clearFilters: "Limpiar filtros",
     sortBy: "Ordenar por:",
     sortHigh: "Precio alto a bajo",
@@ -136,6 +157,9 @@ const translations = {
     requestInfo: "Solicitar informacion",
     moreProperties: "Ver más propiedades",
     teamTitle: "Equipo de asesores de Puerto Cancún Center",
+    teamKicker: "Asesoría local",
+    teamCopy: "Un solo equipo para revisar inventario, preparar publicaciones, dar seguimiento a solicitudes y coordinar el contacto entre compradores y propietarios.",
+    teamCta: "Contactar al equipo",
     teamRoleSales: "Asesor inmobiliario senior",
     teamRoleListings: "Coordinadora de propiedades",
     teamRoleInvestment: "Consultor de inversión",
@@ -164,6 +188,12 @@ const translations = {
     sellerHelpCta: "Solicitar guia por WhatsApp",
     sellerContactTitle: "Datos de contacto para esta solicitud",
     propertyTitle: "Título de la propiedad",
+    propertyTitleEs: "Título de la propiedad en español",
+    propertyTitleEn: "Título de la propiedad en inglés",
+    publicationDestination: "Dónde se publica",
+    publicationProperties: "Propiedades",
+    publicationDevelopments: "Desarrollos",
+    bilingualFieldHelp: "Este texto se muestra cuando el visitante navega en inglés.",
     propertyType: "Tipo de propiedad",
     zone: "Zona",
     stateField: "Estado",
@@ -192,6 +222,11 @@ const translations = {
     bathrooms: "Baños",
     area: "M2 construcción",
     description: "Descripción",
+    descriptionEs: "Descripción en español",
+    descriptionEn: "Descripción en inglés",
+    mapSearchLabel: "Buscar una ubicación en el mapa",
+    mapSearchPlaceholder: "Dirección, ciudad, estado o país",
+    mapSearchAction: "Buscar y mover el pin",
     sendRequest: "Enviar solicitud",
     myRequests: "Mis solicitudes",
     adminRequestsTitle: "Solicitudes de vendedores",
@@ -472,6 +507,7 @@ const translations = {
     adminPanelShort: "Panel admin",
     confirmDelete: "Archivar esta publicación? Dejará de ser pública, pero podrás restaurarla.",
     apiError: "No se pudo conectar con la base de datos. Revisa DATABASE_URL y el servidor.",
+    partialLoadError: "Algunos datos tardaron en responder. El portal continúa disponible y puedes reintentar.",
   },
   en: {
     currencyLabel: "Select currency:",
@@ -488,6 +524,7 @@ const translations = {
     typeDevelopments: "Developments",
     navPuerto: "Puerto Cancun",
     navZones: "Areas",
+    navDevelopments: "Developments",
     navAbout: "About us",
     menuAllZones: "View all areas",
     navSell: "Sell",
@@ -548,6 +585,26 @@ const translations = {
     presaleCopy:
       "Review presale opportunities with expert guidance, clear delivery information, appreciation potential, and payment structures.",
     allProperties: "All properties",
+    guidedKicker: "Guided search",
+    guidedTitle: "Find your ideal property",
+    guidedOperation: "Buy or rent",
+    guidedBoth: "Both",
+    guidedBuy: "Buy",
+    guidedRent: "Rent",
+    guidedBudget: "Maximum budget USD",
+    guidedBedrooms: "Bedrooms",
+    guidedGoal: "Goal",
+    goalLive: "Primary residence",
+    goalInvest: "Investment",
+    goalVacation: "Vacation home",
+    goalIncome: "Rental income",
+    viewProperties: "View properties",
+    alertKicker: "Property alert",
+    alertTitle: "Receive compatible options",
+    alertCopy: "We will save your preferred area, type and budget so an advisor can contact you.",
+    alertCreate: "Create alert",
+    fieldName: "Name",
+    fieldEmail: "Email",
     clearFilters: "Clear filters",
     sortBy: "Sort by:",
     sortHigh: "Price high to low",
@@ -563,6 +620,9 @@ const translations = {
     requestInfo: "Request information",
     moreProperties: "See more properties",
     teamTitle: "Meet the Puerto Cancun Center team",
+    teamKicker: "Local advisory",
+    teamCopy: "One team to review inventory, prepare listings, follow up on requests, and coordinate contact between buyers and property owners.",
+    teamCta: "Contact the team",
     teamRoleSales: "Senior real estate advisor",
     teamRoleListings: "Property coordinator",
     teamRoleInvestment: "Investment consultant",
@@ -590,6 +650,12 @@ const translations = {
     sellerHelpCta: "Request WhatsApp guidance",
     sellerContactTitle: "Contact details for this request",
     propertyTitle: "Property title",
+    propertyTitleEs: "Property title in Spanish",
+    propertyTitleEn: "Property title in English",
+    publicationDestination: "Publish in",
+    publicationProperties: "Properties",
+    publicationDevelopments: "Developments",
+    bilingualFieldHelp: "This copy is shown when visitors browse in English.",
     propertyType: "Property type",
     zone: "Area",
     stateField: "State",
@@ -617,6 +683,11 @@ const translations = {
     bathrooms: "Bathrooms",
     area: "Built m2",
     description: "Description",
+    descriptionEs: "Description in Spanish",
+    descriptionEn: "Description in English",
+    mapSearchLabel: "Search for a location on the map",
+    mapSearchPlaceholder: "Address, city, state or country",
+    mapSearchAction: "Search and move pin",
     sendRequest: "Submit request",
     myRequests: "My requests",
     adminRequestsTitle: "Seller requests",
@@ -897,12 +968,17 @@ const translations = {
     adminPanelShort: "Admin panel",
     confirmDelete: "Archive this listing? It will no longer be public, but you can restore it.",
     apiError: "Could not connect to the database. Check DATABASE_URL and the server.",
+    partialLoadError: "Some data took too long to respond. The portal remains available and you can retry.",
   },
 };
 
+const storedLanguage = localStorage.getItem(keys.lang);
+const urlLanguage = window.location.pathname === "/en" || window.location.pathname.startsWith("/en/") ? "en" : "";
+const initialLanguage = urlLanguage || storedLanguage || document.body.dataset.lang || "es";
+
 const state = {
-  lang: document.body.dataset.lang || localStorage.getItem(keys.lang) || "es",
-  currency: (document.body.dataset.lang || localStorage.getItem(keys.lang) || "es") === "en" ? "USD" : "MXN",
+  lang: initialLanguage,
+  currency: initialLanguage === "en" ? "USD" : "MXN",
   session: null,
   properties: [],
   requests: [],
@@ -1214,9 +1290,9 @@ function setMapStatus(picker, message, isError = false) {
   status.classList.toggle("is-error", isError);
 }
 
-async function geocodeMapAddress(picker) {
+async function geocodeMapAddress(picker, explicitQuery = "") {
   const form = picker?.closest("form");
-  const query = mapAddressQueryFromForm(form);
+  const query = String(explicitQuery || mapAddressQueryFromForm(form)).trim();
   if (!form || !query) return;
   mapGeocodeControllers.get(picker)?.abort();
   const controller = new AbortController();
@@ -1294,8 +1370,10 @@ function updateMapPicker(picker) {
       instance.map.panTo([center.lat, center.lng], { animate: false });
     }
   } else if (instance) {
-    setMapMarkerVisible(instance, false);
+    setMapMarkerVisible(instance, true);
     centerMapInstance(instance, DEFAULT_MAP_CENTER);
+    if (instance.type === "google") instance.marker.setPosition(DEFAULT_MAP_CENTER);
+    else instance.marker.setLatLng([DEFAULT_MAP_CENTER.lat, DEFAULT_MAP_CENTER.lng]);
   }
 }
 
@@ -1443,7 +1521,7 @@ async function enhanceLeafletMapPicker(picker) {
   const resizeObserver = typeof ResizeObserver === "function" ? new ResizeObserver(resizeMap) : null;
   resizeObserver?.observe(canvas);
   googleMapInstances.set(picker, { type: "leaflet", map, marker, resizeObserver });
-  if (!formField(form, "latitude")?.value || !formField(form, "longitude")?.value) marker.setOpacity(0);
+  marker.setOpacity(1);
   window.requestAnimationFrame(() => window.requestAnimationFrame(resizeMap));
   window.setTimeout(resizeMap, 250);
   window.setTimeout(resizeMap, 900);
@@ -1489,12 +1567,29 @@ async function enhanceMapPicker(picker) {
   });
   marker.addListener("dragend", (event) => updateFromLatLng(event.latLng));
   googleMapInstances.set(picker, { type: "google", map, marker });
-  if (!formField(form, "latitude")?.value || !formField(form, "longitude")?.value) marker.setVisible(false);
+  marker.setVisible(true);
   picker.classList.add("has-google-map");
 }
 
 function bindMapPickers() {
   $$("[data-map-picker]").forEach((picker) => {
+    if (!picker.querySelector("[data-map-search]")) {
+      const search = document.createElement("div");
+      search.className = "map-location-search";
+      search.innerHTML = `
+        <label>
+          <span data-i18n="mapSearchLabel">${escapeHtml(t("mapSearchLabel"))}</span>
+          <div class="search-input-with-icon">
+            <i data-lucide="search"></i>
+            <input data-map-search type="search" placeholder="${escapeHtml(t("mapSearchPlaceholder"))}" />
+          </div>
+        </label>
+        <button class="ghost-button" type="button" data-map-search-submit>
+          <i data-lucide="map-pin"></i>
+          <span data-i18n="mapSearchAction">${escapeHtml(t("mapSearchAction"))}</span>
+        </button>`;
+      picker.querySelector("[data-map-frame]")?.before(search);
+    }
     if (picker.dataset.bound === "true") {
       updateMapPicker(picker);
       return;
@@ -1523,6 +1618,17 @@ function bindMapPickers() {
     picker.querySelector("[data-geocode-address]")?.addEventListener("click", () => {
       window.clearTimeout(mapGeocodeTimers.get(picker));
       void geocodeMapAddress(picker);
+    });
+    const mapSearch = picker.querySelector("[data-map-search]");
+    const submitMapSearch = () => {
+      const query = String(mapSearch?.value || "").trim();
+      if (query) void geocodeMapAddress(picker, query);
+    };
+    picker.querySelector("[data-map-search-submit]")?.addEventListener("click", submitMapSearch);
+    mapSearch?.addEventListener("keydown", (event) => {
+      if (event.key !== "Enter") return;
+      event.preventDefault();
+      submitMapSearch();
     });
     updateMapPicker(picker);
     void enhanceMapPicker(picker).catch(() => {
@@ -1914,6 +2020,7 @@ function renderCategoryPage() {
 function propertyMatches(property) {
   if (property.isPublic === false || !["active", "featured", undefined, null, ""].includes(property.status)) return false;
   const filters = state.filters;
+  if (property.publicationSection === "developments" && filters.type !== "Desarrollo") return false;
   if (filters.type && property.type !== filters.type) return false;
   if (filters.zone && property.zone !== filters.zone) return false;
   if (filters.operation && property.operation !== filters.operation) return false;
@@ -2025,7 +2132,7 @@ function renderProperties() {
             <div class="property-actions">
               <a class="mini-button primary" href="${escapeHtml(propertyUrl || `/propiedades/${property.slug || property.id}`)}">${escapeHtml(state.lang === "en" ? "View property" : "Ver propiedad")}</a>
               <button class="mini-button icon-only" type="button" data-detail="${escapeHtml(property.id)}" title="${escapeHtml(state.lang === "en" ? "Quick view" : "Vista rapida")}" aria-label="${escapeHtml(state.lang === "en" ? "Quick view" : "Vista rapida")}"><i data-lucide="search"></i></button>
-              <button class="mini-button" type="button" data-contact="${escapeHtml(property.id)}">${escapeHtml(t("contactWhatsApp"))}</button>
+              <button class="mini-button whatsapp-card-button" type="button" data-contact="${escapeHtml(property.id)}"><i data-lucide="message-circle"></i><span>${escapeHtml(t("contactWhatsApp"))}</span></button>
             </div>
           </div>
         </article>
@@ -2750,6 +2857,7 @@ function renderAdminContacts() {
 }
 
 function renderStats() {
+  const english = state.lang === "en";
   const stats = [
     [state.stats.properties, t("statProperties"), "properties"],
     [state.stats.activeProperties || 0, t("statusActive"), "active-properties"],
@@ -2761,13 +2869,13 @@ function renderStats() {
     [state.stats.pendingTasks || 0, t("adminJumpTasks"), "tasks"],
     [state.stats.contacts || 0, t("crmTitle"), "contacts"],
     [state.stats.searches, t("statSearches"), "analytics"],
-    [state.stats.propertiesWithoutCover || 0, "Sin portada", "properties-without-cover"],
-    [state.stats.averageResponseHours ? `${state.stats.averageResponseHours} h` : "N/D", "Respuesta promedio", "leads"],
-    [state.stats.generatedDocuments || 0, "Fichas PDF", "pdf"],
-    [state.stats.whatsappClicks || 0, "Clicks WhatsApp", "analytics"],
+    [state.stats.propertiesWithoutCover || 0, english ? "Missing cover" : "Sin portada", "properties-without-cover"],
+    [state.stats.averageResponseHours ? `${state.stats.averageResponseHours} h` : english ? "N/A" : "N/D", english ? "Average response" : "Respuesta promedio", "leads"],
+    [state.stats.generatedDocuments || 0, english ? "PDF sheets" : "Fichas PDF", "pdf"],
+    [state.stats.whatsappClicks || 0, english ? "WhatsApp clicks" : "Clicks WhatsApp", "analytics"],
   ];
   $("#statsGrid").innerHTML = stats
-    .map(([value, label, target]) => `<button class="stat-card" type="button" data-admin-metric="${escapeHtml(target)}" aria-label="${escapeHtml(`${label}: ${value}. Abrir detalle`)}"><strong>${value}</strong><span>${escapeHtml(label)}</span><small>Ver detalle</small></button>`)
+    .map(([value, label, target]) => `<button class="stat-card" type="button" data-admin-metric="${escapeHtml(target)}" aria-label="${escapeHtml(`${label}: ${value}. ${english ? "Open details" : "Abrir detalle"}`)}"><strong>${value}</strong><span>${escapeHtml(label)}</span><small>${english ? "View details" : "Ver detalle"}</small></button>`)
     .join("");
 }
 
@@ -3831,6 +3939,7 @@ function renderMarketing() {
               <p>${escapeHtml(truncateText(campaign.message, 180))}</p>
               <div class="item-actions">
                 <a class="mini-button" href="/api/admin/campaigns/${encodeURIComponent(campaign.id)}/export">Exportar CSV</a>
+                ${campaign.channel === "email" && campaign.status !== "sent" ? `<button class="mini-button primary" type="button" data-send-campaign-email="${escapeHtml(campaign.id)}">Enviar mailing</button>` : ""}
                 ${campaign.status !== "sent" ? `<button class="mini-button primary" type="button" data-campaign-sent="${escapeHtml(campaign.id)}">Marcar enviada</button>` : ""}
                 <button class="mini-button danger" type="button" data-delete-campaign="${escapeHtml(campaign.id)}">Eliminar</button>
               </div>
@@ -4045,6 +4154,20 @@ async function markCampaignSent(id) {
   showToast("Campaña registrada como enviada.");
 }
 
+async function sendCampaignEmail(id, button) {
+  if (!(await confirmAction("Se enviará este correo a todos los contactos con email del segmento seleccionado.", "Enviar mailing"))) return;
+  setButtonLoading(button, true, "Enviando...");
+  try {
+    const result = await api(`/api/admin/campaigns/${encodeURIComponent(id)}/send-email`, { method: "POST" });
+    await renderPanel();
+    showToast(`Mailing completado: ${result.sent} enviados${result.failed ? `, ${result.failed} fallidos` : ""}.`);
+  } catch (error) {
+    showToast(error.message, "error");
+  } finally {
+    setButtonLoading(button, false);
+  }
+}
+
 async function deleteCampaign(id) {
   if (!(await confirmAction("La campaña se eliminará del calendario e historial.", "Eliminar campaña"))) return;
   await api(`/api/admin/campaigns/${encodeURIComponent(id)}`, { method: "DELETE" });
@@ -4199,6 +4322,23 @@ async function deleteDocument(id) {
   await api(`/api/admin/documents/${encodeURIComponent(id)}`, { method: "DELETE" });
   await renderPanel();
   showToast("Ficha eliminada.");
+}
+
+async function deleteAllDocuments() {
+  if (!state.documents.length) return;
+  if (!(await confirmAction("Se eliminarán todas las fichas PDF del historial. Esta acción no elimina propiedades.", "Eliminar todas las fichas"))) return;
+  const button = $("#deleteAllDocuments");
+  setButtonLoading(button, true, "Eliminando...");
+  try {
+    await api("/api/admin/documents", { method: "DELETE" });
+    state.documents = [];
+    renderDocuments();
+    showToast("Se eliminaron todas las fichas PDF.");
+  } catch (error) {
+    showToast(error.message, "error");
+  } finally {
+    setButtonLoading(button, false);
+  }
 }
 
 async function mediaUploadSubmit(event) {
@@ -4765,37 +4905,38 @@ async function loadPublicData() {
   state.platform = configData?.platform || state.platform;
   if (results.every((result) => result.status === "rejected")) throw results[0].reason;
   if (results.some((result) => result.status === "rejected")) {
-    showToast("Algunos datos tardaron en responder. El portal continúa disponible y puedes reintentar.", "error");
+    showToast(t("partialLoadError"), "error");
   }
 }
 
 async function loadPanelData() {
   if (!state.session) return;
+  const panelApi = (path) => api(path, { timeoutMs: 12000, retry: false });
   if (state.session.role === "admin") {
     const adminResults = await Promise.allSettled([
-      api("/api/admin/stats"),
-      api("/api/admin/requests"),
-      api("/api/properties"),
-      api("/api/admin/prompts"),
-      api("/api/admin/leads"),
-      api("/api/admin/contacts"),
-      api("/api/admin/valuations"),
-      api("/api/admin/tasks"),
-      api("/api/admin/matches"),
-      api("/api/admin/analytics"),
-      api("/api/admin/buyers"),
-      api("/api/admin/users"),
-      api("/api/admin/files"),
-      api("/api/admin/documents"),
-      api("/api/admin/campaigns"),
-      api("/api/admin/instagram/status"),
-      api("/api/admin/settings"),
-      api("/api/admin/notifications"),
-      api("/api/admin/whatsapp/overview"),
-      api("/api/admin/whatsapp/chats"),
-      api("/api/admin/whatsapp/leads"),
-      api("/api/admin/activity?limit=80"),
-      api("/api/health"),
+      panelApi("/api/admin/stats"),
+      panelApi("/api/admin/requests"),
+      panelApi("/api/properties"),
+      panelApi("/api/admin/prompts"),
+      panelApi("/api/admin/leads"),
+      panelApi("/api/admin/contacts"),
+      panelApi("/api/admin/valuations"),
+      panelApi("/api/admin/tasks"),
+      panelApi("/api/admin/matches"),
+      panelApi("/api/admin/analytics"),
+      panelApi("/api/admin/buyers"),
+      panelApi("/api/admin/users"),
+      panelApi("/api/admin/files"),
+      panelApi("/api/admin/documents"),
+      panelApi("/api/admin/campaigns"),
+      panelApi("/api/admin/instagram/status"),
+      panelApi("/api/admin/settings"),
+      panelApi("/api/admin/notifications"),
+      panelApi("/api/admin/whatsapp/overview"),
+      panelApi("/api/admin/whatsapp/chats"),
+      panelApi("/api/admin/whatsapp/leads"),
+      panelApi("/api/admin/activity?limit=80"),
+      panelApi("/api/health"),
     ]);
     const adminValue = (index, fallback = {}) => adminResults[index].status === "fulfilled" ? adminResults[index].value : fallback;
     const [
@@ -4852,10 +4993,10 @@ async function loadPanelData() {
     state.messages = [];
   } else {
     const sellerResults = await Promise.allSettled([
-      api("/api/seller/requests"),
-      api("/api/seller/service-requests"),
-      api("/api/seller/notifications"),
-      api("/api/seller/messages"),
+      panelApi("/api/seller/requests"),
+      panelApi("/api/seller/service-requests"),
+      panelApi("/api/seller/notifications"),
+      panelApi("/api/seller/messages"),
     ]);
     const sellerValue = (index, fallback = {}) => sellerResults[index].status === "fulfilled" ? sellerResults[index].value : fallback;
     state.requests = sellerValue(0).requests || state.requests;
@@ -5018,9 +5159,74 @@ function setAdminSection(section) {
   $("#adminPanel")?.scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
+const panelStaticEnglish = {
+  "Centro de control": "Control center",
+  "Publicaciones": "Listings",
+  "Nueva publicación": "New listing",
+  "Inventario": "Inventory",
+  "Desarrollos públicos": "Public developments",
+  "Contactos y cuentas": "Contacts and accounts",
+  "Campañas y mailing": "Campaigns and mailing",
+  "Conexión, chatbot y chats": "Connection, chatbot and chats",
+  "Generar e historial": "Generate and history",
+  "Crear contacto": "Create contact",
+  "Crear campaña": "Create campaign",
+  "Crear usuario": "Create user",
+  "Generar PDF": "Generate PDF",
+  "Solicitudes": "Requests",
+  "Asesorías": "Advisory",
+  "Catálogos": "Catalogs",
+  "Herramientas IA": "AI tools",
+  "Campañas preparadas": "Prepared campaigns",
+  "Nombre": "Name",
+  "Correo": "Email",
+  "Objetivo": "Objective",
+  "Segmento": "Segment",
+  "Canal": "Channel",
+  "Propiedad": "Property",
+  "Programar": "Schedule",
+  "Mensaje": "Message",
+  "Guardar campaña": "Save campaign",
+  "Generar texto con IA": "Generate copy with AI",
+  "Tipo de ficha": "Sheet type",
+  "Institucional": "Institutional",
+  "Neutro": "Neutral",
+  "Moneda": "Currency",
+  "Mostrar precio": "Show price",
+  "Mostrar dirección exacta": "Show exact address",
+  "Vista previa": "Preview",
+  "Generar institucional": "Generate institutional",
+  "Generar neutro": "Generate neutral",
+  "Historial de fichas": "Sheet history",
+  "Eliminar todas": "Delete all",
+  "Dónde se publica": "Publish in",
+  "Estado de publicación": "Listing status",
+  "Buscar publicaciones": "Search listings",
+  "Imagenes de la propiedad": "Property images",
+  "Galería y orden de publicación": "Gallery and display order",
+  "Guardar publicación": "Save listing",
+  "Nueva publicación": "New listing",
+  "Calidad": "Quality",
+  "Accesos rápidos": "Quick actions",
+  "Configuración": "Settings",
+  "Roles / usuarios internos": "Roles / internal users",
+  "Vender mi propiedad": "Sell my property",
+  "Solicitar valoración": "Request valuation",
+  "Notificaciones": "Notifications",
+};
+
+function translatePanelStaticCopy() {
+  if (!$("#panelView")) return;
+  $$("#panelView h2, #panelView h3, #panelView label > span, #panelView legend, #panelView option, #panelView button > span, #panelView .admin-sidebar-subnav button, #panelView .admin-sidebar-subnav a").forEach((element) => {
+    if (element.dataset.i18n || element.childElementCount) return;
+    const original = element.dataset.panelOriginal || element.textContent.trim();
+    if (!element.dataset.panelOriginal) element.dataset.panelOriginal = original;
+    element.textContent = state.lang === "en" ? panelStaticEnglish[original] || original : original;
+  });
+}
+
 async function renderPanel() {
   if (!state.session) return;
-  await loadPanelData();
   const isAdmin = state.session.role === "admin";
   $("#panelRoleBadge").textContent = isAdmin ? t("adminRole") : t("sellerRole");
   $("#panelTitle").textContent = isAdmin ? t("adminPanelTitle") : t("sellerPanelTitle");
@@ -5029,6 +5235,13 @@ async function renderPanel() {
   $("#sellerPanel").hidden = isAdmin;
   $("#adminNotificationButton").hidden = !isAdmin;
   $("#sellerNotificationButton").hidden = isAdmin;
+  if (isAdmin) {
+    renderStats();
+    updateAdminShell();
+  }
+  translatePanelStaticCopy();
+  refreshIcons();
+  await loadPanelData();
   refreshLocationSelects();
   if (isAdmin) {
     renderStats();
@@ -5059,6 +5272,7 @@ async function renderPanel() {
   }
   bindMapPickers();
   if (isAdmin) void restoreListingDraft();
+  translatePanelStaticCopy();
   refreshIcons();
 }
 
@@ -5084,6 +5298,49 @@ function updateHeaderVisibility() {
   lastScrollY = current;
 }
 
+const localizedRoutes = {
+  "/": "/en/",
+  "/propiedades": "/en/properties",
+  "/propiedades/destacadas-cancun": "/en/properties/featured-cancun",
+  "/propiedades/casas-cancun": "/en/properties/homes-cancun",
+  "/propiedades/departamentos-cancun": "/en/properties/condos-cancun",
+  "/propiedades/comerciales-cancun": "/en/properties/commercial-cancun",
+  "/propiedades/desarrollos-cancun": "/en/properties/developments-cancun",
+  "/preventas-cancun": "/en/cancun-presales",
+  "/propiedades-en-renta-cancun": "/en/cancun-rentals",
+  "/propiedades/puerto-cancun": "/en/properties/puerto-cancun",
+  "/propiedades/puerto-cancun/casas": "/en/properties/puerto-cancun/homes",
+  "/propiedades/puerto-cancun/departamentos": "/en/properties/puerto-cancun/condos",
+  "/propiedades/puerto-cancun/terrenos": "/en/properties/puerto-cancun/land",
+  "/propiedades/zona-hotelera": "/en/properties/hotel-zone",
+  "/propiedades/cancun-centro": "/en/properties/downtown-cancun",
+  "/propiedades/playa-mujeres": "/en/properties/playa-mujeres",
+  "/propiedades/isla-mujeres": "/en/properties/isla-mujeres",
+  "/propiedades/riviera-maya": "/en/properties/riviera-maya",
+  "/zonas-cancun": "/en/cancun-areas",
+  "/comprar-casa-cancun": "/en/buy-property-cancun",
+  "/nosotros": "/en/about",
+  "/contacto": "/en/contact",
+  "/vender-casa-cancun": "/en/sell-property-cancun",
+  "/valuacion-inmobiliaria-cancun": "/en/property-valuation-cancun",
+  "/faq-inmobiliario-cancun": "/en/cancun-real-estate-faq",
+};
+
+function localizedRoute(pathname, lang = state.lang) {
+  const [path, suffix = ""] = String(pathname || "").split(/(?=[?#])/);
+  if (lang === "en") return `${localizedRoutes[path] || path}${suffix}`;
+  const spanish = Object.entries(localizedRoutes).find(([, english]) => english === path)?.[0];
+  return `${spanish || path}${suffix}`;
+}
+
+function updateLocalizedLinks() {
+  $$("a[href^='/']").forEach((link) => {
+    const original = link.dataset.routeBase || link.getAttribute("href");
+    link.dataset.routeBase = localizedRoute(original, "es");
+    link.href = localizedRoute(link.dataset.routeBase, state.lang);
+  });
+}
+
 function applyTranslations() {
   document.documentElement.lang = state.lang;
   document.body.dataset.lang = state.lang;
@@ -5096,7 +5353,10 @@ function applyTranslations() {
     element.setAttribute("placeholder", t(element.dataset.i18nPlaceholder));
   });
   $("#languageToggle").textContent = state.lang === "es" ? "English" : "Español";
+  const panelLanguageLabel = $("#panelLanguageToggle span");
+  if (panelLanguageLabel) panelLanguageLabel.textContent = state.lang === "es" ? "English" : "Español";
   $$('[data-password-visibility]').forEach(updatePasswordVisibilityButton);
+  updateLocalizedLinks();
   if ($("#aboutNavLink")) $("#aboutNavLink").href = state.lang === "en" ? "/en/about" : "/nosotros";
   if ($("#sellNavLink")) $("#sellNavLink").href = state.lang === "en" ? "/en/sell-property-cancun" : "/vender-casa-cancun";
   if ($("#heroSellButton")) $("#heroSellButton").href = state.lang === "en" ? "/en/sell-property-cancun" : "/vender-casa-cancun";
@@ -5115,7 +5375,16 @@ function applyTranslations() {
   if (!$("#panelView").hidden) {
     void renderPanel();
   }
+  translatePanelStaticCopy();
   refreshIcons();
+}
+
+function toggleLanguage() {
+  const nextLanguage = state.lang === "es" ? "en" : "es";
+  localStorage.setItem(keys.lang, nextLanguage);
+  const alternate = String(document.body.dataset.alternateUrl || "").trim();
+  const currentPath = `${window.location.pathname}${window.location.search}${window.location.hash}`;
+  window.location.assign(alternate || localizedRoute(currentPath, nextLanguage));
 }
 
 function refreshIcons() {
@@ -5495,6 +5764,10 @@ function listingDraftSnapshot(form) {
   const fields = {};
   Array.from(form.elements).forEach((field) => {
     if (!field.name || field.type === "file" || field.type === "submit" || field.type === "button") return;
+    if (field.type === "radio") {
+      if (field.checked) fields[field.name] = field.value;
+      return;
+    }
     fields[field.name] = field.type === "checkbox" ? field.checked : field.value;
   });
   return {
@@ -5547,6 +5820,11 @@ async function restoreListingDraft() {
       const field = formField(form, name);
       if (!field || LOCATION_FIELD_ORDER.includes(name)) return;
       if (field.type === "checkbox") field.checked = Boolean(value);
+      else if (field.type === "radio") {
+        form.querySelectorAll(`[name="${CSS.escape(name)}"]`).forEach((option) => {
+          option.checked = option.value === value;
+        });
+      }
       else field.value = value ?? "";
     });
     const sourceProperty = state.properties.find((property) => property.id === source.id);
@@ -5889,7 +6167,7 @@ async function listingSubmit(event) {
     setFormMessage(message, "Ingresa una latitud y longitud válidas, o deja ambas vacías.", true);
     return;
   }
-  if (field("description").value.length > DESCRIPTION_MAX_LENGTH) {
+  if (field("description").value.length > DESCRIPTION_MAX_LENGTH || field("descriptionEn").value.length > DESCRIPTION_MAX_LENGTH) {
     setFormMessage(message, `La descripción no debe superar ${DESCRIPTION_MAX_LENGTH.toLocaleString("es-MX")} caracteres.`, true);
     return;
   }
@@ -5897,6 +6175,8 @@ async function listingSubmit(event) {
   const currentProperty = id ? state.properties.find((property) => property.id === id) : null;
   const payload = {
     title: field("title").value.trim(),
+    titleEn: field("titleEn").value.trim(),
+    publicationSection: form.querySelector('[name="publicationSection"]:checked')?.value || "properties",
     type: field("type").value,
     state: field("state").value,
     city: field("city").value,
@@ -5923,6 +6203,7 @@ async function listingSubmit(event) {
     keywords,
     featured: field("featured").checked,
     description: field("description").value.trim(),
+    descriptionEn: field("descriptionEn").value.trim(),
     badges: ["new"],
     expectedUpdatedAt: currentProperty?.updatedAt || null,
   };
@@ -5972,13 +6253,44 @@ async function listingSubmit(event) {
   }
 }
 
+async function translateListingToEnglish() {
+  const form = $("#listingForm");
+  const button = $("#translateListingToEnglish");
+  const title = formField(form, "title").value.trim();
+  const description = formField(form, "description").value.trim();
+  if (!title || !description) {
+    setFormMessage($("#listingFormMessage"), "Completa primero el título y la descripción en español.", true);
+    return;
+  }
+  setButtonLoading(button, true, "Traduciendo...");
+  try {
+    const result = await api("/api/admin/ai/translate-property", {
+      method: "POST",
+      body: { title, description },
+      timeoutMs: 60000,
+    });
+    formField(form, "titleEn").value = result.titleEn;
+    formField(form, "descriptionEn").value = result.descriptionEn;
+    saveListingDraft();
+    setFormMessage($("#listingFormMessage"), "Traducción generada. Revísala antes de guardar.");
+  } catch (error) {
+    setFormMessage($("#listingFormMessage"), error.message, true);
+  } finally {
+    setButtonLoading(button, false);
+  }
+}
+
 function editListing(id) {
   const property = state.properties.find((item) => item.id === id);
   if (!property) return;
   const form = $("#listingForm");
   const field = (name) => formField(form, name);
   field("id").value = property.id;
-  field("title").value = localizedTitle(property);
+  field("title").value = property.titleEs || property.title || "";
+  field("titleEn").value = property.titleEn || "";
+  const publicationSection = property.publicationSection || (property.type === "Desarrollo" ? "developments" : "properties");
+  const publicationField = form.querySelector(`[name="publicationSection"][value="${publicationSection}"]`);
+  if (publicationField) publicationField.checked = true;
   field("type").value = property.type;
   setLocationFormValues(form, property);
   field("operation").value = property.operation;
@@ -6012,7 +6324,8 @@ function editListing(id) {
   field("amenities").value = Array.isArray(property.amenities) ? property.amenities.join(", ") : "";
   field("keywords").value = Array.isArray(property.keywords) ? property.keywords.join(", ") : "";
   field("featured").checked = Boolean(property.featured);
-  field("description").value = localizedDescription(property);
+  field("description").value = property.descriptionEs || property.description || "";
+  field("descriptionEn").value = property.descriptionEn || "";
   form.dataset.dirty = "false";
   renderListingKeywordChips();
   updateListingDescriptionCounter();
@@ -6568,15 +6881,8 @@ function bindEvents() {
     }
   });
 
-  $("#languageToggle").addEventListener("click", () => {
-    if (document.body.dataset.page !== "home" && document.body.dataset.alternateUrl) {
-      window.location.assign(document.body.dataset.alternateUrl);
-      return;
-    }
-    state.lang = state.lang === "es" ? "en" : "es";
-    localStorage.setItem(keys.lang, state.lang);
-    applyTranslations();
-  });
+  $("#languageToggle").addEventListener("click", toggleLanguage);
+  $("#panelLanguageToggle")?.addEventListener("click", toggleLanguage);
 
   $("#menuToggle").addEventListener("click", () => {
     $("#mainNav").classList.toggle("open");
@@ -6749,6 +7055,7 @@ function bindEvents() {
     setFormMessage($("#sellerFormMessage"), t("imageRemoved"));
   });
   $("#listingForm").addEventListener("submit", listingSubmit);
+  $("#translateListingToEnglish")?.addEventListener("click", () => void translateListingToEnglish());
   $("#adminListingSearch")?.addEventListener("input", (event) => {
     window.clearTimeout(adminListingSearchTimer);
     adminListingSearchTimer = window.setTimeout(() => {
@@ -6908,6 +7215,8 @@ function bindEvents() {
   $("#pdfPropertySelect")?.addEventListener("change", previewPdf);
   $("#pdfValuationSelect")?.addEventListener("change", previewPdf);
   $("#previewPdf")?.addEventListener("click", previewPdf);
+  $("#pdfBrandMode")?.addEventListener("change", previewPdf);
+  $("#deleteAllDocuments")?.addEventListener("click", () => void deleteAllDocuments());
   $$("[data-settings-tab]").forEach((button) => {
     button.addEventListener("click", () => {
       $$("[data-settings-tab]").forEach((item) => item.classList.toggle("active", item === button));
@@ -7190,6 +7499,9 @@ function bindEvents() {
     const adminSectionLink = event.target.closest("[data-admin-section-link]");
     if (adminSectionLink) setAdminSection(adminSectionLink.dataset.adminSectionLink);
 
+    const sendCampaignEmailButton = event.target.closest("[data-send-campaign-email]");
+    if (sendCampaignEmailButton) void sendCampaignEmail(sendCampaignEmailButton.dataset.sendCampaignEmail, sendCampaignEmailButton);
+
     const whatsappChat = event.target.closest("[data-whatsapp-chat]");
     if (whatsappChat) void openWhatsappChat(whatsappChat.dataset.whatsappChat);
 
@@ -7255,6 +7567,11 @@ function bindEvents() {
 }
 
 async function init() {
+  const renderedLanguage = document.body.dataset.lang || (window.location.pathname.startsWith("/en") ? "en" : "es");
+  if (storedLanguage && storedLanguage !== renderedLanguage && document.body.dataset.alternateUrl) {
+    window.location.replace(document.body.dataset.alternateUrl);
+    return;
+  }
   installImageFallbacks();
   installPasswordVisibilityToggles();
   bindEvents();

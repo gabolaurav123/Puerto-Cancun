@@ -36,7 +36,7 @@
       href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&family=Playfair+Display:wght@500;600;700&display=swap"
       rel="stylesheet"
     />
-    <link rel="stylesheet" href="/styles.css?v=20260722.1" />
+    <link rel="stylesheet" href="/styles.css?v=20260723.1" />
     <!-- SEO_JSON_LD -->
   </head>
   <body data-page="home">
@@ -120,6 +120,7 @@
             </div>
           </div>
 
+          <a href="/propiedades/desarrollos-cancun" id="developmentsNavLink" data-i18n="navDevelopments">Desarrollos</a>
           <a href="/nosotros" id="aboutNavLink" data-i18n="navAbout">Nosotros</a>
           <a href="/vender-casa-cancun" id="sellNavLink" data-i18n="navSell">Vender</a>
           <button class="login-link" type="button" id="loginOpen" data-i18n="navLogin">Iniciar sesion</button>
@@ -410,16 +411,16 @@
           <div class="content-wrap">
             <form class="guided-search" id="guidedSearchForm">
               <div>
-                <span class="eyebrow">BÚSQUEDA GUIADA</span>
-                <h2>Encuentra tu propiedad ideal</h2>
+                <span class="eyebrow" data-i18n="guidedKicker">BÚSQUEDA GUIADA</span>
+                <h2 data-i18n="guidedTitle">Encuentra tu propiedad ideal</h2>
               </div>
-              <label><span>Comprar o rentar</span><select name="operation"><option value="">Ambas</option><option value="sale">Comprar</option><option value="rent">Rentar</option></select></label>
-              <label><span>Presupuesto máximo USD</span><input name="budget" type="number" min="0" step="50000" /></label>
-              <label><span>Zona</span><select name="zone" data-location-select="zone"><option value="">Todas</option></select></label>
-              <label><span>Tipo</span><select name="type"><option value="">Todos</option><option>Casa</option><option>Departamento</option><option>Terreno</option><option>Preventa</option></select></label>
-              <label><span>Recámaras</span><input name="beds" type="number" min="0" /></label>
-              <label><span>Objetivo</span><select name="objective"><option value="live">Vivir</option><option value="invest">Invertir</option><option value="vacation">Vacacionar</option><option value="rent">Generar renta</option></select></label>
-              <button class="primary-button" type="submit"><i data-lucide="search"></i> Ver propiedades</button>
+              <label><span data-i18n="guidedOperation">Comprar o rentar</span><select name="operation"><option value="" data-i18n="guidedBoth">Ambas</option><option value="sale" data-i18n="guidedBuy">Comprar</option><option value="rent" data-i18n="guidedRent">Rentar</option></select></label>
+              <label><span data-i18n="guidedBudget">Presupuesto máximo USD</span><input name="budget" type="number" min="0" step="50000" /></label>
+              <label><span data-i18n="filterZone">Zona</span><select name="zone" data-location-select="zone"><option value="" data-i18n="allZonesShort">Todas</option></select></label>
+              <label><span data-i18n="filterType">Tipo</span><select name="type"><option value="" data-i18n="allTypes">Todos</option><option value="Casa" data-i18n="typeHouses">Casa</option><option value="Departamento" data-i18n="typeCondos">Departamento</option><option value="Terreno" data-i18n="typeLand">Terreno</option><option value="Preventa" data-i18n="typePresales">Preventa</option></select></label>
+              <label><span data-i18n="guidedBedrooms">Recámaras</span><input name="beds" type="number" min="0" /></label>
+              <label><span data-i18n="guidedGoal">Objetivo</span><select name="objective"><option value="live" data-i18n="goalLive">Vivir</option><option value="invest" data-i18n="goalInvest">Invertir</option><option value="vacation" data-i18n="goalVacation">Vacacionar</option><option value="rent" data-i18n="goalIncome">Generar renta</option></select></label>
+              <button class="primary-button" type="submit"><i data-lucide="search"></i><span data-i18n="viewProperties">Ver propiedades</span></button>
             </form>
             <div class="properties-title-row">
               <div>
@@ -497,14 +498,14 @@
             </aside>
             <form class="property-alert-form" id="propertyAlertForm" data-lead-form>
               <div>
-                <span class="eyebrow">ALERTA DE PROPIEDADES</span>
-                <h3>Recibe opciones compatibles</h3>
-                <p>Registraremos tu zona, tipo y presupuesto para que un asesor pueda avisarte.</p>
+                <span class="eyebrow" data-i18n="alertKicker">ALERTA DE PROPIEDADES</span>
+                <h3 data-i18n="alertTitle">Recibe opciones compatibles</h3>
+                <p data-i18n="alertCopy">Registraremos tu zona, tipo y presupuesto para que un asesor pueda avisarte.</p>
               </div>
-              <label><span>Nombre</span><input name="name" required /></label>
+              <label><span data-i18n="fieldName">Nombre</span><input name="name" required /></label>
               <label><span>WhatsApp</span><input name="phone" required /></label>
-              <label><span>Correo</span><input name="email" type="email" /></label>
-              <button class="primary-button" type="submit">Crear alerta</button>
+              <label><span data-i18n="fieldEmail">Correo</span><input name="email" type="email" /></label>
+              <button class="primary-button" type="submit" data-i18n="alertCreate">Crear alerta</button>
               <input type="hidden" name="leadType" value="alerta-busqueda-comprador" />
               <p class="form-message" data-lead-message></p>
             </form>
@@ -556,10 +557,10 @@
         <section class="team-section home-only">
           <div class="content-wrap">
             <div class="team-statement">
-              <p class="section-kicker">Asesoria local</p>
+              <p class="section-kicker" data-i18n="teamKicker">Asesoria local</p>
               <h2 data-i18n="teamTitle">Equipo de asesores de Puerto Cancún Center</h2>
-              <p>Un solo equipo para revisar inventario, preparar publicaciones, dar seguimiento a solicitudes y coordinar el contacto entre compradores y propietarios.</p>
-              <a class="outline-dark-button" href="/contacto">Contactar al equipo</a>
+              <p data-i18n="teamCopy">Un solo equipo para revisar inventario, preparar publicaciones, dar seguimiento a solicitudes y coordinar el contacto entre compradores y propietarios.</p>
+              <a class="outline-dark-button" href="/contacto" data-i18n="teamCta">Contactar al equipo</a>
             </div>
           </div>
         </section>
@@ -645,6 +646,10 @@
           <p id="panelSubtitle"></p>
         </div>
         <div class="panel-hero-actions">
+          <button class="outline-light panel-language-toggle" type="button" id="panelLanguageToggle">
+            <i data-lucide="languages"></i>
+            <span>English</span>
+          </button>
           <button class="notification-button" type="button" id="sellerNotificationButton" title="Notificaciones" hidden>
             <i data-lucide="bell"></i>
             <b id="sellerNotificationCount">0</b>
@@ -984,15 +989,27 @@
                 <i data-lucide="home"></i>
                 <span data-i18n="adminJumpListings">Publicaciones</span>
               </button>
+              <div class="admin-sidebar-subnav">
+                <button type="button" data-admin-section-link="properties">Inventario</button>
+                <button type="button" data-admin-jump="listingForm">Nueva publicación</button>
+                <a href="/propiedades/desarrollos-cancun" target="_blank" rel="noopener">Desarrollos públicos</a>
+              </div>
               <button type="button" data-admin-section="contacts">
                 <i data-lucide="users"></i>
                 <span data-i18n="adminJumpContacts">CRM / Contactos</span>
               </button>
+              <div class="admin-sidebar-subnav">
+                <button type="button" data-admin-section-link="contacts">Contactos y cuentas</button>
+                <button type="button" data-admin-section-link="marketing">Mailing</button>
+              </div>
               <button type="button" data-admin-section="whatsapp">
                 <i data-lucide="message-circle-more"></i>
                 <span>WhatsApp</span>
                 <b id="sidebarWhatsappBadge">0</b>
               </button>
+              <div class="admin-sidebar-subnav">
+                <button type="button" data-admin-section-link="whatsapp">Conexión, chatbot y chats</button>
+              </div>
               <button type="button" data-admin-section="valuations">
                 <i data-lucide="badge-dollar-sign"></i>
                 <span data-i18n="adminJumpValuations">Valoraciones</span>
@@ -1022,10 +1039,16 @@
                 <i data-lucide="megaphone"></i>
                 <span data-i18n="adminJumpMarketing">Marketing</span>
               </button>
+              <div class="admin-sidebar-subnav">
+                <button type="button" data-admin-section-link="marketing">Campañas y mailing</button>
+              </div>
               <button type="button" data-admin-section="pdf">
                 <i data-lucide="file-text"></i>
                 <span data-i18n="adminJumpPdf">Fichas PDF</span>
               </button>
+              <div class="admin-sidebar-subnav">
+                <button type="button" data-admin-section-link="pdf">Generar e historial</button>
+              </div>
               <button type="button" data-admin-section="prompts">
                 <i data-lucide="message-circle"></i>
                 <span data-i18n="adminJumpPrompts">Herramientas IA</span>
@@ -1676,17 +1699,17 @@
             <form id="pdfForm" class="module-form-grid">
               <label>
                 <span>Tipo de ficha</span>
-                <select name="documentType" id="pdfDocumentType">
-                  <option value="property">Ficha de propiedad</option>
-                  <option value="valuation">Ficha de valoración</option>
+                <select name="brandMode" id="pdfBrandMode">
+                  <option value="branded">Institucional</option>
+                  <option value="neutral">Neutro</option>
                 </select>
               </label>
+              <input name="documentType" id="pdfDocumentType" type="hidden" value="property" />
               <label data-pdf-target="property"><span>Propiedad</span><select name="propertyId" id="pdfPropertySelect"></select></label>
               <label data-pdf-target="valuation" hidden><span>Valoración</span><select name="valuationId" id="pdfValuationSelect"></select></label>
               <label><span>Moneda</span><select name="currency"><option>USD</option><option>MXN</option></select></label>
-              <label data-pdf-target="property"><span>Formato para vista previa</span><select name="brandMode"><option value="branded">Institucional · una página con marca Puerto Cancún Center</option><option value="neutral">Neutro detallado · varias páginas sin datos de la inmobiliaria</option></select></label>
-              <label class="checkbox-row"><input name="showPrice" type="checkbox" checked /><span>Mostrar precio</span></label>
-              <label class="checkbox-row"><input name="showAddress" type="checkbox" /><span>Mostrar dirección exacta</span></label>
+              <label class="checkbox-row pdf-checkbox"><input name="showPrice" type="checkbox" checked /><span>Mostrar precio</span></label>
+              <label class="checkbox-row pdf-checkbox"><input name="showAddress" type="checkbox" /><span>Mostrar dirección exacta</span></label>
               <label class="span-2"><span>Disclaimer</span><textarea name="disclaimer" rows="3">Información sujeta a disponibilidad y cambios sin previo aviso.</textarea></label>
               <div class="form-actions span-2">
                 <button class="ghost-button" type="button" id="previewPdf">Vista previa</button>
@@ -1702,7 +1725,13 @@
               <p>La vista previa mostrará el contenido antes de generar el archivo.</p>
             </section>
           </div>
-          <div class="table-heading"><h3>Historial de fichas</h3><span id="pdfHistoryCount"></span></div>
+          <div class="table-heading">
+            <h3>Historial de fichas</h3>
+            <div class="inline-actions">
+              <span id="pdfHistoryCount"></span>
+              <button class="mini-button danger" type="button" id="deleteAllDocuments">Eliminar todas</button>
+            </div>
+          </div>
           <div class="wide-data-list" id="pdfHistory"></div>
         </article>
         <article class="panel-card admin-files-card" id="adminFilesCard" data-admin-section-panel="files">
@@ -1713,7 +1742,7 @@
             </div>
           </div>
           <form id="mediaUploadForm" class="media-toolbar">
-            <label class="file-field"><span>Seleccionar archivo</span><input name="file" type="file" accept="image/*,application/pdf,text/plain" required /></label>
+            <label class="file-field"><span>Seleccionar archivo</span><input name="file" type="file" accept="image/jpeg,image/png,image/webp,application/pdf,text/plain" required /></label>
             <label><span>Categoría</span><select name="category"><option value="property_image">Imagen de propiedad</option><option value="valuation">Valoración</option><option value="response_attachment">Respuesta adjunta</option><option value="document">Documento</option></select></label>
             <label><span>Asociar a</span><select name="relatedEntityType"><option value="">Sin asociación</option><option value="property">Propiedad</option><option value="seller_request">Solicitud</option><option value="valuation">Valoración</option><option value="contact">Contacto</option></select></label>
             <label><span>ID relacionado</span><input name="relatedEntityId" placeholder="Opcional" /></label>
@@ -1806,9 +1835,20 @@
             <div class="listing-workspace">
             <form id="listingForm" class="stacked-form">
               <input type="hidden" name="id" />
+              <fieldset class="publication-destination">
+                <legend data-i18n="publicationDestination">Dónde se publica</legend>
+                <label>
+                  <input name="publicationSection" type="radio" value="properties" checked />
+                  <span data-i18n="publicationProperties">Propiedades</span>
+                </label>
+                <label>
+                  <input name="publicationSection" type="radio" value="developments" />
+                  <span data-i18n="publicationDevelopments">Desarrollos</span>
+                </label>
+              </fieldset>
               <div class="form-row">
                 <label>
-                  <span data-i18n="propertyTitle">Titulo de la propiedad</span>
+                  <span data-i18n="propertyTitleEs">Título de la propiedad en español</span>
                   <input name="title" required />
                 </label>
                 <label>
@@ -1823,6 +1863,11 @@
                   </select>
                 </label>
               </div>
+              <label>
+                <span data-i18n="propertyTitleEn">Título de la propiedad en inglés</span>
+                <input name="titleEn" required />
+                <small data-i18n="bilingualFieldHelp">Este texto se muestra cuando el visitante navega en inglés.</small>
+              </label>
               <div class="form-row">
                 <label>
                   <span data-i18n="stateField">Estado</span>
@@ -1989,10 +2034,19 @@
                 <span data-i18n="publicListing">Visible en web publica</span>
               </label>
               <label>
-                <span data-i18n="description">Descripcion</span>
+                <span data-i18n="descriptionEs">Descripción en español</span>
                 <textarea name="description" rows="10" maxlength="50000"></textarea>
                 <small class="character-counter" id="listingDescriptionCounter">0 / 50,000 caracteres</small>
               </label>
+              <label>
+                <span data-i18n="descriptionEn">Descripción en inglés</span>
+                <textarea name="descriptionEn" rows="10" maxlength="50000" required></textarea>
+                <small data-i18n="bilingualFieldHelp">Este texto se muestra cuando el visitante navega en inglés.</small>
+              </label>
+              <button class="ghost-button" type="button" id="translateListingToEnglish">
+                <i data-lucide="languages"></i>
+                <span>Traducir título y descripción al inglés</span>
+              </button>
               <div class="form-actions">
                 <button class="primary-button" type="submit" data-i18n="saveListing">Guardar publicacion</button>
                 <button class="ghost-button" type="button" id="resetListingForm" data-i18n="newListing">Nueva publicacion</button>
@@ -2290,6 +2344,6 @@
     </button>
 
     <script src="https://unpkg.com/lucide@latest"></script>
-    <script src="/app.js?v=20260722.1"></script>
+    <script src="/app.js?v=20260723.1"></script>
   </body>
 </html>

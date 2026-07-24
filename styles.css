@@ -6912,6 +6912,183 @@ button[aria-busy="true"] {
   }
 }
 
+/* 2026-07 multilingual inventory and admin refinements */
+.publication-destination {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin: 0;
+  padding: 16px;
+  border: 1px solid var(--line);
+  background: #f6fbfa;
+}
+
+.publication-destination legend {
+  padding: 0 6px;
+  color: var(--blue-950);
+  font-weight: 800;
+}
+
+.publication-destination label {
+  display: inline-flex;
+  min-height: 42px;
+  align-items: center;
+  gap: 9px;
+  padding: 8px 14px;
+  border: 1px solid #b9d5d1;
+  background: #fff;
+  color: var(--ink);
+  font-weight: 700;
+}
+
+.map-location-search {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  margin: 14px 0;
+  align-items: end;
+}
+
+.map-location-search label {
+  display: grid;
+  gap: 7px;
+}
+
+.property-card {
+  display: grid;
+  grid-template-rows: auto 1fr;
+  min-width: 0;
+}
+
+.property-image {
+  height: auto;
+  aspect-ratio: 16 / 10;
+}
+
+.property-body {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  padding: 20px;
+}
+
+.property-title,
+.property-location,
+.property-meta,
+.property-description {
+  overflow-wrap: anywhere;
+}
+
+.property-description {
+  min-height: 0;
+  margin-bottom: 16px;
+  -webkit-line-clamp: 2;
+}
+
+.property-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: auto;
+}
+
+.whatsapp-card-button,
+.seo-whatsapp-button {
+  display: inline-flex;
+  min-height: 42px;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border-color: #128c4b;
+  background: #128c4b;
+  color: #fff;
+  font-weight: 800;
+}
+
+.whatsapp-card-button:hover,
+.seo-whatsapp-button:hover {
+  border-color: #0b6f3a;
+  background: #0b6f3a;
+  color: #fff;
+}
+
+.whatsapp-card-button svg {
+  width: 18px;
+  height: 18px;
+}
+
+.seo-property-card {
+  display: grid;
+  grid-template-rows: auto 1fr;
+}
+
+.seo-property-card > div {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+}
+
+.seo-property-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: auto;
+  align-items: center;
+}
+
+.seo-whatsapp-button {
+  padding: 9px 12px;
+  text-decoration: none;
+}
+
+.property-page-layout {
+  grid-template-columns: minmax(0, 1.15fr) minmax(420px, 0.85fr);
+  gap: 28px;
+}
+
+.property-page-summary {
+  min-width: 0;
+}
+
+.property-long-description {
+  max-height: none;
+  overflow: visible;
+}
+
+.pdf-checkbox {
+  min-height: 48px;
+  align-self: end;
+  justify-content: flex-start;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  background: #fff;
+}
+
+.panel-language-toggle {
+  white-space: nowrap;
+}
+
+.auth-modal .text-button,
+.auth-modal [data-auth-tab] {
+  color: var(--blue-950);
+}
+
+.auth-modal .modal-tabs button.active {
+  color: #fff;
+}
+
+@media (max-width: 760px) {
+  .map-location-search,
+  .property-page-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .map-location-search .ghost-button,
+  .whatsapp-card-button {
+    width: 100%;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
@@ -7061,4 +7238,104 @@ button[aria-busy="true"] {
   width: 100%;
   height: 170px;
   object-fit: cover;
+}
+
+.admin-sidebar-subnav {
+  display: grid;
+  gap: 2px;
+  margin: -2px 10px 5px 42px;
+  padding-left: 10px;
+  border-left: 1px solid rgba(255, 255, 255, 0.24);
+}
+
+.admin-sidebar-subnav button,
+.admin-sidebar-subnav a {
+  min-height: 28px;
+  padding: 4px 2px;
+  border: 0;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.76);
+  font: inherit;
+  font-size: 0.68rem;
+  font-weight: 600;
+  text-align: left;
+  text-decoration: none;
+  text-transform: none;
+}
+
+.admin-sidebar-subnav button:hover,
+.admin-sidebar-subnav a:hover {
+  color: #fff;
+}
+
+.development-map-section {
+  display: grid;
+  grid-template-columns: minmax(240px, 0.42fr) minmax(0, 1fr);
+  gap: 28px;
+  margin-top: 36px;
+  padding: 28px;
+  border-top: 3px solid var(--blue-700);
+  background: #f3f9f7;
+}
+
+.development-map-section iframe {
+  width: 100%;
+  min-height: 360px;
+  border: 0;
+}
+
+@media (max-width: 760px) {
+  .development-map-section {
+    grid-template-columns: 1fr;
+    padding: 18px;
+  }
+}
+
+.sidebar-collapsed .admin-sidebar-subnav {
+  display: none;
+}
+
+/* Keep the final cascade aligned with the inventory redesign. */
+.property-card {
+  display: grid;
+  grid-template-rows: auto 1fr;
+}
+
+.property-card .property-image {
+  height: auto;
+  aspect-ratio: 16 / 10;
+}
+
+.property-card .property-body,
+.seo-property-card > div {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+}
+
+.property-card .property-description {
+  min-height: 0;
+  -webkit-line-clamp: 2;
+}
+
+.property-card .property-actions,
+.seo-property-actions {
+  margin-top: auto;
+}
+
+.whatsapp-card-button,
+.seo-whatsapp-button {
+  border-color: #128c4b;
+  background: #128c4b;
+  color: #fff;
+}
+
+.property-page-layout {
+  grid-template-columns: minmax(0, 1.15fr) minmax(420px, 0.85fr);
+}
+
+@media (max-width: 1050px) {
+  .property-page-layout {
+    grid-template-columns: 1fr;
+  }
 }
