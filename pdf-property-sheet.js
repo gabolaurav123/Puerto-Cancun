@@ -52,10 +52,9 @@ function formatNumber(value) {
   return new Intl.NumberFormat("es-MX", { maximumFractionDigits: 2 }).format(Number(value || 0));
 }
 
-function formatMoney(property, currencyPreference = "") {
-  const useMxn = currencyPreference === "MXN" && property.priceMxn;
-  const value = useMxn ? property.priceMxn : property.priceUsd || property.priceMxn;
-  const currency = useMxn ? "MXN" : property.priceUsd ? "USD" : "MXN";
+function formatMoney(property) {
+  const currency = property.currency === "MXN" || (!property.price && !property.priceUsd && property.priceMxn) ? "MXN" : "USD";
+  const value = Number(property.price || (currency === "MXN" ? property.priceMxn : property.priceUsd) || 0);
   return value ? `${currency} ${new Intl.NumberFormat("es-MX", { maximumFractionDigits: 0 }).format(value)}` : "Precio a consultar";
 }
 
@@ -90,7 +89,7 @@ function drawNeutralHeader(document, title) {
   });
 }
 
-function drawNeutralFooter(document, pageNumber, disclaimer) {
+function drawNeutralFooter(document, disclaimer) {
   document.strokeColor(COLORS.line).lineWidth(1).moveTo(42, 744).lineTo(553, 744).stroke();
   document.fillColor(COLORS.muted).font("Helvetica").fontSize(7).text(
     String(disclaimer || "Información sujeta a disponibilidad, validación y cambios sin previo aviso."),
@@ -98,10 +97,6 @@ function drawNeutralFooter(document, pageNumber, disclaimer) {
     752,
     { width: 365, height: 24, ellipsis: true }
   );
-  document.fillColor(COLORS.muted).font("Helvetica").fontSize(7).text(`Página ${pageNumber}`, 430, 752, {
-    width: 123,
-    align: "right",
-  });
   document.text(
     `Generado: ${new Intl.DateTimeFormat("es-MX", { dateStyle: "long" }).format(new Date())}`,
     403,
@@ -110,84 +105,53 @@ function drawNeutralFooter(document, pageNumber, disclaimer) {
   );
 }
 
-function drawNeutralSectionTitle(document, title, y) {
-  document.fillColor(COLORS.ink).font("Times-Bold").fontSize(16).text(title, 42, y, { width: 511 });
-  document.strokeColor(COLORS.line).lineWidth(1).moveTo(42, y + 23).lineTo(553, y + 23).stroke();
-  return y + 38;
-}
-
-function drawNeutralField(document, label, value, x, y, width = 244) {
-  document.fillColor(COLORS.muted).font("Helvetica-Bold").fontSize(7.5).text(label.toUpperCase(), x, y, { width });
-  document.fillColor(COLORS.ink).font("Helvetica").fontSize(10).text(String(value || "No especificado"), x, y + 13, {
-    width,
-    height: 27,
-    ellipsis: true,
-  });
-}
-
-function splitTextForPage(document, value, width, height, textOptions) {
-  const text = String(value || "").trim();
-  if (!text || document.heightOfString(text, { width, ...textOptions }) <= height) return [text, ""];
-  let low = 1;
-  let high = text.length;
-  while (low < high) {
-    const middle = Math.ceil((low + high) / 2);
-    if (document.heightOfString(text.slice(0, middle), { width, ...textOptions }) <= height) low = middle;
-    else high = middle - 1;
-  }
-  const splitAt = Math.max(1, text.lastIndexOf(" ", low));
-  return [text.slice(0, splitAt).trim(), text.slice(splitAt).trim()];
-}
-
 function drawNeutralPropertyPdf(document, { property, images, options }) {
-  const pageSize = [document.page.width, document.page.height];
   document.page.margins.bottom = 10;
-  drawNeutralHeader(document, "FICHA DETALLADA DE PROPIEDAD");
-  document.fillColor(COLORS.ink).font("Times-Bold").fontSize(22).text(property.titleEs, 42, 92, {
+  drawNeutralHeader(document, "FICHA NEUTRA DE PROPIEDAD");
+  document.fillColor(COLORS.ink).font("Times-Bold").fontSize(20).text(property.titleEs, 42, 84, {
     width: 511,
-    height: 55,
+    height: 46,
     ellipsis: true,
   });
-  document.fillColor(COLORS.teal).font("Helvetica-Bold").fontSize(9).text(propertyLocation(property).toUpperCase(), 42, 150, {
+  document.fillColor(COLORS.teal).font("Helvetica-Bold").fontSize(8.5).text(propertyLocation(property).toUpperCase(), 42, 132, {
     width: 511,
-    height: 15,
+    height: 13,
     ellipsis: true,
   });
 
-  const coverImages = images.slice(0, 4);
-  const galleryY = 177;
-  if (coverImages.length >= 3) {
-    coverImages.forEach((image, index) => drawImageFrame(
-      document,
-      image,
-      index % 2 === 0 ? 42 : 304,
-      galleryY + Math.floor(index / 2) * 115,
-      249,
-      105
-    ));
-  } else if (coverImages.length === 2) {
-    drawImageFrame(document, coverImages[0], 42, galleryY, 249, 220);
-    drawImageFrame(document, coverImages[1], 304, galleryY, 249, 220);
-  } else if (coverImages.length === 1) {
-    drawImageFrame(document, coverImages[0], 42, galleryY, 511, 220);
+  const galleryImages = images.slice(0, 6);
+  const galleryY = 153;
+  if (galleryImages.length >= 3) {
+    const cellWidth = 165;
+    const cellHeight = 91;
+    galleryImages.forEach((image, index) => {
+      const x = 42 + (index % 3) * 173;
+      const y = galleryY + Math.floor(index / 3) * 99;
+      drawImageFrame(document, image, x, y, cellWidth, cellHeight);
+    });
+  } else if (galleryImages.length === 2) {
+    drawImageFrame(document, galleryImages[0], 42, galleryY, 249, 190);
+    drawImageFrame(document, galleryImages[1], 304, galleryY, 249, 190);
+  } else if (galleryImages.length === 1) {
+    drawImageFrame(document, galleryImages[0], 42, galleryY, 511, 190);
   } else {
-    document.rect(42, galleryY, 511, 220).fillAndStroke(COLORS.surface, COLORS.line);
-    document.fillColor(COLORS.muted).font("Helvetica").fontSize(10).text("Fotografías no disponibles", 42, galleryY + 98, {
+    document.rect(42, galleryY, 511, 190).fillAndStroke(COLORS.surface, COLORS.line);
+    document.fillColor(COLORS.muted).font("Helvetica").fontSize(10).text("Fotografías no disponibles", 42, galleryY + 84, {
       width: 511,
       align: "center",
     });
   }
 
   document.fillColor(COLORS.gold).font("Times-Bold").fontSize(25).text(
-    options.showPrice === false ? "INFORMACIÓN COMERCIAL" : formatMoney(property, options.currency),
+    options.showPrice === false ? "INFORMACIÓN COMERCIAL" : formatMoney(property),
     42,
-    420,
+    359,
     { width: 330 }
   );
   document.fillColor(COLORS.muted).font("Helvetica-Bold").fontSize(8).text(
     `${property.type || "Propiedad"} · ${property.operation === "rent" ? "EN RENTA" : "EN VENTA"}`.toUpperCase(),
     385,
-    430,
+    369,
     { width: 168, align: "right" }
   );
 
@@ -200,7 +164,7 @@ function drawNeutralPropertyPdf(document, { property, images, options }) {
     property.mls ? `MLS# ${property.mls}` : "",
   ].filter(Boolean);
   let pillX = 42;
-  let pillY = 465;
+  let pillY = 401;
   for (const fact of facts) {
     const estimatedWidth = Math.max(66, Math.min(130, fact.length * 5.1 + 22));
     if (pillX + estimatedWidth > 553) {
@@ -210,83 +174,33 @@ function drawNeutralPropertyPdf(document, { property, images, options }) {
     pillX += drawPill(document, fact, pillX, pillY) + 7;
   }
 
-  const summaryY = pillY + 43;
-  document.fillColor(COLORS.ink).font("Times-Bold").fontSize(15).text("Resumen", 42, summaryY);
-  document.fillColor(COLORS.muted).font("Helvetica").fontSize(9.5).text(
-    conciseDescription(property.descriptionEs || "Consulta la información completa de esta propiedad.", 900),
-    42,
-    summaryY + 24,
-    { width: 511, height: 115, lineGap: 3, ellipsis: true, align: "justify" }
-  );
-  drawNeutralFooter(document, 1, options.disclaimer);
-
-  document.addPage({ size: pageSize, margins: { top: 48, right: 48, bottom: 10, left: 48 } });
-  drawNeutralHeader(document, "INFORMACIÓN COMPLETA");
-  let y = drawNeutralSectionTitle(document, "Datos de la propiedad", 92);
-  const fields = [
-    ["Operación", property.operation === "rent" ? "Renta" : "Venta"],
-    ["Tipo de propiedad", property.type],
-    ["Precio USD", options.showPrice === false || !property.priceUsd ? "No especificado" : `USD ${formatNumber(property.priceUsd)}`],
-    ["Precio MXN", options.showPrice === false || !property.priceMxn ? "No especificado" : `MXN ${formatNumber(property.priceMxn)}`],
-    ["Recámaras", Number(property.beds) > 0 ? formatNumber(property.beds) : "No especificado"],
-    ["Baños", Number(property.baths) > 0 ? formatNumber(property.baths) : "No especificado"],
-    ["Estacionamientos", Number(property.parking) > 0 ? formatNumber(property.parking) : "No especificado"],
-    ["Construcción", Number(property.area) > 0 ? `${formatNumber(property.area)} m²` : "No especificado"],
-    ["Terreno", Number(property.lot) > 0 ? `${formatNumber(property.lot)} m²` : "No especificado"],
-    ["MLS", property.mls || "No especificado"],
-  ];
-  fields.forEach(([label, value], index) => drawNeutralField(
-    document,
-    label,
-    value,
-    index % 2 === 0 ? 42 : 309,
-    y + Math.floor(index / 2) * 48,
-    244
-  ));
-  y += Math.ceil(fields.length / 2) * 48 + 4;
-  y = drawNeutralSectionTitle(document, "Ubicación", y);
-  drawNeutralField(document, "Zona", propertyLocation(property), 42, y, 511);
-  y += 48;
+  let contentY = pillY + 39;
   if (options.showAddress && property.address) {
-    drawNeutralField(document, "Dirección", property.address, 42, y, 511);
-    y += 48;
-  }
-  const amenities = Array.isArray(property.amenities) ? property.amenities.filter(Boolean) : [];
-  y = drawNeutralSectionTitle(document, "Amenidades", y);
-  document.fillColor(COLORS.ink).font("Helvetica").fontSize(9.5).text(
-    amenities.length ? amenities.map((item) => `• ${item}`).join("     ") : "No se registraron amenidades.",
-    42,
-    y,
-    { width: 511, height: Math.max(36, 728 - y), lineGap: 5, ellipsis: true }
-  );
-  drawNeutralFooter(document, 2, options.disclaimer);
-
-  let pageNumber = 2;
-  let remainingDescription = String(property.descriptionEs || "Sin descripción registrada.").trim();
-  while (remainingDescription) {
-    pageNumber += 1;
-    document.addPage({ size: pageSize, margins: { top: 48, right: 48, bottom: 10, left: 48 } });
-    drawNeutralHeader(document, "DESCRIPCIÓN COMPLETA");
-    document.fillColor(COLORS.ink).font("Helvetica").fontSize(9.2);
-    const textOptions = { lineGap: 3 };
-    const [pageText, rest] = splitTextForPage(document, remainingDescription, 511, 630, textOptions);
-    document.text(pageText, 42, 92, { width: 511, ...textOptions, align: "justify" });
-    remainingDescription = rest;
-    drawNeutralFooter(document, pageNumber, options.disclaimer);
-  }
-
-  const extraImages = images.slice(4);
-  for (let index = 0; index < extraImages.length; index += 6) {
-    pageNumber += 1;
-    document.addPage({ size: pageSize, margins: { top: 48, right: 48, bottom: 10, left: 48 } });
-    drawNeutralHeader(document, "GALERÍA DE LA PROPIEDAD");
-    extraImages.slice(index, index + 6).forEach((image, imageIndex) => {
-      const x = imageIndex % 2 === 0 ? 42 : 304;
-      const imageY = 92 + Math.floor(imageIndex / 2) * 210;
-      drawImageFrame(document, image, x, imageY, 249, 190);
+    document.fillColor(COLORS.muted).font("Helvetica-Bold").fontSize(7.5).text("UBICACIÓN", 42, contentY);
+    document.fillColor(COLORS.ink).font("Helvetica").fontSize(9).text(property.address, 106, contentY - 1, {
+      width: 447,
+      height: 14,
+      ellipsis: true,
     });
-    drawNeutralFooter(document, pageNumber, options.disclaimer);
+    contentY += 22;
   }
+  document.fillColor(COLORS.ink).font("Times-Bold").fontSize(14).text("Descripción", 42, contentY);
+  document.fillColor(COLORS.muted).font("Helvetica").fontSize(9.5).text(
+    conciseDescription(property.descriptionEs || "Consulta la información completa de esta propiedad.", 980),
+    42,
+    contentY + 21,
+    { width: 511, height: 105, lineGap: 2.5, ellipsis: true, align: "justify" }
+  );
+  const amenities = Array.isArray(property.amenities) ? property.amenities.filter(Boolean) : [];
+  const amenitiesY = contentY + 136;
+  document.fillColor(COLORS.ink).font("Times-Bold").fontSize(13).text("Amenidades", 42, amenitiesY);
+  document.fillColor(COLORS.ink).font("Helvetica").fontSize(8.5).text(
+    amenities.length ? amenities.slice(0, 12).map((item) => `• ${item}`).join("     ") : "No se registraron amenidades.",
+    42,
+    amenitiesY + 21,
+    { width: 511, height: 44, lineGap: 4, ellipsis: true }
+  );
+  drawNeutralFooter(document, options.disclaimer);
 }
 
 function drawPropertyPdf(document, { property, images = [], propertyUrl, logoPath, options = {} }) {
@@ -348,7 +262,7 @@ function drawPropertyPdf(document, { property, images = [], propertyUrl, logoPat
   }
 
   document.fillColor(COLORS.gold).font("Times-Bold").fontSize(25).text(
-    options.showPrice === false ? "INFORMACIÓN COMERCIAL" : formatMoney(property, options.currency),
+    options.showPrice === false ? "INFORMACIÓN COMERCIAL" : formatMoney(property),
     42,
     430,
     { width: 330 }

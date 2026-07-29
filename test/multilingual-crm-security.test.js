@@ -26,7 +26,9 @@ test("el idioma se guarda antes de navegar y tambien se controla desde los panel
 
 test("desarrollos tiene destino editorial y pagina publica propia", () => {
   assert.match(indexSource, /name="publicationSection"/);
-  assert.match(indexSource, /value="developments"/);
+  assert.match(indexSource, /data-admin-section="developments"/);
+  assert.match(indexSource, /data-admin-section-link="new-development"/);
+  assert.match(indexSource, /data-development-fields/);
   assert.match(serverSource, /publication_section TEXT NOT NULL DEFAULT 'properties'/);
   assert.match(indexSource, /id="developmentsNavLink"/);
 });

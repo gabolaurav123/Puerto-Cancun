@@ -56,6 +56,7 @@ CREATE TABLE IF NOT EXISTS properties (
   title_es TEXT NOT NULL,
   title_en TEXT NOT NULL,
   type TEXT NOT NULL,
+  publication_section TEXT NOT NULL DEFAULT 'properties',
   state TEXT NOT NULL DEFAULT 'Quintana Roo',
   city TEXT NOT NULL DEFAULT 'Cancun',
   zone TEXT NOT NULL,
@@ -67,6 +68,8 @@ CREATE TABLE IF NOT EXISTS properties (
   location_precision TEXT NOT NULL DEFAULT 'approximate',
   google_maps_url TEXT,
   operation TEXT NOT NULL CHECK (operation IN ('sale', 'rent')),
+  price_currency TEXT NOT NULL DEFAULT 'USD' CHECK (price_currency IN ('USD', 'MXN')),
+  price_amount NUMERIC,
   price_usd NUMERIC,
   price_mxn NUMERIC,
   beds INTEGER NOT NULL DEFAULT 0,
@@ -91,6 +94,7 @@ CREATE TABLE IF NOT EXISTS properties (
   archived_at TIMESTAMPTZ,
   description_es TEXT NOT NULL,
   description_en TEXT NOT NULL,
+  development_data JSONB NOT NULL DEFAULT '{}'::jsonb,
   source_request_id TEXT UNIQUE,
   idempotency_key TEXT UNIQUE
 );
@@ -344,6 +348,27 @@ CREATE TABLE IF NOT EXISTS campaigns (
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+
+CREATE TABLE IF NOT EXISTS blog_posts (
+  id TEXT PRIMARY KEY,
+  slug TEXT NOT NULL UNIQUE,
+  title_es TEXT NOT NULL,
+  title_en TEXT NOT NULL,
+  excerpt_es TEXT NOT NULL DEFAULT '',
+  excerpt_en TEXT NOT NULL DEFAULT '',
+  content_es TEXT NOT NULL,
+  content_en TEXT NOT NULL,
+  cover_image TEXT,
+  status TEXT NOT NULL DEFAULT 'draft' CHECK (status IN ('draft', 'published', 'archived')),
+  author_name TEXT NOT NULL DEFAULT 'Puerto Cancun Center',
+  seo_title TEXT,
+  seo_description TEXT,
+  published_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_blog_posts_publication ON blog_posts (status, published_at DESC, updated_at DESC);
 
 CREATE TABLE IF NOT EXISTS app_settings (
   key TEXT PRIMARY KEY,

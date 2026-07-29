@@ -61,6 +61,11 @@ const translations = {
     navPuerto: "Puerto Cancún",
     navZones: "Zonas",
     navDevelopments: "Desarrollos",
+    navResources: "Recursos",
+    resourceMortgage: "Calculadora hipotecaria",
+    resourceBlog: "Blog",
+    resourceBuyerRequirements: "Búsquedas de clientes",
+    footerBlog: "Blog inmobiliario",
     navAbout: "Nosotros",
     menuAllZones: "Ver todas las zonas",
     navSell: "Vender",
@@ -175,7 +180,7 @@ const translations = {
     aboutPuerto: "Sobre Puerto Cancún Center",
     location: "Ubicación",
     legalCopy:
-      "Al navegar en español, los precios se muestran directamente en Pesos Mexicanos (MXN). La versión en inglés los presenta en Dólares de Estados Unidos (USD).",
+      "Cada inmueble conserva la moneda original definida en su publicación, USD o MXN. Cualquier conversión se entrega únicamente como referencia vigente y puede solicitarse a un asesor.",
     rights: "Todos los derechos reservados.",
     backToSite: "Volver al sitio",
     logout: "Cerrar sesión",
@@ -525,6 +530,11 @@ const translations = {
     navPuerto: "Puerto Cancun",
     navZones: "Areas",
     navDevelopments: "Developments",
+    navResources: "Resources",
+    resourceMortgage: "Mortgage calculator",
+    resourceBlog: "Blog",
+    resourceBuyerRequirements: "Client requirements",
+    footerBlog: "Real estate blog",
     navAbout: "About us",
     menuAllZones: "View all areas",
     navSell: "Sell",
@@ -637,7 +647,7 @@ const translations = {
     aboutPuerto: "About Puerto Cancun Center",
     location: "Location",
     legalCopy:
-      "When browsing in English, property prices are shown directly in United States Dollars (USD). The Spanish version presents them in Mexican Pesos (MXN).",
+      "Each property keeps the original currency defined in its listing, USD or MXN. Any conversion is provided only as a current reference and may be requested from an advisor.",
     rights: "All rights reserved.",
     backToSite: "Back to site",
     logout: "Log out",
@@ -994,6 +1004,7 @@ const state = {
   files: [],
   documents: [],
   campaigns: [],
+  blogPosts: [],
   campaignRecipientEmails: new Set(),
   instagramStatus: { connected: false, oauthUrl: "", profileUrl: "https://www.instagram.com/", aiConfigured: false },
   settings: {},
@@ -1869,13 +1880,9 @@ function formatCurrencyLine(code, amount, operation = "sale") {
 }
 
 function localizedPropertyPrice(property) {
-  const exchangeRate = Number(state.config.exchangeRate || 18.5) || 18.5;
-  if (state.lang === "en") {
-    const amount = property.priceUsd ?? (property.priceMxn ? Number(property.priceMxn) / exchangeRate : null);
-    return amount ? ["USD", amount] : null;
-  }
-  const amount = property.priceMxn ?? (property.priceUsd ? Number(property.priceUsd) * exchangeRate : null);
-  return amount ? ["MXN", amount] : null;
+  const currency = property.currency || (property.priceUsd !== null && property.priceUsd !== undefined ? "USD" : "MXN");
+  const amount = property.price ?? (currency === "USD" ? property.priceUsd : property.priceMxn);
+  return amount !== null && amount !== undefined && amount !== "" ? [currency, Number(amount)] : null;
 }
 
 function formatPriceLines(property) {
@@ -2835,6 +2842,7 @@ function renderAdminContacts() {
             <div><span>${escapeHtml(t("propertyType"))}</span><strong>${escapeHtml(contact.propertyType || "-")}</strong></div>
           </div>
           <div class="item-actions">
+            <button class="mini-button" type="button" data-edit-contact="${escapeHtml(contact.id)}">${escapeHtml(t("edit"))}</button>
             ${phoneUrl ? `<a class="mini-button primary" href="${escapeHtml(phoneUrl)}" target="_blank" rel="noopener noreferrer">${escapeHtml(t("respondWhatsApp"))}</a>` : ""}
             ${contact.email ? `<button class="mini-button" type="button" data-compose-email data-email="${escapeHtml(contact.email)}" data-email-name="${escapeHtml(contact.name || "")}" data-email-context="${escapeHtml(contactTypeLabel(contact.contactType))}">${escapeHtml(t("respondEmail"))}</button>` : ""}
           </div>
@@ -3239,10 +3247,15 @@ function populateAdminListingFilter(select, values, current, emptyLabel) {
 
 function renderAdminListingFilters() {
   const filters = state.adminListingFilters;
+  const inventory = state.properties.filter((property) =>
+    state.adminSection === "developments"
+      ? property.publicationSection === "developments"
+      : property.publicationSection !== "developments"
+  );
   const search = $("#adminListingSearch");
   if (search && search.value !== filters.search) search.value = filters.search;
-  populateAdminListingFilter($("#adminListingTypeFilter"), state.properties.map((item) => item.type), filters.type, "Todos");
-  populateAdminListingFilter($("#adminListingZoneFilter"), state.properties.map((item) => item.zone), filters.zone, "Todas");
+  populateAdminListingFilter($("#adminListingTypeFilter"), inventory.map((item) => item.type), filters.type, "Todos");
+  populateAdminListingFilter($("#adminListingZoneFilter"), inventory.map((item) => item.zone), filters.zone, "Todas");
   if ($("#adminListingOperationFilter")) $("#adminListingOperationFilter").value = filters.operation;
   if ($("#adminListingStatusFilter")) $("#adminListingStatusFilter").value = filters.status;
   if ($("#adminListingQualityFilter")) $("#adminListingQualityFilter").value = filters.quality;
@@ -3255,6 +3268,9 @@ function renderAdminListings() {
   const filters = state.adminListingFilters;
   const search = normalizeSearchText(filters.search);
   const properties = allProperties.filter((property) => {
+    const developmentInventory = state.adminSection === "developments";
+    if (developmentInventory && property.publicationSection !== "developments") return false;
+    if (!developmentInventory && property.publicationSection === "developments") return false;
     if (filters.type && property.type !== filters.type) return false;
     if (filters.zone && property.zone !== filters.zone) return false;
     if (filters.operation && property.operation !== filters.operation) return false;
@@ -3836,6 +3852,7 @@ function openEmailComposer(button) {
 
 function renderOperationalModules() {
   renderMarketing();
+  renderAdminBlogPosts();
   renderDocuments();
   renderMediaLibrary();
   renderInternalUsers();
@@ -3935,11 +3952,179 @@ function populateSelect(select, items, label, value = "id", emptyLabel = "Selecc
   if (current && Array.from(select.options).some((option) => option.value === current)) select.value = current;
 }
 
+function renderAdminBlogPosts() {
+  const list = $("#adminBlogPosts");
+  if (!list) return;
+  const search = normalizeSearchText($("#blogAdminSearch")?.value || "");
+  const posts = state.blogPosts.filter((post) =>
+    !search || normalizeSearchText(`${post.titleEs} ${post.titleEn} ${post.slug}`).includes(search)
+  );
+  list.innerHTML = posts.length
+    ? posts.map((post) => `
+        <article class="blog-admin-row">
+          ${post.coverImage ? `<img src="${escapeHtml(post.coverImage)}" alt="" loading="lazy" />` : `<div class="blog-cover-placeholder"><i data-lucide="newspaper"></i></div>`}
+          <div>
+            <span class="status status-${escapeHtml(post.status)}">${escapeHtml(post.status === "published" ? "Publicado" : post.status === "archived" ? "Archivado" : "Borrador")}</span>
+            <h3>${escapeHtml(post.titleEs)}</h3>
+            <p>/${escapeHtml(post.slug)} · ${escapeHtml(formatDate(post.updatedAt))}</p>
+            <div class="item-actions">
+              <button class="mini-button primary" type="button" data-edit-blog="${escapeHtml(post.id)}">Editar</button>
+              ${post.status === "published" ? `<a class="mini-button" href="/blog/${encodeURIComponent(post.slug)}" target="_blank" rel="noopener">Ver público</a>` : ""}
+              <button class="mini-button danger" type="button" data-delete-blog="${escapeHtml(post.id)}">Archivar</button>
+            </div>
+          </div>
+        </article>
+      `).join("")
+    : `<p class="empty-state">No hay artículos que coincidan con la búsqueda.</p>`;
+  refreshIcons();
+}
+
+function resetBlogForm() {
+  const form = $("#blogForm");
+  if (!form) return;
+  form.reset();
+  formField(form, "id").value = "";
+  setFormMessage($("#blogFormMessage"), "");
+}
+
+function editBlogPost(id) {
+  const post = state.blogPosts.find((item) => item.id === id);
+  const form = $("#blogForm");
+  if (!post || !form) return;
+  ["id", "slug", "titleEs", "titleEn", "excerptEs", "excerptEn", "contentEs", "contentEn", "status"].forEach((name) => {
+    formField(form, name).value = post[name] || "";
+  });
+  setAdminSection("blog");
+  form.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+async function blogSubmit(event) {
+  event.preventDefault();
+  const form = event.currentTarget;
+  const button = form.querySelector('[type="submit"]');
+  const id = formField(form, "id").value;
+  setButtonLoading(button, true, "Guardando artículo...");
+  try {
+    let coverImage;
+    const coverFile = formField(form, "coverFile").files?.[0];
+    if (coverFile) coverImage = (await readImageFile(coverFile)).imageDataUrl;
+    const payload = {
+      titleEs: formField(form, "titleEs").value.trim(),
+      titleEn: formField(form, "titleEn").value.trim(),
+      slug: formField(form, "slug").value.trim(),
+      excerptEs: formField(form, "excerptEs").value.trim(),
+      excerptEn: formField(form, "excerptEn").value.trim(),
+      contentEs: formField(form, "contentEs").value.trim(),
+      contentEn: formField(form, "contentEn").value.trim(),
+      status: formField(form, "status").value,
+    };
+    if (coverImage !== undefined) payload.coverImage = coverImage;
+    const data = await api(id ? `/api/admin/blog/${encodeURIComponent(id)}` : "/api/admin/blog", {
+      method: id ? "PUT" : "POST",
+      body: payload,
+      timeoutMs: 60000,
+    });
+    const index = state.blogPosts.findIndex((post) => post.id === data.post.id);
+    if (index >= 0) state.blogPosts.splice(index, 1, data.post);
+    else state.blogPosts.unshift(data.post);
+    resetBlogForm();
+    renderAdminBlogPosts();
+    showToast("Artículo guardado correctamente.");
+  } catch (error) {
+    setFormMessage($("#blogFormMessage"), error.message, true);
+  } finally {
+    setButtonLoading(button, false);
+  }
+}
+
+async function translateBlogPost() {
+  const form = $("#blogForm");
+  const button = $("#translateBlogPost");
+  const title = formField(form, "titleEs").value.trim();
+  const description = formField(form, "contentEs").value.trim();
+  if (!title || !description) {
+    setFormMessage($("#blogFormMessage"), "Completa el título y contenido en español.", true);
+    return;
+  }
+  setButtonLoading(button, true, "Traduciendo...");
+  try {
+    const translated = await api("/api/admin/ai/translate-property", { method: "POST", body: { title, description }, timeoutMs: 60000 });
+    formField(form, "titleEn").value = translated.titleEn;
+    formField(form, "contentEn").value = translated.descriptionEn;
+    if (!formField(form, "excerptEn").value) formField(form, "excerptEn").value = translated.descriptionEn.slice(0, 360);
+    setFormMessage($("#blogFormMessage"), "Traducción generada. Revísala antes de publicar.");
+  } catch (error) {
+    setFormMessage($("#blogFormMessage"), error.message, true);
+  } finally {
+    setButtonLoading(button, false);
+  }
+}
+
+async function deleteBlogPost(id) {
+  try {
+    await api(`/api/admin/blog/${encodeURIComponent(id)}`, { method: "DELETE" });
+    const post = state.blogPosts.find((item) => item.id === id);
+    if (post) post.status = "archived";
+    renderAdminBlogPosts();
+    showToast("Artículo archivado.");
+  } catch (error) {
+    showToast(error.message, "error");
+  }
+}
+
+function propertySearchLabel(property) {
+  const mls = property.mls ? `MLS# ${property.mls} · ` : "";
+  return `${mls}${property.titleEs || property.title || "Sin título"} · ${displayLocation(property)}`;
+}
+
+function populatePropertyPicker(searchSelector, datalistSelector, selectSelector, emptyLabel = "Sin propiedad") {
+  const searchInput = $(searchSelector);
+  const datalist = $(datalistSelector);
+  const select = $(selectSelector);
+  if (!searchInput || !datalist || !select) return;
+  const currentId = select.value;
+  populateSelect(select, state.properties, propertySearchLabel, "id", emptyLabel);
+  if (currentId) select.value = currentId;
+  const labels = new Map();
+  datalist.innerHTML = "";
+  state.properties.forEach((property) => {
+    const label = propertySearchLabel(property);
+    labels.set(normalizeSearchText(label), property.id);
+    const option = document.createElement("option");
+    option.value = label;
+    datalist.append(option);
+  });
+  if (select.value) {
+    const selected = state.properties.find((property) => property.id === select.value);
+    if (selected && !searchInput.matches(":focus")) searchInput.value = propertySearchLabel(selected);
+  }
+  searchInput.oninput = () => {
+    const normalized = normalizeSearchText(searchInput.value);
+    let id = labels.get(normalized) || "";
+    if (!id && normalized) {
+      const matches = state.properties.filter((property) => {
+        const mls = normalizeSearchText(property.mls);
+        const title = normalizeSearchText(property.titleEs || property.title);
+        return mls === normalized || title === normalized || normalizeSearchText(propertySearchLabel(property)).includes(normalized);
+      });
+      if (matches.length === 1) id = matches[0].id;
+    }
+    select.value = id;
+    select.dispatchEvent(new Event("change", { bubbles: true }));
+  };
+  select.onchange = () => {
+    const selected = state.properties.find((property) => property.id === select.value);
+    if (selected) searchInput.value = propertySearchLabel(selected);
+    else if (!searchInput.matches(":focus")) searchInput.value = "";
+  };
+}
+
 function populateOperationalSelects() {
   populateSelect($("#aiPropertySelect"), state.properties, (item) => item.titleEs, "id", "Sin propiedad");
-  populateSelect($("#campaignPropertySelect"), state.properties, (item) => item.titleEs, "id", "Sin propiedad");
   populateSelect($("#instagramPropertySelect"), state.properties, (item) => `${item.titleEs} · ${displayLocation(item)}`, "id", "Selecciona una propiedad");
-  populateSelect($("#pdfPropertySelect"), state.properties, (item) => item.titleEs, "id", "Selecciona una propiedad");
+  populateSelect($("#marketingPropertySelect"), state.properties, (item) => `${item.titleEs} · ${displayLocation(item)}`, "id", "Selecciona una propiedad");
+  populatePropertyPicker("#campaignPropertySearch", "#campaignPropertySuggestions", "#campaignPropertySelect", "Sin propiedad");
+  populatePropertyPicker("#pdfPropertySearch", "#pdfPropertySuggestions", "#pdfPropertySelect", "Selecciona una propiedad");
   populateSelect($("#pdfValuationSelect"), state.valuations, (item) => `${item.ownerName} · ${item.zone || "Sin zona"}`, "id", "Selecciona una valoración");
   populateSelect($("#aiRequestSelect"), state.leads, (item) => `${item.name} · ${leadTypeLabel(item.leadType)}`, "id", "Sin solicitud");
   $$("[data-staff-select]").forEach((select) => {
@@ -4132,10 +4317,11 @@ async function contactSubmit(event) {
   event.preventDefault();
   const form = event.currentTarget;
   const button = form.querySelector('[type="submit"]');
+  const id = formField(form, "id")?.value || "";
   setButtonLoading(button, true);
   try {
-    await api("/api/admin/contacts", {
-      method: "POST",
+    await api(id ? `/api/admin/contacts/${encodeURIComponent(id)}` : "/api/admin/contacts", {
+      method: id ? "PATCH" : "POST",
       body: {
         name: form.name.value.trim(),
         email: form.email.value.trim(),
@@ -4148,9 +4334,9 @@ async function contactSubmit(event) {
         notes: form.notes.value.trim(),
       },
     });
-    form.reset();
+    resetContactForm();
     await renderPanel();
-    showToast("Contacto creado en el CRM.");
+    showToast(id ? "Contacto actualizado en el CRM." : "Contacto creado en el CRM.");
   } catch (error) {
     setFormMessage($("#contactFormMessage"), error.message, true);
   } finally {
@@ -4239,6 +4425,37 @@ async function campaignSubmit(event) {
   }
 }
 
+function resetContactForm() {
+  const form = $("#contactForm");
+  if (!form) return;
+  form.reset();
+  formField(form, "id").value = "";
+  if ($("#contactFormTitle")) $("#contactFormTitle").textContent = "Crear contacto";
+  if ($("#saveContactButton")) $("#saveContactButton").textContent = "Crear contacto";
+  if ($("#cancelContactEdit")) $("#cancelContactEdit").hidden = true;
+  setFormMessage($("#contactFormMessage"), "");
+}
+
+function editContact(id) {
+  const contact = state.contacts.find((item) => item.id === id);
+  const form = $("#contactForm");
+  if (!contact || !form) return;
+  formField(form, "id").value = contact.id;
+  formField(form, "name").value = contact.name || "";
+  formField(form, "email").value = contact.email || "";
+  formField(form, "phone").value = contact.phone || "";
+  formField(form, "contactType").value = contact.contactType || "unclassified";
+  formField(form, "zone").value = contact.preferredZones?.[0] || "";
+  formField(form, "budgetMax").value = contact.budgetMax || "";
+  formField(form, "assignedTo").value = contact.assignedTo || "";
+  formField(form, "leadScore").value = contact.leadScore || "warm";
+  formField(form, "notes").value = contact.notes || "";
+  if ($("#contactFormTitle")) $("#contactFormTitle").textContent = "Editar contacto";
+  if ($("#saveContactButton")) $("#saveContactButton").textContent = "Guardar cambios";
+  if ($("#cancelContactEdit")) $("#cancelContactEdit").hidden = false;
+  form.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
 async function markCampaignSent(id) {
   await api(`/api/admin/campaigns/${encodeURIComponent(id)}`, { method: "PATCH", body: { status: "sent" } });
   await renderPanel();
@@ -4280,6 +4497,65 @@ async function generateCampaignCopy() {
   showToast("Borrador generado. Revísalo antes de guardarlo.");
 }
 
+async function generateMarketingKit() {
+  const form = $("#marketingCreativeForm");
+  const button = $("#generateMarketingKit");
+  if (!form?.propertyId.value) {
+    setFormMessage($("#marketingCreativeMessage"), "Selecciona una propiedad.", true);
+    return;
+  }
+  setButtonLoading(button, true, "Generando paquete...");
+  try {
+    const data = await api("/api/admin/ai/generate", {
+      method: "POST",
+      body: {
+        tool: "campaign",
+        propertyId: form.propertyId.value,
+        input: `Canal: ${form.channel.value}. Objetivo: ${form.objective.value}. ${form.prompt.value}`,
+      },
+      timeoutMs: 60000,
+    });
+    $("#marketingGeneratedCopy").value = typeof data.result === "string" ? data.result : [
+      data.result.emailSubject ? `ASUNTO\n${data.result.emailSubject}` : "",
+      data.result.emailBody ? `CORREO\n${data.result.emailBody}` : "",
+      data.result.social ? `REDES\n${data.result.social}` : "",
+      data.result.whatsapp ? `WHATSAPP\n${data.result.whatsapp}` : "",
+    ].filter(Boolean).join("\n\n");
+    $("#marketingCreativeOutput").hidden = false;
+    setFormMessage($("#marketingCreativeMessage"), "Paquete generado. Revisa cada texto antes de publicarlo.");
+  } catch (error) {
+    setFormMessage($("#marketingCreativeMessage"), error.message, true);
+  } finally {
+    setButtonLoading(button, false);
+  }
+}
+
+async function marketingCreativeSubmit(event) {
+  event.preventDefault();
+  const form = event.currentTarget;
+  const button = event.submitter || form.querySelector('[type="submit"]');
+  setButtonLoading(button, true, "Generando imagen...");
+  try {
+    const data = await api("/api/admin/ai/generate-image", {
+      method: "POST",
+      body: Object.fromEntries(new FormData(form).entries()),
+      timeoutMs: 120000,
+    });
+    const imageUrl = data.dataUrl || data.url;
+    if (!imageUrl) throw new Error("No se recibió una imagen.");
+    $("#marketingGeneratedImage").src = imageUrl;
+    $("#marketingCreativeOutput").hidden = false;
+    const download = $("#downloadMarketingImage");
+    download.href = imageUrl;
+    download.hidden = false;
+    setFormMessage($("#marketingCreativeMessage"), "Propuesta visual generada. Revísala antes de descargarla o publicarla.");
+  } catch (error) {
+    setFormMessage($("#marketingCreativeMessage"), error.message, true);
+  } finally {
+    setButtonLoading(button, false);
+  }
+}
+
 async function aiToolSubmit(event) {
   event.preventDefault();
   const form = event.currentTarget;
@@ -4291,7 +4567,9 @@ async function aiToolSubmit(event) {
       body: Object.fromEntries(new FormData(form).entries()),
     });
     $("#aiResult").value = typeof data.result === "string" ? data.result : JSON.stringify(data.result, null, 2);
-    setFormMessage($("#aiToolMessage"), "Borrador generado con reglas internas. Requiere revisión humana.");
+    setFormMessage($("#aiToolMessage"), data.provider === "openai"
+      ? "Borrador generado con IA. Requiere revisión humana."
+      : "Borrador generado con reglas internas. Requiere revisión humana.");
   } catch (error) {
     setFormMessage($("#aiToolMessage"), error.message, true);
   } finally {
@@ -4331,7 +4609,7 @@ function previewPdf() {
       <p>${escapeHtml(entity.comments || "Requiere revisión del asesor.")}</p>
     `
     : `
-      <span class="eyebrow">${form.brandMode.value === "neutral" ? "FICHA NEUTRA DETALLADA" : "FICHA COMERCIAL · PUERTO CANCÚN CENTER"}</span>
+      <span class="eyebrow">${form.brandMode.value === "neutral" ? "FICHA NEUTRA · UNA PÁGINA" : "FICHA COMERCIAL · PUERTO CANCÚN CENTER"}</span>
       <h3>${escapeHtml(entity.titleEs)}</h3>
       <p>${escapeHtml(displayLocation(entity))} · ${escapeHtml(entity.type)}</p>
       ${form.showPrice.checked ? `<div class="preview-price">${escapeHtml(formatPriceSummary(entity))}</div>` : ""}
@@ -4391,6 +4669,7 @@ async function generatePropertyPdf(propertyId, brandMode, button) {
   const form = $("#pdfForm");
   if (form) {
     form.propertyId.value = property.id;
+    if ($("#pdfPropertySearch")) $("#pdfPropertySearch").value = propertySearchLabel(property);
     form.brandMode.value = mode;
     if (state.adminSection === "pdf") previewPdf();
   }
@@ -5032,6 +5311,7 @@ async function loadPanelData() {
       panelApi("/api/admin/whatsapp/leads"),
       panelApi("/api/admin/activity?limit=80"),
       panelApi("/api/health"),
+      panelApi("/api/admin/blog"),
     ]);
     const adminValue = (index, fallback = {}) => adminResults[index].status === "fulfilled" ? adminResults[index].value : fallback;
     const [
@@ -5058,6 +5338,7 @@ async function loadPanelData() {
       whatsappLeadsData,
       activityData,
       systemHealthData,
+      blogData,
     ] = adminResults.map((result, index) => adminValue(index));
     if (adminResults[0].status === "fulfilled") state.stats = statsData;
     state.requests = requestsData.requests || state.requests;
@@ -5082,6 +5363,7 @@ async function loadPanelData() {
     state.whatsapp.leads = whatsappLeadsData.leads || state.whatsapp.leads;
     state.activity = activityData.activity || state.activity;
     if (adminResults[22].status === "fulfilled") state.systemHealth = systemHealthData || state.systemHealth;
+    state.blogPosts = blogData.posts || state.blogPosts;
     const failedModules = adminResults.filter((result) => result.status === "rejected").length;
     if (failedModules) showToast(`${failedModules} módulo${failedModules === 1 ? "" : "s"} no respondió. El resto del panel continúa disponible.`, "error");
     state.serviceRequests = [];
@@ -5111,6 +5393,7 @@ async function loadPanelData() {
     state.files = [];
     state.documents = [];
     state.campaigns = [];
+    state.blogPosts = [];
     state.instagramStatus = { connected: false, oauthUrl: "", profileUrl: "https://www.instagram.com/", aiConfigured: false };
     state.settings = {};
     state.activity = [];
@@ -5217,29 +5500,36 @@ function updateAdminShell() {
   if (!$("#adminPanel")) return;
   const section = state.adminSection || "dashboard";
   $$("[data-admin-section]").forEach((button) => {
-    const active = button.dataset.adminSection === section || (button.dataset.adminSection === "properties" && section === "new-property");
+    const active = button.dataset.adminSection === section
+      || (button.dataset.adminSection === "properties" && section === "new-property")
+      || (button.dataset.adminSection === "developments" && section === "new-development");
     button.classList.toggle("active", active);
   });
   $$("[data-admin-section-panel]").forEach((panel) => {
     panel.hidden = !String(panel.dataset.adminSectionPanel || "").split(/\s+/).includes(section);
   });
   $$("[data-admin-listing-view]").forEach((view) => {
-    view.hidden = view.dataset.adminListingView !== section;
+    view.hidden = !String(view.dataset.adminListingView || "").split(/\s+/).includes(section);
   });
   const listingsTitle = $("#adminListingsTitle");
   if (listingsTitle) {
-    listingsTitle.textContent = section === "new-property"
-      ? (state.lang === "en" ? "New listing" : "Nueva publicación")
-      : (state.lang === "en" ? "Listing inventory" : "Inventario de publicaciones");
+    const labels = {
+      properties: state.lang === "en" ? "Property inventory" : "Inventario de propiedades",
+      "new-property": state.lang === "en" ? "New property" : "Nueva propiedad",
+      developments: state.lang === "en" ? "Development inventory" : "Inventario de desarrollos",
+      "new-development": state.lang === "en" ? "New development" : "Nuevo desarrollo",
+    };
+    listingsTitle.textContent = labels[section] || (state.lang === "en" ? "Listing inventory" : "Inventario de publicaciones");
   }
   const operationsGrid = $("#adminOperationsGrid");
-  if (operationsGrid) operationsGrid.hidden = !["requests", "properties", "new-property"].includes(section);
+  if (operationsGrid) operationsGrid.hidden = !["requests", "properties", "new-property", "developments", "new-development"].includes(section);
   $$(".admin-sidebar-subnav").forEach((subnav) => {
     const parent = subnav.previousElementSibling;
     const childSections = Array.from(subnav.querySelectorAll("[data-admin-section-link]")).map((item) => item.dataset.adminSectionLink);
     const belongsToSection = parent?.dataset.adminSection === section
       || childSections.includes(section)
-      || (parent?.dataset.adminSection === "properties" && section === "new-property");
+      || (parent?.dataset.adminSection === "properties" && section === "new-property")
+      || (parent?.dataset.adminSection === "developments" && section === "new-development");
     const open = belongsToSection && subnav.dataset.userCollapsed !== "true";
     subnav.classList.toggle("is-open", open);
     if (parent?.matches("[data-admin-section]")) parent.setAttribute("aria-expanded", String(open));
@@ -5260,17 +5550,30 @@ function updateAdminShell() {
 function setAdminSection(section) {
   const previousSection = state.adminSection;
   const listingForm = $("#listingForm");
-  if (previousSection === "new-property" && section !== "new-property" && listingForm?.dataset.saving === "true") {
+  const wasListingForm = ["new-property", "new-development"].includes(previousSection);
+  const opensListingForm = ["new-property", "new-development"].includes(section);
+  if (wasListingForm && !opensListingForm && listingForm?.dataset.saving === "true") {
     showToast("Espera a que termine de guardarse la publicación.");
     return;
   }
-  if (previousSection === "new-property" && section !== "new-property") {
+  if (wasListingForm && !opensListingForm) {
     resetListingForm(true);
   }
   state.adminSection = section || "dashboard";
+  if (opensListingForm && listingForm) {
+    formField(listingForm, "publicationSection").value = section === "new-development" ? "developments" : "properties";
+    const developmentFields = listingForm.querySelector("[data-development-fields]");
+    if (developmentFields) developmentFields.hidden = section !== "new-development";
+    if (section === "new-development" && !formField(listingForm, "id").value) formField(listingForm, "type").value = "Desarrollo";
+  }
   if (state.adminSection === "whatsapp") startWhatsappPolling();
   else stopWhatsappPolling();
   updateAdminShell();
+  if (["properties", "developments"].includes(state.adminSection)) {
+    state.adminListingFilters = { search: "", type: "", zone: "", operation: "", status: "", quality: "", missingCover: false };
+    renderAdminListingFilters();
+    renderAdminListings();
+  }
   $("#adminPanel")?.scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
@@ -5452,6 +5755,9 @@ const localizedRoutes = {
   "/vender-casa-cancun": "/en/sell-property-cancun",
   "/valuacion-inmobiliaria-cancun": "/en/property-valuation-cancun",
   "/faq-inmobiliario-cancun": "/en/cancun-real-estate-faq",
+  "/calculadora-hipotecaria": "/en/mortgage-calculator",
+  "/blog": "/en/blog",
+  "/busquedas-clientes": "/en/client-requirements",
 };
 
 function localizedRoute(pathname, lang = state.lang) {
@@ -5472,7 +5778,6 @@ function updateLocalizedLinks() {
 function applyTranslations() {
   document.documentElement.lang = state.lang;
   document.body.dataset.lang = state.lang;
-  state.currency = state.lang === "en" ? "USD" : "MXN";
   $$("[data-i18n]").forEach((element) => {
     const key = element.dataset.i18n;
     element.textContent = t(key);
@@ -5983,6 +6288,12 @@ function resetListingForm(clearDraft = true) {
   delete form.dataset.idempotencyKey;
   if (formField(form, "status")) formField(form, "status").value = "active";
   if (formField(form, "isPublic")) formField(form, "isPublic").checked = true;
+  if (formField(form, "publicationSection")) {
+    formField(form, "publicationSection").value = state.adminSection === "new-development" ? "developments" : "properties";
+  }
+  const developmentFields = form.querySelector("[data-development-fields]");
+  if (developmentFields) developmentFields.hidden = state.adminSection !== "new-development";
+  if (state.adminSection === "new-development" && formField(form, "type")) formField(form, "type").value = "Desarrollo";
   refreshLocationSelects();
   resetMapPickerForForm(form);
   updateListingImagePreview([]);
@@ -6279,14 +6590,14 @@ async function listingSubmit(event) {
   const message = $("#listingFormMessage");
   setFormMessage(message, "");
   if (!form.reportValidity()) return;
-  const priceUsd = field("priceUsd").value === "" ? null : Number(field("priceUsd").value);
-  const priceMxn = field("priceMxn").value === "" ? null : Number(field("priceMxn").value);
-  if (priceUsd === null && priceMxn === null) {
+  const currency = field("currency").value === "MXN" ? "MXN" : "USD";
+  const price = field("price").value === "" ? null : Number(field("price").value);
+  if (price === null) {
     setFormMessage(message, t("missingPrice"), true);
     return;
   }
-  if (!Number.isFinite(priceUsd ?? priceMxn) || (priceUsd !== null && priceUsd < 0) || (priceMxn !== null && priceMxn < 0)) {
-    setFormMessage(message, "Revisa los precios ingresados.", true);
+  if (!Number.isFinite(price) || price < 0) {
+    setFormMessage(message, "Revisa el precio ingresado.", true);
     return;
   }
   const latitude = field("latitude").value === "" ? null : Number(field("latitude").value);
@@ -6304,7 +6615,7 @@ async function listingSubmit(event) {
   const payload = {
     title: field("title").value.trim(),
     titleEn: field("titleEn").value.trim(),
-    publicationSection: form.querySelector('[name="publicationSection"]:checked')?.value || "properties",
+    publicationSection: field("publicationSection").value === "developments" ? "developments" : "properties",
     type: field("type").value,
     state: field("state").value,
     city: field("city").value,
@@ -6319,8 +6630,8 @@ async function listingSubmit(event) {
     operation: field("operation").value,
     status: field("status").value,
     isPublic: field("isPublic").checked,
-    priceUsd,
-    priceMxn,
+    currency,
+    price,
     beds: Number(field("beds").value || 0),
     baths: Number(field("baths").value || 0),
     parking: Number(field("parking").value || 0),
@@ -6335,6 +6646,17 @@ async function listingSubmit(event) {
     badges: ["new"],
     expectedUpdatedAt: currentProperty?.updatedAt || null,
   };
+  if (payload.publicationSection === "developments") {
+    Object.assign(payload, {
+      developer: field("developer").value.trim(),
+      developmentStage: field("developmentStage").value,
+      deliveryDate: field("deliveryDate").value,
+      units: Number(field("units").value || 0),
+      availableUnits: Number(field("availableUnits").value || 0),
+      paymentPlan: field("paymentPlan").value.trim(),
+      investmentHighlights: field("investmentHighlights").value.trim(),
+    });
+  }
   const idempotencyKey = id ? "" : form.dataset.idempotencyKey || globalThis.crypto?.randomUUID?.() || `listing-${Date.now()}-${Math.random().toString(16).slice(2)}`;
   if (!id) form.dataset.idempotencyKey = idempotencyKey;
   form.dataset.saving = "true";
@@ -6346,6 +6668,7 @@ async function listingSubmit(event) {
     setFormMessage(message, "El guardado está tardando más de lo normal. No cierres esta ventana.");
   }, 12000);
   let savedSuccessfully = false;
+  let savedSection = payload.publicationSection;
   try {
     Object.assign(payload, await getListingImagePayload(form));
     const data = await api(id ? `/api/admin/properties/${encodeURIComponent(id)}` : "/api/admin/properties", {
@@ -6355,6 +6678,7 @@ async function listingSubmit(event) {
       timeoutMs: 60000,
     });
     const saved = data.property;
+    savedSection = saved.publicationSection || savedSection;
     const existingIndex = state.properties.findIndex((property) => property.id === saved.id);
     if (existingIndex >= 0) state.properties.splice(existingIndex, 1, saved);
     else state.properties.unshift(saved);
@@ -6380,7 +6704,7 @@ async function listingSubmit(event) {
     window.clearTimeout(slowTimer);
     form.dataset.saving = "false";
     setButtonLoading(submit, false);
-    if (savedSuccessfully) setAdminSection("properties");
+    if (savedSuccessfully) setAdminSection(savedSection === "developments" ? "developments" : "properties");
   }
 }
 
@@ -6414,22 +6738,32 @@ async function translateListingToEnglish() {
 function editListing(id) {
   const property = state.properties.find((item) => item.id === id);
   if (!property) return;
-  if (state.adminSection !== "new-property") setAdminSection("new-property");
+  const publicationSection = property.publicationSection || (property.type === "Desarrollo" ? "developments" : "properties");
+  const editSection = publicationSection === "developments" ? "new-development" : "new-property";
+  if (state.adminSection !== editSection) setAdminSection(editSection);
   const form = $("#listingForm");
   const field = (name) => formField(form, name);
   field("id").value = property.id;
   field("title").value = property.titleEs || property.title || "";
   field("titleEn").value = property.titleEn || "";
-  const publicationSection = property.publicationSection || (property.type === "Desarrollo" ? "developments" : "properties");
-  const publicationField = form.querySelector(`[name="publicationSection"][value="${publicationSection}"]`);
-  if (publicationField) publicationField.checked = true;
+  field("publicationSection").value = publicationSection;
+  const developmentFields = form.querySelector("[data-development-fields]");
+  if (developmentFields) developmentFields.hidden = publicationSection !== "developments";
   field("type").value = property.type;
   setLocationFormValues(form, property);
   field("operation").value = property.operation;
   field("status").value = property.status || "active";
   field("isPublic").checked = property.isPublic !== false;
-  field("priceUsd").value = property.priceUsd || "";
-  field("priceMxn").value = property.priceMxn || "";
+  field("currency").value = property.currency || (property.priceUsd !== null && property.priceUsd !== undefined ? "USD" : "MXN");
+  field("price").value = property.price ?? (field("currency").value === "USD" ? property.priceUsd : property.priceMxn) ?? "";
+  const developmentData = property.developmentData || {};
+  field("developer").value = developmentData.developer || "";
+  field("developmentStage").value = developmentData.stage || "";
+  field("deliveryDate").value = developmentData.deliveryDate || "";
+  field("units").value = developmentData.units || "";
+  field("availableUnits").value = developmentData.availableUnits || "";
+  field("paymentPlan").value = developmentData.paymentPlan || "";
+  field("investmentHighlights").value = developmentData.investmentHighlights || "";
   field("address").value = property.address || "";
   field("latitude").value = property.latitude ?? "";
   field("longitude").value = property.longitude ?? "";
@@ -7281,6 +7615,7 @@ function bindEvents() {
   $("#valuationForm")?.addEventListener("submit", valuationSubmit);
   $("#taskForm")?.addEventListener("submit", taskSubmit);
   $("#contactForm")?.addEventListener("submit", contactSubmit);
+  $("#cancelContactEdit")?.addEventListener("click", resetContactForm);
   $("#buyerForm")?.addEventListener("submit", buyerSubmit);
   $("#campaignForm")?.addEventListener("submit", campaignSubmit);
   $$('[name="recipientMode"]').forEach((input) => input.addEventListener("change", renderCampaignRecipientPicker));
@@ -7302,6 +7637,13 @@ function bindEvents() {
   });
   $("#instagramPostForm")?.addEventListener("submit", instagramPostSubmit);
   $("#copyInstagramPost")?.addEventListener("click", () => void copyInstagramPost());
+  $("#marketingCreativeForm")?.addEventListener("submit", marketingCreativeSubmit);
+  $("#generateMarketingKit")?.addEventListener("click", () => void generateMarketingKit());
+  $("#copyMarketingKit")?.addEventListener("click", () => navigator.clipboard.writeText($("#marketingGeneratedCopy")?.value || "").then(() => showToast("Textos copiados.")));
+  $("#blogForm")?.addEventListener("submit", blogSubmit);
+  $("#translateBlogPost")?.addEventListener("click", () => void translateBlogPost());
+  $("#resetBlogForm")?.addEventListener("click", resetBlogForm);
+  $("#blogAdminSearch")?.addEventListener("input", renderAdminBlogPosts);
   $("#aiToolForm")?.addEventListener("submit", aiToolSubmit);
   $("#pdfForm")?.addEventListener("submit", pdfSubmit);
   $("#mediaUploadForm")?.addEventListener("submit", mediaUploadSubmit);
@@ -7575,6 +7917,15 @@ function bindEvents() {
     const edit = event.target.closest("[data-edit-listing]");
     if (edit) editListing(edit.dataset.editListing);
 
+    const editContactButton = event.target.closest("[data-edit-contact]");
+    if (editContactButton) editContact(editContactButton.dataset.editContact);
+
+    const editBlogButton = event.target.closest("[data-edit-blog]");
+    if (editBlogButton) editBlogPost(editBlogButton.dataset.editBlog);
+
+    const deleteBlogButton = event.target.closest("[data-delete-blog]");
+    if (deleteBlogButton) void deleteBlogPost(deleteBlogButton.dataset.deleteBlog);
+
     const remove = event.target.closest("[data-delete-listing]");
     if (remove) void deleteListing(remove.dataset.deleteListing);
 
@@ -7735,6 +8086,70 @@ function bindEvents() {
   });
 }
 
+function initializeMortgageCalculator() {
+  const form = $("#mortgageCalculatorForm");
+  const output = $("#mortgageResults");
+  if (!form || !output) return;
+  const calculate = () => {
+    const price = Math.max(0, Number(form.price.value || 0));
+    const downPercent = Math.min(95, Math.max(0, Number(form.downPayment.value || 0)));
+    const annualRate = Math.max(0, Number(form.annualRate.value || 0)) / 100;
+    const years = Math.max(1, Number(form.years.value || 1));
+    const downAmount = price * (downPercent / 100);
+    const principal = price - downAmount;
+    const months = years * 12;
+    const monthlyRate = annualRate / 12;
+    const payment = monthlyRate
+      ? principal * (monthlyRate * (1 + monthlyRate) ** months) / ((1 + monthlyRate) ** months - 1)
+      : principal / months;
+    const total = payment * months;
+    const format = (value) => `${form.currency.value} $${new Intl.NumberFormat(state.lang === "en" ? "en-US" : "es-MX", { maximumFractionDigits: 0 }).format(value)}`;
+    output.innerHTML = `
+      <article><span>${state.lang === "en" ? "Down payment" : "Enganche"}</span><strong>${escapeHtml(format(downAmount))}</strong></article>
+      <article><span>${state.lang === "en" ? "Financed amount" : "Monto financiado"}</span><strong>${escapeHtml(format(principal))}</strong></article>
+      <article><span>${state.lang === "en" ? "Estimated monthly payment" : "Mensualidad estimada"}</span><strong>${escapeHtml(format(payment))}</strong></article>
+      <article><span>${state.lang === "en" ? "Estimated interest" : "Intereses estimados"}</span><strong>${escapeHtml(format(Math.max(0, total - principal)))}</strong></article>
+    `;
+  };
+  form.addEventListener("submit", (event) => {
+    event.preventDefault();
+    calculate();
+  });
+  form.addEventListener("input", calculate);
+  calculate();
+}
+
+async function loadPublicBlog() {
+  const list = $("#publicBlogList");
+  if (!list) return;
+  try {
+    const data = await api(`/api/blog?lang=${encodeURIComponent(state.lang)}`);
+    list.innerHTML = data.posts?.length
+      ? data.posts.map((post) => {
+          const title = state.lang === "en" ? post.titleEn || post.titleEs : post.titleEs;
+          const excerpt = state.lang === "en" ? post.excerptEn || post.excerptEs : post.excerptEs;
+          const href = `${state.lang === "en" ? "/en/blog" : "/blog"}/${encodeURIComponent(post.slug)}`;
+          return `<article class="public-blog-card">${post.coverImage ? `<a href="${href}"><img src="${escapeHtml(post.coverImage)}" alt="${escapeHtml(title)}" loading="lazy" /></a>` : ""}<div><span class="seo-eyebrow">${escapeHtml(formatDate(post.publishedAt || post.updatedAt))}</span><h2><a href="${href}">${escapeHtml(title)}</a></h2><p>${escapeHtml(excerpt || "")}</p><a class="text-link" href="${href}">${state.lang === "en" ? "Read article" : "Leer artículo"}</a></div></article>`;
+        }).join("")
+      : `<p class="empty-state">${state.lang === "en" ? "No articles have been published yet." : "Aún no hay artículos publicados."}</p>`;
+  } catch (error) {
+    list.innerHTML = `<p class="empty-state">${escapeHtml(error.message)}</p>`;
+  }
+}
+
+async function loadPublicBuyerRequirements() {
+  const list = $("#buyerRequirementsPublic");
+  if (!list) return;
+  try {
+    const data = await api("/api/public/buyer-requirements");
+    list.innerHTML = data.requirements?.length
+      ? data.requirements.map((requirement) => `<article class="buyer-requirement-card"><span class="status">${escapeHtml(requirement.urgency || "active")}</span><h2>${escapeHtml((requirement.propertyTypes || []).join(", ") || (state.lang === "en" ? "Property" : "Propiedad"))}</h2><p>${escapeHtml((requirement.preferredZones || []).join(", ") || "Cancún")}</p><dl><dt>${state.lang === "en" ? "Budget" : "Presupuesto"}</dt><dd>${escapeHtml([requirement.budgetMin, requirement.budgetMax].filter(Boolean).map((value) => `USD $${Number(value).toLocaleString()}`).join(" - ") || (state.lang === "en" ? "To be defined" : "Por definir"))}</dd><dt>${state.lang === "en" ? "Operation" : "Operación"}</dt><dd>${escapeHtml(requirement.operation || "sale")}</dd></dl><a class="primary-button" href="${state.lang === "en" ? "/en/sell-property-cancun" : "/vender-casa-cancun"}">${state.lang === "en" ? "I have a compatible property" : "Tengo una propiedad compatible"}</a></article>`).join("")
+      : `<p class="empty-state">${state.lang === "en" ? "No public requirements are available right now." : "No hay búsquedas públicas activas en este momento."}</p>`;
+  } catch (error) {
+    list.innerHTML = `<p class="empty-state">${escapeHtml(error.message)}</p>`;
+  }
+}
+
 async function init() {
   const renderedLanguage = document.body.dataset.lang || (window.location.pathname.startsWith("/en") ? "en" : "es");
   if (storedLanguage && storedLanguage !== renderedLanguage && document.body.dataset.alternateUrl) {
@@ -7753,6 +8168,9 @@ async function init() {
     showToast(t("apiError"), "error");
   }
   applyTranslations();
+  initializeMortgageCalculator();
+  void loadPublicBlog();
+  void loadPublicBuyerRequirements();
   updateHeaderVisibility();
   void initializeGoogleAuth().catch(() => null);
 }

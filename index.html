@@ -121,6 +121,14 @@
           </div>
 
           <a href="/propiedades/desarrollos-cancun" id="developmentsNavLink" data-i18n="navDevelopments">Desarrollos</a>
+          <div class="nav-item has-menu">
+            <button type="button" data-i18n="navResources">Recursos</button>
+            <div class="nav-menu">
+              <a href="/calculadora-hipotecaria" data-i18n="resourceMortgage">Calculadora hipotecaria</a>
+              <a href="/blog" data-i18n="resourceBlog">Blog</a>
+              <a href="/busquedas-clientes" data-i18n="resourceBuyerRequirements">Búsquedas de clientes</a>
+            </div>
+          </div>
           <a href="/nosotros" id="aboutNavLink" data-i18n="navAbout">Nosotros</a>
           <a href="/vender-casa-cancun" id="sellNavLink" data-i18n="navSell">Vender</a>
           <button class="login-link" type="button" id="loginOpen" data-i18n="navLogin">Iniciar sesion</button>
@@ -589,6 +597,8 @@
             <a href="/preventas-cancun" data-i18n="typePresales">Pre-ventas</a>
             <a href="/comprar-casa-cancun" data-i18n="resourceBuyGuide">Guia para comprar casa en Cancun</a>
             <a href="/zonas-cancun" data-i18n="resourceZones">Zonas de Cancun</a>
+            <a href="/calculadora-hipotecaria" data-i18n="resourceMortgage">Calculadora hipotecaria</a>
+            <a href="/busquedas-clientes" data-i18n="resourceBuyerRequirements">Búsquedas de clientes</a>
           </div>
           <div>
             <h3 data-i18n="footerSell">Asesoria de venta</h3>
@@ -596,6 +606,7 @@
             <a href="/vender-casa-cancun" data-i18n="resourceSellHere">Vender mi propiedad aqui</a>
             <a href="/valuacion-inmobiliaria-cancun" data-i18n="resourceValuation">Valoracion inmobiliaria</a>
             <a href="/faq-inmobiliario-cancun" data-i18n="resourceFaq">Preguntas frecuentes</a>
+            <a href="/blog" data-i18n="footerBlog">Blog inmobiliario</a>
           </div>
           <div>
             <h3 data-i18n="footerAbout">Nosotros</h3>
@@ -606,8 +617,8 @@
         </div>
         <div class="content-wrap footer-note">
           <p data-i18n="legalCopy">
-            Los precios de los inmuebles se expresan en Pesos Mexicanos (MXN), moneda oficial para operaciones
-            inmobiliarias en Mexico. Los precios en Dolares de Estados Unidos (USD) se presentan como referencia.
+            Cada inmueble conserva la moneda original definida en su publicación, USD o MXN. Cualquier conversión
+            se entrega únicamente como referencia vigente y puede solicitarse a un asesor.
           </p>
           <p>© 2026 Puerto Cancún Center. <span data-i18n="rights">Todos los derechos reservados.</span> <small id="appRelease" class="app-release"></small></p>
         </div>
@@ -970,9 +981,17 @@
                 <span data-i18n="adminJumpListings">Publicaciones</span>
               </button>
               <div class="admin-sidebar-subnav">
-                <button type="button" data-admin-section-link="properties">Inventario</button>
-                <button type="button" data-admin-section-link="new-property">Nueva publicación</button>
-                <a href="/propiedades/desarrollos-cancun" target="_blank" rel="noopener">Desarrollos públicos</a>
+                <button type="button" data-admin-section-link="properties">Inventario de propiedades</button>
+                <button type="button" data-admin-section-link="new-property">Nueva propiedad</button>
+              </div>
+              <button type="button" data-admin-section="developments">
+                <i data-lucide="building-2"></i>
+                <span>Desarrollos</span>
+              </button>
+              <div class="admin-sidebar-subnav">
+                <button type="button" data-admin-section-link="developments">Inventario de desarrollos</button>
+                <button type="button" data-admin-section-link="new-development">Nuevo desarrollo</button>
+                <a href="/propiedades/desarrollos-cancun" target="_blank" rel="noopener">Ver página pública</a>
               </div>
               <button type="button" data-admin-section="contacts">
                 <i data-lucide="users"></i>
@@ -1026,7 +1045,14 @@
                 <span data-i18n="adminJumpMarketing">Marketing</span>
               </button>
               <div class="admin-sidebar-subnav">
-                <button type="button" data-admin-section-link="marketing">Instagram y contenido</button>
+                <button type="button" data-admin-section-link="marketing">Contenido, imágenes y redes</button>
+              </div>
+              <button type="button" data-admin-section="blog">
+                <i data-lucide="newspaper"></i>
+                <span>Blog</span>
+              </button>
+              <div class="admin-sidebar-subnav">
+                <button type="button" data-admin-section-link="blog">Artículos y noticias</button>
               </div>
               <button type="button" data-admin-section="pdf">
                 <i data-lucide="file-text"></i>
@@ -1149,6 +1175,8 @@
             </div>
           </div>
           <form id="contactForm" class="module-form-grid compact-form">
+            <input name="id" type="hidden" />
+            <h3 class="span-2" id="contactFormTitle">Crear contacto</h3>
             <label><span>Nombre</span><input name="name" required /></label>
             <label><span>Correo</span><input name="email" type="email" /></label>
             <label><span>WhatsApp</span><input name="phone" /></label>
@@ -1168,7 +1196,8 @@
             <label><span>Score</span><select name="leadScore"><option value="warm">Medio</option><option value="hot">Alto</option><option value="premium">Premium</option><option value="cold">Bajo</option></select></label>
             <label class="span-2"><span>Notas</span><textarea name="notes" rows="2"></textarea></label>
             <div class="form-actions span-2">
-              <button class="primary-button" type="submit">Crear contacto</button>
+              <button class="primary-button" type="submit" id="saveContactButton">Crear contacto</button>
+              <button class="ghost-button" type="button" id="cancelContactEdit" hidden>Cancelar edición</button>
             </div>
           </form>
           <p class="form-message" id="contactFormMessage"></p>
@@ -1518,6 +1547,11 @@
                   <option value="next_action">Siguiente mejor acción</option>
                   <option value="whatsapp">Mensajes de WhatsApp</option>
                   <option value="campaign">Generar campaña</option>
+                  <option value="seo">Paquete SEO de la propiedad</option>
+                  <option value="blog">Artículo para el blog</option>
+                  <option value="ads">Anuncios para Meta y Google</option>
+                  <option value="email_sequence">Secuencia de seguimiento por correo</option>
+                  <option value="image_brief">Brief para contenido visual</option>
                   <option value="price">Analizar precio interno</option>
                 </select>
               </label>
@@ -1655,6 +1689,37 @@
               <p class="form-message span-2" id="instagramPostMessage"></p>
             </form>
           </section>
+          <section class="creative-studio">
+            <div class="instagram-heading">
+              <div>
+                <span class="eyebrow">ESTUDIO CREATIVO</span>
+                <h3>Crear imagen y paquete de campaña</h3>
+                <p>Genera una propuesta visual, textos por canal y una llamada a la acción a partir de una propiedad real.</p>
+              </div>
+            </div>
+            <form id="marketingCreativeForm" class="module-form-grid">
+              <label><span>Propiedad</span><select name="propertyId" id="marketingPropertySelect" required></select></label>
+              <label><span>Formato visual</span><select name="format"><option value="square">Cuadrado 1:1</option><option value="portrait">Vertical 4:5</option><option value="landscape">Horizontal 16:9</option></select></label>
+              <label><span>Canal</span><select name="channel"><option value="instagram">Instagram</option><option value="facebook">Facebook</option><option value="email">Mailing</option><option value="web">Blog / Web</option></select></label>
+              <label><span>Objetivo</span><select name="objective"><option value="leads">Generar consultas</option><option value="sale">Venta</option><option value="investment">Inversión</option><option value="awareness">Reconocimiento</option></select></label>
+              <label class="span-2"><span>Dirección creativa</span><textarea name="prompt" rows="4" placeholder="Ejemplo: composición editorial seria, vista completa de la propiedad y espacio limpio para titular"></textarea></label>
+              <div class="form-actions span-2">
+                <button class="primary-button" type="submit"><i data-lucide="image-plus"></i> Generar propuesta visual</button>
+                <button class="ghost-button" type="button" id="generateMarketingKit"><i data-lucide="sparkles"></i> Generar paquete de textos</button>
+              </div>
+              <p class="form-message span-2" id="marketingCreativeMessage"></p>
+            </form>
+            <div class="creative-output" id="marketingCreativeOutput" hidden>
+              <img id="marketingGeneratedImage" alt="Propuesta visual generada" />
+              <div>
+                <textarea id="marketingGeneratedCopy" rows="10" aria-label="Texto de campaña generado"></textarea>
+                <div class="form-actions">
+                  <a class="primary-button" id="downloadMarketingImage" download="puerto-cancun-marketing.png" hidden>Descargar imagen</a>
+                  <button class="ghost-button" type="button" id="copyMarketingKit">Copiar textos</button>
+                </div>
+              </div>
+            </div>
+          </section>
         </article>
         <article class="panel-card admin-mailing-card" id="adminMailingCard" data-admin-section-panel="mailing">
           <div class="admin-module-heading">
@@ -1672,7 +1737,12 @@
               <label><span>Objetivo</span><select name="objective"><option value="promote_property">Promocionar propiedad</option><option value="buyers_followup">Recontactar compradores</option><option value="sellers_followup">Recontactar vendedores</option><option value="valuation">Enviar valoración</option><option value="zone">Promocionar zona</option><option value="presale">Preventa</option></select></label>
               <label><span>Segmento</span><select name="segment"><option value="all">Todos los contactos</option><option value="buyers">Compradores</option><option value="sellers">Vendedores</option><option value="premium">Leads premium</option><option value="unanswered">Sin seguimiento reciente</option></select></label>
               <input name="channel" type="hidden" value="email" />
-              <label><span>Propiedad</span><select name="propertyId" id="campaignPropertySelect"><option value="">Sin propiedad</option></select></label>
+              <label>
+                <span>Buscar propiedad por MLS o título</span>
+                <input id="campaignPropertySearch" type="search" list="campaignPropertySuggestions" placeholder="Escribe MLS o título" autocomplete="off" />
+                <datalist id="campaignPropertySuggestions"></datalist>
+                <select name="propertyId" id="campaignPropertySelect" hidden><option value="">Sin propiedad</option></select>
+              </label>
               <label><span>Programar</span><input name="scheduledAt" type="datetime-local" /></label>
               <fieldset class="mailing-recipient-fieldset span-2">
                 <legend>Destinatarios</legend>
@@ -1720,7 +1790,7 @@
           <div class="admin-module-heading">
             <div>
               <h2 data-i18n="pdfTitle">Fichas PDF</h2>
-              <p>Genera una ficha institucional de una página o una ficha neutra detallada con toda la información de la propiedad.</p>
+              <p>Genera fichas profesionales de una página, con enlaces activos y la moneda original publicada.</p>
             </div>
           </div>
           <div class="pdf-workspace">
@@ -1728,14 +1798,19 @@
               <label>
                 <span>Tipo de ficha</span>
                 <select name="brandMode" id="pdfBrandMode">
-                  <option value="branded">Institucional</option>
-                  <option value="neutral">Neutro</option>
+                  <option value="branded">Institucional (con datos de contacto)</option>
+                  <option value="neutral">Neutro (sin datos de contacto)</option>
                 </select>
               </label>
               <input name="documentType" id="pdfDocumentType" type="hidden" value="property" />
-              <label data-pdf-target="property"><span>Propiedad</span><select name="propertyId" id="pdfPropertySelect"></select></label>
+              <label data-pdf-target="property">
+                <span>Buscar por MLS o título</span>
+                <input id="pdfPropertySearch" type="search" list="pdfPropertySuggestions" placeholder="Escribe MLS o título" autocomplete="off" />
+                <datalist id="pdfPropertySuggestions"></datalist>
+                <select name="propertyId" id="pdfPropertySelect" hidden></select>
+              </label>
               <label data-pdf-target="valuation" hidden><span>Valoración</span><select name="valuationId" id="pdfValuationSelect"></select></label>
-              <label><span>Moneda</span><select name="currency"><option>USD</option><option>MXN</option></select></label>
+              <label><span>Moneda</span><input value="Se respeta la moneda publicada" readonly /></label>
               <div class="pdf-display-options span-2">
                 <label class="checkbox-row pdf-checkbox"><input name="showPrice" type="checkbox" checked /><span>Mostrar precio</span></label>
                 <label class="checkbox-row pdf-checkbox"><input name="showAddress" type="checkbox" /><span>Mostrar dirección exacta</span></label>
@@ -1763,6 +1838,42 @@
             </div>
           </div>
           <div class="wide-data-list" id="pdfHistory"></div>
+        </article>
+        <article class="panel-card admin-blog-card" id="adminBlogCard" data-admin-section-panel="blog">
+          <div class="admin-module-heading">
+            <div>
+              <span class="eyebrow">CONTENIDO EDITORIAL</span>
+              <h2>Blog y noticias</h2>
+              <p>Publica guías, novedades del mercado y contenidos bilingües para compradores y propietarios.</p>
+            </div>
+          </div>
+          <div class="module-split blog-workspace">
+            <form id="blogForm" class="module-form-grid">
+              <input name="id" type="hidden" />
+              <label><span>Título en español</span><input name="titleEs" required maxlength="220" /></label>
+              <label><span>Título en inglés</span><input name="titleEn" required maxlength="220" /></label>
+              <label><span>Slug / URL</span><input name="slug" placeholder="se genera automáticamente" /></label>
+              <label><span>Estado</span><select name="status"><option value="draft">Borrador</option><option value="published">Publicado</option><option value="archived">Archivado</option></select></label>
+              <label class="span-2"><span>Resumen en español</span><textarea name="excerptEs" rows="3" maxlength="600"></textarea></label>
+              <label class="span-2"><span>Resumen en inglés</span><textarea name="excerptEn" rows="3" maxlength="600"></textarea></label>
+              <label class="span-2"><span>Contenido en español</span><textarea name="contentEs" rows="10" required maxlength="50000"></textarea></label>
+              <label class="span-2"><span>Contenido en inglés</span><textarea name="contentEn" rows="10" required maxlength="50000"></textarea></label>
+              <label class="span-2 file-field"><span>Imagen de portada</span><input name="coverFile" type="file" accept="image/jpeg,image/png,image/webp" /></label>
+              <div class="form-actions span-2">
+                <button class="primary-button" type="submit">Guardar artículo</button>
+                <button class="ghost-button" type="button" id="translateBlogPost">Traducir con IA</button>
+                <button class="ghost-button" type="button" id="resetBlogForm">Nuevo</button>
+              </div>
+              <p class="form-message span-2" id="blogFormMessage"></p>
+            </form>
+            <section>
+              <div class="table-heading">
+                <h3>Artículos</h3>
+                <input id="blogAdminSearch" type="search" placeholder="Buscar título o slug" />
+              </div>
+              <div class="wide-data-list" id="adminBlogPosts"></div>
+            </section>
+          </div>
         </article>
         <article class="panel-card admin-files-card" id="adminFilesCard" data-admin-section-panel="files">
           <div class="admin-module-heading">
@@ -1860,22 +1971,12 @@
             <div class="request-list" id="adminRequests"></div>
           </article>
 
-          <article class="panel-card admin-listings-card" id="adminListingsCard" data-admin-section-panel="properties new-property">
+          <article class="panel-card admin-listings-card" id="adminListingsCard" data-admin-section-panel="properties new-property developments new-development">
             <h2 id="adminListingsTitle" data-i18n="manageListings">Administrar publicaciones</h2>
-            <div class="listing-workspace" data-admin-listing-view="new-property">
+            <div class="listing-workspace" data-admin-listing-view="new-property new-development">
             <form id="listingForm" class="stacked-form">
               <input type="hidden" name="id" />
-              <fieldset class="publication-destination">
-                <legend data-i18n="publicationDestination">Dónde se publica</legend>
-                <label>
-                  <input name="publicationSection" type="radio" value="properties" checked />
-                  <span data-i18n="publicationProperties">Propiedades</span>
-                </label>
-                <label>
-                  <input name="publicationSection" type="radio" value="developments" />
-                  <span data-i18n="publicationDevelopments">Desarrollos</span>
-                </label>
-              </fieldset>
+              <input name="publicationSection" type="hidden" value="properties" />
               <div class="form-row">
                 <label>
                   <span data-i18n="propertyTitleEs">Título de la propiedad en español</span>
@@ -1939,14 +2040,29 @@
               </div>
               <div class="form-row">
                 <label>
-                  <span data-i18n="priceUsd">Precio USD</span>
-                  <input name="priceUsd" type="number" min="0" step="1" />
+                  <span>Moneda original de publicación</span>
+                  <select name="currency" required>
+                    <option value="USD">Dólares estadounidenses (USD)</option>
+                    <option value="MXN">Pesos mexicanos (MXN)</option>
+                  </select>
                 </label>
                 <label>
-                  <span data-i18n="priceMxn">Precio MXN</span>
-                  <input name="priceMxn" type="number" min="0" step="1" />
+                  <span>Precio publicado</span>
+                  <input name="price" type="number" min="0" step="0.01" required />
                 </label>
               </div>
+              <fieldset class="development-fields" data-development-fields hidden>
+                <legend>Información del desarrollo</legend>
+                <div class="form-row">
+                  <label><span>Desarrollador</span><input name="developer" /></label>
+                  <label><span>Etapa</span><select name="developmentStage"><option value="">Seleccionar</option><option value="planning">Planeación</option><option value="presale">Preventa</option><option value="construction">Construcción</option><option value="delivery">Entrega inmediata</option><option value="completed">Terminado</option></select></label>
+                  <label><span>Fecha estimada de entrega</span><input name="deliveryDate" type="date" /></label>
+                  <label><span>Unidades totales</span><input name="units" type="number" min="0" /></label>
+                  <label><span>Unidades disponibles</span><input name="availableUnits" type="number" min="0" /></label>
+                </div>
+                <label><span>Plan de pagos</span><textarea name="paymentPlan" rows="3"></textarea></label>
+                <label><span>Aspectos destacados de inversión</span><textarea name="investmentHighlights" rows="3"></textarea></label>
+              </fieldset>
               <label>
                 <span data-i18n="address">Direccion</span>
                 <input name="address" />
@@ -2100,7 +2216,7 @@
               </article>
             </aside>
             </div>
-            <div class="admin-listing-toolbar" data-admin-listing-view="properties" aria-label="Buscar y filtrar publicaciones">
+            <div class="admin-listing-toolbar" data-admin-listing-view="properties developments" aria-label="Buscar y filtrar publicaciones">
               <label class="admin-listing-search">
                 <span>Buscar publicaciones</span>
                 <div class="search-input-with-icon">

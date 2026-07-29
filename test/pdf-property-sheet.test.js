@@ -28,7 +28,7 @@ function buildPdf(property, images, brandMode) {
   });
 }
 
-test("genera la ficha institucional en una página y la neutra con información ampliada", async () => {
+test("genera las fichas institucional y neutra en una página", async () => {
   const sources = await Promise.all([
     "#184e77",
     "#52b788",
@@ -40,9 +40,9 @@ test("genera la ficha institucional en una página y la neutra con información 
     "#e9c46a",
   ].map(imageDataUrl));
   const brandedImages = await preparePropertyPdfImages(sources);
-  const neutralImages = await preparePropertyPdfImages(sources, 12);
+  const neutralImages = await preparePropertyPdfImages(sources, 6);
   assert.equal(brandedImages.length, 4);
-  assert.equal(neutralImages.length, 8);
+  assert.equal(neutralImages.length, 6);
 
   const property = {
     titleEs: "Departamento frente al mar",
@@ -53,6 +53,8 @@ test("genera la ficha institucional en una página y la neutra con información 
     zone: "Puerto Cancún",
     neighborhood: "Marina Puerto Cancún",
     address: "Marina Puerto Cancún",
+    currency: "MXN",
+    price: 21500000,
     priceUsd: 1250000,
     beds: 3,
     baths: 3,
@@ -72,7 +74,7 @@ test("genera la ficha institucional en una página y la neutra con información 
   assert.ok(brandedPdf.length > 10000);
   assert.ok(neutralPdf.length > brandedPdf.length);
   assert.equal(brandedPageCount, 1);
-  assert.ok(neutralPageCount >= 4);
+  assert.equal(neutralPageCount, 1);
 
   if (process.env.PDF_FIXTURE_DIR) {
     fs.mkdirSync(process.env.PDF_FIXTURE_DIR, { recursive: true });
@@ -94,6 +96,6 @@ test("todas las propiedades ofrecen PDF institucional y neutro", () => {
   assert.match(appSource, /data-generate-property-pdf=.*data-pdf-mode="branded"/s);
   assert.match(appSource, /data-generate-property-pdf=.*data-pdf-mode="neutral"/s);
   assert.match(generateRoute, /SELECT \* FROM properties WHERE id = \$1/);
-  assert.match(generateRoute, /options\.brandMode === "neutral" \? 12 : 4/);
+  assert.match(generateRoute, /options\.brandMode === "neutral" \? 6 : 4/);
   assert.doesNotMatch(generateRoute, /is_public\s*=|status\s*=/i);
 });

@@ -7733,8 +7733,99 @@ button[aria-busy="true"] {
   color: var(--muted);
 }
 
-[data-admin-listing-view="new-property"] {
+[data-admin-listing-view~="new-property"],
+[data-admin-listing-view~="new-development"] {
   margin-top: 8px;
+}
+
+.development-fields {
+  display: grid;
+  gap: 16px;
+  padding: 20px;
+  border: 1px solid #b9d8d3;
+  background: #f4fbfa;
+}
+
+.development-fields[hidden] {
+  display: none;
+}
+
+.development-fields legend {
+  padding: 0 8px;
+  color: var(--blue-900);
+  font-family: "Playfair Display", Georgia, serif;
+  font-size: 1.15rem;
+  font-weight: 700;
+}
+
+.creative-studio {
+  display: grid;
+  gap: 18px;
+  margin-top: 22px;
+  padding: 22px;
+  border: 1px solid #b9d8d3;
+  background: #f5fbfa;
+}
+
+.creative-output {
+  display: grid;
+  grid-template-columns: minmax(260px, 0.8fr) minmax(320px, 1.2fr);
+  gap: 20px;
+  align-items: start;
+}
+
+.creative-output img {
+  width: 100%;
+  max-height: 520px;
+  object-fit: contain;
+  border: 1px solid #cbdedb;
+  background: #fff;
+}
+
+.creative-output textarea {
+  width: 100%;
+}
+
+.blog-workspace {
+  align-items: start;
+}
+
+.blog-admin-row {
+  display: grid;
+  grid-template-columns: 128px minmax(0, 1fr);
+  gap: 16px;
+  padding: 14px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.blog-admin-row > img,
+.blog-cover-placeholder {
+  width: 128px;
+  height: 92px;
+  object-fit: cover;
+  border: 1px solid #d7e1e6;
+  background: #eef5f4;
+}
+
+.blog-cover-placeholder {
+  display: grid;
+  place-items: center;
+}
+
+.blog-cover-placeholder svg {
+  width: 30px;
+  height: 30px;
+  color: var(--blue-700);
+}
+
+.blog-admin-row h3 {
+  margin: 6px 0;
+}
+
+@media (max-width: 760px) {
+  .creative-output {
+    grid-template-columns: 1fr;
+  }
 }
 
 /* The account action must remain legible on the dark seller banner. */
@@ -7750,6 +7841,140 @@ button[aria-busy="true"] {
   color: #032f3a;
 }
 
+.exchange-rate-request {
+  max-width: 920px;
+  margin-top: 26px;
+  padding: 22px;
+  border: 1px solid #cbdedb;
+  background: #f5fbfa;
+}
+
+.exchange-rate-request h2 {
+  margin: 0 0 8px;
+  font-size: 1.45rem;
+}
+
+.exchange-rate-request form {
+  margin-top: 16px;
+}
+
+.mortgage-calculator {
+  display: grid;
+  grid-template-columns: minmax(260px, 0.72fr) minmax(360px, 1.28fr);
+  gap: 30px;
+  align-items: start;
+}
+
+.mortgage-calculator form {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  padding: 24px;
+  border: 1px solid #cbdedb;
+  background: #fff;
+}
+
+.mortgage-calculator form label {
+  display: grid;
+  gap: 7px;
+  font-weight: 700;
+}
+
+.mortgage-results {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 22px;
+}
+
+.mortgage-results article,
+.buyer-requirement-card {
+  padding: 18px;
+  border: 1px solid #cbdedb;
+  background: #fff;
+}
+
+.mortgage-results article {
+  display: grid;
+  gap: 8px;
+}
+
+.mortgage-results strong {
+  color: var(--blue-900);
+  font-family: "Playfair Display", Georgia, serif;
+  font-size: 1.35rem;
+}
+
+.public-blog-grid,
+.buyer-requirements-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 22px;
+}
+
+.public-blog-card {
+  display: grid;
+  grid-template-rows: auto 1fr;
+  border: 1px solid #cbdedb;
+  background: #fff;
+}
+
+.public-blog-card img {
+  width: 100%;
+  aspect-ratio: 16 / 10;
+  object-fit: cover;
+}
+
+.public-blog-card > div {
+  padding: 22px;
+}
+
+.public-blog-card h2 {
+  margin: 8px 0 12px;
+  font-size: 1.45rem;
+}
+
+.blog-post-public {
+  max-width: 980px;
+  margin: 0 auto;
+}
+
+.blog-post-cover {
+  width: 100%;
+  max-height: 620px;
+  object-fit: cover;
+}
+
+.blog-post-body {
+  padding: 36px;
+  border: 1px solid #cbdedb;
+  background: #fff;
+  font-size: 1.05rem;
+  line-height: 1.85;
+}
+
+.buyer-requirement-card h2 {
+  margin: 10px 0 6px;
+  font-size: 1.45rem;
+}
+
+.buyer-requirement-card dl {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 8px 14px;
+  margin: 18px 0;
+}
+
+.buyer-requirement-card dt {
+  color: var(--muted);
+}
+
+.buyer-requirement-card dd {
+  margin: 0;
+  font-weight: 700;
+}
+
 @media (max-width: 1050px) {
   .property-summary-heading {
     grid-template-columns: 1fr;
@@ -7759,6 +7984,16 @@ button[aria-busy="true"] {
     padding: 24px 0 0;
     border-top: 1px solid #d8e2df;
     border-left: 0;
+  }
+
+  .mortgage-calculator {
+    grid-template-columns: 1fr;
+  }
+
+  .mortgage-results,
+  .public-blog-grid,
+  .buyer-requirements-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
@@ -7771,6 +8006,17 @@ button[aria-busy="true"] {
   .mailing-contact-toolbar {
     align-items: stretch;
     flex-direction: column;
+  }
+
+  .mortgage-calculator form,
+  .mortgage-results,
+  .public-blog-grid,
+  .buyer-requirements-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .blog-post-body {
+    padding: 24px;
   }
 
   .property-page-summary,

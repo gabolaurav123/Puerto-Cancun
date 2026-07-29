@@ -10,15 +10,15 @@ const {
 
 const root = path.join(__dirname, "..");
 
-test("el idioma determina una sola moneda pública", () => {
+test("la publicación conserva una sola moneda original en ambos idiomas", () => {
   const indexSource = fs.readFileSync(path.join(root, "index.html"), "utf8");
   const appSource = fs.readFileSync(path.join(root, "app.js"), "utf8");
-  const property = { priceUsd: 1000000, priceMxn: null };
+  const property = { currency: "MXN", price: 18500000, priceUsd: null, priceMxn: 18500000 };
 
   assert.doesNotMatch(indexSource, /id="currencySelect"|class="currency-control"/);
   assert.deepEqual(localizedListingPrice(property, "es"), { amount: 18500000, currency: "MXN" });
-  assert.deepEqual(localizedListingPrice({ priceUsd: null, priceMxn: 18500000 }, "en"), { amount: 1000000, currency: "USD" });
-  assert.match(appSource, /state\.currency = state\.lang === "en" \? "USD" : "MXN"/);
+  assert.deepEqual(localizedListingPrice(property, "en"), { amount: 18500000, currency: "MXN" });
+  assert.doesNotMatch(appSource, /state\.currency = state\.lang === "en" \? "USD" : "MXN"/);
 });
 
 test("las publicaciones usan carrusel y no muestran fecha de modificación", () => {
@@ -34,6 +34,8 @@ test("las publicaciones usan carrusel y no muestran fecha de modificación", () 
     zone: "Puerto Cancún",
     city: "Cancún",
     state: "Quintana Roo",
+    currency: "USD",
+    price: 1000000,
     priceUsd: 1000000,
     priceMxn: null,
     images: ["/assets/one.webp", "/assets/two.webp", "/assets/three.webp"],
@@ -45,7 +47,7 @@ test("las publicaciones usan carrusel y no muestran fecha de modificación", () 
   const spanish = renderPropertyPage(property, "es").html;
   const english = renderPropertyPage(property, "en").html;
 
-  assert.match(spanish, /MXN \$18,500,000/);
+  assert.match(spanish, /USD \$1,000,000/);
   assert.match(english, /USD \$1,000,000/);
   assert.doesNotMatch(spanish, /Ultima verificacion|Última verificación|property-verified/);
   assert.doesNotMatch(english, /Last verified|property-verified/);
@@ -99,8 +101,8 @@ test("mailing es independiente de marketing y los controles PDF permanecen junto
   assert.match(indexSource, /id="campaignRecipientList"/);
   assert.match(indexSource, /Enviar correo ahora/);
   assert.match(indexSource, /data-admin-section-link="new-property"/);
-  assert.match(indexSource, /data-admin-listing-view="new-property"/);
-  assert.match(indexSource, /data-admin-listing-view="properties"/);
+  assert.match(indexSource, /data-admin-listing-view="new-property new-development"/);
+  assert.match(indexSource, /data-admin-listing-view="properties developments"/);
   assert.match(indexSource, /class="pdf-display-options span-2"/);
   assert.match(stylesSource, /\.pdf-display-options/);
   assert.match(stylesSource, /\.mailing-contact-list/);
