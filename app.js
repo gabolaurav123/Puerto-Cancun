@@ -1687,7 +1687,7 @@ async function api(path, options = {}) {
   const { timeoutMs = 45000, body, headers = {}, retry = true, ...fetchOptions } = options;
   const method = String(fetchOptions.method || "GET").toUpperCase();
   if (method !== "GET" && !state.csrfToken) {
-    const sessionResponse = await fetch("/api/session", { credentials: "same-origin" });
+    const sessionResponse = await fetch("/api/session", { credentials: "same-origin", cache: "no-store" });
     const sessionPayload = await sessionResponse.json().catch(() => ({}));
     state.csrfToken = sessionPayload.csrfToken || "";
     if (sessionPayload.user !== undefined) state.session = sessionPayload.user;
@@ -1701,6 +1701,7 @@ async function api(path, options = {}) {
     try {
       response = await fetch(path, {
         credentials: "same-origin",
+        cache: path === "/api/session" ? "no-store" : "default",
         headers: { "Content-Type": "application/json", ...securityHeaders, ...headers },
         ...fetchOptions,
         signal: controller.signal,
@@ -2117,19 +2118,30 @@ function sortedProperties(properties) {
 
 function updateHomeEditorialImages() {
   const candidates = state.properties.filter((property) => /^\/media\/properties\//.test(primaryImage(property)));
+  const usedProperties = new Set();
+  const usedImages = new Set();
   const assignments = [
-    ['.type-tile[href*="casas-cancun"]', (property) => property.type === "Casa"],
-    ['.type-tile[href*="departamentos-cancun"]', (property) => property.type === "Departamento"],
-    ['.type-tile[href*="/terrenos"]', (property) => property.type === "Terreno"],
-    ['.zone-card[href*="puerto-cancun"]', (property) => /puerto canc[uú]n/i.test(property.zone || "")],
-    ['.zone-card[href*="zona-hotelera"]', (property) => /zona hotelera/i.test(property.zone || "")],
-    ['.zone-card[href*="preventas"]', (property) => property.type === "Preventa" || property.publicationSection === "developments"],
+    [".type-grid .type-tile:nth-child(1)", (property) => property.type === "Casa"],
+    [".type-grid .type-tile:nth-child(2)", (property) => property.type === "Departamento"],
+    [".type-grid .type-tile:nth-child(3)", (property) => property.type === "Terreno"],
+    [".zone-grid .zone-card:nth-child(1)", (property) => /puerto canc[uú]n/i.test(property.zone || "")],
+    [".zone-grid .zone-card:nth-child(2)", (property) => /zona hotelera/i.test(property.zone || "")],
+    [".zone-grid .zone-card:nth-child(3)", (property) => property.type === "Preventa" || property.publicationSection === "developments"],
   ];
   assignments.forEach(([selector, matches]) => {
     const image = document.querySelector(`${selector} img`);
-    const property = candidates.find(matches);
+    const property = candidates.find((candidate) => {
+      const source = primaryImage(candidate);
+      return matches(candidate) && !usedProperties.has(candidate.id) && !usedImages.has(source);
+    }) || candidates.find((candidate) => {
+      const source = primaryImage(candidate);
+      return !usedProperties.has(candidate.id) && !usedImages.has(source);
+    });
     if (!image || !property) return;
-    image.src = optimizedMediaUrl(primaryImage(property), 640);
+    const source = primaryImage(property);
+    usedProperties.add(property.id);
+    usedImages.add(source);
+    image.src = optimizedMediaUrl(source, 640);
     image.alt = localizedTitle(property);
   });
 }
@@ -2159,7 +2171,7 @@ function renderProperties() {
     ? `${displayedProperties.length} ${state.lang === "en" ? "of" : "de"} ${properties.length} ${t("resultText")}`
     : `${properties.length} ${t("resultText")}`;
   if (catalogCta) {
-    catalogCta.hidden = !isHome || properties.length <= displayedProperties.length;
+    catalogCta.hidden = !isHome || properties.length === 0;
     $("#homeCatalogCtaTitle").textContent = state.lang === "en" ? "Explore the complete catalog" : "Explora el catálogo completo";
     $("#homeCatalogCtaCopy").textContent = state.lang === "en"
       ? "Browse every available property with dedicated filters and details."
@@ -5790,9 +5802,11 @@ function updateAuthNav() {
   if (!loginButton) return;
   if (!state.session) {
     loginButton.textContent = t("navLogin");
+    loginButton.setAttribute("href", state.lang === "en" ? "/en/?auth=login" : "/?auth=login");
     return;
   }
   loginButton.textContent = state.session.role === "admin" ? t("adminPanelShort") : t("sellerPanelShort");
+  loginButton.setAttribute("href", "/panel");
 }
 
 function updateHeaderVisibility() {
@@ -5965,7 +5979,7 @@ async function handleGoogleCredential(response) {
     state.csrfToken = data.csrfToken || state.csrfToken;
     closeAuth();
     updateAuthNav();
-    await showPanel();
+    window.location.assign("/panel");
   } catch (error) {
     setFormMessage(message, t("googleLoginError"), true);
   }
@@ -6020,6 +6034,10 @@ function hidePanel() {
     return;
   }
   if (listingForm) resetListingForm(true);
+  if (document.body.dataset.page === "panel") {
+    window.location.assign("/");
+    return;
+  }
   $("#panelView").hidden = true;
   $("#siteShell").hidden = false;
   document.body.classList.remove("panel-open");
@@ -6074,7 +6092,7 @@ async function loginSubmit(event) {
     }
     closeAuth();
     updateAuthNav();
-    await showPanel();
+    window.location.assign("/panel");
   } catch (error) {
     if (error.status === 503 || error.code === "DATABASE_UNAVAILABLE") {
       setFormMessage(message, t("loginUnavailable"), true);
@@ -6244,7 +6262,7 @@ async function passwordUpdateSubmit(event) {
       state.session.mustUpdatePassword = false;
       closeAuth();
       updateAuthNav();
-      await showPanel();
+      window.location.assign("/panel");
       return;
     }
     switchAuthTab("login");
@@ -7402,7 +7420,8 @@ function openPropertyWhatsApp(property) {
   window.open(`https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(message)}`, "_blank", "noopener,noreferrer");
 }
 
-function openGeneralWhatsApp() {
+function openGeneralWhatsApp(event) {
+  event?.preventDefault();
   void api("/api/analytics/events", {
     method: "POST",
     body: { eventType: "whatsapp_clicked", metadata: { path: window.location.pathname } },
@@ -7585,11 +7604,8 @@ function bindEvents() {
   });
 
   $$(".brand").forEach((brand) => {
-    brand.addEventListener("click", (event) => {
-      if (document.body.dataset.page !== "home" || !$("#siteShell") || $("#siteShell").hidden) return;
-      event.preventDefault();
+    brand.addEventListener("click", () => {
       closeMobileNav();
-      window.scrollTo({ top: 0, behavior: "smooth" });
     });
   });
 
@@ -7635,8 +7651,9 @@ function bindEvents() {
     });
   });
 
-  $("#loginOpen").addEventListener("click", async () => {
-    if (state.session) await showPanel();
+  $("#loginOpen")?.addEventListener("click", (event) => {
+    event.preventDefault();
+    if (state.session) window.location.assign("/panel");
     else openAuth("login");
   });
   $("#authClose").addEventListener("click", closeAuth);
@@ -7698,7 +7715,7 @@ function bindEvents() {
       const compare = event.target.closest("[data-compare]");
       if (compare) toggleCompare(compare.dataset.compare);
     });
-    $("#whatsappButton").addEventListener("click", openGeneralWhatsApp);
+    $("#whatsappButton")?.addEventListener("click", openGeneralWhatsApp);
     return;
   }
 
@@ -7710,7 +7727,7 @@ function bindEvents() {
     state.csrfToken = "";
     state.requests = [];
     state.leads = [];
-    hidePanel();
+    window.location.replace("/");
   });
 
   $("#sellerRequestForm").addEventListener("submit", sellerRequestSubmit);
@@ -8330,9 +8347,7 @@ function bindEvents() {
     }
   });
 
-  $("#whatsappButton").addEventListener("click", () => {
-    openGeneralWhatsApp();
-  });
+  $("#whatsappButton")?.addEventListener("click", openGeneralWhatsApp);
 }
 
 function initializeMortgageCalculator() {
@@ -8433,7 +8448,10 @@ async function loadPublicBuyerRequirements() {
 async function init() {
   const renderedLanguage = document.body.dataset.lang || (window.location.pathname.startsWith("/en") ? "en" : "es");
   if (storedLanguage && storedLanguage !== renderedLanguage && document.body.dataset.alternateUrl) {
-    window.location.replace(document.body.dataset.alternateUrl);
+    const alternateUrl = new URL(document.body.dataset.alternateUrl, window.location.origin);
+    alternateUrl.search = window.location.search;
+    alternateUrl.hash = window.location.hash;
+    window.location.replace(`${alternateUrl.pathname}${alternateUrl.search}${alternateUrl.hash}`);
     return;
   }
   installImageFallbacks();
@@ -8451,6 +8469,7 @@ async function init() {
     showToast(t("apiError"), "error");
   }
   const authParams = new URLSearchParams(window.location.search);
+  const requestedAuthTab = authParams.get("auth");
   const verificationToken = authParams.get("verifyToken");
   const resetToken = authParams.get("resetToken");
   if (verificationToken) {
@@ -8466,6 +8485,9 @@ async function init() {
   } else if (resetToken) {
     $("#resetPasswordForm").token.value = resetToken;
     openAuth("resetPassword");
+  } else if (requestedAuthTab === "login" || requestedAuthTab === "register") {
+    openAuth(requestedAuthTab);
+    window.history.replaceState({}, "", window.location.pathname);
   }
   applyTranslations();
   if (document.body.dataset.page === "panel") {

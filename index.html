@@ -131,7 +131,7 @@
           </div>
           <a href="/nosotros" id="aboutNavLink" data-i18n="navAbout">Nosotros</a>
           <a href="/vender-casa-cancun" id="sellNavLink" data-i18n="navSell">Vender</a>
-          <button class="login-link" type="button" id="loginOpen" data-i18n="navLogin">Iniciar sesion</button>
+          <a class="login-link" href="/?auth=login" id="loginOpen" data-i18n="navLogin">Iniciar sesion</a>
           <a class="phone-link" href="tel:+5219982166563">998-216-6563</a>
         </nav>
       </header>
@@ -286,7 +286,7 @@
               </a>
               <a class="zone-card" href="/propiedades/zona-hotelera">
                 <img
-                  src="/assets/cancun-hotel-zone-hero-1280.webp"
+                  src="/assets/type-apartments-cancun.jpg"
                   alt="Zona Hotelera de Cancún frente al mar Caribe"
                   width="900" height="600" loading="lazy"
                 />
@@ -294,7 +294,7 @@
               </a>
               <a class="zone-card" href="/preventas-cancun">
                 <img
-                  src="/assets/cancun-hotel-zone-hero-1280.webp"
+                  src="/assets/type-houses-cancun.jpg"
                   alt="Desarrollo residencial contemporáneo"
                   width="900" height="600" loading="lazy"
                 />
@@ -340,7 +340,7 @@
               <a class="type-tile" href="/propiedades/casas-cancun">
                 <span data-i18n="typeHouses">Casas</span>
                 <img
-                  src="/assets/cancun-hotel-zone-hero-1280.webp"
+                  src="/assets/type-houses-cancun.jpg"
                   alt="Luxury house pool"
                   width="1200" height="800"
                 />
@@ -348,7 +348,7 @@
               <a class="type-tile" href="/propiedades/departamentos-cancun">
                 <span data-i18n="typeCondos">Departamentos</span>
                 <img
-                  src="/assets/cancun-hotel-zone-hero-1280.webp"
+                  src="/assets/type-apartments-cancun.jpg"
                   alt="Luxury apartment"
                   width="1200" height="800"
                 />
@@ -356,7 +356,7 @@
               <a class="type-tile" href="/propiedades/puerto-cancun/terrenos">
                 <span data-i18n="typeLand">Terrenos</span>
                 <img
-                  src="/assets/cancun-hotel-zone-hero-1280.webp"
+                  src="/assets/type-land-cancun.jpg"
                   alt="Waterfront land"
                   width="1200" height="800"
                 />
@@ -373,7 +373,7 @@
                 <a class="primary-button" href="/preventas-cancun" data-i18n="seeMore">Ver mas</a>
               </div>
               <img
-                src="/assets/cancun-hotel-zone-hero-1280.webp"
+                src="/assets/type-apartments-cancun.jpg"
                 alt="Departamento contemporáneo disponible en Cancún"
                 width="1200" height="800" loading="lazy"
               />
@@ -2564,10 +2564,17 @@
       </section>
     </div>
 
-    <button class="whatsapp-float" type="button" id="whatsappButton" aria-label="WhatsApp">
+    <a
+      class="whatsapp-float"
+      id="whatsappButton"
+      href="https://wa.me/5219982166563?text=Hola%2C%20quiero%20recibir%20informaci%C3%B3n%20de%20Puerto%20Canc%C3%BAn%20Center."
+      target="_blank"
+      rel="noopener noreferrer"
+      aria-label="Contactar a Puerto Cancun Center por WhatsApp"
+    >
       <span>WhatsApp</span>
       <i data-lucide="message-circle"></i>
-    </button>
+    </a>
 
     <script src="https://unpkg.com/lucide@latest"></script>
     <script src="/app.js?v=20260723.1"></script>

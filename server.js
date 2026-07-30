@@ -460,6 +460,72 @@ const seedRequests = [
   },
 ];
 
+const seedBlogPosts = [
+  {
+    id: "post-guia-compra-cancun",
+    slug: "guia-para-comprar-propiedad-en-cancun",
+    titleEs: "Guía para comprar una propiedad en Cancún",
+    titleEn: "Guide to buying property in Cancun",
+    excerptEs: "Un recorrido práctico para definir presupuesto, comparar zonas, revisar documentación y solicitar acompañamiento antes de comprar.",
+    excerptEn: "A practical route to define your budget, compare areas, review documents and request guidance before buying.",
+    contentEs: [
+      "Comprar una propiedad en Cancún comienza por definir el objetivo de la operación: vivienda, renta de largo plazo, uso vacacional o inversión patrimonial.",
+      "Después conviene fijar un presupuesto total que incluya el precio del inmueble y los gastos asociados a la operación. Nuestro equipo puede ayudarte a comparar propiedades activas sin alterar la moneda original de cada publicación.",
+      "La ubicación, el tipo de propiedad, el mantenimiento y las amenidades deben revisarse junto con la documentación disponible. Antes de tomar una decisión solicita una visita, confirma disponibilidad y pide a un asesor que te explique los siguientes pasos.",
+      "En Puerto Cancún Center puedes buscar opciones por zona y tipo, guardar tus preferencias y contactar directamente a un asesor para continuar el proceso.",
+    ].join("\n\n"),
+    contentEn: [
+      "Buying property in Cancun starts with defining the purpose of the transaction: a home, long-term rental, vacation use or a long-term investment.",
+      "Next, set a total budget that includes the listing price and transaction-related expenses. Our team can help you compare active properties while preserving the original currency of every listing.",
+      "Location, property type, maintenance and amenities should be reviewed together with the available documentation. Before making a decision, request a visit, confirm availability and ask an advisor to explain the next steps.",
+      "Puerto Cancun Center lets you search by area and property type, save your preferences and contact an advisor directly to continue the process.",
+    ].join("\n\n"),
+    publishedAt: "2026-07-20T15:00:00.000Z",
+  },
+  {
+    id: "post-preparar-venta-cancun",
+    slug: "como-preparar-propiedad-para-vender-en-cancun",
+    titleEs: "Cómo preparar una propiedad para vender en Cancún",
+    titleEn: "How to prepare a property for sale in Cancun",
+    excerptEs: "La información, fotografías y documentos que ayudan a presentar una propiedad con claridad desde el primer contacto.",
+    excerptEn: "The information, photographs and documents that help present a property clearly from the first contact.",
+    contentEs: [
+      "Una publicación inmobiliaria útil debe explicar con claridad qué se vende, dónde se encuentra, cuál es su moneda y qué características pueden comprobarse.",
+      "Prepara fotografías actuales de los espacios principales, una descripción completa, medidas de construcción y terreno, número de recámaras y baños, amenidades y datos de contacto vigentes.",
+      "También es importante reunir la documentación disponible y comunicar cualquier condición relevante antes de publicar. El precio debe identificarse como total o por metro cuadrado para evitar interpretaciones incorrectas.",
+      "Desde el panel de propietario de Puerto Cancún Center puedes enviar la información y conservar un borrador mientras nuestro equipo revisa la solicitud contigo.",
+    ].join("\n\n"),
+    contentEn: [
+      "A useful real estate listing should clearly explain what is being sold, where it is located, its currency and which features can be verified.",
+      "Prepare recent photographs of the main spaces, a complete description, built and land area, bedrooms, bathrooms, amenities and current contact details.",
+      "It is also important to gather available documents and communicate relevant conditions before publishing. The price must be identified as a total price or a price per square meter to avoid incorrect interpretations.",
+      "The Puerto Cancun Center owner panel lets you submit the information and keep a draft while our team reviews the request with you.",
+    ].join("\n\n"),
+    publishedAt: "2026-07-18T15:00:00.000Z",
+  },
+  {
+    id: "post-elegir-zona-cancun",
+    slug: "como-elegir-zona-para-comprar-en-cancun",
+    titleEs: "Cómo elegir una zona para comprar en Cancún",
+    titleEn: "How to choose an area to buy in Cancun",
+    excerptEs: "Preguntas concretas para comparar Puerto Cancún, Zona Hotelera, Playa Mujeres y otras zonas según tu objetivo.",
+    excerptEn: "Practical questions for comparing Puerto Cancun, the Hotel Zone, Playa Mujeres and other areas according to your objective.",
+    contentEs: [
+      "La mejor zona depende del uso que planeas dar a la propiedad, tu presupuesto, el tipo de inmueble y la cercanía que necesitas a servicios, playa, marina o vías de acceso.",
+      "Antes de comparar anuncios define tus prioridades y revisa cada opción con los mismos criterios: ubicación, mantenimiento, superficie, amenidades, estado de entrega y disponibilidad.",
+      "Puerto Cancún, Zona Hotelera, Playa Mujeres, Isla Mujeres, Cancún Centro y Riviera Maya ofrecen inventarios distintos. Evita decidir solo por una fotografía y solicita la ubicación aproximada, la ficha completa y una visita.",
+      "El buscador de Puerto Cancún Center permite filtrar el inventario activo y enviar una solicitud para que un asesor prepare una selección compatible.",
+    ].join("\n\n"),
+    contentEn: [
+      "The right area depends on how you plan to use the property, your budget, the property type and the proximity you need to services, beaches, marinas or main roads.",
+      "Before comparing listings, define your priorities and review every option using the same criteria: location, maintenance, size, amenities, delivery status and availability.",
+      "Puerto Cancun, the Hotel Zone, Playa Mujeres, Isla Mujeres, Downtown Cancun and Riviera Maya offer different inventories. Avoid deciding from one photograph alone; request the approximate location, complete property sheet and a visit.",
+      "Puerto Cancun Center's search tools let you filter active inventory and submit a request so an advisor can prepare a compatible selection.",
+    ].join("\n\n"),
+    publishedAt: "2026-07-16T15:00:00.000Z",
+  },
+];
+
 const seedLocationOptions = buildLocationSeedOptions();
 
 function uuid(prefix) {
@@ -2132,6 +2198,29 @@ async function initDatabase() {
       }
     }
 
+    for (const post of seedBlogPosts) {
+      await client.query(
+        `INSERT INTO blog_posts
+          (id, slug, title_es, title_en, excerpt_es, excerpt_en, content_es, content_en,
+           status, author_name, seo_title, seo_description, published_at, created_at, updated_at)
+         VALUES
+          ($1, $2, $3, $4, $5, $6, $7, $8, 'published', 'Puerto Cancun Center',
+           $3, $5, $9, $9, $9)
+         ON CONFLICT DO NOTHING`,
+        [
+          post.id,
+          post.slug,
+          post.titleEs,
+          post.titleEn,
+          post.excerptEs,
+          post.excerptEn,
+          post.contentEs,
+          post.contentEn,
+          post.publishedAt,
+        ]
+      );
+    }
+
     await recordMigration(client, "0001-legacy-schema", "Esquema base idempotente consolidado");
     await client.query("COMMIT");
   } catch (error) {
@@ -2491,6 +2580,7 @@ app.get("/media/requests/:id/:index", async (req, res, next) => {
 });
 
 app.get("/api/session", (req, res) => {
+  res.set("Cache-Control", "private, no-store");
   res.json({ user: publicUser(req.session.user), csrfToken: req.session.csrfToken || "" });
 });
 
@@ -6545,6 +6635,20 @@ async function renderPublicHtml(requestPath, noindex = false) {
   });
 }
 
+function renderAuthEntry(html, requestedTab) {
+  const tab = requestedTab === "register" ? "register" : requestedTab === "login" ? "login" : "";
+  if (!tab) return html;
+  let rendered = html.replace('id="authModal" hidden', 'id="authModal"');
+  if (tab === "register") {
+    rendered = rendered
+      .replace('data-auth-tab="login" class="active"', 'data-auth-tab="login"')
+      .replace('data-auth-tab="register"', 'data-auth-tab="register" class="active"')
+      .replace('id="loginForm" class="auth-form active"', 'id="loginForm" class="auth-form"')
+      .replace('id="registerForm" class="auth-form"', 'id="registerForm" class="auth-form active"');
+  }
+  return rendered;
+}
+
 async function renderNotFoundHtml(requestPath) {
   const english = requestPath.startsWith("/en");
   const page = {
@@ -6712,7 +6816,7 @@ app.get(Array.from(publicStaticFiles), (req, res) => {
 app.get("/panel", async (req, res, next) => {
   try {
     if (!req.session?.user) {
-      res.redirect(302, "/");
+      res.redirect(302, "/?auth=login");
       return;
     }
     const page = getPageByPath("/");
@@ -6736,11 +6840,12 @@ app.get("/panel", async (req, res, next) => {
 
 app.get("*", async (req, res, next) => {
   try {
-    const html = await renderPublicHtml(req.path);
+    let html = await renderPublicHtml(req.path);
     if (!html) {
       res.status(404).send(await renderNotFoundHtml(req.path));
       return;
     }
+    html = renderAuthEntry(html, req.query.auth);
     res.set("Cache-Control", "public, max-age=0, must-revalidate");
     res.send(html);
   } catch (error) {

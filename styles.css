@@ -6688,6 +6688,23 @@ button[aria-busy="true"] {
   border: 2px solid #fff;
 }
 
+body[data-page="home"] .hero h1 {
+  display: block;
+  max-width: 920px;
+  margin: 18px auto 20px;
+  color: #fff;
+  font-family: "Playfair Display", Georgia, serif;
+  font-size: 4.25rem;
+  font-weight: 700;
+  line-height: 0.96;
+  letter-spacing: 0;
+  text-align: center;
+  text-transform: uppercase;
+  -webkit-text-fill-color: #fff;
+  -webkit-text-stroke: 0 transparent;
+  text-shadow: 0 4px 20px rgba(0, 0, 0, 0.72);
+}
+
 @media (max-width: 1050px) {
   .seo-property-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -6719,6 +6736,11 @@ button[aria-busy="true"] {
   .hero h1,
   .seo-page-hero h1 {
     font-size: 2.25rem;
+  }
+
+  body[data-page="home"] .hero h1 {
+    font-size: 2.25rem;
+    line-height: 1;
   }
 
   .hero-subtitle {
