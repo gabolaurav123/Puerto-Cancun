@@ -6649,6 +6649,18 @@ function renderAuthEntry(html, requestedTab) {
   return rendered;
 }
 
+function renderAuthenticatedPanelEntry(html, role) {
+  let rendered = html
+    .replace('<div class="site-shell" id="siteShell">', '<div class="site-shell" id="siteShell" hidden>')
+    .replace('<main class="panel-view" id="panelView" hidden>', '<main class="panel-view" id="panelView">');
+  if (role === "admin") {
+    rendered = rendered.replace('<section class="dashboard" id="adminPanel" hidden>', '<section class="dashboard" id="adminPanel">');
+  } else {
+    rendered = rendered.replace('<section class="dashboard" id="sellerPanel" hidden>', '<section class="dashboard" id="sellerPanel">');
+  }
+  return rendered.replace('<body data-page="panel"', '<body class="panel-open" data-page="panel"');
+}
+
 async function renderNotFoundHtml(requestPath) {
   const english = requestPath.startsWith("/en");
   const page = {
@@ -6825,14 +6837,15 @@ app.get("/panel", async (req, res, next) => {
       "Cache-Control": "private, no-store",
       "X-Robots-Tag": "noindex, nofollow",
     });
-    res.send(decoratePublicHtml({
+    const panelHtml = decoratePublicHtml({
       page,
       seo,
       bodyPage: "panel",
       noindex: true,
       includePrivatePanel: true,
       showBlog: await hasPublishedBlogPosts(),
-    }));
+    });
+    res.send(renderAuthenticatedPanelEntry(panelHtml, req.session.user.role));
   } catch (error) {
     next(error);
   }

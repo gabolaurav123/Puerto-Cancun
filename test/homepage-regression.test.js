@@ -35,6 +35,9 @@ test("el panel privado no se convierte en otra portada", () => {
   assert.match(app, /document\.body\.dataset\.page === "panel"[\s\S]*window\.location\.assign\("\/"\)/);
   assert.match(server, /res\.redirect\(302, "\/\?auth=login"\)/);
   assert.match(server, /res\.set\("Cache-Control", "private, no-store"\)/);
+  assert.match(server, /function renderAuthenticatedPanelEntry\(html, role\)/);
+  assert.match(server, /id="siteShell" hidden/);
+  assert.match(server, /renderAuthenticatedPanelEntry\(panelHtml, req\.session\.user\.role\)/);
 });
 
 test("el acceso conserva la accion al redirigir el idioma", () => {
