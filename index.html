@@ -3,27 +3,27 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Compra y venta de propiedades en Cancun | Inmobiliaria en Cancun</title>
+    <title>Compra y venta de propiedades en Cancún | Inmobiliaria en Cancún</title>
     <meta
       name="description"
-      content="Inmobiliaria en Cancun para comprar, vender, valorar e invertir en propiedades con estrategia local, datos e inteligencia artificial validada por asesores."
+      content="Inmobiliaria en Cancún para comprar, vender, valorar e invertir en propiedades con estrategia local, datos e inteligencia artificial validada por asesores."
     />
     <link rel="canonical" href="https://www.puertocancun.center/" />
     <meta name="robots" content="index,follow,max-image-preview:large" />
-    <meta name="author" content="Puerto Cancun Center" />
+    <meta name="author" content="Puerto Cancún Center" />
     <meta property="og:type" content="website" />
-    <meta property="og:title" content="Compra y venta de propiedades en Cancun | Inmobiliaria en Cancun" />
+    <meta property="og:title" content="Compra y venta de propiedades en Cancún | Inmobiliaria en Cancún" />
     <meta
       property="og:description"
-      content="Compra, venta y valoracion inmobiliaria en Cancun con estrategia local, datos e inteligencia artificial validada por asesores."
+      content="Compra, venta y valoración inmobiliaria en Cancún con estrategia local, datos e inteligencia artificial validada por asesores."
     />
     <meta property="og:url" content="https://www.puertocancun.center/" />
     <meta property="og:image" content="https://www.puertocancun.center/assets/og-puerto-cancun-center.webp" />
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content="Compra y venta de propiedades en Cancun | Inmobiliaria en Cancun" />
+    <meta name="twitter:title" content="Compra y venta de propiedades en Cancún | Inmobiliaria en Cancún" />
     <meta
       name="twitter:description"
-      content="Inmobiliaria en Cancun para comprar, vender, valorar e invertir con criterio local e IA bien utilizada."
+      content="Inmobiliaria en Cancún para comprar, vender, valorar e invertir con criterio local e IA bien utilizada."
     />
     <meta name="twitter:image" content="https://www.puertocancun.center/assets/og-puerto-cancun-center.webp" />
     <link rel="icon" type="image/png" sizes="48x48" href="/favicon.png" />
@@ -162,6 +162,7 @@
                   id="searchInput"
                   type="search"
                   autocomplete="off"
+                  aria-label="Buscar por ciudad, dirección o código postal"
                   data-i18n-placeholder="searchPlaceholder"
                   placeholder="Ciudad, dirección, código postal"
                 />
@@ -181,7 +182,7 @@
           </div>
         </section>
 
-        <section class="ai-validation-home home-only" id="validar-ia">
+        <section class="ai-validation-home home-only" id="validar-ia" hidden>
           <div class="content-wrap validation-grid">
             <div>
               <p class="section-kicker" data-i18n="aiValidationKicker">Validacion de IA</p>
@@ -235,7 +236,7 @@
           </div>
         </section>
 
-        <section class="resource-section home-only">
+        <section class="resource-section home-only" hidden>
           <div class="content-wrap">
             <div class="center-heading">
               <h2 data-i18n="aiResourcesTitle">Compra, vende o valora con Puerto Cancun Center</h2>
@@ -277,24 +278,24 @@
             <div class="zone-grid">
               <a class="zone-card" href="/propiedades/puerto-cancun">
                 <img
-                  src="https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=900&q=80"
-                  alt="Puerto Cancun waterfront"
+                  src="/assets/cancun-hotel-zone-hero-768.webp"
+                  alt="Vista aérea del litoral de Cancún"
                   width="900" height="600" loading="lazy"
                 />
                 <span>Puerto Cancun</span>
               </a>
               <a class="zone-card" href="/propiedades/zona-hotelera">
                 <img
-                  src="https://images.unsplash.com/photo-1510414842594-a61c69b5ae57?auto=format&fit=crop&w=900&q=80"
-                  alt="Zona Hotelera beach"
+                  src="/assets/cancun-hotel-zone-hero-1280.webp"
+                  alt="Zona Hotelera de Cancún frente al mar Caribe"
                   width="900" height="600" loading="lazy"
                 />
                 <span>Zona Hotelera</span>
               </a>
               <a class="zone-card" href="/preventas-cancun">
                 <img
-                  src="https://images.unsplash.com/photo-1600607687644-c7171b42498f?auto=format&fit=crop&w=900&q=80"
-                  alt="Luxury presale tower"
+                  src="/assets/cancun-hotel-zone-hero-1280.webp"
+                  alt="Desarrollo residencial contemporáneo"
                   width="900" height="600" loading="lazy"
                 />
                 <span data-i18n="zonePresales">Preventas | Presales</span>
@@ -303,7 +304,7 @@
           </div>
         </section>
 
-        <section class="welcome-section home-only">
+        <section class="welcome-section home-only" hidden>
           <div class="content-wrap">
             <h2 data-i18n="welcomeTitle">Bienvenido a Puerto Cancún Center!</h2>
             <p data-i18n="welcomeCopy">
@@ -314,8 +315,8 @@
 
             <div class="feature-split">
               <img
-                src="https://images.unsplash.com/photo-1499793983690-e29da59ef1c2?auto=format&fit=crop&w=1200&q=82"
-                alt="Luxury waterfront residence"
+                src="/assets/cancun-hotel-zone-hero-1280.webp"
+                alt="Residencia con alberca disponible en Cancún"
                 width="1200" height="800" loading="lazy"
               />
               <div class="feature-copy">
@@ -339,7 +340,7 @@
               <a class="type-tile" href="/propiedades/casas-cancun">
                 <span data-i18n="typeHouses">Casas</span>
                 <img
-                  src="/assets/type-houses-cancun.jpg"
+                  src="/assets/cancun-hotel-zone-hero-1280.webp"
                   alt="Luxury house pool"
                   width="1200" height="800"
                 />
@@ -347,7 +348,7 @@
               <a class="type-tile" href="/propiedades/departamentos-cancun">
                 <span data-i18n="typeCondos">Departamentos</span>
                 <img
-                  src="/assets/type-apartments-cancun.jpg"
+                  src="/assets/cancun-hotel-zone-hero-1280.webp"
                   alt="Luxury apartment"
                   width="1200" height="800"
                 />
@@ -355,7 +356,7 @@
               <a class="type-tile" href="/propiedades/puerto-cancun/terrenos">
                 <span data-i18n="typeLand">Terrenos</span>
                 <img
-                  src="/assets/type-land-cancun.jpg"
+                  src="/assets/cancun-hotel-zone-hero-1280.webp"
                   alt="Waterfront land"
                   width="1200" height="800"
                 />
@@ -372,8 +373,8 @@
                 <a class="primary-button" href="/preventas-cancun" data-i18n="seeMore">Ver mas</a>
               </div>
               <img
-                src="https://images.unsplash.com/photo-1600607687920-4e2a09cf159d?auto=format&fit=crop&w=1200&q=82"
-                alt="Luxury presale building"
+                src="/assets/cancun-hotel-zone-hero-1280.webp"
+                alt="Departamento contemporáneo disponible en Cancún"
                 width="1200" height="800" loading="lazy"
               />
             </div>
@@ -500,7 +501,7 @@
           </div>
         </section>
 
-        <section class="more-section home-only">
+        <section class="more-section home-only" hidden>
           <div class="content-wrap">
             <div class="center-heading">
               <h2 data-i18n="moreProperties">Ver mas propiedades</h2>
@@ -516,27 +517,27 @@
               </a>
               <a href="/preventas-cancun">
                 <span data-i18n="typePresales">Pre-ventas</span>
-                <img src="https://images.unsplash.com/photo-1600607687644-c7171b42498f?auto=format&fit=crop&w=700&q=75" alt="Preventas inmobiliarias en Cancun" loading="lazy" width="700" height="394" />
+                <img src="/assets/cancun-hotel-zone-hero-1280.webp" alt="Preventas inmobiliarias en Cancún" loading="lazy" width="700" height="394" />
               </a>
               <a href="/propiedades">
                 <span data-i18n="navFeatured">Destacadas</span>
-                <img src="https://images.unsplash.com/photo-1600607687920-4e2a09cf159d?auto=format&fit=crop&w=700&q=75" alt="Propiedades destacadas en Cancun" loading="lazy" width="700" height="394" />
+                <img src="/assets/cancun-hotel-zone-hero-768.webp" alt="Propiedades destacadas en Cancún" loading="lazy" width="700" height="394" />
               </a>
               <a href="/propiedades/casas-cancun">
                 <span data-i18n="typeHouses">Casas</span>
-                <img src="https://images.unsplash.com/photo-1613490493576-7fde63acd811?auto=format&fit=crop&w=700&q=75" alt="Casas en Cancun" loading="lazy" width="700" height="394" />
+                <img src="/assets/cancun-hotel-zone-hero-1280.webp" alt="Casas en Cancún" loading="lazy" width="700" height="394" />
               </a>
               <a href="/propiedades/departamentos-cancun">
                 <span data-i18n="typeCondos">Departamentos</span>
-                <img src="https://images.unsplash.com/photo-1600566753190-17f0baa2a6c3?auto=format&fit=crop&w=700&q=75" alt="Departamentos en Cancun" loading="lazy" width="700" height="394" />
+                <img src="/assets/cancun-hotel-zone-hero-1280.webp" alt="Departamentos en Cancún" loading="lazy" width="700" height="394" />
               </a>
               <a href="/propiedades/puerto-cancun/terrenos">
                 <span data-i18n="typeLand">Terrenos</span>
-                <img src="https://images.unsplash.com/photo-1572120360610-d971b9d7767c?auto=format&fit=crop&w=700&q=75" alt="Terrenos en Cancun" loading="lazy" width="700" height="394" />
+                <img src="/assets/cancun-hotel-zone-hero-1280.webp" alt="Terrenos en Cancún" loading="lazy" width="700" height="394" />
               </a>
               <a href="/preventas-cancun">
                 <span data-i18n="typeDevelopments">Desarrollos</span>
-                <img src="https://images.unsplash.com/photo-1582268611958-ebfd161ef9cf?auto=format&fit=crop&w=700&q=75" alt="Desarrollos inmobiliarios en Cancun" loading="lazy" width="700" height="394" />
+                <img src="/assets/cancun-hotel-zone-hero-768.webp" alt="Desarrollos inmobiliarios en Cancún" loading="lazy" width="700" height="394" />
               </a>
             </div>
           </div>
@@ -549,6 +550,23 @@
               <h2 data-i18n="teamTitle">Equipo de asesores de Puerto Cancún Center</h2>
               <p data-i18n="teamCopy">Un solo equipo para revisar inventario, preparar publicaciones, dar seguimiento a solicitudes y coordinar el contacto entre compradores y propietarios.</p>
               <a class="outline-dark-button" href="/contacto" data-i18n="teamCta">Contactar al equipo</a>
+            </div>
+            <div class="trust-signal-grid" aria-label="Señales de confianza">
+              <article>
+                <i data-lucide="badge-check" aria-hidden="true"></i>
+                <h3>Inventario revisado</h3>
+                <p>Precio, moneda, ubicación y disponibilidad se presentan sujetos a verificación documental.</p>
+              </article>
+              <article>
+                <i data-lucide="shield-check" aria-hidden="true"></i>
+                <h3>Datos protegidos</h3>
+                <p>Los formularios explican su finalidad y permiten ejercer derechos de privacidad.</p>
+              </article>
+              <article>
+                <i data-lucide="messages-square" aria-hidden="true"></i>
+                <h3>Atención identificable</h3>
+                <p>Cada solicitud queda registrada para que el equipo pueda dar seguimiento por el canal elegido.</p>
+              </article>
             </div>
           </div>
         </section>
@@ -611,6 +629,9 @@
           <div>
             <h3 data-i18n="footerAbout">Nosotros</h3>
             <a href="/nosotros" data-i18n="aboutPuerto">Sobre Puerto Cancún Center</a>
+            <a href="/aviso-de-privacidad" data-i18n="privacyNotice">Aviso de privacidad</a>
+            <a href="/terminos-y-condiciones" data-i18n="termsConditions">Términos y condiciones</a>
+            <a href="/politica-de-cookies" data-i18n="cookiePolicy">Política de cookies</a>
             <h3 class="footer-location" data-i18n="location">Ubicacion</h3>
             <a href="https://www.google.com/maps/search/?api=1&amp;query=Puerto%20Cancun%20Mall%2C%20Marina%20B.%2C%20oficina%2027%2C%20Zona%20Hotelera%2C%20Cancun%2077500%2C%20Q%20Roo%2C%20Mexico" target="_blank" rel="noopener"><p>Puerto Cancun Mall, Marina B., oficina 27<br />Zona Hotelera, Cancun 77500<br />Q Roo, Mexico.</p></a>
           </div>
@@ -625,6 +646,7 @@
       </footer>
     </div>
 
+    <!-- PRIVATE_PANEL_START -->
     <main class="panel-view" id="panelView" hidden>
       <section class="panel-hero">
         <div>
@@ -2050,6 +2072,13 @@
                   <span>Precio publicado</span>
                   <input name="price" type="number" min="0" step="0.01" required />
                 </label>
+                <label>
+                  <span>Forma de mostrar el precio</span>
+                  <select name="priceUnit" required>
+                    <option value="total">Precio total del inmueble</option>
+                    <option value="sqm">Precio por m²</option>
+                  </select>
+                </label>
               </div>
               <fieldset class="development-fields" data-development-fields hidden>
                 <legend>Información del desarrollo</legend>
@@ -2060,8 +2089,19 @@
                   <label><span>Unidades totales</span><input name="units" type="number" min="0" /></label>
                   <label><span>Unidades disponibles</span><input name="availableUnits" type="number" min="0" /></label>
                 </div>
-                <label><span>Plan de pagos</span><textarea name="paymentPlan" rows="3"></textarea></label>
-                <label><span>Aspectos destacados de inversión</span><textarea name="investmentHighlights" rows="3"></textarea></label>
+                <div class="form-row">
+                  <label><span>Avance de obra (%)</span><input name="constructionProgress" type="number" min="0" max="100" step="0.1" /></label>
+                  <label><span>Fecha de actualización del avance</span><input name="progressUpdatedAt" type="date" /></label>
+                </div>
+                <div class="form-row">
+                  <label><span>Plan de pagos en español</span><textarea name="paymentPlan" rows="3"></textarea></label>
+                  <label><span>Payment plan in English</span><textarea name="paymentPlanEn" rows="3"></textarea></label>
+                </div>
+                <label><span>Amenidades exclusivas del desarrollo</span><input name="developmentAmenities" placeholder="Beach club, alberca, marina, coworking" /></label>
+                <div class="form-row">
+                  <label><span>Aspectos destacados de inversión en español</span><textarea name="investmentHighlights" rows="3"></textarea></label>
+                  <label><span>Investment highlights in English</span><textarea name="investmentHighlightsEn" rows="3"></textarea></label>
+                </div>
               </fieldset>
               <label>
                 <span data-i18n="address">Direccion</span>
@@ -2369,8 +2409,21 @@
       </div>
       <div id="adminNotifications" class="notification-list"></div>
     </aside>
+    <!-- PRIVATE_PANEL_END -->
 
     <div class="toast-stack" id="toastStack" aria-live="polite"></div>
+
+    <aside class="cookie-banner" id="cookieBanner" role="dialog" aria-label="Preferencias de cookies" hidden>
+      <div>
+        <strong data-i18n="cookieBannerTitle">Tu privacidad importa</strong>
+        <p data-i18n="cookieBannerCopy">Usamos cookies esenciales para seguridad, sesión e idioma. Las mediciones opcionales solo se activan con tu autorización.</p>
+        <a href="/politica-de-cookies" data-i18n="cookieLearnMore">Conocer la política de cookies</a>
+      </div>
+      <div class="cookie-actions">
+        <button class="ghost-button" type="button" data-cookie-choice="essential" data-i18n="cookieEssential">Solo esenciales</button>
+        <button class="primary-button" type="button" data-cookie-choice="all" data-i18n="cookieAccept">Aceptar medición</button>
+      </div>
+    </aside>
 
     <div class="modal-backdrop" id="authModal" hidden>
       <section class="auth-modal" role="dialog" aria-modal="true" aria-labelledby="authTitle">
@@ -2405,6 +2458,7 @@
           <button class="text-button" type="button" data-auth-tab="register" data-i18n="noAccount">
             No tienes cuenta? Crear una cuenta para vender
           </button>
+          <button class="text-button" type="button" data-auth-tab="forgot" data-i18n="forgotPassword">¿Olvidaste tu contraseña?</button>
         </form>
 
         <form id="registerForm" class="auth-form">
@@ -2436,7 +2490,12 @@
           <label>
             <span data-i18n="password">Contrasena</span>
             <input name="password" type="password" autocomplete="new-password" minlength="12" required />
-            <small data-i18n="passwordRule">Usa por lo menos 12 caracteres y evita reutilizar otra contraseña.</small>
+            <small data-i18n="passwordRule">Usa 12 caracteres o más con mayúscula, minúscula, número y símbolo.</small>
+            <meter class="password-strength" min="0" max="4" value="0" data-password-meter></meter>
+          </label>
+          <label>
+            <span data-i18n="confirmPassword">Confirmar contraseña</span>
+            <input name="confirmPassword" type="password" autocomplete="new-password" minlength="12" required />
           </label>
           <button class="primary-button" type="submit" data-i18n="createAccount">Crear cuenta</button>
           <p class="form-message" id="registerMessage"></p>
@@ -2458,11 +2517,32 @@
           <label>
             <span data-i18n="newPassword">Nueva contraseña</span>
             <input name="newPassword" type="password" autocomplete="new-password" minlength="12" required />
-            <small data-i18n="passwordRule">Usa por lo menos 12 caracteres y evita reutilizar otra contraseña.</small>
+            <small data-i18n="passwordRule">Usa 12 caracteres o más con mayúscula, minúscula, número y símbolo.</small>
+          </label>
+          <label>
+            <span data-i18n="confirmPassword">Confirmar contraseña</span>
+            <input name="confirmNewPassword" type="password" autocomplete="new-password" minlength="12" required />
           </label>
           <button class="primary-button" type="submit" data-i18n="updatePasswordAction">Actualizar contraseña</button>
           <p class="form-message" id="passwordUpdateMessage"></p>
           <button class="text-button" type="button" data-auth-tab="login" data-i18n="backToLogin">Volver a iniciar sesión</button>
+        </form>
+
+        <form id="forgotForm" class="auth-form">
+          <div><h3 data-i18n="forgotPassword">¿Olvidaste tu contraseña?</h3><p data-i18n="forgotPasswordIntro">Te enviaremos un enlace seguro que vence en 45 minutos.</p></div>
+          <label><span data-i18n="email">Dirección de correo</span><input name="email" type="email" autocomplete="email" required /></label>
+          <button class="primary-button" type="submit" data-i18n="sendRecovery">Enviar enlace de recuperación</button>
+          <p class="form-message" id="forgotMessage"></p>
+          <button class="text-button" type="button" data-auth-tab="login" data-i18n="backToLogin">Volver a iniciar sesión</button>
+        </form>
+
+        <form id="resetPasswordForm" class="auth-form">
+          <input name="token" type="hidden" />
+          <div><h3 data-i18n="resetPassword">Crear nueva contraseña</h3></div>
+          <label><span data-i18n="newPassword">Nueva contraseña</span><input name="password" type="password" autocomplete="new-password" minlength="12" required /><meter class="password-strength" min="0" max="4" value="0" data-password-meter></meter></label>
+          <label><span data-i18n="confirmPassword">Confirmar contraseña</span><input name="confirmPassword" type="password" autocomplete="new-password" minlength="12" required /></label>
+          <button class="primary-button" type="submit" data-i18n="resetPassword">Crear nueva contraseña</button>
+          <p class="form-message" id="resetPasswordMessage"></p>
         </form>
       </section>
     </div>

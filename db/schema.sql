@@ -8,6 +8,12 @@ CREATE TABLE IF NOT EXISTS seller_accounts (
   password_hash TEXT NOT NULL,
   google_sub TEXT UNIQUE,
   auth_provider TEXT NOT NULL DEFAULT 'password',
+  email_verified_at TIMESTAMPTZ,
+  email_verification_token_hash TEXT,
+  email_verification_expires_at TIMESTAMPTZ,
+  password_reset_token_hash TEXT,
+  password_reset_expires_at TIMESTAMPTZ,
+  session_version INTEGER NOT NULL DEFAULT 1,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
@@ -70,6 +76,7 @@ CREATE TABLE IF NOT EXISTS properties (
   operation TEXT NOT NULL CHECK (operation IN ('sale', 'rent')),
   price_currency TEXT NOT NULL DEFAULT 'USD' CHECK (price_currency IN ('USD', 'MXN')),
   price_amount NUMERIC,
+  price_unit TEXT NOT NULL DEFAULT 'total' CHECK (price_unit IN ('total', 'sqm')),
   price_usd NUMERIC,
   price_mxn NUMERIC,
   beds INTEGER NOT NULL DEFAULT 0,
@@ -98,6 +105,30 @@ CREATE TABLE IF NOT EXISTS properties (
   source_request_id TEXT UNIQUE,
   idempotency_key TEXT UNIQUE
 );
+
+CREATE TABLE IF NOT EXISTS developments (
+  id TEXT PRIMARY KEY,
+  property_id TEXT NOT NULL UNIQUE REFERENCES properties(id) ON DELETE CASCADE,
+  slug TEXT UNIQUE,
+  name_es TEXT NOT NULL,
+  name_en TEXT NOT NULL,
+  developer TEXT,
+  stage TEXT,
+  delivery_date DATE,
+  total_units INTEGER NOT NULL DEFAULT 0,
+  available_units INTEGER NOT NULL DEFAULT 0,
+  payment_plan_es TEXT,
+  payment_plan_en TEXT,
+  amenities JSONB NOT NULL DEFAULT '[]'::jsonb,
+  construction_progress NUMERIC NOT NULL DEFAULT 0 CHECK (construction_progress >= 0 AND construction_progress <= 100),
+  progress_updated_at TIMESTAMPTZ,
+  investment_highlights_es TEXT,
+  investment_highlights_en TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_developments_delivery ON developments (delivery_date, stage);
 
 CREATE TABLE IF NOT EXISTS location_options (
   id TEXT PRIMARY KEY,

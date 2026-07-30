@@ -14,7 +14,7 @@ const { createWhatsappService, normalizeBotSettings } = require("./whatsapp-serv
 const { Pool } = require("pg");
 const { buildLocationSeedOptions, reconcileLocationSeedOptions } = require("./location-catalog");
 const packageMetadata = require("./package.json");
-const { ensureMigrationTable, recordMigration } = require("./db/migrations");
+const { ensureMigrationTable, recordMigration, runMigration } = require("./db/migrations");
 const {
   MUTATING_METHODS,
   createRateLimiter,
@@ -268,7 +268,7 @@ const seedProperties = [
     area: 519,
     lot: 3061,
     mls: "1696",
-    image: "https://images.unsplash.com/photo-1571896349842-33c89424de2d?auto=format&fit=crop&w=1200&q=82",
+    image: "/assets/cancun-hotel-zone-hero-1280.webp",
     featured: true,
     badges: ["new", "reduced"],
     createdAt: "2026-06-16T12:00:00.000Z",
@@ -288,7 +288,7 @@ const seedProperties = [
     area: 1600,
     lot: 2997,
     mls: "1678",
-    image: "https://images.unsplash.com/photo-1499793983690-e29da59ef1c2?auto=format&fit=crop&w=1200&q=82",
+    image: "/assets/cancun-hotel-zone-hero-1280.webp",
     featured: true,
     badges: ["new"],
     createdAt: "2026-06-12T12:00:00.000Z",
@@ -308,7 +308,7 @@ const seedProperties = [
     area: 1200,
     lot: 0,
     mls: "1583",
-    image: "https://images.unsplash.com/photo-1600607687920-4e2a09cf159d?auto=format&fit=crop&w=1200&q=82",
+    image: "/assets/cancun-hotel-zone-hero-1280.webp",
     featured: true,
     badges: [],
     createdAt: "2026-05-29T12:00:00.000Z",
@@ -328,7 +328,7 @@ const seedProperties = [
     area: 0,
     lot: 3858,
     mls: "1640",
-    image: "https://images.unsplash.com/photo-1572120360610-d971b9d7767c?auto=format&fit=crop&w=1200&q=82",
+    image: "/assets/cancun-hotel-zone-hero-1280.webp",
     featured: true,
     badges: ["new"],
     createdAt: "2026-06-05T12:00:00.000Z",
@@ -348,7 +348,7 @@ const seedProperties = [
     area: 1056,
     lot: 1231,
     mls: "1788",
-    image: "https://images.unsplash.com/photo-1613977257363-707ba9348227?auto=format&fit=crop&w=1200&q=82",
+    image: "/assets/cancun-hotel-zone-hero-1280.webp",
     featured: true,
     badges: [],
     createdAt: "2026-04-28T12:00:00.000Z",
@@ -368,7 +368,7 @@ const seedProperties = [
     area: 925,
     lot: 0,
     mls: "1716",
-    image: "https://images.unsplash.com/photo-1600607687644-c7171b42498f?auto=format&fit=crop&w=1200&q=82",
+    image: "/assets/cancun-hotel-zone-hero-1280.webp",
     featured: false,
     badges: ["new"],
     createdAt: "2026-06-20T12:00:00.000Z",
@@ -388,7 +388,7 @@ const seedProperties = [
     area: 690,
     lot: 810,
     mls: "1832",
-    image: "https://images.unsplash.com/photo-1613490493576-7fde63acd811?auto=format&fit=crop&w=1200&q=82",
+    image: "/assets/cancun-hotel-zone-hero-1280.webp",
     featured: false,
     badges: [],
     createdAt: "2026-05-03T12:00:00.000Z",
@@ -408,7 +408,7 @@ const seedProperties = [
     area: 240,
     lot: 0,
     mls: "1904",
-    image: "https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?auto=format&fit=crop&w=1200&q=82",
+    image: "/assets/cancun-hotel-zone-hero-1280.webp",
     featured: false,
     badges: ["new"],
     createdAt: "2026-06-22T12:00:00.000Z",
@@ -428,7 +428,7 @@ const seedProperties = [
     area: 155,
     lot: 0,
     mls: "1960",
-    image: "https://images.unsplash.com/photo-1582268611958-ebfd161ef9cf?auto=format&fit=crop&w=1200&q=82",
+    image: "/assets/cancun-hotel-zone-hero-1280.webp",
     featured: false,
     badges: ["new"],
     createdAt: "2026-06-24T12:00:00.000Z",
@@ -700,10 +700,7 @@ function propertyEnglishFallback(row) {
     details.length ? `The listing includes ${details.join(", ")}.` : "",
     "Review the property gallery, location and available features, then contact Puerto Cancun Center for current availability and complete details.",
   ].filter(Boolean).join(" ");
-  const fallbackDescription = [
-    fallbackOverview,
-    descriptionEs ? `Original property description:\n${descriptionEs}` : "",
-  ].filter(Boolean).join("\n\n");
+  const fallbackDescription = fallbackOverview;
   return {
     title: !titleEn || normalize(titleEn) === normalize(titleEs) || titleLooksSpanish ? fallbackTitle : titleEn,
     description:
@@ -771,6 +768,7 @@ function toProperty(row) {
     mapPlace: row.map_place || "",
     operation: row.operation,
     currency: row.price_currency || (row.price_usd !== null && row.price_usd !== undefined ? "USD" : "MXN"),
+    priceUnit: row.price_unit === "sqm" ? "sqm" : "total",
     price: Number(
       row.price_amount ??
       (row.price_currency === "MXN" ? row.price_mxn : row.price_usd) ??
@@ -803,7 +801,11 @@ function toProperty(row) {
     updatedAt: row.updated_at,
     descriptionEs: row.description_es,
     descriptionEn: english.description,
-    developmentData: row.development_data && typeof row.development_data === "object" ? row.development_data : {},
+    developmentData: row.development_record && typeof row.development_record === "object"
+      ? row.development_record
+      : row.development_data && typeof row.development_data === "object"
+        ? row.development_data
+        : {},
     sourceRequestId: row.source_request_id,
   };
   property.slug = row.slug || propertySlug(property);
@@ -1032,6 +1034,79 @@ async function sanitizeUploadedFile(parsed) {
   return { mimeType: "text/plain", buffer: safeBuffer, content: `data:text/plain;base64,${safeBuffer.toString("base64")}` };
 }
 
+async function sanitizePropertyImage(parsed) {
+  if (!parsed || !IMAGE_TYPES.has(parsed.mimeType) || parsed.buffer.length > IMAGE_MAX_BYTES) {
+    const error = new Error("La imagen no es válida o supera el límite permitido.");
+    error.status = 400;
+    throw error;
+  }
+  try {
+    const metadata = await sharp(parsed.buffer, { limitInputPixels: 40_000_000, failOn: "warning" }).metadata();
+    if (!["jpeg", "png", "webp"].includes(metadata.format)) throw new Error("Formato no permitido");
+    for (const option of [
+      { width: 1400, quality: 78 },
+      { width: 1280, quality: 68 },
+      { width: 1120, quality: 58 },
+    ]) {
+      const buffer = await sharp(parsed.buffer, { limitInputPixels: 40_000_000, failOn: "warning" })
+        .rotate()
+        .resize({ width: option.width, height: option.width, fit: "inside", withoutEnlargement: true })
+        .webp({ quality: option.quality })
+        .toBuffer();
+      if (buffer.length <= IMAGE_MAX_BYTES) {
+        return {
+          imageDataUrl: `data:image/webp;base64,${buffer.toString("base64")}`,
+          imageType: "image/webp",
+          imageSize: buffer.length,
+        };
+      }
+    }
+  } catch {
+    const error = new Error("La imagen no se pudo validar. Usa un archivo JPG, PNG o WEBP legítimo.");
+    error.status = 400;
+    throw error;
+  }
+  const error = new Error("La imagen no pudo optimizarse por debajo de 240 KB.");
+  error.status = 400;
+  throw error;
+}
+
+async function sanitizePropertyImageBody(body = {}) {
+  const output = { ...body };
+  const incoming = Array.isArray(body.images)
+    ? body.images
+    : body.imageDataUrl
+      ? [{ imageDataUrl: body.imageDataUrl, imageType: body.imageType, imageSize: body.imageSize }]
+      : null;
+  if (!incoming) return output;
+  if (incoming.length > IMAGE_MAX_COUNT) {
+    const error = new Error(`Solo puedes cargar hasta ${IMAGE_MAX_COUNT} imágenes por publicación.`);
+    error.status = 400;
+    throw error;
+  }
+  const images = new Array(incoming.length);
+  let cursor = 0;
+  const worker = async () => {
+    while (cursor < incoming.length) {
+      const index = cursor;
+      cursor += 1;
+      const image = incoming[index];
+      const dataUrl = typeof image === "string" ? image : image?.imageDataUrl;
+      if (!/^data:image\//i.test(String(dataUrl || ""))) {
+        images[index] = image;
+        continue;
+      }
+      images[index] = await sanitizePropertyImage(parseDataUrl(dataUrl));
+    }
+  };
+  await Promise.all(Array.from({ length: Math.min(3, incoming.length) }, worker));
+  output.images = images;
+  delete output.imageDataUrl;
+  delete output.imageType;
+  delete output.imageSize;
+  return output;
+}
+
 function pdfBuffer(build) {
   return new Promise((resolve, reject) => {
     const document = new PDFDocument({ size: "A4", margin: 48, info: { Producer: "Puerto Cancún Center" } });
@@ -1165,11 +1240,38 @@ function publicUser(user) {
   };
 }
 
+function internalRoleAllows(req, user) {
+  const internalRole = user.internalRole;
+  if (!internalRole || ["super_admin", "admin"].includes(internalRole)) return true;
+  const route = String(req.originalUrl || "").split("?")[0];
+  const editorPrefixes = ["/api/admin/properties", "/api/admin/developments", "/api/admin/blog", "/api/admin/files", "/api/admin/documents", "/api/admin/ai", "/api/admin/campaigns", "/api/admin/instagram"];
+  const advisorPrefixes = ["/api/admin/requests", "/api/admin/leads", "/api/admin/contacts", "/api/admin/valuations", "/api/admin/tasks", "/api/admin/matches", "/api/admin/buyers", "/api/admin/messages", "/api/admin/whatsapp", "/api/admin/notifications"];
+  const allowed = internalRole === "editor" ? editorPrefixes : internalRole === "advisor" ? advisorPrefixes : [];
+  return allowed.some((prefix) => route.startsWith(prefix));
+}
+
 function requireRole(role) {
-  return (req, res, next) => {
+  return async (req, res, next) => {
     if (!req.session.user || req.session.user.role !== role) {
       res.status(401).json({ error: "Unauthorized" });
       return;
+    }
+    if (role === "admin" && !internalRoleAllows(req, req.session.user)) {
+      res.status(403).json({ error: "Tu rol no tiene permiso para realizar esta acción." });
+      return;
+    }
+    if (role === "seller" && req.session.user.sessionVersion) {
+      try {
+        const result = await query("SELECT session_version FROM seller_accounts WHERE id = $1", [req.session.user.id]);
+        if (!result.rows[0] || Number(result.rows[0].session_version || 1) !== Number(req.session.user.sessionVersion)) {
+          req.session.destroy(() => null);
+          res.status(401).json({ error: "Tu sesión dejó de ser válida. Inicia sesión nuevamente.", code: "SESSION_REVOKED" });
+          return;
+        }
+      } catch (error) {
+        next(error);
+        return;
+      }
     }
     next();
   };
@@ -1185,10 +1287,25 @@ const whatsappService = createWhatsappService({ pool, query, uuid, secret: whats
 const PROPERTY_SUMMARY_COLUMNS = `
   p.id, p.slug, p.title_es, p.title_en, p.type, p.publication_section, p.state, p.city, p.zone, p.neighborhood, p.address,
   p.latitude, p.longitude, p.map_place, p.location_precision, p.google_maps_url, p.operation,
-  p.price_currency, p.price_amount, p.price_usd, p.price_mxn, p.beds, p.baths, p.parking, p.area, p.lot, p.amenities, p.keywords,
+  p.price_currency, p.price_amount, p.price_unit, p.price_usd, p.price_mxn, p.beds, p.baths, p.parking, p.area, p.lot, p.amenities, p.keywords,
   p.mls, p.featured, p.badges, p.status, p.is_public, p.created_at, p.updated_at, p.published_at,
   p.disabled_at, p.sold_at, p.archived_at, p.description_es, p.description_en, p.source_request_id,
   p.idempotency_key, p.development_data,
+  (SELECT jsonb_build_object(
+    'id', d.id,
+    'developer', COALESCE(d.developer, ''),
+    'stage', COALESCE(d.stage, ''),
+    'deliveryDate', COALESCE(d.delivery_date::text, ''),
+    'units', d.total_units,
+    'availableUnits', d.available_units,
+    'paymentPlan', COALESCE(d.payment_plan_es, ''),
+    'paymentPlanEn', COALESCE(d.payment_plan_en, ''),
+    'amenities', d.amenities,
+    'constructionProgress', d.construction_progress,
+    'progressUpdatedAt', d.progress_updated_at,
+    'investmentHighlights', COALESCE(d.investment_highlights_es, ''),
+    'investmentHighlightsEn', COALESCE(d.investment_highlights_en, '')
+  ) FROM developments d WHERE d.property_id = p.id LIMIT 1) AS development_record,
   GREATEST(COALESCE(jsonb_array_length(p.images), 0), CASE WHEN p.image IS NULL THEN 0 ELSE 1 END)::int AS image_count
 `;
 
@@ -1224,6 +1341,10 @@ async function getSellerRequestSummary(id, client = { query }) {
 }
 
 let publicPropertyCache = { expiresAt: 0, items: [] };
+let publishedBlogCache = {
+  es: { expiresAt: 0, value: false },
+  en: { expiresAt: 0, value: false },
+};
 
 async function getPublicProperties() {
   if (publicPropertyCache.expiresAt > Date.now()) return publicPropertyCache.items;
@@ -1237,6 +1358,33 @@ async function getPublicProperties() {
 
 function invalidatePublicPropertyCache() {
   publicPropertyCache = { expiresAt: 0, items: [] };
+}
+
+async function hasPublishedBlogPosts(lang = "es") {
+  const language = lang === "en" ? "en" : "es";
+  if (publishedBlogCache[language].expiresAt > Date.now()) return publishedBlogCache[language].value;
+  try {
+    const result = await query(
+      `SELECT EXISTS (
+         SELECT 1 FROM blog_posts
+         WHERE status = 'published'
+           AND ($1::text = 'es' OR (NULLIF(BTRIM(title_en), '') IS NOT NULL AND NULLIF(BTRIM(content_en), '') IS NOT NULL))
+       ) AS available`,
+      [language]
+    );
+    publishedBlogCache[language] = { expiresAt: Date.now() + 60_000, value: Boolean(result.rows[0]?.available) };
+  } catch (error) {
+    publishedBlogCache[language] = { expiresAt: Date.now() + 10_000, value: false };
+    if (databaseRuntimeState.ready) console.warn("Blog availability check failed:", error.message);
+  }
+  return publishedBlogCache[language].value;
+}
+
+function invalidatePublishedBlogCache() {
+  publishedBlogCache = {
+    es: { expiresAt: 0, value: false },
+    en: { expiresAt: 0, value: false },
+  };
 }
 
 async function verifyGoogleCredential(credential) {
@@ -1379,11 +1527,63 @@ async function initDatabase() {
     `);
     await client.query("ALTER TABLE seller_accounts ADD COLUMN IF NOT EXISTS google_sub TEXT UNIQUE");
     await client.query("ALTER TABLE seller_accounts ADD COLUMN IF NOT EXISTS auth_provider TEXT NOT NULL DEFAULT 'password'");
+    await client.query("ALTER TABLE seller_accounts ADD COLUMN IF NOT EXISTS email_verified_at TIMESTAMPTZ");
+    await client.query("ALTER TABLE seller_accounts ADD COLUMN IF NOT EXISTS email_verification_token_hash TEXT");
+    await client.query("ALTER TABLE seller_accounts ADD COLUMN IF NOT EXISTS email_verification_expires_at TIMESTAMPTZ");
+    await client.query("ALTER TABLE seller_accounts ADD COLUMN IF NOT EXISTS password_reset_token_hash TEXT");
+    await client.query("ALTER TABLE seller_accounts ADD COLUMN IF NOT EXISTS password_reset_expires_at TIMESTAMPTZ");
+    await client.query("ALTER TABLE seller_accounts ADD COLUMN IF NOT EXISTS session_version INTEGER NOT NULL DEFAULT 1");
+    await runMigration(client, {
+      id: "0002-verify-existing-seller-emails",
+      description: "Conserva acceso de cuentas previas al flujo de verificación de correo",
+      up: (migrationClient) => migrationClient.query(
+        "UPDATE seller_accounts SET email_verified_at = COALESCE(email_verified_at, created_at, NOW())"
+      ),
+    });
     await client.query("ALTER TABLE properties ADD COLUMN IF NOT EXISTS price_mxn NUMERIC");
     await client.query("ALTER TABLE properties ADD COLUMN IF NOT EXISTS publication_section TEXT NOT NULL DEFAULT 'properties'");
     await client.query("ALTER TABLE properties ADD COLUMN IF NOT EXISTS price_currency TEXT NOT NULL DEFAULT 'USD'");
     await client.query("ALTER TABLE properties ADD COLUMN IF NOT EXISTS price_amount NUMERIC");
+    await client.query("ALTER TABLE properties ADD COLUMN IF NOT EXISTS price_unit TEXT NOT NULL DEFAULT 'total'");
+    await client.query("UPDATE properties SET price_unit = 'total' WHERE price_unit NOT IN ('total', 'sqm') OR price_unit IS NULL");
+    await client.query(`
+      DO $$
+      BEGIN
+        IF NOT EXISTS (
+          SELECT 1 FROM pg_constraint
+          WHERE conname = 'properties_price_unit_check'
+            AND conrelid = 'properties'::regclass
+        ) THEN
+          ALTER TABLE properties
+          ADD CONSTRAINT properties_price_unit_check CHECK (price_unit IN ('total', 'sqm'));
+        END IF;
+      END $$;
+    `);
     await client.query("ALTER TABLE properties ADD COLUMN IF NOT EXISTS development_data JSONB NOT NULL DEFAULT '{}'::jsonb");
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS developments (
+        id TEXT PRIMARY KEY,
+        property_id TEXT NOT NULL UNIQUE REFERENCES properties(id) ON DELETE CASCADE,
+        slug TEXT UNIQUE,
+        name_es TEXT NOT NULL,
+        name_en TEXT NOT NULL,
+        developer TEXT,
+        stage TEXT,
+        delivery_date DATE,
+        total_units INTEGER NOT NULL DEFAULT 0,
+        available_units INTEGER NOT NULL DEFAULT 0,
+        payment_plan_es TEXT,
+        payment_plan_en TEXT,
+        amenities JSONB NOT NULL DEFAULT '[]'::jsonb,
+        construction_progress NUMERIC NOT NULL DEFAULT 0,
+        progress_updated_at TIMESTAMPTZ,
+        investment_highlights_es TEXT,
+        investment_highlights_en TEXT,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      )
+    `);
+    await client.query("CREATE INDEX IF NOT EXISTS idx_developments_delivery ON developments (delivery_date, stage)");
     await client.query(`
       UPDATE properties
       SET price_currency = CASE WHEN price_usd IS NOT NULL THEN 'USD' ELSE 'MXN' END,
@@ -1391,6 +1591,30 @@ async function initDatabase() {
       WHERE price_amount IS NULL
     `);
     await client.query("UPDATE properties SET publication_section = 'developments' WHERE type = 'Desarrollo' AND publication_section = 'properties'");
+    await client.query("UPDATE properties SET price_unit = 'sqm' WHERE mls = '1944' AND price_amount = 4200");
+    await client.query(`
+      INSERT INTO developments
+        (id, property_id, slug, name_es, name_en, developer, stage, delivery_date, total_units,
+         available_units, payment_plan_es, amenities, construction_progress, investment_highlights_es)
+      SELECT
+        'dev-' || p.id, p.id, p.slug, p.title_es, p.title_en,
+        NULLIF(p.development_data->>'developer', ''),
+        NULLIF(p.development_data->>'stage', ''),
+        CASE WHEN COALESCE(p.development_data->>'deliveryDate', '') ~ '^\d{4}-\d{2}-\d{2}$'
+          THEN (p.development_data->>'deliveryDate')::date ELSE NULL END,
+        CASE WHEN COALESCE(p.development_data->>'units', '') ~ '^\d+$'
+          THEN (p.development_data->>'units')::integer ELSE 0 END,
+        CASE WHEN COALESCE(p.development_data->>'availableUnits', '') ~ '^\d+$'
+          THEN (p.development_data->>'availableUnits')::integer ELSE 0 END,
+        NULLIF(p.development_data->>'paymentPlan', ''),
+        COALESCE(p.amenities, '[]'::jsonb),
+        CASE WHEN COALESCE(p.development_data->>'constructionProgress', '') ~ '^\d+(\.\d+)?$'
+          THEN LEAST(100, (p.development_data->>'constructionProgress')::numeric) ELSE 0 END,
+        NULLIF(p.development_data->>'investmentHighlights', '')
+      FROM properties p
+      WHERE p.publication_section = 'developments'
+      ON CONFLICT (property_id) DO NOTHING
+    `);
     await ensureNumericColumn(client, "properties", "area");
     await ensureNumericColumn(client, "properties", "lot");
     await ensureNumericColumn(client, "seller_requests", "area");
@@ -1976,6 +2200,7 @@ app.use((req, res, next) => {
   }
   sessionMiddleware(req, res, (error) => {
     if (!error) {
+      if (!req.session.csrfToken) req.session.csrfToken = crypto.randomBytes(24).toString("base64url");
       next();
       return;
     }
@@ -2006,9 +2231,24 @@ app.use(["/api/admin", "/api/seller", "/api/auth"], (req, res, next) => {
 });
 
 app.use("/api", sameOriginMutationGuard());
+app.use("/api", (req, res, next) => {
+  if (!MUTATING_METHODS.has(req.method)) {
+    next();
+    return;
+  }
+  const expected = String(req.session?.csrfToken || "");
+  const supplied = String(req.get("X-CSRF-Token") || "");
+  const valid = expected && supplied && expected.length === supplied.length &&
+    crypto.timingSafeEqual(Buffer.from(expected), Buffer.from(supplied));
+  if (!valid) {
+    res.status(403).json({ error: "La sesión de seguridad venció. Recarga la página e intenta nuevamente.", code: "CSRF_INVALID" });
+    return;
+  }
+  next();
+});
 app.use("/api/auth", createRateLimiter({ windowMs: 15 * 60 * 1000, max: 12, message: "Demasiados intentos de acceso. Espera 15 minutos antes de volver a intentar." }));
 app.use("/api/geocode", createRateLimiter({ windowMs: 10 * 60 * 1000, max: 80, message: "Se alcanzó el límite temporal de búsquedas de dirección." }));
-app.use("/api/leads", createRateLimiter({ windowMs: 10 * 60 * 1000, max: 30, message: "Se recibieron demasiadas solicitudes desde esta conexión." }));
+app.use("/api/leads", createRateLimiter({ windowMs: 10 * 60 * 1000, max: 12, message: "Se recibieron demasiadas solicitudes desde esta conexión." }));
 app.use("/api/analytics", createRateLimiter({ windowMs: 5 * 60 * 1000, max: 180 }));
 app.use("/api/metrics", createRateLimiter({ windowMs: 5 * 60 * 1000, max: 180 }));
 
@@ -2095,14 +2335,16 @@ app.get("/api/config", async (_req, res) => {
 app.get("/api/blog", async (req, res, next) => {
   try {
     const limit = Math.max(1, Math.min(60, Number(req.query.limit || 24)));
+    const lang = req.query.lang === "en" ? "en" : "es";
     const result = await query(
       `SELECT id, slug, title_es, title_en, excerpt_es, excerpt_en, cover_image, status,
               author_name, seo_title, seo_description, published_at, created_at, updated_at
        FROM blog_posts
        WHERE status = 'published'
+         AND ($2::text = 'es' OR (NULLIF(BTRIM(title_en), '') IS NOT NULL AND NULLIF(BTRIM(content_en), '') IS NOT NULL))
        ORDER BY published_at DESC NULLS LAST, updated_at DESC
        LIMIT $1`,
-      [limit]
+      [limit, lang]
     );
     res.json({ posts: result.rows.map((row) => toBlogPost(row, false)) });
   } catch (error) {
@@ -2249,8 +2491,65 @@ app.get("/media/requests/:id/:index", async (req, res, next) => {
 });
 
 app.get("/api/session", (req, res) => {
-  res.json({ user: publicUser(req.session.user) });
+  res.json({ user: publicUser(req.session.user), csrfToken: req.session.csrfToken || "" });
 });
+
+function passwordPolicyError(password, context = "") {
+  if (password.length < 12) return "La contraseña debe tener al menos 12 caracteres.";
+  if (password.length > 128) return "La contraseña no debe superar 128 caracteres.";
+  if (!/[a-z]/.test(password) || !/[A-Z]/.test(password) || !/\d/.test(password) || !/[^A-Za-z0-9]/.test(password)) {
+    return "Usa al menos una mayúscula, una minúscula, un número y un símbolo.";
+  }
+  const normalized = password.toLowerCase();
+  const personalTokens = String(context || "").toLowerCase().split(/[^a-z0-9]+/).filter((token) => token.length >= 4);
+  if (personalTokens.some((token) => normalized.includes(token))) return "La contraseña no debe contener tu nombre o correo.";
+  if (["password", "contraseña", "qwerty", "puertocancun", "123456"].some((term) => normalized.includes(term))) {
+    return "Elige una contraseña menos predecible.";
+  }
+  return "";
+}
+
+function createSecureToken() {
+  const token = crypto.randomBytes(32).toString("base64url");
+  return { token, hash: crypto.createHash("sha256").update(token).digest("hex") };
+}
+
+async function sendTransactionalEmail({ to, subject, html }) {
+  if (!process.env.RESEND_API_KEY || !process.env.MAIL_FROM) {
+    const error = new Error("El envío de correo todavía no está configurado. Define RESEND_API_KEY y MAIL_FROM.");
+    error.status = 503;
+    error.code = "EMAIL_NOT_CONFIGURED";
+    throw error;
+  }
+  const response = await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ from: process.env.MAIL_FROM, to: [to], subject, html }),
+  });
+  if (!response.ok) {
+    const error = new Error("No fue posible enviar el correo de seguridad. Intenta nuevamente.");
+    error.status = 502;
+    error.code = "EMAIL_DELIVERY_FAILED";
+    throw error;
+  }
+}
+
+function establishAuthenticatedSession(req, user) {
+  return new Promise((resolve, reject) => {
+    req.session.regenerate((error) => {
+      if (error) {
+        reject(error);
+        return;
+      }
+      req.session.user = user;
+      req.session.csrfToken = crypto.randomBytes(24).toString("base64url");
+      req.session.save((saveError) => saveError ? reject(saveError) : resolve());
+    });
+  });
+}
 
 app.post("/api/auth/login", async (req, res, next) => {
   try {
@@ -2261,13 +2560,14 @@ app.post("/api/auth/login", async (req, res, next) => {
         res.status(401).json({ error: "Invalid credentials" });
         return;
       }
-      req.session.user = {
+      const user = {
         id: "admin-prueba",
         role: "admin",
         name: "Admin Prueba",
         email: "admin@puertocancuncenter.test",
       };
-      res.json({ user: publicUser(req.session.user) });
+      await establishAuthenticatedSession(req, user);
+      res.json({ user: publicUser(user), csrfToken: req.session.csrfToken });
       return;
     }
 
@@ -2278,7 +2578,7 @@ app.post("/api/auth/login", async (req, res, next) => {
     const internalAccount = internalResult.rows[0];
     if (internalAccount && (await bcrypt.compare(password, internalAccount.password_hash))) {
       await query("UPDATE internal_users SET last_login_at = NOW(), updated_at = NOW() WHERE id = $1", [internalAccount.id]);
-      req.session.user = {
+      const user = {
         id: internalAccount.id,
         role: "admin",
         internalRole: internalAccount.role,
@@ -2287,7 +2587,8 @@ app.post("/api/auth/login", async (req, res, next) => {
         email: internalAccount.email,
         mustUpdatePassword: password.length < 12,
       };
-      res.json({ user: publicUser(req.session.user) });
+      await establishAuthenticatedSession(req, user);
+      res.json({ user: publicUser(user), csrfToken: req.session.csrfToken });
       return;
     }
 
@@ -2297,14 +2598,19 @@ app.post("/api/auth/login", async (req, res, next) => {
       res.status(401).json({ error: "Invalid credentials" });
       return;
     }
+    if (!account.email_verified_at && account.auth_provider !== "google") {
+      res.status(403).json({ error: "Confirma tu correo antes de iniciar sesión.", code: "EMAIL_NOT_VERIFIED" });
+      return;
+    }
 
-    req.session.user = {
+    const user = {
       id: account.id,
       role: "seller",
       name: `${account.first_name} ${account.last_name}`,
       email: account.email,
       phone: account.phone,
       preferredContact: account.preferred_contact,
+      sessionVersion: Number(account.session_version || 1),
       mustUpdatePassword: password.length < 12,
     };
     res.json({ user: publicUser(req.session.user) });
@@ -2314,6 +2620,7 @@ app.post("/api/auth/login", async (req, res, next) => {
 });
 
 app.post("/api/auth/register", async (req, res, next) => {
+  const client = await pool.connect();
   try {
     const firstName = String(req.body.firstName || "").trim();
     const lastName = String(req.body.lastName || "").trim();
@@ -2321,21 +2628,39 @@ app.post("/api/auth/register", async (req, res, next) => {
     const phone = normalizePhone(req.body.phone);
     const preferredContact = req.body.preferredContact === "phone" ? "phone" : "email";
     const password = String(req.body.password || "");
+    const confirmPassword = String(req.body.confirmPassword || "");
+    const consent = req.body.consent === true || req.body.consent === "true" || req.body.consent === "on";
+    const passwordError = passwordPolicyError(password, `${firstName} ${lastName} ${email}`);
 
-    if (!firstName || !lastName || !isValidEmail(email) || !phone || password.length < 12) {
-      res.status(400).json({ error: "Completa los datos con un correo válido, teléfono de 10 a 15 dígitos y contraseña de al menos 12 caracteres.", code: "PASSWORD_TOO_SHORT" });
+    if (!firstName || !lastName || !isValidEmail(email) || !phone) {
+      res.status(400).json({ error: "Completa los datos con un correo válido y teléfono de 10 a 15 dígitos." });
+      return;
+    }
+    if (!consent) {
+      res.status(400).json({ error: "Debes aceptar el aviso de privacidad y los términos para crear la cuenta.", code: "CONSENT_REQUIRED" });
+      return;
+    }
+    if (password !== confirmPassword) {
+      res.status(400).json({ error: "La confirmación de contraseña no coincide.", code: "PASSWORD_MISMATCH" });
+      return;
+    }
+    if (passwordError) {
+      res.status(400).json({ error: passwordError, code: "PASSWORD_POLICY" });
       return;
     }
 
     const id = uuid("seller");
     const passwordHash = await bcrypt.hash(password, 10);
-    await query(
+    const verification = createSecureToken();
+    await client.query("BEGIN");
+    await client.query(
       `INSERT INTO seller_accounts
-        (id, first_name, last_name, email, phone, preferred_contact, password_hash)
-       VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-      [id, firstName, lastName, email, phone, preferredContact, passwordHash]
+        (id, first_name, last_name, email, phone, preferred_contact, password_hash,
+         email_verification_token_hash, email_verification_expires_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW() + INTERVAL '24 hours')`,
+      [id, firstName, lastName, email, phone, preferredContact, passwordHash, verification.hash]
     );
-    await upsertContact({ query }, {
+    await upsertContact(client, {
       name: `${firstName} ${lastName}`,
       email,
       phone,
@@ -2343,21 +2668,104 @@ app.post("/api/auth/register", async (req, res, next) => {
       source: "registered_account",
       leadScore: "warm",
     });
-
-    req.session.user = {
-      id,
-      role: "seller",
-      name: `${firstName} ${lastName}`,
-      email,
-      phone,
-      preferredContact,
-    };
-    res.status(201).json({ user: publicUser(req.session.user) });
+    const verificationUrl = absoluteUrl(`/?verifyToken=${encodeURIComponent(verification.token)}`, siteUrl);
+    await sendTransactionalEmail({
+      to: email,
+      subject: "Confirma tu cuenta de Puerto Cancún Center",
+      html: `<h1>Confirma tu correo</h1><p>Hola ${escapeHtml(firstName)}, confirma tu cuenta para acceder al panel de propietario.</p><p><a href="${escapeHtml(verificationUrl)}">Confirmar correo</a></p><p>El enlace vence en 24 horas.</p>`,
+    });
+    await client.query("COMMIT");
+    res.status(201).json({ verificationRequired: true, email });
   } catch (error) {
+    await client.query("ROLLBACK").catch(() => null);
     if (error.code === "23505") {
       res.status(409).json({ error: "Account exists" });
       return;
     }
+    next(error);
+  } finally {
+    client.release();
+  }
+});
+
+app.get("/api/auth/verify-email", async (req, res, next) => {
+  try {
+    const token = String(req.query.token || "");
+    const hash = crypto.createHash("sha256").update(token).digest("hex");
+    const result = await query(
+      `UPDATE seller_accounts
+       SET email_verified_at = NOW(), email_verification_token_hash = NULL, email_verification_expires_at = NULL
+       WHERE email_verification_token_hash = $1 AND email_verification_expires_at > NOW()
+       RETURNING email`,
+      [hash]
+    );
+    if (!result.rows[0]) {
+      res.status(400).json({ error: "El enlace de verificación es inválido o venció." });
+      return;
+    }
+    res.json({ ok: true, email: result.rows[0].email });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.post("/api/auth/forgot-password", async (req, res, next) => {
+  try {
+    const email = String(req.body.email || "").trim().toLowerCase();
+    if (isValidEmail(email)) {
+      const reset = createSecureToken();
+      const result = await query(
+        `UPDATE seller_accounts
+         SET password_reset_token_hash = $2, password_reset_expires_at = NOW() + INTERVAL '45 minutes'
+         WHERE lower(email) = lower($1) AND auth_provider <> 'google'
+         RETURNING first_name`,
+        [email, reset.hash]
+      );
+      if (result.rows[0]) {
+        const resetUrl = absoluteUrl(`/?resetToken=${encodeURIComponent(reset.token)}`, siteUrl);
+        await sendTransactionalEmail({
+          to: email,
+          subject: "Restablece tu contraseña de Puerto Cancún Center",
+          html: `<h1>Restablecer contraseña</h1><p>Hola ${escapeHtml(result.rows[0].first_name)}, usa el siguiente enlace dentro de los próximos 45 minutos.</p><p><a href="${escapeHtml(resetUrl)}">Crear una nueva contraseña</a></p>`,
+        });
+      }
+    }
+    res.json({ ok: true, message: "Si existe una cuenta compatible, enviaremos instrucciones a ese correo." });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.post("/api/auth/reset-password", async (req, res, next) => {
+  try {
+    const token = String(req.body.token || "");
+    const password = String(req.body.password || "");
+    const confirmPassword = String(req.body.confirmPassword || "");
+    if (password !== confirmPassword) {
+      res.status(400).json({ error: "La confirmación de contraseña no coincide." });
+      return;
+    }
+    const policyError = passwordPolicyError(password);
+    if (policyError) {
+      res.status(400).json({ error: policyError });
+      return;
+    }
+    const hash = crypto.createHash("sha256").update(token).digest("hex");
+    const passwordHash = await bcrypt.hash(password, 10);
+    const result = await query(
+      `UPDATE seller_accounts
+       SET password_hash = $2, password_reset_token_hash = NULL, password_reset_expires_at = NULL,
+           session_version = session_version + 1
+       WHERE password_reset_token_hash = $1 AND password_reset_expires_at > NOW()
+       RETURNING id`,
+      [hash, passwordHash]
+    );
+    if (!result.rows[0]) {
+      res.status(400).json({ error: "El enlace para restablecer la contraseña es inválido o venció." });
+      return;
+    }
+    res.json({ ok: true });
+  } catch (error) {
     next(error);
   }
 });
@@ -2367,12 +2775,22 @@ app.post("/api/auth/update-password", async (req, res, next) => {
     const username = String(req.body.username || "").trim();
     const currentPassword = String(req.body.currentPassword || "");
     const newPassword = String(req.body.newPassword || "");
+    const confirmNewPassword = String(req.body.confirmNewPassword || "");
     if (!username || !currentPassword) {
       res.status(400).json({ error: "Indica tu usuario y contraseña actual.", code: "CURRENT_CREDENTIALS_REQUIRED" });
       return;
     }
+    if (newPassword !== confirmNewPassword) {
+      res.status(400).json({ error: "La confirmación de contraseña no coincide.", code: "PASSWORD_MISMATCH" });
+      return;
+    }
     if (newPassword.length < 12) {
-      res.status(400).json({ error: "La nueva contraseña debe tener al menos 12 caracteres.", code: "PASSWORD_TOO_SHORT" });
+      res.status(400).json({ error: "La nueva contraseña debe tener al menos 12 caracteres.", code: "PASSWORD_POLICY" });
+      return;
+    }
+    const newPasswordError = passwordPolicyError(newPassword, username);
+    if (newPasswordError) {
+      res.status(400).json({ error: newPasswordError, code: "PASSWORD_POLICY" });
       return;
     }
     if (currentPassword === newPassword) {
@@ -2415,7 +2833,7 @@ app.post("/api/auth/update-password", async (req, res, next) => {
       return;
     }
     const passwordHash = await bcrypt.hash(newPassword, 10);
-    await query("UPDATE seller_accounts SET password_hash = $2 WHERE id = $1", [sellerAccount.id, passwordHash]);
+    await query("UPDATE seller_accounts SET password_hash = $2, session_version = session_version + 1 WHERE id = $1", [sellerAccount.id, passwordHash]);
     if (req.session.user?.id === sellerAccount.id) req.session.user.mustUpdatePassword = false;
     res.json({ ok: true });
   } catch (error) {
@@ -2445,7 +2863,7 @@ app.post("/api/auth/google", async (req, res, next) => {
       account = result.rows[0];
       if (account) {
         const updated = await query(
-          "UPDATE seller_accounts SET google_sub = COALESCE(google_sub, $2), auth_provider = 'google' WHERE id = $1 RETURNING *",
+          "UPDATE seller_accounts SET google_sub = COALESCE(google_sub, $2), auth_provider = 'google', email_verified_at = COALESCE(email_verified_at, NOW()) WHERE id = $1 RETURNING *",
           [account.id, profile.sub]
         );
         account = updated.rows[0];
@@ -2460,9 +2878,9 @@ app.post("/api/auth/google", async (req, res, next) => {
       const passwordHash = await bcrypt.hash(crypto.randomUUID(), 10);
       const created = await query(
         `INSERT INTO seller_accounts
-          (id, first_name, last_name, email, phone, preferred_contact, password_hash, google_sub, auth_provider)
+          (id, first_name, last_name, email, phone, preferred_contact, password_hash, google_sub, auth_provider, email_verified_at)
          VALUES
-          ($1, $2, $3, $4, '', 'email', $5, $6, 'google')
+          ($1, $2, $3, $4, '', 'email', $5, $6, 'google', NOW())
          RETURNING *`,
         [id, firstName, lastName, profile.email, passwordHash, profile.sub]
       );
@@ -2477,15 +2895,17 @@ app.post("/api/auth/google", async (req, res, next) => {
       });
     }
 
-    req.session.user = {
+    const user = {
       id: account.id,
       role: "seller",
       name: `${account.first_name} ${account.last_name}`,
       email: account.email,
       phone: account.phone,
       preferredContact: account.preferred_contact,
+      sessionVersion: Number(account.session_version || 1),
     };
-    res.json({ user: publicUser(req.session.user) });
+    await establishAuthenticatedSession(req, user);
+    res.json({ user: publicUser(user), csrfToken: req.session.csrfToken });
   } catch (error) {
     if (error.status) {
       res.status(error.status).json({ error: error.message });
@@ -2589,6 +3009,24 @@ app.post("/api/leads", async (req, res, next) => {
     const email = String(body.email || "").trim().toLowerCase() || null;
     const sourcePath = String(body.sourcePath || "").trim().slice(0, 220) || null;
     const propertyId = String(body.propertyId || "").trim() || null;
+    const consent = body.consent === true || body.consent === "true" || body.consent === "on";
+    const formStartedAt = Number(body.formStartedAt || 0);
+
+    if (String(body.website || "").trim()) {
+      await client.query("ROLLBACK");
+      res.status(201).json({ ok: true });
+      return;
+    }
+    if (!consent) {
+      await client.query("ROLLBACK");
+      res.status(400).json({ error: "Confirma que aceptas el aviso de privacidad antes de enviar." });
+      return;
+    }
+    if (!Number.isFinite(formStartedAt) || Date.now() - formStartedAt < 1200 || Date.now() - formStartedAt > 7_200_000) {
+      await client.query("ROLLBACK");
+      res.status(400).json({ error: "El formulario venció o se envió demasiado rápido. Recarga la página e intenta nuevamente." });
+      return;
+    }
 
     if (!name && !phone && !email) {
       await client.query("ROLLBACK");
@@ -2610,6 +3048,28 @@ app.post("/api/leads", async (req, res, next) => {
     delete payload.email;
     delete payload.sourcePath;
     delete payload.propertyId;
+    delete payload.website;
+    delete payload.formStartedAt;
+    delete payload.consent;
+    if (JSON.stringify(payload).length > 20_000) {
+      await client.query("ROLLBACK");
+      res.status(413).json({ error: "La información del formulario es demasiado extensa." });
+      return;
+    }
+
+    const duplicate = await client.query(
+      `SELECT * FROM lead_requests
+       WHERE lead_type = $1
+         AND (($2::text IS NOT NULL AND lower(email) = lower($2)) OR ($3::text <> '' AND phone = $3))
+         AND created_at > NOW() - INTERVAL '90 seconds'
+       ORDER BY created_at DESC LIMIT 1`,
+      [leadType, email, phone]
+    );
+    if (duplicate.rows[0]) {
+      await client.query("COMMIT");
+      res.status(200).json({ lead: toLead(duplicate.rows[0]), duplicate: true });
+      return;
+    }
 
     const leadScore = leadScoreFromData({ leadType, phone, email, payload, propertyId });
     const priority = leadScore === "premium" ? "premium" : leadScore === "hot" ? "high" : "medium";
@@ -2925,7 +3385,11 @@ app.post("/api/seller/requests", requireRole("seller"), async (req, res, next) =
       }
     }
     const id = uuid("req");
-    const body = req.body;
+    const body = await sanitizePropertyImageBody(req.body);
+    if (!(body.consent === true || body.consent === "true" || body.consent === "on")) {
+      res.status(400).json({ error: "Confirma que aceptas el aviso de privacidad antes de enviar." });
+      return;
+    }
     const email = String(body.email || req.session.user.email || "").trim().toLowerCase();
     const phone = String(body.phone || req.session.user.phone || "").trim();
     const preferredContact = body.preferredContact === "phone" ? "phone" : "email";
@@ -4034,6 +4498,7 @@ app.post("/api/admin/requests/:id/approve", requireRole("admin"), async (req, re
       const approvedSlug = propertySlug(toProperty(property));
       const slugResult = await client.query("UPDATE properties SET slug = COALESCE(slug, $2) WHERE id = $1 RETURNING *", [property.id, approvedSlug]);
       property = slugResult.rows[0];
+      await syncDevelopmentEntity(toProperty(property), client);
     }
 
     await client.query("COMMIT");
@@ -4066,21 +4531,33 @@ app.post("/api/admin/requests/:id/reject", requireRole("admin"), async (req, res
 });
 
 app.post("/api/admin/properties", requireRole("admin"), async (req, res, next) => {
+  let client;
+  let inTransaction = false;
   try {
+    const safeBody = await sanitizePropertyImageBody(req.body);
     const idempotencyKey = String(req.get("Idempotency-Key") || "").trim().slice(0, 120);
+    client = await pool.connect();
+    await client.query("BEGIN");
+    inTransaction = true;
     if (idempotencyKey) {
-      const existing = await query(`SELECT ${PROPERTY_SUMMARY_COLUMNS} FROM properties p WHERE p.idempotency_key = $1`, [idempotencyKey]);
+      const existing = await client.query(`SELECT ${PROPERTY_SUMMARY_COLUMNS} FROM properties p WHERE p.idempotency_key = $1`, [idempotencyKey]);
       if (existing.rows[0]) {
+        await client.query("COMMIT");
+        inTransaction = false;
         res.json({ property: toProperty(withPropertyMediaPlaceholders(existing.rows[0])), idempotent: true });
         return;
       }
     }
-    const property = normalizePropertyInput(req.body, uuid("prop"));
-    const result = await query(
+    const property = normalizePropertyInput(safeBody, uuid("prop"));
+    const result = await client.query(
       `INSERT INTO properties
-        (id, title_es, title_en, type, state, city, zone, neighborhood, address, latitude, longitude, map_place, location_precision, google_maps_url, operation, price_usd, price_mxn, beds, baths, area, lot, mls, image, images, featured, status, is_public, badges, description_es, description_en, keywords, idempotency_key, slug, parking, amenities, published_at)
+        (id, title_es, title_en, type, state, city, zone, neighborhood, address, latitude, longitude, map_place, location_precision, google_maps_url, operation,
+         price_usd, price_mxn, beds, baths, area, lot, mls, image, images, featured, status, is_public, badges, description_es, description_en, keywords,
+         idempotency_key, slug, parking, amenities, publication_section, price_currency, price_amount, price_unit, development_data, published_at)
        VALUES
-        ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24::jsonb, $25, $26, $27, $28::jsonb, $29, $30, $31::jsonb, $32, $33, $34, $35::jsonb, CASE WHEN $26 = 'active' AND $27 = TRUE THEN NOW() ELSE NULL END)
+        ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24::jsonb,
+         $25, $26, $27, $28::jsonb, $29, $30, $31::jsonb, $32, $33, $34, $35::jsonb, $36, $37, $38, $39, $40::jsonb,
+         CASE WHEN $26 = 'active' AND $27 = TRUE THEN NOW() ELSE NULL END)
        RETURNING id`,
       [
         property.id,
@@ -4118,40 +4595,55 @@ app.post("/api/admin/properties", requireRole("admin"), async (req, res, next) =
         propertySlug(property),
         property.parking,
         JSON.stringify(property.amenities),
+        property.publicationSection,
+        property.currency,
+        property.price,
+        property.priceUnit,
+        JSON.stringify(property.developmentData),
       ]
     );
-    await query(
-      "UPDATE properties SET publication_section = $2, price_currency = $3, price_amount = $4, development_data = $5::jsonb WHERE id = $1",
-      [result.rows[0].id, property.publicationSection, property.currency, property.price, JSON.stringify(property.developmentData)]
-    );
-    const createdRow = await getPropertySummary(result.rows[0].id);
+    await syncDevelopmentEntity(property, client);
+    const createdRow = await getPropertySummary(result.rows[0].id, client);
+    await client.query("COMMIT");
+    inTransaction = false;
     invalidatePublicPropertyCache();
     const createdProperty = toProperty(createdRow);
     if (createdProperty.isPublic && PUBLIC_PROPERTY_STATUSES.has(createdProperty.status)) void notifyIndexNow(propertyIndexPaths(createdProperty));
     res.status(201).json({ property: createdProperty });
   } catch (error) {
+    if (client && inTransaction) await client.query("ROLLBACK").catch(() => null);
     next(error);
+  } finally {
+    client?.release();
   }
 });
 
 app.put("/api/admin/properties/:id", requireRole("admin"), async (req, res, next) => {
+  let client;
+  let inTransaction = false;
   try {
-    const preserveImages = req.body.preserveImages === true || req.body.preserveImages === "true";
-    const existing = await query(
+    const safeBody = await sanitizePropertyImageBody(req.body);
+    const preserveImages = safeBody.preserveImages === true || safeBody.preserveImages === "true";
+    client = await pool.connect();
+    await client.query("BEGIN");
+    inTransaction = true;
+    const existing = await client.query(
       preserveImages
         ? "SELECT id, GREATEST(COALESCE(jsonb_array_length(images), 0), CASE WHEN image IS NULL THEN 0 ELSE 1 END)::int AS image_count FROM properties WHERE id = $1"
         : "SELECT id, image, images FROM properties WHERE id = $1",
       [req.params.id]
     );
     if (!existing.rows[0]) {
+      await client.query("ROLLBACK");
+      inTransaction = false;
       res.status(404).json({ error: "Property not found" });
       return;
     }
     const existingImages = preserveImages
       ? Array.from({ length: Number(existing.rows[0].image_count || 0) }, (_value, index) => `preserved-media-${index}`)
       : mergeLegacyImages(existing.rows[0].images, existing.rows[0].image);
-    const property = normalizePropertyInput(req.body, req.params.id, existingImages);
-    const result = await query(
+    const property = normalizePropertyInput(safeBody, req.params.id, existingImages);
+    const result = await client.query(
       `UPDATE properties
        SET title_es = $2, title_en = $3, type = $4, state = $5, city = $6, zone = $7, neighborhood = $8, address = $9,
            latitude = $10, longitude = $11, map_place = $12, location_precision = $13, google_maps_url = $14,
@@ -4165,6 +4657,7 @@ app.put("/api/admin/properties/:id", requireRole("admin"), async (req, res, next
            disabled_at = CASE WHEN $26 = 'disabled' OR $27 = FALSE THEN NOW() ELSE disabled_at END,
            sold_at = CASE WHEN $26 IN ('sold', 'rented') THEN NOW() ELSE sold_at END,
            archived_at = CASE WHEN $26 = 'archived' THEN NOW() ELSE archived_at END,
+           publication_section = $36, price_currency = $37, price_amount = $38, price_unit = $39, development_data = $40::jsonb,
            updated_at = NOW()
        WHERE id = $1
          AND ($35::timestamptz IS NULL OR date_trunc('milliseconds', updated_at) = date_trunc('milliseconds', $35::timestamptz))
@@ -4204,35 +4697,45 @@ app.put("/api/admin/properties/:id", requireRole("admin"), async (req, res, next
         preserveImages,
         property.parking,
         JSON.stringify(property.amenities),
-        req.body.expectedUpdatedAt || null,
+        safeBody.expectedUpdatedAt || null,
+        property.publicationSection,
+        property.currency,
+        property.price,
+        property.priceUnit,
+        JSON.stringify(property.developmentData),
       ]
     );
     if (!result.rows[0]) {
+      await client.query("ROLLBACK");
+      inTransaction = false;
       res.status(409).json({ error: "Esta propiedad fue modificada en otra sesión. Recarga el panel para conservar la versión más reciente antes de volver a editar." });
       return;
     }
-    await query(
-      "UPDATE properties SET publication_section = $2, price_currency = $3, price_amount = $4, development_data = $5::jsonb WHERE id = $1",
-      [result.rows[0].id, property.publicationSection, property.currency, property.price, JSON.stringify(property.developmentData)]
-    );
-    const updatedProperty = toProperty(await getPropertySummary(result.rows[0].id));
+    await syncDevelopmentEntity(property, client);
+    const updatedProperty = toProperty(await getPropertySummary(result.rows[0].id, client));
+    await client.query("COMMIT");
+    inTransaction = false;
     invalidatePublicPropertyCache();
     if (updatedProperty.isPublic && PUBLIC_PROPERTY_STATUSES.has(updatedProperty.status)) void notifyIndexNow(propertyIndexPaths(updatedProperty));
     res.json({ property: updatedProperty });
   } catch (error) {
+    if (client && inTransaction) await client.query("ROLLBACK").catch(() => null);
     next(error);
+  } finally {
+    client?.release();
   }
 });
 
 app.patch("/api/admin/properties/:id/images", requireRole("admin"), async (req, res, next) => {
   try {
+    const safeBody = await sanitizePropertyImageBody(req.body || {});
     const existing = await query("SELECT id, image, images, status, is_public, updated_at FROM properties WHERE id = $1", [req.params.id]);
     const row = existing.rows[0];
     if (!row) {
       res.status(404).json({ error: "Property not found" });
       return;
     }
-    const expectedUpdatedAt = req.body.expectedUpdatedAt ? new Date(req.body.expectedUpdatedAt) : null;
+    const expectedUpdatedAt = safeBody.expectedUpdatedAt ? new Date(safeBody.expectedUpdatedAt) : null;
     if (expectedUpdatedAt && Number.isFinite(expectedUpdatedAt.getTime())) {
       const storedUpdatedAt = new Date(row.updated_at);
       if (Math.abs(storedUpdatedAt.getTime() - expectedUpdatedAt.getTime()) > 1) {
@@ -4240,7 +4743,7 @@ app.patch("/api/admin/properties/:id/images", requireRole("admin"), async (req, 
         return;
       }
     }
-    const images = parseUploadedImages(req.body || {}, mergeLegacyImages(row.images, row.image), req.params.id);
+    const images = parseUploadedImages(safeBody, mergeLegacyImages(row.images, row.image), req.params.id);
     if (!images.length && row.is_public && PUBLIC_PROPERTY_STATUSES.has(row.status)) {
       res.status(400).json({ error: "Una publicación visible debe conservar al menos una imagen. Despublícala antes de eliminar la última." });
       return;
@@ -4299,11 +4802,11 @@ app.post("/api/admin/properties/:id/duplicate", requireRole("admin"), async (req
         (id, title_es, title_en, type, state, city, zone, neighborhood, address, latitude, longitude, map_place,
          location_precision, google_maps_url, operation, price_usd, price_mxn, beds, baths, area, lot, mls,
          image, images, featured, status, is_public, badges, description_es, description_en, keywords, publication_section,
-         price_currency, price_amount, development_data)
+         price_currency, price_amount, price_unit, development_data)
        SELECT $2, title_es || ' (copia)', title_en || ' (copy)', type, state, city, zone, neighborhood, address,
          latitude, longitude, map_place, location_precision, google_maps_url, operation, price_usd, price_mxn,
           beds, baths, area, lot, $3, image, images, FALSE, 'draft', FALSE, badges, description_es, description_en, keywords,
-          publication_section, price_currency, price_amount, development_data
+          publication_section, price_currency, price_amount, price_unit, development_data
        FROM properties WHERE id = $1
        RETURNING *`,
       [req.params.id, uuid("prop"), String(Math.floor(2000 + Math.random() * 8000))]
@@ -4948,6 +5451,29 @@ app.get("/api/admin/documents/:id/download", requireRole("admin"), async (req, r
   }
 });
 
+app.get("/api/developments", async (_req, res, next) => {
+  try {
+    const developments = (await getPublicProperties()).filter((property) => property.publicationSection === "developments");
+    res.json({ developments });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.get("/api/admin/developments", requireRole("admin"), async (_req, res, next) => {
+  try {
+    const result = await query(
+      `SELECT ${PROPERTY_SUMMARY_COLUMNS}
+       FROM properties p
+       WHERE p.publication_section = 'developments'
+       ORDER BY p.updated_at DESC`
+    );
+    res.json({ developments: result.rows.map(withPropertyMediaPlaceholders).map(toProperty) });
+  } catch (error) {
+    next(error);
+  }
+});
+
 app.get("/media/blog/:id", async (req, res, next) => {
   try {
     const result = await query("SELECT cover_image, status, updated_at FROM blog_posts WHERE id = $1", [req.params.id]);
@@ -5059,6 +5585,7 @@ app.post("/api/admin/blog", requireRole("admin"), async (req, res, next) => {
         post.seoTitle, post.seoDescription,
       ]
     );
+    invalidatePublishedBlogCache();
     res.status(201).json({ post: toBlogPost(result.rows[0]) });
   } catch (error) {
     if (error.code === "23505") {
@@ -5091,6 +5618,7 @@ app.put("/api/admin/blog/:id", requireRole("admin"), async (req, res, next) => {
       res.status(404).json({ error: "Articulo no encontrado." });
       return;
     }
+    invalidatePublishedBlogCache();
     res.json({ post: toBlogPost(result.rows[0]) });
   } catch (error) {
     if (error.code === "23505") {
@@ -5111,6 +5639,7 @@ app.delete("/api/admin/blog/:id", requireRole("admin"), async (req, res, next) =
       res.status(404).json({ error: "Articulo no encontrado." });
       return;
     }
+    invalidatePublishedBlogCache();
     res.json({ ok: true });
   } catch (error) {
     next(error);
@@ -5755,6 +6284,7 @@ function normalizePropertyInput(body, id, existingImages = []) {
     ? "MXN"
     : "USD";
   const currency = body.currency === "MXN" ? "MXN" : body.currency === "USD" ? "USD" : inferredCurrency;
+  const priceUnit = body.priceUnit === "sqm" ? "sqm" : "total";
   const rawPrice = body.price !== undefined && body.price !== null && body.price !== ""
     ? body.price
     : currency === "MXN"
@@ -5802,7 +6332,21 @@ function normalizePropertyInput(body, id, existingImages = []) {
         units: parseNonNegativeInteger(developmentDataInput.units, "Unidades"),
         availableUnits: parseNonNegativeInteger(developmentDataInput.availableUnits, "Unidades disponibles"),
         paymentPlan: String(developmentDataInput.paymentPlan || "").trim().slice(0, 1200),
+        paymentPlanEn: String(developmentDataInput.paymentPlanEn || "").trim().slice(0, 1200),
+        amenities: (Array.isArray(developmentDataInput.developmentAmenities)
+          ? developmentDataInput.developmentAmenities
+          : Array.isArray(developmentDataInput.amenities)
+            ? developmentDataInput.amenities
+            : String(developmentDataInput.developmentAmenities || "").split(","))
+          .map((item) => String(item).trim())
+          .filter(Boolean)
+          .slice(0, 40),
+        constructionProgress: Math.min(100, parseNonNegativeNumber(developmentDataInput.constructionProgress, "Avance de obra")),
+        progressUpdatedAt: /^\d{4}-\d{2}-\d{2}$/.test(String(developmentDataInput.progressUpdatedAt || ""))
+          ? String(developmentDataInput.progressUpdatedAt)
+          : "",
         investmentHighlights: String(developmentDataInput.investmentHighlights || "").trim().slice(0, 3000),
+        investmentHighlightsEn: String(developmentDataInput.investmentHighlightsEn || "").trim().slice(0, 3000),
       }
     : {};
 
@@ -5827,6 +6371,7 @@ function normalizePropertyInput(body, id, existingImages = []) {
     price,
     priceUsd,
     priceMxn,
+    priceUnit,
     beds: parseNonNegativeInteger(body.beds, "Recamaras"),
     baths: parseNonNegativeInteger(body.baths, "Banos"),
     parking: parseNonNegativeInteger(body.parking, "Estacionamientos"),
@@ -5850,12 +6395,78 @@ function normalizePropertyInput(body, id, existingImages = []) {
   };
 }
 
+async function syncDevelopmentEntity(property, client = pool) {
+  if (property.publicationSection !== "developments") {
+    await client.query("DELETE FROM developments WHERE property_id = $1", [property.id]);
+    return;
+  }
+  const data = property.developmentData || {};
+  const deliveryDate = /^\d{4}-\d{2}-\d{2}$/.test(String(data.deliveryDate || "")) ? data.deliveryDate : null;
+  const progressUpdatedAt = /^\d{4}-\d{2}-\d{2}$/.test(String(data.progressUpdatedAt || "")) ? data.progressUpdatedAt : null;
+  await client.query(
+    `INSERT INTO developments
+      (id, property_id, slug, name_es, name_en, developer, stage, delivery_date, total_units,
+       available_units, payment_plan_es, payment_plan_en, amenities, construction_progress,
+       progress_updated_at, investment_highlights_es, investment_highlights_en)
+     VALUES
+      ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13::jsonb, $14,
+       COALESCE($15::timestamptz, CASE WHEN $14 > 0 THEN NOW() ELSE NULL END), $16, $17)
+     ON CONFLICT (property_id) DO UPDATE SET
+       slug = EXCLUDED.slug,
+       name_es = EXCLUDED.name_es,
+       name_en = EXCLUDED.name_en,
+       developer = EXCLUDED.developer,
+       stage = EXCLUDED.stage,
+       delivery_date = EXCLUDED.delivery_date,
+       total_units = EXCLUDED.total_units,
+       available_units = EXCLUDED.available_units,
+       payment_plan_es = EXCLUDED.payment_plan_es,
+       payment_plan_en = EXCLUDED.payment_plan_en,
+       amenities = EXCLUDED.amenities,
+       construction_progress = EXCLUDED.construction_progress,
+       progress_updated_at = CASE
+         WHEN developments.construction_progress IS DISTINCT FROM EXCLUDED.construction_progress THEN NOW()
+         ELSE developments.progress_updated_at
+       END,
+       investment_highlights_es = EXCLUDED.investment_highlights_es,
+       investment_highlights_en = EXCLUDED.investment_highlights_en,
+       updated_at = NOW()`,
+    [
+      `dev-${property.id}`,
+      property.id,
+      propertySlug(property),
+      property.titleEs,
+      property.titleEn,
+      data.developer || null,
+      data.stage || null,
+      deliveryDate,
+      data.units || 0,
+      data.availableUnits || 0,
+      data.paymentPlan || null,
+      data.paymentPlanEn || null,
+      JSON.stringify(data.amenities || property.amenities || []),
+      data.constructionProgress || 0,
+      progressUpdatedAt,
+      data.investmentHighlights || null,
+      data.investmentHighlightsEn || null,
+    ]
+  );
+}
+
 function replaceMetaTag(html, pattern, replacement) {
   return html.replace(pattern, replacement);
 }
 
-function decoratePublicHtml({ page, seo, pageContent = "", bodyPage = "seo", noindex = false }) {
+function decoratePublicHtml({ page, seo, pageContent = "", bodyPage = "seo", noindex = false, includePrivatePanel = false, showBlog = true }) {
   let html = fs.readFileSync(indexPath, "utf8");
+  if (!includePrivatePanel) {
+    html = html.replace(/<!-- PRIVATE_PANEL_START -->[\s\S]*?<!-- PRIVATE_PANEL_END -->/, "");
+  }
+  if (!showBlog) {
+    html = html
+      .replace(/<a\s+href="\/blog"[^>]*>[\s\S]*?<\/a>/g, "")
+      .replace(/<a\s+href="\/en\/blog"[^>]*>[\s\S]*?<\/a>/g, "");
+  }
   const assetVersion = encodeURIComponent(staticAssetVersion);
   html = html.replace(/styles\.css\?v=[^"']+/g, `styles.css?v=${assetVersion}`);
   html = html.replace(/app\.js\?v=[^"']+/g, `app.js?v=${assetVersion}`);
@@ -5924,14 +6535,42 @@ async function renderPublicHtml(requestPath, noindex = false) {
   if (page.category) {
     pageContent = renderCategoryPage(page, await getPublicProperties());
   }
-  return decoratePublicHtml({ page, seo, pageContent, bodyPage: isHome ? "home" : "seo", noindex });
+  return decoratePublicHtml({
+    page,
+    seo,
+    pageContent,
+    bodyPage: isHome ? "home" : "seo",
+    noindex,
+    showBlog: await hasPublishedBlogPosts(page.lang),
+  });
+}
+
+async function renderNotFoundHtml(requestPath) {
+  const english = requestPath.startsWith("/en");
+  const page = {
+    path: requestPath,
+    alternate: english ? "/404" : "/en/404",
+    lang: english ? "en" : "es",
+    title: english ? "Page not found | Puerto Cancun Center" : "Página no encontrada | Puerto Cancún Center",
+    description: english
+      ? "The requested page does not exist. Browse active Cancun properties or return home."
+      : "La página solicitada no existe. Consulta propiedades activas en Cancún o vuelve al inicio.",
+    h1: english ? "Page not found" : "Página no encontrada",
+    intro: "",
+  };
+  const seo = renderSeoHead(page, siteUrl);
+  const pageContent = `<section class="not-found-page"><p class="not-found-code">404</p><h1>${escapeHtml(page.h1)}</h1><p>${escapeHtml(page.description)}</p><div class="not-found-actions"><a class="primary-button" href="${english ? "/en/" : "/"}">${english ? "Return home" : "Volver al inicio"}</a><a class="outline-dark-button" href="${english ? "/en/properties" : "/propiedades"}">${english ? "Browse properties" : "Ver propiedades"}</a></div></section>`;
+  return decoratePublicHtml({
+    page,
+    seo,
+    pageContent,
+    bodyPage: "not-found",
+    noindex: true,
+    showBlog: await hasPublishedBlogPosts(page.lang),
+  });
 }
 
 app.get("/robots.txt", (req, res) => {
-  if (req.hostname.endsWith("seenode.app")) {
-    res.type("text/plain").send("User-agent: *\nDisallow: /\n");
-    return;
-  }
   res.type("text/plain").send(robotsTxt(siteUrl));
 });
 
@@ -5941,7 +6580,9 @@ if (indexNowKey) {
 
 app.get("/sitemap.xml", async (_req, res, next) => {
   try {
-    res.type("application/xml").send(sitemapXml(siteUrl, await getPublicProperties()));
+    res.type("application/xml").send(
+      sitemapXml(siteUrl, await getPublicProperties(), { includeBlog: await hasPublishedBlogPosts() })
+    );
   } catch (error) {
     next(error);
   }
@@ -5968,6 +6609,21 @@ const legacyRedirects = {
 };
 Object.entries(legacyRedirects).forEach(([from, to]) => app.get(from, (_req, res) => res.redirect(301, to)));
 
+app.get(["/blog", "/en/blog"], async (req, res, next) => {
+  try {
+    const lang = req.path.startsWith("/en") ? "en" : "es";
+    if (!(await hasPublishedBlogPosts(lang))) {
+      res.status(404).send(await renderNotFoundHtml(req.path));
+      return;
+    }
+    const html = await renderPublicHtml(req.path);
+    res.set("Cache-Control", "public, max-age=0, must-revalidate");
+    res.send(html);
+  } catch (error) {
+    next(error);
+  }
+});
+
 app.get(["/blog/:slug", "/en/blog/:slug"], async (req, res, next) => {
   try {
     const result = await query(
@@ -5976,14 +6632,18 @@ app.get(["/blog/:slug", "/en/blog/:slug"], async (req, res, next) => {
     );
     const post = result.rows[0] ? toBlogPost(result.rows[0]) : null;
     if (!post) {
-      res.status(404).send("Artículo no encontrado");
+      res.status(404).send(await renderNotFoundHtml(req.path));
       return;
     }
     const lang = req.path.startsWith("/en/") ? "en" : "es";
+    if (lang === "en" && (!String(post.titleEn || "").trim() || !String(post.contentEn || "").trim())) {
+      res.status(404).send(await renderNotFoundHtml(req.path));
+      return;
+    }
     const indexPage = getPageByPath(lang === "en" ? "/en/blog" : "/blog");
-    const title = lang === "en" ? post.titleEn || post.titleEs : post.titleEs;
-    const excerpt = lang === "en" ? post.excerptEn || post.excerptEs : post.excerptEs;
-    const content = lang === "en" ? post.contentEn || post.contentEs : post.contentEs;
+    const title = lang === "en" ? post.titleEn : post.titleEs;
+    const excerpt = lang === "en" ? post.excerptEn : post.excerptEs;
+    const content = lang === "en" ? post.contentEn : post.contentEs;
     const pagePath = `${lang === "en" ? "/en/blog" : "/blog"}/${post.slug}`;
     const alternate = `${lang === "en" ? "/blog" : "/en/blog"}/${post.slug}`;
     const page = {
@@ -6004,7 +6664,7 @@ app.get(["/blog/:slug", "/en/blog/:slug"], async (req, res, next) => {
       image: post.coverImage ? absoluteUrl(post.coverImage, siteUrl) : absoluteUrl("/assets/og-puerto-cancun-center.webp", siteUrl),
     };
     res.set("Cache-Control", "public, max-age=0, must-revalidate");
-    res.send(decoratePublicHtml({ page, seo, pageContent, bodyPage: "blog-post", noindex: req.hostname.endsWith("seenode.app") }));
+    res.send(decoratePublicHtml({ page, seo, pageContent, bodyPage: "blog-post", showBlog: true }));
   } catch (error) {
     next(error);
   }
@@ -6014,7 +6674,7 @@ app.get(["/propiedades/:slug", "/en/properties/:slug"], async (req, res, next) =
   try {
     const staticPage = getPageByPath(req.path);
     if (staticPage) {
-      const html = await renderPublicHtml(req.path, req.hostname.endsWith("seenode.app"));
+      const html = await renderPublicHtml(req.path);
       res.set("Cache-Control", "public, max-age=0, must-revalidate");
       res.send(html);
       return;
@@ -6022,7 +6682,7 @@ app.get(["/propiedades/:slug", "/en/properties/:slug"], async (req, res, next) =
     const publicProperties = await getPublicProperties();
     const property = publicProperties.find((item) => item.slug === req.params.slug || propertySlug(item) === req.params.slug);
     if (!property) {
-      res.status(404).send("Propiedad no encontrada");
+      res.status(404).send(await renderNotFoundHtml(req.path));
       return;
     }
     const lang = req.path.startsWith("/en/") ? "en" : "es";
@@ -6032,7 +6692,13 @@ app.get(["/propiedades/:slug", "/en/properties/:slug"], async (req, res, next) =
     const rendered = renderPropertyPage(property, lang, similar);
     const seo = renderPropertyHead(property, siteUrl, lang);
     res.set("Cache-Control", "public, max-age=0, must-revalidate");
-    res.send(decoratePublicHtml({ page: rendered.page, seo, pageContent: rendered.html, bodyPage: "property", noindex: req.hostname.endsWith("seenode.app") }));
+    res.send(decoratePublicHtml({
+      page: rendered.page,
+      seo,
+      pageContent: rendered.html,
+      bodyPage: "property",
+      showBlog: await hasPublishedBlogPosts(),
+    }));
   } catch (error) {
     next(error);
   }
@@ -6043,11 +6709,36 @@ app.get(Array.from(publicStaticFiles), (req, res) => {
   res.sendFile(path.join(__dirname, req.path.slice(1)));
 });
 
+app.get("/panel", async (req, res, next) => {
+  try {
+    if (!req.session?.user) {
+      res.redirect(302, "/");
+      return;
+    }
+    const page = getPageByPath("/");
+    const seo = renderSeoHead(page, siteUrl);
+    res.set({
+      "Cache-Control": "private, no-store",
+      "X-Robots-Tag": "noindex, nofollow",
+    });
+    res.send(decoratePublicHtml({
+      page,
+      seo,
+      bodyPage: "panel",
+      noindex: true,
+      includePrivatePanel: true,
+      showBlog: await hasPublishedBlogPosts(),
+    }));
+  } catch (error) {
+    next(error);
+  }
+});
+
 app.get("*", async (req, res, next) => {
   try {
-    const html = await renderPublicHtml(req.path, req.hostname.endsWith("seenode.app"));
+    const html = await renderPublicHtml(req.path);
     if (!html) {
-      res.status(404).send("Pagina no encontrada");
+      res.status(404).send(await renderNotFoundHtml(req.path));
       return;
     }
     res.set("Cache-Control", "public, max-age=0, must-revalidate");

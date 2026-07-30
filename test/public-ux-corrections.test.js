@@ -61,9 +61,9 @@ test("las publicaciones usan carrusel y no muestran fecha de modificación", () 
   assert.match(spanish, /class="property-location-map"/);
   assert.match(spanish, /class="primary-button property-whatsapp"/);
   assert.ok(spanish.indexOf("property-page-gallery") < spanish.indexOf("property-page-summary"));
+  assert.ok(spanish.indexOf("property-whatsapp") < spanish.indexOf("property-long-description"));
   assert.ok(spanish.indexOf("property-long-description") < spanish.indexOf("property-amenities"));
-  assert.ok(spanish.indexOf("property-amenities") < spanish.indexOf("property-whatsapp"));
-  assert.ok(spanish.indexOf("property-whatsapp") < spanish.indexOf("property-location-map"));
+  assert.ok(spanish.indexOf("property-amenities") < spanish.indexOf("property-location-map"));
 });
 
 test("la navegación explica cómo vender y presenta un Nosotros completo", () => {

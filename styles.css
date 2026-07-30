@@ -445,7 +445,7 @@ body[data-page="property"] .home-only {
   align-items: center;
   background:
     linear-gradient(180deg, rgba(0, 34, 62, 0.42), rgba(0, 24, 42, 0.18) 42%, rgba(0, 0, 0, 0.34)),
-    url("https://images.unsplash.com/photo-1510414842594-a61c69b5ae57?auto=format&fit=crop&w=2200&q=85") center / cover;
+    url("/assets/cancun-hotel-zone-hero-1920.webp") center / cover;
   color: var(--white);
 }
 
@@ -796,7 +796,7 @@ body[data-page="property"] .home-only {
   padding: 196px 0 74px;
   background:
     linear-gradient(180deg, rgba(0, 43, 72, 0.86), rgba(0, 74, 112, 0.72)),
-    url("https://images.unsplash.com/photo-1510414842594-a61c69b5ae57?auto=format&fit=crop&w=2200&q=82") center / cover;
+    url("/assets/cancun-hotel-zone-hero-1920.webp") center / cover;
   color: var(--white);
 }
 
@@ -1158,7 +1158,7 @@ body[data-page="property"] .home-only {
   padding: 72px 0 38px;
   background:
     linear-gradient(180deg, rgba(0, 51, 84, 0.84), rgba(0, 81, 124, 0.72)),
-    url("https://images.unsplash.com/photo-1523217582562-09d0def993a6?auto=format&fit=crop&w=2200&q=82") center / cover;
+    url("/assets/cancun-hotel-zone-hero-1280.webp") center / cover;
   color: var(--white);
 }
 
@@ -2229,7 +2229,7 @@ textarea {
   padding: 32px min(5vw, 70px) 44px;
   background:
     linear-gradient(180deg, rgba(0, 47, 76, 0.9), rgba(0, 73, 112, 0.86)),
-    url("https://images.unsplash.com/photo-1510414842594-a61c69b5ae57?auto=format&fit=crop&w=1800&q=80") center / cover;
+    url("/assets/cancun-hotel-zone-hero-1920.webp") center / cover;
   color: var(--white);
 }
 
@@ -7089,6 +7089,176 @@ button[aria-busy="true"] {
   }
 }
 
+/* Privacy, validation and trust surfaces */
+.form-honeypot {
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  overflow: hidden !important;
+  clip: rect(0 0 0 0) !important;
+  white-space: nowrap !important;
+}
+
+.privacy-consent {
+  display: flex !important;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  background: #f8fbfa;
+  font-size: 0.82rem;
+  line-height: 1.45;
+}
+
+.privacy-consent input {
+  width: 18px;
+  height: 18px;
+  margin: 2px 0 0;
+  flex: 0 0 auto;
+}
+
+.privacy-consent a {
+  color: var(--blue-800);
+  font-weight: 700;
+  text-decoration: underline;
+}
+
+.password-strength {
+  width: 100%;
+  height: 7px;
+  margin-top: 8px;
+  accent-color: var(--blue-700);
+}
+
+.cookie-banner {
+  position: fixed;
+  z-index: 10020;
+  right: 24px;
+  bottom: 24px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 20px;
+  width: min(720px, calc(100vw - 48px));
+  padding: 20px;
+  border: 1px solid rgba(211, 166, 60, 0.62);
+  background: #fff;
+  box-shadow: 0 22px 56px rgba(3, 47, 58, 0.28);
+}
+
+.cookie-banner[hidden] {
+  display: none;
+}
+
+.cookie-banner strong,
+.cookie-banner p {
+  display: block;
+  margin: 0 0 5px;
+}
+
+.cookie-banner a {
+  color: var(--blue-800);
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.cookie-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.trust-signal-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+  max-width: 1120px;
+  margin: 28px auto 0;
+}
+
+.trust-signal-grid article {
+  padding: 24px;
+  border: 1px solid var(--line);
+  background: #fff;
+}
+
+.trust-signal-grid svg {
+  width: 24px;
+  color: var(--blue-700);
+}
+
+.trust-signal-grid h3 {
+  margin: 12px 0 6px;
+  font-size: 1.15rem;
+}
+
+.trust-signal-grid p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.not-found-page {
+  width: min(860px, calc(100% - 40px));
+  margin: 0 auto;
+  padding: 190px 0 110px;
+  text-align: center;
+}
+
+.not-found-code {
+  margin: 0;
+  color: var(--blue-700);
+  font-family: Georgia, serif;
+  font-size: clamp(5rem, 14vw, 9rem);
+  line-height: 0.9;
+}
+
+.not-found-actions {
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+  margin-top: 26px;
+}
+
+.loading-state,
+.error-state,
+.success-state {
+  padding: 18px 20px;
+  border-left: 4px solid var(--blue-700);
+  background: #edf7f5;
+  color: var(--ink);
+}
+
+.error-state,
+.form-message.error {
+  border-color: #b43c3c;
+  color: #852929;
+}
+
+.success-state,
+.form-message.success {
+  border-color: #258657;
+  color: #185f3d;
+}
+
+@media (max-width: 760px) {
+  .trust-signal-grid,
+  .cookie-banner {
+    grid-template-columns: 1fr;
+  }
+
+  .cookie-banner {
+    right: 14px;
+    bottom: 14px;
+    width: calc(100vw - 28px);
+  }
+
+  .cookie-actions,
+  .not-found-actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
@@ -7547,6 +7717,53 @@ button[aria-busy="true"] {
   border-color: #1ebe5d;
   background: #1ebe5d;
   color: #fff;
+}
+
+@media (max-width: 700px) {
+  .zones-band .zone-grid,
+  .type-section .type-grid,
+  .properties-section .property-grid,
+  .team-section .trust-signal-grid {
+    display: grid;
+    grid-auto-flow: column;
+    grid-auto-columns: minmax(278px, 84vw);
+    grid-template-columns: none;
+    gap: 14px;
+    margin-right: -16px;
+    padding: 0 16px 14px 0;
+    overflow-x: auto;
+    overscroll-behavior-inline: contain;
+    scroll-snap-type: inline mandatory;
+    scrollbar-width: thin;
+  }
+
+  .zones-band .zone-card,
+  .type-section .type-tile,
+  .properties-section .property-card,
+  .team-section .trust-signal-grid > article {
+    scroll-snap-align: start;
+  }
+
+  .zones-band .zone-card,
+  .type-section .type-tile {
+    min-height: 260px;
+  }
+
+  .type-section .type-tile img {
+    height: 260px;
+  }
+
+  .properties-section .property-card {
+    min-height: 0;
+  }
+
+  .team-section .trust-signal-grid > article {
+    min-height: 250px;
+  }
+
+  .search-panel input {
+    font-size: 0.82rem;
+  }
 }
 
 /* Quick view follows the same readable vertical composition. */

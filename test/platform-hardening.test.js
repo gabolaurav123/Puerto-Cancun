@@ -141,6 +141,8 @@ test("el servidor expone versión y cabeceras sin depender de PostgreSQL", async
   const publicHtml = await publicResponse.text();
   assert.equal(publicResponse.status, 200);
   assert.match(publicHtml, /Puerto Cancún Center/);
+  assert.match(publicHtml, /index,follow,max-image-preview:large/);
+  assert.doesNotMatch(publicHtml, /id="panelView"|PRIVATE_PANEL_START|Panel administrativo/);
 
   const privateResponse = await fetch(`http://127.0.0.1:${address.port}/api/admin/stats`);
   assert.equal(privateResponse.status, 503);

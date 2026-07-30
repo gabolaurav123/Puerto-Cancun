@@ -16,7 +16,7 @@ const keys = {
 };
 
 const fallbackImage =
-  "https://images.unsplash.com/photo-1600566753190-17f0baa2a6c3?auto=format&fit=crop&w=1200&q=82";
+  "/assets/cancun-hotel-zone-hero-1280.webp";
 
 const fallbackIcons = {
   "arrow-left": '<path d="M19 12H5"></path><path d="m12 19-7-7 7-7"></path>',
@@ -261,11 +261,21 @@ const translations = {
     createAccount: "Crear cuenta",
     emailOrUser: "Correo o usuario",
     password: "Contraseña",
+    confirmPassword: "Confirmar contraseña",
     showPassword: "Mostrar contraseña",
     hidePassword: "Ocultar contraseña",
     currentPassword: "Contraseña actual",
     newPassword: "Nueva contraseña",
-    passwordRule: "Usa por lo menos 12 caracteres y evita reutilizar otra contraseña.",
+    passwordRule: "Usa 12 caracteres o más con mayúscula, minúscula, número y símbolo.",
+    forgotPassword: "¿Olvidaste tu contraseña?",
+    forgotPasswordIntro: "Te enviaremos un enlace seguro que vence en 45 minutos.",
+    sendRecovery: "Enviar enlace de recuperación",
+    resetPassword: "Crear nueva contraseña",
+    cookieBannerTitle: "Tu privacidad importa",
+    cookieBannerCopy: "Usamos cookies esenciales para seguridad, sesión e idioma. Las mediciones opcionales solo se activan con tu autorización.",
+    cookieLearnMore: "Conocer la política de cookies",
+    cookieEssential: "Solo esenciales",
+    cookieAccept: "Aceptar medición",
     updateExistingPassword: "¿Ya tenías cuenta? Actualizar contraseña",
     updatePasswordTitle: "Actualizar contraseña",
     updatePasswordIntro: "Si ya tenías una cuenta, confirma tu contraseña actual y crea una nueva de al menos 12 caracteres.",
@@ -727,11 +737,21 @@ const translations = {
     createAccount: "Create account",
     emailOrUser: "Email or user",
     password: "Password",
+    confirmPassword: "Confirm password",
     showPassword: "Show password",
     hidePassword: "Hide password",
     currentPassword: "Current password",
     newPassword: "New password",
-    passwordRule: "Use at least 12 characters and avoid reusing another password.",
+    passwordRule: "Use 12 or more characters with an uppercase letter, lowercase letter, number, and symbol.",
+    forgotPassword: "Forgot your password?",
+    forgotPasswordIntro: "We will email you a secure link that expires in 45 minutes.",
+    sendRecovery: "Send recovery link",
+    resetPassword: "Create new password",
+    cookieBannerTitle: "Your privacy matters",
+    cookieBannerCopy: "We use essential cookies for security, sessions, and language. Optional measurement starts only with your consent.",
+    cookieLearnMore: "Read the cookie policy",
+    cookieEssential: "Essential only",
+    cookieAccept: "Accept measurement",
     updateExistingPassword: "Already have an account? Update password",
     updatePasswordTitle: "Update password",
     updatePasswordIntro: "If you already had an account, confirm your current password and create a new one with at least 12 characters.",
@@ -988,7 +1008,7 @@ const initialLanguage = urlLanguage || storedLanguage || document.body.dataset.l
 
 const state = {
   lang: initialLanguage,
-  currency: initialLanguage === "en" ? "USD" : "MXN",
+  csrfToken: "",
   session: null,
   properties: [],
   requests: [],
@@ -1666,6 +1686,13 @@ function escapeHtml(value) {
 async function api(path, options = {}) {
   const { timeoutMs = 45000, body, headers = {}, retry = true, ...fetchOptions } = options;
   const method = String(fetchOptions.method || "GET").toUpperCase();
+  if (method !== "GET" && !state.csrfToken) {
+    const sessionResponse = await fetch("/api/session", { credentials: "same-origin" });
+    const sessionPayload = await sessionResponse.json().catch(() => ({}));
+    state.csrfToken = sessionPayload.csrfToken || "";
+    if (sessionPayload.user !== undefined) state.session = sessionPayload.user;
+  }
+  const securityHeaders = method === "GET" ? {} : { "X-CSRF-Token": state.csrfToken };
   const attempts = retry && method === "GET" ? 2 : 1;
   for (let attempt = 0; attempt < attempts; attempt += 1) {
     const controller = new AbortController();
@@ -1674,7 +1701,7 @@ async function api(path, options = {}) {
     try {
       response = await fetch(path, {
         credentials: "same-origin",
-        headers: { "Content-Type": "application/json", ...headers },
+        headers: { "Content-Type": "application/json", ...securityHeaders, ...headers },
         ...fetchOptions,
         signal: controller.signal,
         body: body ? JSON.stringify(body) : undefined,
@@ -1769,22 +1796,24 @@ function setFormProgress(button, loading, label) {
       indicator.innerHTML = `
         <div class="form-progress-copy">
           <span>${escapeHtml(label)}</span>
-          <strong>8%</strong>
+          <strong>10%</strong>
         </div>
-        <div class="form-progress-track" aria-hidden="true"><span></span></div>
-        <small>No cierres esta ventana. Las imágenes pueden tardar un poco en procesarse.</small>
+        <div class="form-progress-track" role="progressbar" aria-label="${escapeHtml(label)}" aria-valuemin="0" aria-valuemax="100" aria-valuenow="10"><span></span></div>
+        <small>${state.lang === "en" ? "Do not close this window while the information is being saved." : "No cierres esta ventana mientras se guarda la información."}</small>
       `;
       button.closest(".form-actions")?.insertAdjacentElement("afterend", indicator) || form.append(indicator);
     }
-    let progress = 8;
+    let progress = 10;
     const bar = indicator.querySelector(".form-progress-track span");
     const value = indicator.querySelector("strong");
     bar.style.width = `${progress}%`;
+    indicator.querySelector(".form-progress-track").setAttribute("aria-valuenow", String(progress));
     const timer = window.setInterval(() => {
-      progress = Math.min(92, progress + Math.max(1, Math.round((92 - progress) * 0.08)));
+      progress = Math.min(78, progress + 1);
       bar.style.width = `${progress}%`;
       value.textContent = `${progress}%`;
-    }, 700);
+      indicator.querySelector(".form-progress-track").setAttribute("aria-valuenow", String(progress));
+    }, 1200);
     formProgressTimers.set(form, timer);
     return;
   }
@@ -1793,9 +1822,24 @@ function setFormProgress(button, loading, label) {
   formProgressTimers.delete(form);
   if (!indicator) return;
   indicator.querySelector(".form-progress-track span").style.width = "100%";
+  indicator.querySelector(".form-progress-track").setAttribute("aria-valuenow", "100");
   indicator.querySelector("strong").textContent = "100%";
-  indicator.querySelector(".form-progress-copy span").textContent = "Proceso completado";
+  indicator.querySelector(".form-progress-copy span").textContent = state.lang === "en" ? "Completed" : "Proceso completado";
   window.setTimeout(() => indicator.remove(), 650);
+}
+
+function updateFormProgress(button, progress, label, detail = "") {
+  const form = button?.closest("form");
+  const indicator = form?.querySelector(".form-progress[data-form-progress]");
+  if (!indicator) return;
+  const safeProgress = Math.max(0, Math.min(100, Number(progress) || 0));
+  const track = indicator.querySelector(".form-progress-track");
+  indicator.querySelector(".form-progress-track span").style.width = `${safeProgress}%`;
+  indicator.querySelector("strong").textContent = `${Math.round(safeProgress)}%`;
+  indicator.querySelector(".form-progress-copy span").textContent = label;
+  track.setAttribute("aria-valuenow", String(Math.round(safeProgress)));
+  track.setAttribute("aria-label", label);
+  if (detail) indicator.querySelector("small").textContent = detail;
 }
 
 function setButtonLoading(button, loading, label = "Procesando...") {
@@ -1855,9 +1899,11 @@ function localizedTitle(property) {
 }
 
 function localizedDescription(property) {
-  return state.lang === "en"
-    ? property.descriptionEn || property.descriptionEs || property.description || ""
-    : property.descriptionEs || property.description || "";
+  if (state.lang === "en") {
+    return String(property.descriptionEn || "").trim()
+      || "Request the complete English property description and current availability from a Puerto Cancun Center advisor.";
+  }
+  return property.descriptionEs || property.description || "";
 }
 
 function displayType(type) {
@@ -1879,6 +1925,11 @@ function formatCurrencyLine(code, amount, operation = "sale") {
   return `${code} ${formatted}${operation === "rent" ? t("perMonth") : ""}`;
 }
 
+function propertyPriceUnitLabel(property) {
+  if (property?.priceUnit !== "sqm") return "";
+  return state.lang === "en" ? " / m²" : " por m²";
+}
+
 function localizedPropertyPrice(property) {
   const currency = property.currency || (property.priceUsd !== null && property.priceUsd !== undefined ? "USD" : "MXN");
   const amount = property.price ?? (currency === "USD" ? property.priceUsd : property.priceMxn);
@@ -1887,7 +1938,7 @@ function localizedPropertyPrice(property) {
 
 function formatPriceLines(property) {
   const selected = localizedPropertyPrice(property);
-  return selected ? [formatCurrencyLine(selected[0], selected[1], property.operation)] : [];
+  return selected ? [`${formatCurrencyLine(selected[0], selected[1], property.operation)}${propertyPriceUnitLabel(property)}`] : [];
 }
 
 function formatPriceSummary(property) {
@@ -2064,6 +2115,25 @@ function sortedProperties(properties) {
   return sorted;
 }
 
+function updateHomeEditorialImages() {
+  const candidates = state.properties.filter((property) => /^\/media\/properties\//.test(primaryImage(property)));
+  const assignments = [
+    ['.type-tile[href*="casas-cancun"]', (property) => property.type === "Casa"],
+    ['.type-tile[href*="departamentos-cancun"]', (property) => property.type === "Departamento"],
+    ['.type-tile[href*="/terrenos"]', (property) => property.type === "Terreno"],
+    ['.zone-card[href*="puerto-cancun"]', (property) => /puerto canc[uú]n/i.test(property.zone || "")],
+    ['.zone-card[href*="zona-hotelera"]', (property) => /zona hotelera/i.test(property.zone || "")],
+    ['.zone-card[href*="preventas"]', (property) => property.type === "Preventa" || property.publicationSection === "developments"],
+  ];
+  assignments.forEach(([selector, matches]) => {
+    const image = document.querySelector(`${selector} img`);
+    const property = candidates.find(matches);
+    if (!image || !property) return;
+    image.src = optimizedMediaUrl(primaryImage(property), 640);
+    image.alt = localizedTitle(property);
+  });
+}
+
 function renderProperties() {
   const grid = $("#propertyGrid");
   if (!grid) return;
@@ -2073,6 +2143,13 @@ function renderProperties() {
   const properties = sortedProperties(state.properties.filter(propertyMatches));
   const isHome = document.body.dataset.page === "home";
   const displayedProperties = isHome ? properties.slice(0, 6) : properties;
+  const guidedSearch = $("#guidedSearchForm");
+  const propertyToolbar = $(".properties-section .property-toolbar");
+  const propertyAlert = $("#propertyAlertForm");
+  if (guidedSearch) guidedSearch.hidden = isHome;
+  if (propertyToolbar) propertyToolbar.hidden = isHome;
+  if (propertyAlert) propertyAlert.hidden = isHome;
+  if (isHome) updateHomeEditorialImages();
   const propertiesTitle = $("#propertiesTitle");
   const catalogCta = $("#homeCatalogCta");
   if (propertiesTitle) propertiesTitle.textContent = isHome
@@ -5274,6 +5351,7 @@ async function loadPublicData() {
   const configData = value(3, state.config);
   state.properties = propertiesData.properties || [];
   state.session = sessionData.user;
+  state.csrfToken = sessionData.csrfToken || state.csrfToken;
   state.locationOptions = locationData.options || [];
   state.config = configData || state.config;
   state.platform = configData?.platform || state.platform;
@@ -5805,7 +5883,7 @@ function applyTranslations() {
     const property = state.properties.find((item) => item.id === state.detailPropertyId);
     if (property) renderPropertyDetail(property);
   }
-  if (!$("#panelView").hidden) {
+  if ($("#panelView") && !$("#panelView").hidden) {
     void renderPanel();
   }
   translatePanelStaticCopy();
@@ -5815,6 +5893,12 @@ function applyTranslations() {
 function toggleLanguage() {
   const nextLanguage = state.lang === "es" ? "en" : "es";
   localStorage.setItem(keys.lang, nextLanguage);
+  if (window.location.pathname === "/panel" || ($("#panelView") && !$("#panelView").hidden)) {
+    state.lang = nextLanguage;
+    applyTranslations();
+    preparePersonalDataForms();
+    return;
+  }
   const alternate = String(document.body.dataset.alternateUrl || "").trim();
   const currentPath = `${window.location.pathname}${window.location.search}${window.location.hash}`;
   window.location.assign(alternate || localizedRoute(currentPath, nextLanguage));
@@ -5878,6 +5962,7 @@ async function handleGoogleCredential(response) {
       body: { credential: response.credential },
     });
     state.session = data.user;
+    state.csrfToken = data.csrfToken || state.csrfToken;
     closeAuth();
     updateAuthNav();
     await showPanel();
@@ -5912,6 +5997,10 @@ async function initializeGoogleAuth() {
 }
 
 async function showPanel() {
+  if (!$("#panelView")) {
+    window.location.assign("/panel");
+    return;
+  }
   $("#siteShell").hidden = true;
   $("#panelView").hidden = false;
   document.body.classList.add("panel-open");
@@ -5921,6 +6010,10 @@ async function showPanel() {
 }
 
 function hidePanel() {
+  if (!$("#panelView")) {
+    window.location.assign("/");
+    return;
+  }
   const listingForm = $("#listingForm");
   if (listingForm?.dataset.saving === "true") {
     showToast("Espera a que termine de guardarse la publicación.");
@@ -5957,8 +6050,10 @@ async function loginSubmit(event) {
   event.preventDefault();
   const form = event.currentTarget;
   const message = $("#loginMessage");
+  const button = form.querySelector('button[type="submit"]');
   setFormMessage(message, "");
   try {
+    setButtonLoading(button, true, state.lang === "en" ? "Signing in..." : "Iniciando sesión...");
     const data = await api("/api/auth/login", {
       method: "POST",
       body: {
@@ -5967,6 +6062,7 @@ async function loginSubmit(event) {
       },
     });
     state.session = data.user;
+    state.csrfToken = data.csrfToken || state.csrfToken;
     if (data.user.mustUpdatePassword) {
       const updateForm = $("#passwordUpdateForm");
       updateForm.username.value = form.username.value.trim();
@@ -5984,6 +6080,12 @@ async function loginSubmit(event) {
       setFormMessage(message, t("loginUnavailable"), true);
       return;
     }
+    if (error.code === "EMAIL_NOT_VERIFIED") {
+      setFormMessage(message, state.lang === "en"
+        ? "Confirm your email before signing in. Check the verification message we sent you."
+        : "Confirma tu correo antes de iniciar sesión. Revisa el mensaje de verificación que te enviamos.", true);
+      return;
+    }
     if (error.status === 401 && form.username.value.includes("@")) {
       switchAuthTab("register");
       $("#registerForm").email.value = form.username.value.trim();
@@ -5991,6 +6093,8 @@ async function loginSubmit(event) {
       return;
     }
     setFormMessage(message, error.status === 429 ? error.message : t("loginError"), true);
+  } finally {
+    setButtonLoading(button, false);
   }
 }
 
@@ -5998,8 +6102,10 @@ async function registerSubmit(event) {
   event.preventDefault();
   const form = event.currentTarget;
   const message = $("#registerMessage");
+  const button = form.querySelector('button[type="submit"]');
   setFormMessage(message, "");
   try {
+    setButtonLoading(button, true, state.lang === "en" ? "Creating account..." : "Creando cuenta...");
     const data = await api("/api/auth/register", {
       method: "POST",
       body: {
@@ -6009,14 +6115,14 @@ async function registerSubmit(event) {
         phone: form.phone.value.trim(),
         preferredContact: form.preferredContact.value,
         password: form.password.value,
+        confirmPassword: form.confirmPassword.value,
+        consent: form.consent?.checked === true,
       },
     });
-    state.session = data.user;
-    setFormMessage(message, t("accountCreated"));
+    setFormMessage(message, state.lang === "en"
+      ? "Account created. Check your email to confirm it before signing in."
+      : "Cuenta creada. Revisa tu correo y confírmalo antes de iniciar sesión.");
     form.reset();
-    closeAuth();
-    updateAuthNav();
-    await showPanel();
   } catch (error) {
     const text = error.status === 503 || error.code === "DATABASE_UNAVAILABLE"
       ? t("loginUnavailable")
@@ -6024,7 +6130,62 @@ async function registerSubmit(event) {
         ? t("accountExists")
         : error.message;
     setFormMessage(message, text, true);
+  } finally {
+    setButtonLoading(button, false);
   }
+}
+
+async function forgotPasswordSubmit(event) {
+  event.preventDefault();
+  const form = event.currentTarget;
+  const message = $("#forgotMessage");
+  const button = form.querySelector('button[type="submit"]');
+  setFormMessage(message, "");
+  try {
+    setButtonLoading(button, true, state.lang === "en" ? "Sending..." : "Enviando...");
+    const data = await api("/api/auth/forgot-password", { method: "POST", body: { email: form.email.value.trim() } });
+    setFormMessage(message, data.message || (state.lang === "en" ? "Check your email." : "Revisa tu correo."));
+  } catch (error) {
+    setFormMessage(message, error.message, true);
+  } finally {
+    setButtonLoading(button, false);
+  }
+}
+
+async function resetPasswordSubmit(event) {
+  event.preventDefault();
+  const form = event.currentTarget;
+  const message = $("#resetPasswordMessage");
+  setFormMessage(message, "");
+  try {
+    await api("/api/auth/reset-password", {
+      method: "POST",
+      body: { token: form.token.value, password: form.password.value, confirmPassword: form.confirmPassword.value },
+    });
+    window.history.replaceState({}, "", window.location.pathname);
+    switchAuthTab("login");
+    setFormMessage($("#loginMessage"), state.lang === "en" ? "Password updated. You can now sign in." : "Contraseña actualizada. Ya puedes iniciar sesión.");
+  } catch (error) {
+    setFormMessage(message, error.message, true);
+  }
+}
+
+function initializePasswordStrengthMeters() {
+  $$("[data-password-meter]").forEach((meter) => {
+    const input = meter.closest("label")?.querySelector('input[type="password"]');
+    if (!input) return;
+    const update = () => {
+      const value = input.value;
+      meter.value = [
+        value.length >= 12,
+        /[A-Z]/.test(value) && /[a-z]/.test(value),
+        /\d/.test(value),
+        /[^A-Za-z0-9]/.test(value),
+      ].filter(Boolean).length;
+    };
+    input.addEventListener("input", update);
+    update();
+  });
 }
 
 function updatePasswordVisibilityButton(button) {
@@ -6074,6 +6235,7 @@ async function passwordUpdateSubmit(event) {
         username: form.username.value.trim(),
         currentPassword: form.currentPassword.value,
         newPassword: form.newPassword.value,
+        confirmNewPassword: form.confirmNewPassword.value,
       },
     });
     const username = form.username.value.trim();
@@ -6143,9 +6305,11 @@ async function leadFormSubmit(event) {
   event.preventDefault();
   const form = event.currentTarget;
   const message = form.querySelector("[data-lead-message]") || form.querySelector(".form-message");
+  const button = form.querySelector('button[type="submit"]');
   if (message) setFormMessage(message, "");
   const payload = Object.fromEntries(new FormData(form).entries());
   try {
+    setButtonLoading(button, true, state.lang === "en" ? "Sending..." : "Enviando...");
     await api("/api/leads", {
       method: "POST",
       body: {
@@ -6154,11 +6318,61 @@ async function leadFormSubmit(event) {
       },
     });
     form.reset();
+    if (form.elements.formStartedAt) form.elements.formStartedAt.value = String(Date.now());
     if (message) setFormMessage(message, t("leadSent"));
   } catch (error) {
     if (message) setFormMessage(message, error.message, true);
     else showToast(error.message, "error");
+  } finally {
+    setButtonLoading(button, false);
   }
+}
+
+function preparePersonalDataForms() {
+  const english = state.lang === "en";
+  $$("[data-lead-form]").forEach((form) => {
+    if (!form.elements.website) {
+      const honeypot = document.createElement("label");
+      honeypot.className = "form-honeypot";
+      honeypot.setAttribute("aria-hidden", "true");
+      honeypot.innerHTML = `<span>Website</span><input name="website" tabindex="-1" autocomplete="off" />`;
+      form.prepend(honeypot);
+    }
+    if (!form.elements.formStartedAt) {
+      const started = document.createElement("input");
+      started.type = "hidden";
+      started.name = "formStartedAt";
+      started.value = String(Date.now());
+      form.prepend(started);
+    }
+  });
+  $$("[data-lead-form], #registerForm, #sellerRequestForm, #sellerServiceForm").forEach((form) => {
+    if (!form) return;
+    let consent = form.querySelector("[data-privacy-consent]");
+    const checked = Boolean(consent?.querySelector('input[name="consent"]')?.checked);
+    if (!consent) {
+      consent = document.createElement("label");
+      consent.className = "privacy-consent";
+      consent.dataset.privacyConsent = "true";
+      const submit = form.querySelector('button[type="submit"]');
+      if (submit) form.insertBefore(consent, submit);
+      else form.append(consent);
+    }
+    consent.innerHTML = `<input type="checkbox" name="consent" value="true" required ${checked ? "checked" : ""} /><span>${english ? "I have read and accept the" : "He leído y acepto el"} <a href="${english ? "/en/privacy-notice" : "/aviso-de-privacidad"}" target="_blank">${english ? "privacy notice" : "aviso de privacidad"}</a> ${english ? "and the" : "y los"} <a href="${english ? "/en/terms" : "/terminos-y-condiciones"}" target="_blank">${english ? "terms and conditions" : "términos y condiciones"}</a>.</span>`;
+  });
+}
+
+function initializeCookiePreferences() {
+  const banner = $("#cookieBanner");
+  if (!banner) return;
+  const stored = localStorage.getItem("pcc-cookie-consent");
+  banner.hidden = Boolean(stored);
+  banner.querySelectorAll("[data-cookie-choice]").forEach((button) => {
+    button.addEventListener("click", () => {
+      localStorage.setItem("pcc-cookie-consent", button.dataset.cookieChoice === "all" ? "all" : "essential");
+      banner.hidden = true;
+    });
+  });
 }
 
 function parseKeywordInput(value) {
@@ -6288,6 +6502,7 @@ function resetListingForm(clearDraft = true) {
   delete form.dataset.idempotencyKey;
   if (formField(form, "status")) formField(form, "status").value = "active";
   if (formField(form, "isPublic")) formField(form, "isPublic").checked = true;
+  if (formField(form, "priceUnit")) formField(form, "priceUnit").value = "total";
   if (formField(form, "publicationSection")) {
     formField(form, "publicationSection").value = state.adminSection === "new-development" ? "developments" : "properties";
   }
@@ -6632,6 +6847,7 @@ async function listingSubmit(event) {
     isPublic: field("isPublic").checked,
     currency,
     price,
+    priceUnit: field("priceUnit").value === "sqm" ? "sqm" : "total",
     beds: Number(field("beds").value || 0),
     baths: Number(field("baths").value || 0),
     parking: Number(field("parking").value || 0),
@@ -6654,7 +6870,12 @@ async function listingSubmit(event) {
       units: Number(field("units").value || 0),
       availableUnits: Number(field("availableUnits").value || 0),
       paymentPlan: field("paymentPlan").value.trim(),
+      paymentPlanEn: field("paymentPlanEn").value.trim(),
+      developmentAmenities: parseKeywordInput(field("developmentAmenities").value),
+      constructionProgress: field("constructionProgress").value === "" ? null : Number(field("constructionProgress").value),
+      progressUpdatedAt: field("progressUpdatedAt").value,
       investmentHighlights: field("investmentHighlights").value.trim(),
+      investmentHighlightsEn: field("investmentHighlightsEn").value.trim(),
     });
   }
   const idempotencyKey = id ? "" : form.dataset.idempotencyKey || globalThis.crypto?.randomUUID?.() || `listing-${Date.now()}-${Math.random().toString(16).slice(2)}`;
@@ -6663,6 +6884,7 @@ async function listingSubmit(event) {
   form.dataset.persistentMediaDirty = "true";
   saveListingDraft();
   setButtonLoading(submit, true, "Guardando publicación...");
+  updateFormProgress(submit, 18, "Preparando publicación", "Validando los datos y conservando el borrador local.");
   setFormMessage(message, "Guardando publicación, por favor espera...");
   const slowTimer = window.setTimeout(() => {
     setFormMessage(message, "El guardado está tardando más de lo normal. No cierres esta ventana.");
@@ -6671,6 +6893,8 @@ async function listingSubmit(event) {
   let savedSection = payload.publicationSection;
   try {
     Object.assign(payload, await getListingImagePayload(form));
+    updateFormProgress(submit, 42, "Preparando galería", "Las imágenes nuevas se validarán y protegerán en el servidor.");
+    updateFormProgress(submit, 58, "Guardando en la base de datos", "No cierres esta ventana hasta recibir la confirmación.");
     const data = await api(id ? `/api/admin/properties/${encodeURIComponent(id)}` : "/api/admin/properties", {
       method: id ? "PUT" : "POST",
       body: payload,
@@ -6678,6 +6902,7 @@ async function listingSubmit(event) {
       timeoutMs: 60000,
     });
     const saved = data.property;
+    updateFormProgress(submit, 92, "Actualizando inventario", "La publicación ya fue guardada; estamos actualizando el panel.");
     savedSection = saved.publicationSection || savedSection;
     const existingIndex = state.properties.findIndex((property) => property.id === saved.id);
     if (existingIndex >= 0) state.properties.splice(existingIndex, 1, saved);
@@ -6756,6 +6981,7 @@ function editListing(id) {
   field("isPublic").checked = property.isPublic !== false;
   field("currency").value = property.currency || (property.priceUsd !== null && property.priceUsd !== undefined ? "USD" : "MXN");
   field("price").value = property.price ?? (field("currency").value === "USD" ? property.priceUsd : property.priceMxn) ?? "";
+  field("priceUnit").value = property.priceUnit === "sqm" ? "sqm" : "total";
   const developmentData = property.developmentData || {};
   field("developer").value = developmentData.developer || "";
   field("developmentStage").value = developmentData.stage || "";
@@ -6763,7 +6989,12 @@ function editListing(id) {
   field("units").value = developmentData.units || "";
   field("availableUnits").value = developmentData.availableUnits || "";
   field("paymentPlan").value = developmentData.paymentPlan || "";
+  field("paymentPlanEn").value = developmentData.paymentPlanEn || "";
+  field("developmentAmenities").value = Array.isArray(developmentData.amenities) ? developmentData.amenities.join(", ") : "";
+  field("constructionProgress").value = developmentData.constructionProgress ?? "";
+  field("progressUpdatedAt").value = developmentData.progressUpdatedAt ? String(developmentData.progressUpdatedAt).slice(0, 10) : "";
   field("investmentHighlights").value = developmentData.investmentHighlights || "";
+  field("investmentHighlightsEn").value = developmentData.investmentHighlightsEn || "";
   field("address").value = property.address || "";
   field("latitude").value = property.latitude ?? "";
   field("longitude").value = property.longitude ?? "";
@@ -7172,14 +7403,6 @@ function openPropertyWhatsApp(property) {
 }
 
 function openGeneralWhatsApp() {
-  void api("/api/leads", {
-    method: "POST",
-    body: {
-      leadType: "solicitud-whatsapp-ayuda",
-      name: "Solicitud WhatsApp",
-      sourcePath: window.location.pathname,
-    },
-  }).catch(() => null);
   void api("/api/analytics/events", {
     method: "POST",
     body: { eventType: "whatsapp_clicked", metadata: { path: window.location.pathname } },
@@ -7453,12 +7676,38 @@ function bindEvents() {
   $("#loginForm").addEventListener("submit", loginSubmit);
   $("#registerForm").addEventListener("submit", registerSubmit);
   $("#passwordUpdateForm").addEventListener("submit", passwordUpdateSubmit);
+  $("#forgotForm")?.addEventListener("submit", forgotPasswordSubmit);
+  $("#resetPasswordForm")?.addEventListener("submit", resetPasswordSubmit);
+
+  if (!$("#panelView")) {
+    document.addEventListener("click", (event) => {
+      const sellerAccess = event.target.closest("[data-seller-access]");
+      if (sellerAccess) {
+        event.preventDefault();
+        if (state.session) void showPanel();
+        else openAuth(sellerAccess.dataset.sellerAccess === "login" ? "login" : "register");
+      }
+      const detail = event.target.closest("[data-detail]");
+      if (detail) viewDetails(detail.dataset.detail);
+      const contact = event.target.closest("[data-contact]");
+      if (contact) contactAdvisor(contact.dataset.contact);
+      const detailContact = event.target.closest("[data-detail-contact]");
+      if (detailContact) contactAdvisor(detailContact.dataset.detailContact);
+      const favorite = event.target.closest("[data-favorite]");
+      if (favorite) toggleFavorite(favorite.dataset.favorite);
+      const compare = event.target.closest("[data-compare]");
+      if (compare) toggleCompare(compare.dataset.compare);
+    });
+    $("#whatsappButton").addEventListener("click", openGeneralWhatsApp);
+    return;
+  }
 
   $("#backToSite").addEventListener("click", hidePanel);
   $("#logoutButton").addEventListener("click", async () => {
     stopWhatsappPolling();
     await api("/api/auth/logout", { method: "POST" }).catch(() => null);
     state.session = null;
+    state.csrfToken = "";
     state.requests = [];
     state.leads = [];
     hidePanel();
@@ -8089,12 +8338,17 @@ function bindEvents() {
 function initializeMortgageCalculator() {
   const form = $("#mortgageCalculatorForm");
   const output = $("#mortgageResults");
+  const tableOutput = $("#mortgageAmortization");
   if (!form || !output) return;
   const calculate = () => {
     const price = Math.max(0, Number(form.price.value || 0));
     const downPercent = Math.min(95, Math.max(0, Number(form.downPayment.value || 0)));
     const annualRate = Math.max(0, Number(form.annualRate.value || 0)) / 100;
     const years = Math.max(1, Number(form.years.value || 1));
+    const notaryPercent = Math.max(0, Number(form.notaryPercent?.value || 0));
+    const commissionPercent = Math.max(0, Number(form.commissionPercent?.value || 0));
+    const annualInsurance = Math.max(0, Number(form.annualInsurance?.value || 0));
+    const closingCosts = Math.max(0, Number(form.closingCosts?.value || 0));
     const downAmount = price * (downPercent / 100);
     const principal = price - downAmount;
     const months = years * 12;
@@ -8102,14 +8356,40 @@ function initializeMortgageCalculator() {
     const payment = monthlyRate
       ? principal * (monthlyRate * (1 + monthlyRate) ** months) / ((1 + monthlyRate) ** months - 1)
       : principal / months;
+    const insuranceMonthly = annualInsurance / 12;
     const total = payment * months;
+    const notaryCosts = price * (notaryPercent / 100);
+    const commission = principal * (commissionPercent / 100);
+    const initialOutlay = downAmount + notaryCosts + commission + closingCosts;
     const format = (value) => `${form.currency.value} $${new Intl.NumberFormat(state.lang === "en" ? "en-US" : "es-MX", { maximumFractionDigits: 0 }).format(value)}`;
     output.innerHTML = `
       <article><span>${state.lang === "en" ? "Down payment" : "Enganche"}</span><strong>${escapeHtml(format(downAmount))}</strong></article>
+      <article><span>${state.lang === "en" ? "Notary costs and taxes" : "Gastos notariales e impuestos"}</span><strong>${escapeHtml(format(notaryCosts))}</strong></article>
+      <article><span>${state.lang === "en" ? "Origination commission" : "Comisión de apertura"}</span><strong>${escapeHtml(format(commission))}</strong></article>
+      <article><span>${state.lang === "en" ? "Estimated initial outlay" : "Desembolso inicial estimado"}</span><strong>${escapeHtml(format(initialOutlay))}</strong></article>
       <article><span>${state.lang === "en" ? "Financed amount" : "Monto financiado"}</span><strong>${escapeHtml(format(principal))}</strong></article>
-      <article><span>${state.lang === "en" ? "Estimated monthly payment" : "Mensualidad estimada"}</span><strong>${escapeHtml(format(payment))}</strong></article>
+      <article><span>${state.lang === "en" ? "Mortgage monthly payment" : "Mensualidad hipotecaria"}</span><strong>${escapeHtml(format(payment))}</strong></article>
+      <article><span>${state.lang === "en" ? "Monthly payment with insurance" : "Mensualidad con seguros"}</span><strong>${escapeHtml(format(payment + insuranceMonthly))}</strong></article>
       <article><span>${state.lang === "en" ? "Estimated interest" : "Intereses estimados"}</span><strong>${escapeHtml(format(Math.max(0, total - principal)))}</strong></article>
     `;
+    if (!tableOutput) return;
+    let balance = principal;
+    const rows = [];
+    for (let year = 1; year <= years; year += 1) {
+      let annualPrincipal = 0;
+      let annualInterest = 0;
+      for (let month = 0; month < 12 && balance > 0.01; month += 1) {
+        const interest = monthlyRate ? balance * monthlyRate : 0;
+        const principalPayment = Math.min(balance, Math.max(0, payment - interest));
+        annualInterest += interest;
+        annualPrincipal += principalPayment;
+        balance = Math.max(0, balance - principalPayment);
+      }
+      rows.push(`<tr><th scope="row">${year}</th><td>${escapeHtml(format(annualPrincipal))}</td><td>${escapeHtml(format(annualInterest))}</td><td>${escapeHtml(format(balance))}</td></tr>`);
+    }
+    tableOutput.innerHTML = `<h3>${state.lang === "en" ? "Annual amortization table" : "Tabla anual de amortización"}</h3>
+      <div class="table-scroll"><table><thead><tr><th>${state.lang === "en" ? "Year" : "Año"}</th><th>${state.lang === "en" ? "Principal" : "Capital"}</th><th>${state.lang === "en" ? "Interest" : "Interés"}</th><th>${state.lang === "en" ? "Remaining balance" : "Saldo restante"}</th></tr></thead><tbody>${rows.join("")}</tbody></table></div>
+      <p class="mortgage-disclaimer">${state.lang === "en" ? "Reference estimate only. Rates, taxes, insurance and fees vary by institution, property and transaction." : "Estimación exclusivamente referencial. Las tasas, impuestos, seguros y comisiones varían según institución, inmueble y operación."}</p>`;
   };
   form.addEventListener("submit", (event) => {
     event.preventDefault();
@@ -8126,8 +8406,8 @@ async function loadPublicBlog() {
     const data = await api(`/api/blog?lang=${encodeURIComponent(state.lang)}`);
     list.innerHTML = data.posts?.length
       ? data.posts.map((post) => {
-          const title = state.lang === "en" ? post.titleEn || post.titleEs : post.titleEs;
-          const excerpt = state.lang === "en" ? post.excerptEn || post.excerptEs : post.excerptEs;
+          const title = state.lang === "en" ? post.titleEn : post.titleEs;
+          const excerpt = state.lang === "en" ? post.excerptEn : post.excerptEs;
           const href = `${state.lang === "en" ? "/en/blog" : "/blog"}/${encodeURIComponent(post.slug)}`;
           return `<article class="public-blog-card">${post.coverImage ? `<a href="${href}"><img src="${escapeHtml(post.coverImage)}" alt="${escapeHtml(title)}" loading="lazy" /></a>` : ""}<div><span class="seo-eyebrow">${escapeHtml(formatDate(post.publishedAt || post.updatedAt))}</span><h2><a href="${href}">${escapeHtml(title)}</a></h2><p>${escapeHtml(excerpt || "")}</p><a class="text-link" href="${href}">${state.lang === "en" ? "Read article" : "Leer artículo"}</a></div></article>`;
         }).join("")
@@ -8158,6 +8438,9 @@ async function init() {
   }
   installImageFallbacks();
   installPasswordVisibilityToggles();
+  initializePasswordStrengthMeters();
+  preparePersonalDataForms();
+  initializeCookiePreferences();
   bindEvents();
   initializePropertyGallery();
   updateNetworkStatus(navigator.onLine);
@@ -8167,7 +8450,31 @@ async function init() {
     console.error(error);
     showToast(t("apiError"), "error");
   }
+  const authParams = new URLSearchParams(window.location.search);
+  const verificationToken = authParams.get("verifyToken");
+  const resetToken = authParams.get("resetToken");
+  if (verificationToken) {
+    try {
+      await api(`/api/auth/verify-email?token=${encodeURIComponent(verificationToken)}`);
+      window.history.replaceState({}, "", window.location.pathname);
+      openAuth("login");
+      setFormMessage($("#loginMessage"), state.lang === "en" ? "Email confirmed. You can now sign in." : "Correo confirmado. Ya puedes iniciar sesión.");
+    } catch (error) {
+      openAuth("login");
+      setFormMessage($("#loginMessage"), error.message, true);
+    }
+  } else if (resetToken) {
+    $("#resetPasswordForm").token.value = resetToken;
+    openAuth("resetPassword");
+  }
   applyTranslations();
+  if (document.body.dataset.page === "panel") {
+    if (!state.session) {
+      window.location.replace("/");
+      return;
+    }
+    await showPanel();
+  }
   initializeMortgageCalculator();
   void loadPublicBlog();
   void loadPublicBuyerRequirements();

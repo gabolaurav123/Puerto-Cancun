@@ -59,6 +59,21 @@ function securityHeaders() {
       "Permissions-Policy": "camera=(), microphone=(), geolocation=(self)",
       "Cross-Origin-Opener-Policy": "same-origin-allow-popups",
       "Origin-Agent-Cluster": "?1",
+      "Content-Security-Policy": [
+        "default-src 'self'",
+        "base-uri 'self'",
+        "object-src 'none'",
+        "frame-ancestors 'self'",
+        "form-action 'self'",
+        "script-src 'self' 'unsafe-inline' https://unpkg.com https://accounts.google.com",
+        "style-src 'self' 'unsafe-inline' https://unpkg.com",
+        "img-src 'self' data: blob: https:",
+        "font-src 'self' data: https:",
+        "connect-src 'self' https://accounts.google.com https://www.googleapis.com https://nominatim.openstreetmap.org https://*.tile.openstreetmap.org",
+        "frame-src 'self' https://www.google.com https://accounts.google.com",
+        "worker-src 'self' blob:",
+        "upgrade-insecure-requests",
+      ].join("; "),
     });
     if (req.secure) res.set("Strict-Transport-Security", "max-age=31536000; includeSubDomains");
     next();
