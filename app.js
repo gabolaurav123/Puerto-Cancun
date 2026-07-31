@@ -5375,7 +5375,7 @@ async function loadPublicData() {
 
 async function loadPanelData() {
   if (!state.session) return;
-  const panelApi = (path) => api(path, { timeoutMs: 12000, retry: false });
+  const panelApi = (path) => api(path, { timeoutMs: 25000, retry: false });
   if (state.session.role === "admin") {
     const adminResults = await Promise.allSettled([
       panelApi("/api/admin/stats"),
@@ -5668,6 +5668,8 @@ function setAdminSection(section) {
 }
 
 const panelStaticEnglish = {
+  "Panel administrativo": "Admin panel",
+  "Panel de vendedor": "Seller panel",
   "Centro de control": "Control center",
   "Publicaciones": "Listings",
   "Nueva publicación": "New listing",
@@ -5739,6 +5741,7 @@ const panelStaticEnglish = {
 function translatePanelStaticCopy() {
   if (!$("#panelView")) return;
   $$("#panelView h2, #panelView h3, #panelView label > span, #panelView legend, #panelView option, #panelView button > span, #panelView .admin-sidebar-subnav button, #panelView .admin-sidebar-subnav a, #campaignForm button").forEach((element) => {
+    if (element.id === "panelTitle") return;
     if (element.dataset.i18n || element.childElementCount) return;
     const original = element.dataset.panelOriginal || element.textContent.trim();
     if (!element.dataset.panelOriginal) element.dataset.panelOriginal = original;
@@ -5867,7 +5870,7 @@ function updateLocalizedLinks() {
   });
 }
 
-function applyTranslations() {
+function applyTranslations({ renderPanelContent = true } = {}) {
   document.documentElement.lang = state.lang;
   document.body.dataset.lang = state.lang;
   $$("[data-i18n]").forEach((element) => {
@@ -5897,7 +5900,7 @@ function applyTranslations() {
     const property = state.properties.find((item) => item.id === state.detailPropertyId);
     if (property) renderPropertyDetail(property);
   }
-  if ($("#panelView") && !$("#panelView").hidden) {
+  if (renderPanelContent && $("#panelView") && !$("#panelView").hidden) {
     void renderPanel();
   }
   translatePanelStaticCopy();
@@ -6373,7 +6376,7 @@ function preparePersonalDataForms() {
       consent.className = "privacy-consent";
       consent.dataset.privacyConsent = "true";
       const submit = form.querySelector('button[type="submit"]');
-      if (submit) form.insertBefore(consent, submit);
+      if (submit?.parentNode) submit.parentNode.insertBefore(consent, submit);
       else form.append(consent);
     }
     consent.innerHTML = `<input type="checkbox" name="consent" value="true" required ${checked ? "checked" : ""} /><span>${english ? "I have read and accept the" : "He leído y acepto el"} <a href="${english ? "/en/privacy-notice" : "/aviso-de-privacidad"}" target="_blank">${english ? "privacy notice" : "aviso de privacidad"}</a> ${english ? "and the" : "y los"} <a href="${english ? "/en/terms" : "/terminos-y-condiciones"}" target="_blank">${english ? "terms and conditions" : "términos y condiciones"}</a>.</span>`;
@@ -8447,7 +8450,7 @@ async function loadPublicBuyerRequirements() {
 
 async function init() {
   const renderedLanguage = document.body.dataset.lang || (window.location.pathname.startsWith("/en") ? "en" : "es");
-  if (storedLanguage && storedLanguage !== renderedLanguage && document.body.dataset.alternateUrl) {
+  if (document.body.dataset.page !== "panel" && storedLanguage && storedLanguage !== renderedLanguage && document.body.dataset.alternateUrl) {
     const alternateUrl = new URL(document.body.dataset.alternateUrl, window.location.origin);
     alternateUrl.search = window.location.search;
     alternateUrl.hash = window.location.hash;
@@ -8489,7 +8492,7 @@ async function init() {
     openAuth(requestedAuthTab);
     window.history.replaceState({}, "", window.location.pathname);
   }
-  applyTranslations();
+  applyTranslations({ renderPanelContent: document.body.dataset.page !== "panel" });
   if (document.body.dataset.page === "panel") {
     if (!state.session) {
       window.location.replace("/");

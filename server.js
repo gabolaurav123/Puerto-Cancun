@@ -6655,6 +6655,17 @@ function renderAuthenticatedPanelEntry(html, role) {
     .replace('<main class="panel-view" id="panelView" hidden>', '<main class="panel-view" id="panelView">');
   if (role === "admin") {
     rendered = rendered.replace('<section class="dashboard" id="adminPanel" hidden>', '<section class="dashboard" id="adminPanel">');
+    rendered = rendered.replace(
+      /(<[^>]+data-admin-section-panel="([^"]+)"[^>]*)(>)/g,
+      (match, start, sections, end) => {
+        if (String(sections).split(/\s+/).includes("dashboard") || /\shidden(?:\s|$)/.test(start)) return match;
+        return `${start} hidden${end}`;
+      }
+    );
+    rendered = rendered.replace(
+      /(<[^>]+data-admin-listing-view="[^"]+"[^>]*)(>)/g,
+      (match, start, end) => /\shidden(?:\s|$)/.test(start) ? match : `${start} hidden${end}`
+    );
   } else {
     rendered = rendered.replace('<section class="dashboard" id="sellerPanel" hidden>', '<section class="dashboard" id="sellerPanel">');
   }
@@ -6960,20 +6971,25 @@ function installShutdownHandlers(server) {
   return shutdown;
 }
 
-function startServer() {
+async function startServer() {
   if (runtimeValidation.errors.length) {
     throw new Error(`Configuración de producción inválida: ${runtimeValidation.errors.join(" ")}`);
   }
   runtimeValidation.warnings.forEach((warning) => console.warn(`[config] ${warning}`));
+  await initializeDatabaseWithRetry();
   const server = app.listen(port, "0.0.0.0", () => {
     console.log(`Puerto Cancun Center ${releaseInfo.version} (${releaseInfo.shortRelease}) listening on http://0.0.0.0:${port}`);
-    void initializeDatabaseWithRetry();
   });
   installShutdownHandlers(server);
   return server;
 }
 
-if (require.main === module) startServer();
+if (require.main === module) {
+  startServer().catch((error) => {
+    console.error("No fue posible iniciar Puerto Cancun Center.", error);
+    process.exitCode = 1;
+  });
+}
 
 module.exports = {
   adminUsernameMatches,
