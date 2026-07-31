@@ -26,7 +26,8 @@ SESSION_SECRET=un-secreto-largo-y-aleatorio
 ADMIN_USER=adminprueba
 ADMIN_PASSWORD=tu-password-admin
 OPENAI_API_KEY=
-OPENAI_MODEL=gpt-5.6-terra
+OPENAI_MODEL=gpt-5-mini
+OPENAI_IMAGE_QUALITY=medium
 INSTAGRAM_ACCOUNT_ID=
 INSTAGRAM_ACCESS_TOKEN=
 INSTAGRAM_OAUTH_URL=
@@ -93,7 +94,7 @@ El servidor crea automáticamente las tablas necesarias y carga propiedades de e
 
 ## Integraciones
 
-Las campañas preparan y registran mensajes; no realizan envío masivo sin un proveedor autorizado. La generación para Instagram usa la Responses API cuando `OPENAI_API_KEY` está configurada y vuelve a un borrador local si OpenAI no está disponible. `OPENAI_MODEL` utiliza `gpt-5.6-terra` por defecto para equilibrar calidad, latencia y costo. Los resultados requieren aprobación humana.
+Las campañas preparan y registran mensajes; no realizan envío masivo sin un proveedor autorizado. La generación para Instagram usa la Responses API cuando `OPENAI_API_KEY` está configurada y vuelve a un borrador local si OpenAI no está disponible. `OPENAI_MODEL` utiliza `gpt-5-mini` por defecto para equilibrar calidad, latencia y costo. Los resultados requieren aprobación humana.
 
 `INSTAGRAM_OAUTH_URL` puede apuntar al flujo OAuth administrado por Meta y `INSTAGRAM_PROFILE_URL` al perfil que se abrirá desde Marketing. Las credenciales de Instagram nunca se envían al navegador. Google OAuth, Google Maps, WhatsApp e IndexNow se habilitan mediante sus respectivas variables.
 

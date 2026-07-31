@@ -203,16 +203,35 @@ function drawNeutralPropertyPdf(document, { property, images, options }) {
   drawNeutralFooter(document, options.disclaimer);
 }
 
+function stripBrand(value) {
+  return String(value || "")
+    .replace(/Puerto\s+Canc[uú]n\s+Center/gi, "")
+    .replace(/Puerto\s+Cancun\s+Center/gi, "")
+    .replace(/\s{2,}/g, " ")
+    .trim();
+}
+
+function neutralizeProperty(property) {
+  const sanitized = { ...property };
+  ["titleEs", "titleEn", "descriptionEs", "descriptionEn", "address", "neighborhood", "zone", "city", "state"].forEach((key) => {
+    sanitized[key] = stripBrand(property[key]);
+  });
+  sanitized.amenities = Array.isArray(property.amenities) ? property.amenities.map(stripBrand).filter(Boolean) : [];
+  return sanitized;
+}
+
 function drawPropertyPdf(document, { property, images = [], propertyUrl, logoPath, options = {} }) {
   const branded = options.brandMode !== "neutral";
+  const renderedProperty = branded ? property : neutralizeProperty(property);
+  const renderedOptions = branded ? options : { ...options, disclaimer: stripBrand(options.disclaimer) };
   document.page.margins.bottom = 10;
-  document.info.Title = property.titleEs;
+  document.info.Title = renderedProperty.titleEs;
   document.info.Subject = branded ? "Ficha comercial de propiedad" : "Ficha detallada de propiedad";
   document.info.Author = branded ? "Puerto Cancún Center" : "Ficha de propiedad";
   document.info.Producer = branded ? "Puerto Cancún Center" : "Generador de ficha de propiedad";
 
   if (!branded) {
-    drawNeutralPropertyPdf(document, { property, images, options });
+    drawNeutralPropertyPdf(document, { property: renderedProperty, images, options: renderedOptions });
     return;
   }
 
@@ -331,4 +350,4 @@ function drawPropertyPdf(document, { property, images = [], propertyUrl, logoPat
   );
 }
 
-module.exports = { drawPropertyPdf, preparePropertyPdfImages };
+module.exports = { drawPropertyPdf, preparePropertyPdfImages, stripBrand };

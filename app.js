@@ -2934,6 +2934,7 @@ function renderAdminContacts() {
             <button class="mini-button" type="button" data-edit-contact="${escapeHtml(contact.id)}">${escapeHtml(t("edit"))}</button>
             ${phoneUrl ? `<a class="mini-button primary" href="${escapeHtml(phoneUrl)}" target="_blank" rel="noopener noreferrer">${escapeHtml(t("respondWhatsApp"))}</a>` : ""}
             ${contact.email ? `<button class="mini-button" type="button" data-compose-email data-email="${escapeHtml(contact.email)}" data-email-name="${escapeHtml(contact.name || "")}" data-email-context="${escapeHtml(contactTypeLabel(contact.contactType))}">${escapeHtml(t("respondEmail"))}</button>` : ""}
+            <button class="mini-button danger" type="button" data-delete-contact="${escapeHtml(contact.id)}">Eliminar</button>
           </div>
         </article>
       `;
@@ -3577,6 +3578,7 @@ function renderAdminTasks() {
             <span class="status ${escapeHtml(task.status || "pending")}">${escapeHtml(task.status === "completed" ? t("taskCompleted") : task.status === "in_progress" ? t("taskInProgress") : t("pending"))}</span>
             <h3>${escapeHtml(task.title)}</h3>
             <p>${escapeHtml(task.assignedTo || "Puerto Cancun Center")} · ${escapeHtml(task.dueDate ? formatDate(task.dueDate) : "-")}</p>
+            ${task.reminderAt ? `<p class="task-reminder"><i data-lucide="bell-ring"></i> ${escapeHtml(formatDate(task.reminderAt))} · ${escapeHtml(task.reminderChannel || "panel")}</p>` : ""}
           </div>
           <p>${escapeHtml(task.description || "")}</p>
           <div class="item-actions">
@@ -3601,6 +3603,8 @@ async function taskSubmit(event) {
         title: form.title.value.trim(),
         description: form.description.value.trim(),
         dueDate: form.dueDate.value,
+        reminderAt: form.reminderAt.value,
+        reminderChannel: form.reminderChannel.value,
         priority: form.priority.value,
         assignedTo: form.assignedTo.value,
         relatedEntityType: form.relatedEntityType.value,
@@ -3729,6 +3733,16 @@ function renderAdminMap() {
       (!selectedStatus || property.status === selectedStatus) &&
       (!selectedType || property.type === selectedType)
   );
+  const layerRecords = layer === "properties"
+    ? properties
+    : layer === "valuations"
+      ? state.valuations.filter((item) => !selectedZone || item.zone === selectedZone)
+      : state.leads.filter((item) => !selectedZone || item.payload?.zone === selectedZone);
+  const liveSummary = $("#smartMapLiveSummary");
+  if (liveSummary) {
+    const layerLabel = layer === "properties" ? "propiedades" : layer === "valuations" ? "valoraciones" : "leads";
+    liveSummary.textContent = `${layerRecords.length} ${layerLabel} en la vista actual${selectedZone ? ` · ${selectedZone}` : " · todas las zonas"}. Selecciona un resultado para centrar el mapa.`;
+  }
   if (layer === "properties") {
     propertyList.innerHTML = properties.length
       ? properties
@@ -3747,10 +3761,7 @@ function renderAdminMap() {
           .join("")
       : `<p class="empty-state">No hay propiedades con estos filtros.</p>`;
   } else {
-    const records =
-      layer === "valuations"
-        ? state.valuations.filter((item) => !selectedZone || item.zone === selectedZone)
-        : state.leads.filter((item) => !selectedZone || item.payload?.zone === selectedZone);
+    const records = layerRecords;
     propertyList.innerHTML = records.length
       ? records
           .slice(0, 30)
@@ -3910,6 +3921,58 @@ function renderCampaignRecipientPicker() {
       `).join("")
     : `<p class="empty-state">No hay correos registrados que coincidan con la busqueda.</p>`;
   count.textContent = `${state.campaignRecipientEmails.size} ${state.campaignRecipientEmails.size === 1 ? "correo seleccionado" : "correos seleccionados"}`;
+  renderCampaignEmailPreview();
+}
+
+const campaignTemplateCopy = {
+  property_spotlight: {
+    subject: "Una propiedad seleccionada para ti en Cancún",
+    message: "Hola,\n\nSeleccionamos una propiedad que puede coincidir con tu búsqueda en Cancún. Encontrarás su ubicación, características y precio vigente en la ficha vinculada.\n\nPodemos confirmar disponibilidad, resolver dudas y coordinar una visita.\n\nSaludos,\nEquipo Puerto Cancún Center",
+  },
+  personal_followup: {
+    subject: "Seguimiento a tu proceso inmobiliario",
+    message: "Hola,\n\nQueremos dar seguimiento a tu solicitud y confirmar si todavía podemos ayudarte con tu compra, venta o valoración inmobiliaria.\n\nResponde a este correo con el horario y medio de contacto que prefieres.\n\nSaludos,\nEquipo Puerto Cancún Center",
+  },
+  valuation: {
+    subject: "Siguiente paso para valorar tu propiedad",
+    message: "Hola,\n\nRecibimos la información de tu propiedad. Para preparar una valoración útil necesitamos confirmar ubicación, superficie, estado de conservación y condiciones de venta.\n\nUn asesor puede revisar contigo los datos pendientes y explicar el siguiente paso.\n\nSaludos,\nEquipo Puerto Cancún Center",
+  },
+  newsletter: {
+    subject: "Actualización inmobiliaria de Cancún",
+    message: "Hola,\n\nCompartimos una actualización breve con oportunidades, desarrollos y movimientos relevantes del mercado inmobiliario de Cancún.\n\nConsulta las propiedades vinculadas y solicita información al equipo para validar disponibilidad y condiciones vigentes.\n\nSaludos,\nEquipo Puerto Cancún Center",
+  },
+};
+
+function applyCampaignTemplate() {
+  const form = $("#campaignForm");
+  if (!form) return;
+  const preset = campaignTemplateCopy[form.elements.template?.value];
+  if (!preset) {
+    renderCampaignEmailPreview();
+    return;
+  }
+  form.elements.name.value = preset.subject;
+  form.elements.message.value = preset.message;
+  renderCampaignEmailPreview();
+}
+
+function renderCampaignEmailPreview() {
+  const form = $("#campaignForm");
+  const subject = $("#campaignSubjectPreview");
+  const body = $("#campaignBodyPreview");
+  const audience = $("#campaignAudiencePreview");
+  const count = $("#campaignCharacterCount");
+  if (!form || !subject || !body || !audience || !count) return;
+  const message = String(form.elements.message?.value || "").trim();
+  subject.textContent = String(form.elements.name?.value || "").trim() || "Escribe un asunto";
+  body.innerHTML = message
+    ? message.split(/\n{2,}/).map((paragraph) => `<p>${escapeHtml(paragraph).replace(/\n/g, "<br>")}</p>`).join("")
+    : `<p>El contenido aparecerá aquí con el estilo institucional antes de enviarlo.</p>`;
+  const selectedMode = form.elements.recipientMode?.value === "selected";
+  audience.textContent = selectedMode
+    ? `${state.campaignRecipientEmails.size} correos elegidos directamente`
+    : `Segmento: ${form.elements.segment?.selectedOptions?.[0]?.textContent || "Todos los contactos"}`;
+  count.textContent = `${message.length.toLocaleString("es-MX")} caracteres`;
 }
 
 function openEmailComposer(button) {
@@ -3934,6 +3997,7 @@ function openEmailComposer(button) {
     "Quedamos atentos para resolver tus dudas y coordinar el siguiente paso.",
   ].join("\n");
   renderCampaignRecipientPicker();
+  renderCampaignEmailPreview();
   form.scrollIntoView({ behavior: "smooth", block: "start" });
   form.elements.name.focus({ preventScroll: true });
   showToast(`Correo preparado para ${email}. Revisa el contenido y presiona Enviar correo ahora.`);
@@ -4166,10 +4230,11 @@ function propertySearchLabel(property) {
   return `${mls}${property.titleEs || property.title || "Sin título"} · ${displayLocation(property)}`;
 }
 
-function populatePropertyPicker(searchSelector, datalistSelector, selectSelector, emptyLabel = "Sin propiedad") {
+function populatePropertyPicker(searchSelector, datalistSelector, selectSelector, matchesSelector, emptyLabel = "Sin propiedad") {
   const searchInput = $(searchSelector);
   const datalist = $(datalistSelector);
   const select = $(selectSelector);
+  const matchesPanel = $(matchesSelector);
   if (!searchInput || !datalist || !select) return;
   const currentId = select.value;
   populateSelect(select, state.properties, propertySearchLabel, "id", emptyLabel);
@@ -4187,20 +4252,57 @@ function populatePropertyPicker(searchSelector, datalistSelector, selectSelector
     const selected = state.properties.find((property) => property.id === select.value);
     if (selected && !searchInput.matches(":focus")) searchInput.value = propertySearchLabel(selected);
   }
+  const matchingProperties = () => {
+    const normalized = normalizeSearchText(searchInput.value);
+    if (!normalized) return [];
+    return state.properties
+      .filter((property) => {
+        const mls = normalizeSearchText(property.mls);
+        const title = normalizeSearchText(property.titleEs || property.title);
+        return mls.startsWith(normalized) || title.includes(normalized) || normalizeSearchText(propertySearchLabel(property)).includes(normalized);
+      })
+      .slice(0, 8);
+  };
+  const renderMatches = () => {
+    if (!matchesPanel) return;
+    const matches = matchingProperties();
+    matchesPanel.innerHTML = matches
+      .map((property) => `<button type="button" data-property-picker-id="${escapeHtml(property.id)}"><strong>${escapeHtml(property.mls ? `MLS# ${property.mls}` : "Sin MLS")}</strong><span>${escapeHtml(property.titleEs || property.title || "Sin título")}</span><small>${escapeHtml(displayLocation(property))}</small></button>`)
+      .join("");
+    matchesPanel.hidden = !searchInput.value.trim();
+    if (!matches.length && searchInput.value.trim()) {
+      matchesPanel.innerHTML = `<p>No hay coincidencias por MLS o título.</p>`;
+    }
+  };
   searchInput.oninput = () => {
     const normalized = normalizeSearchText(searchInput.value);
     let id = labels.get(normalized) || "";
     if (!id && normalized) {
-      const matches = state.properties.filter((property) => {
-        const mls = normalizeSearchText(property.mls);
-        const title = normalizeSearchText(property.titleEs || property.title);
-        return mls === normalized || title === normalized || normalizeSearchText(propertySearchLabel(property)).includes(normalized);
-      });
-      if (matches.length === 1) id = matches[0].id;
+      const exact = state.properties.find((property) =>
+        normalizeSearchText(property.mls) === normalized || normalizeSearchText(property.titleEs || property.title) === normalized
+      );
+      id = exact?.id || "";
     }
     select.value = id;
     select.dispatchEvent(new Event("change", { bubbles: true }));
+    renderMatches();
   };
+  searchInput.onfocus = renderMatches;
+  searchInput.onblur = () => window.setTimeout(() => {
+    if (matchesPanel) matchesPanel.hidden = true;
+  }, 160);
+  if (matchesPanel) {
+    matchesPanel.onclick = (event) => {
+      const button = event.target.closest("[data-property-picker-id]");
+      if (!button) return;
+      select.value = button.dataset.propertyPickerId;
+      const selected = state.properties.find((property) => property.id === select.value);
+      searchInput.value = selected ? propertySearchLabel(selected) : "";
+      matchesPanel.hidden = true;
+      select.dispatchEvent(new Event("change", { bubbles: true }));
+      searchInput.focus();
+    };
+  }
   select.onchange = () => {
     const selected = state.properties.find((property) => property.id === select.value);
     if (selected) searchInput.value = propertySearchLabel(selected);
@@ -4212,8 +4314,8 @@ function populateOperationalSelects() {
   populateSelect($("#aiPropertySelect"), state.properties, (item) => item.titleEs, "id", "Sin propiedad");
   populateSelect($("#instagramPropertySelect"), state.properties, (item) => `${item.titleEs} · ${displayLocation(item)}`, "id", "Selecciona una propiedad");
   populateSelect($("#marketingPropertySelect"), state.properties, (item) => `${item.titleEs} · ${displayLocation(item)}`, "id", "Selecciona una propiedad");
-  populatePropertyPicker("#campaignPropertySearch", "#campaignPropertySuggestions", "#campaignPropertySelect", "Sin propiedad");
-  populatePropertyPicker("#pdfPropertySearch", "#pdfPropertySuggestions", "#pdfPropertySelect", "Selecciona una propiedad");
+  populatePropertyPicker("#campaignPropertySearch", "#campaignPropertySuggestions", "#campaignPropertySelect", "#campaignPropertyMatches", "Sin propiedad");
+  populatePropertyPicker("#pdfPropertySearch", "#pdfPropertySuggestions", "#pdfPropertySelect", "#pdfPropertyMatches", "Selecciona una propiedad");
   populateSelect($("#pdfValuationSelect"), state.valuations, (item) => `${item.ownerName} · ${item.zone || "Sin zona"}`, "id", "Selecciona una valoración");
   populateSelect($("#aiRequestSelect"), state.leads, (item) => `${item.name} · ${leadTypeLabel(item.leadType)}`, "id", "Sin solicitud");
   $$("[data-staff-select]").forEach((select) => {
@@ -4494,6 +4596,7 @@ async function campaignSubmit(event) {
     }
     form.reset();
     state.campaignRecipientEmails = new Set();
+    renderCampaignEmailPreview();
     await renderPanel();
     if (delivery) {
       showToast(`Correo enviado desde la plataforma: ${delivery.sent} entregas${delivery.failed ? `, ${delivery.failed} fallidas` : ""}.`);
@@ -4543,6 +4646,18 @@ function editContact(id) {
   if ($("#saveContactButton")) $("#saveContactButton").textContent = "Guardar cambios";
   if ($("#cancelContactEdit")) $("#cancelContactEdit").hidden = false;
   form.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+async function deleteContact(id) {
+  const contact = state.contacts.find((item) => item.id === id);
+  if (!contact) return;
+  if (!(await confirmAction(
+    `Se quitara a ${contact.name || "este contacto"} del CRM. La cuenta de acceso, si existe, no se eliminara.`,
+    "Eliminar contacto"
+  ))) return;
+  await api(`/api/admin/contacts/${encodeURIComponent(id)}`, { method: "DELETE" });
+  await renderPanel();
+  showToast("Contacto eliminado del CRM.");
 }
 
 async function markCampaignSent(id) {
@@ -5132,7 +5247,7 @@ function renderWhatsappOverview() {
   const chatbot = overview.chatbot || {};
   if (form && form.dataset.loaded !== "true") {
     form.enabled.checked = chatbot.enabled === true;
-    form.model.value = chatbot.model || "gpt-5.6-terra";
+    form.model.value = chatbot.model || "gpt-5-mini";
     form.prompt.value = chatbot.prompt || "";
     form.welcomeMessage.value = chatbot.welcomeMessage || "";
     form.handoffKeywords.value = chatbot.handoffKeywords || "";
@@ -5637,6 +5752,51 @@ function updateAdminShell() {
   $("#adminPanel")?.classList.toggle("sidebar-collapsed", state.sidebarCollapsed);
 }
 
+function configureListingFormMode(section = state.adminSection) {
+  const form = $("#listingForm");
+  if (!form) return;
+  const developmentMode = section === "new-development";
+  form.dataset.listingMode = developmentMode ? "development" : "property";
+  formField(form, "publicationSection").value = developmentMode ? "developments" : "properties";
+  const developmentFields = form.querySelector("[data-development-fields]");
+  const developmentLink = form.querySelector("[data-property-development-link]");
+  if (developmentFields) developmentFields.hidden = !developmentMode;
+  if (developmentLink) developmentLink.hidden = developmentMode;
+
+  const type = formField(form, "type");
+  if (type) {
+    const previous = type.value;
+    const choices = developmentMode
+      ? ["Desarrollo"]
+      : ["Casa", "Departamento", "Terreno", "Comercial", "Preventa"];
+    type.innerHTML = choices.map((choice) => `<option value="${choice}">${choice}</option>`).join("");
+    type.value = choices.includes(previous) ? previous : choices[0];
+  }
+
+  const developmentSelect = formField(form, "developmentId");
+  if (developmentSelect) {
+    const current = developmentSelect.value;
+    developmentSelect.innerHTML = `<option value="">Propiedad independiente / sin desarrollo</option>`;
+    state.properties
+      .filter((property) => property.publicationSection === "developments")
+      .sort((a, b) => String(a.titleEs || "").localeCompare(String(b.titleEs || ""), "es"))
+      .forEach((property) => {
+        const developmentId = property.developmentData?.id || `dev-${property.id}`;
+        developmentSelect.append(new Option(`${property.titleEs} · ${displayLocation(property)}`, developmentId));
+      });
+    if (current) developmentSelect.value = current;
+  }
+
+  const intro = $("#listingModeIntro");
+  if (intro) {
+    intro.innerHTML = developmentMode
+      ? `<span class="eyebrow">FICHA MAESTRA DE DESARROLLO</span><h3>Nuevo desarrollo inmobiliario</h3><p>Esta ficha conserva amenidades, áreas comunes, imágenes generales, avance de obra y plan de pagos aunque todavía no existan unidades publicadas.</p>`
+      : `<span class="eyebrow">PROPIEDAD INDIVIDUAL</span><h3>Nueva propiedad en venta o renta</h3><p>Registra los datos y fotografías de la unidad. Si pertenece a un desarrollo, vincúlala para reutilizar sus amenidades e imágenes generales.</p>`;
+  }
+  const imageLabel = formField(form, "imageFile")?.closest("label")?.querySelector("span");
+  if (imageLabel) imageLabel.textContent = developmentMode ? "Imágenes generales del desarrollo" : "Imágenes propias de la unidad";
+}
+
 function setAdminSection(section) {
   const previousSection = state.adminSection;
   const listingForm = $("#listingForm");
@@ -5651,10 +5811,7 @@ function setAdminSection(section) {
   }
   state.adminSection = section || "dashboard";
   if (opensListingForm && listingForm) {
-    formField(listingForm, "publicationSection").value = section === "new-development" ? "developments" : "properties";
-    const developmentFields = listingForm.querySelector("[data-development-fields]");
-    if (developmentFields) developmentFields.hidden = section !== "new-development";
-    if (section === "new-development" && !formField(listingForm, "id").value) formField(listingForm, "type").value = "Desarrollo";
+    configureListingFormMode(section);
   }
   if (state.adminSection === "whatsapp") startWhatsappPolling();
   else stopWhatsappPolling();
@@ -6097,7 +6254,7 @@ async function loginSubmit(event) {
     updateAuthNav();
     window.location.assign("/panel");
   } catch (error) {
-    if (error.status === 503 || error.code === "DATABASE_UNAVAILABLE") {
+    if (error.code === "DATABASE_UNAVAILABLE") {
       setFormMessage(message, t("loginUnavailable"), true);
       return;
     }
@@ -6133,19 +6290,29 @@ async function registerSubmit(event) {
         firstName: form.firstName.value.trim(),
         lastName: form.lastName.value.trim(),
         email: form.email.value.trim(),
-        phone: form.phone.value.trim(),
+        phone: `${form.countryCode.value}${form.phone.value}`.replace(/[^\d+]/g, ""),
         preferredContact: form.preferredContact.value,
         password: form.password.value,
         confirmPassword: form.confirmPassword.value,
         consent: form.consent?.checked === true,
       },
     });
-    setFormMessage(message, state.lang === "en"
-      ? "Account created. Check your email to confirm it before signing in."
-      : "Cuenta creada. Revisa tu correo y confírmalo antes de iniciar sesión.");
+    const accountMessage = data.verificationRequired
+      ? data.emailDeliveryPending
+        ? state.lang === "en"
+          ? "Account saved. Verification email delivery is pending; the team can resend it without losing your data."
+          : "Cuenta guardada. El correo de verificación está pendiente; el equipo puede reenviarlo sin perder tus datos."
+        : state.lang === "en"
+          ? "Account created. Check your email to confirm it before signing in."
+          : "Cuenta creada. Revisa tu correo y confírmalo antes de iniciar sesión."
+      : state.lang === "en"
+        ? "Account created. You can sign in now."
+        : "Cuenta creada. Ya puedes iniciar sesión.";
+    setFormMessage(message, accountMessage);
     form.reset();
+    form.countryCode.value = "+52";
   } catch (error) {
-    const text = error.status === 503 || error.code === "DATABASE_UNAVAILABLE"
+    const text = error.code === "DATABASE_UNAVAILABLE"
       ? t("loginUnavailable")
       : error.status === 409
         ? t("accountExists")
@@ -6524,12 +6691,7 @@ function resetListingForm(clearDraft = true) {
   if (formField(form, "status")) formField(form, "status").value = "active";
   if (formField(form, "isPublic")) formField(form, "isPublic").checked = true;
   if (formField(form, "priceUnit")) formField(form, "priceUnit").value = "total";
-  if (formField(form, "publicationSection")) {
-    formField(form, "publicationSection").value = state.adminSection === "new-development" ? "developments" : "properties";
-  }
-  const developmentFields = form.querySelector("[data-development-fields]");
-  if (developmentFields) developmentFields.hidden = state.adminSection !== "new-development";
-  if (state.adminSection === "new-development" && formField(form, "type")) formField(form, "type").value = "Desarrollo";
+  configureListingFormMode(state.adminSection);
   refreshLocationSelects();
   resetMapPickerForForm(form);
   updateListingImagePreview([]);
@@ -6852,6 +7014,7 @@ async function listingSubmit(event) {
     title: field("title").value.trim(),
     titleEn: field("titleEn").value.trim(),
     publicationSection: field("publicationSection").value === "developments" ? "developments" : "properties",
+    developmentId: field("developmentId")?.value || "",
     type: field("type").value,
     state: field("state").value,
     city: field("city").value,
@@ -6993,9 +7156,9 @@ function editListing(id) {
   field("title").value = property.titleEs || property.title || "";
   field("titleEn").value = property.titleEn || "";
   field("publicationSection").value = publicationSection;
-  const developmentFields = form.querySelector("[data-development-fields]");
-  if (developmentFields) developmentFields.hidden = publicationSection !== "developments";
+  configureListingFormMode(editSection);
   field("type").value = property.type;
+  if (field("developmentId")) field("developmentId").value = property.developmentId || "";
   setLocationFormValues(form, property);
   field("operation").value = property.operation;
   field("status").value = property.status || "active";
@@ -7887,6 +8050,9 @@ function bindEvents() {
   $("#cancelContactEdit")?.addEventListener("click", resetContactForm);
   $("#buyerForm")?.addEventListener("submit", buyerSubmit);
   $("#campaignForm")?.addEventListener("submit", campaignSubmit);
+  $("#campaignForm")?.addEventListener("input", renderCampaignEmailPreview);
+  $("#campaignForm")?.addEventListener("change", renderCampaignEmailPreview);
+  $("#campaignTemplate")?.addEventListener("change", applyCampaignTemplate);
   $$('[name="recipientMode"]').forEach((input) => input.addEventListener("change", renderCampaignRecipientPicker));
   $("#campaignRecipientSearch")?.addEventListener("input", renderCampaignRecipientPicker);
   $("#campaignRecipientList")?.addEventListener("change", (event) => {
@@ -8188,6 +8354,9 @@ function bindEvents() {
 
     const editContactButton = event.target.closest("[data-edit-contact]");
     if (editContactButton) editContact(editContactButton.dataset.editContact);
+
+    const deleteContactButton = event.target.closest("[data-delete-contact]");
+    if (deleteContactButton) void deleteContact(deleteContactButton.dataset.deleteContact);
 
     const editBlogButton = event.target.closest("[data-edit-blog]");
     if (editBlogButton) editBlogPost(editBlogButton.dataset.editBlog);

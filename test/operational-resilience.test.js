@@ -70,7 +70,8 @@ test("el acceso distingue una base indisponible de una contraseña incorrecta", 
   assert.match(server, /code: "DATABASE_UNAVAILABLE"/);
   assert.match(server, /Tus cuentas y datos permanecen guardados/);
   assert.match(app, /error\.code = data\.code/);
-  assert.match(app, /error\.status === 503 \|\| error\.code === "DATABASE_UNAVAILABLE"/);
+  assert.match(app, /error\.code === "DATABASE_UNAVAILABLE"/);
+  assert.doesNotMatch(app, /error\.status === 503 \|\| error\.code === "DATABASE_UNAVAILABLE"/);
   assert.match(app, /loginUnavailable/);
 });
 

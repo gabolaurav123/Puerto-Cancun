@@ -1287,7 +1287,7 @@
               </div>
               <form id="whatsappChatbotForm" class="whatsapp-chatbot-form">
                 <label class="toggle-row"><input name="enabled" type="checkbox" /><span><strong>Activar respuestas automaticas</strong><small>Puede pausarse por cada conversacion.</small></span></label>
-                <label><span>Modelo</span><input name="model" value="gpt-5.6-terra" /></label>
+                <label><span>Modelo</span><input name="model" value="gpt-5-mini" /></label>
                 <label class="span-2"><span>Prompt del chatbot</span><textarea name="prompt" rows="10" required maxlength="8000"></textarea></label>
                 <label class="span-2"><span>Mensaje de bienvenida</span><textarea name="welcomeMessage" rows="3" maxlength="800"></textarea></label>
                 <label class="span-2"><span>Palabras para transferir a un asesor</span><input name="handoffKeywords" placeholder="asesor, humano, llamada, queja" /></label>
@@ -1445,6 +1445,12 @@
               <p data-i18n="smartMapHint">Vista operativa por zonas, inventario y leads registrados.</p>
             </div>
           </div>
+          <div class="smart-map-guide">
+            <div><b>1</b><span><strong>Elige una capa</strong>Inventario, demanda o valoraciones.</span></div>
+            <div><b>2</b><span><strong>Aplica filtros</strong>Reduce los resultados por zona, estado y tipo.</span></div>
+            <div><b>3</b><span><strong>Abre un resultado</strong>El mapa se centrará en su ubicación registrada.</span></div>
+          </div>
+          <p class="smart-map-live-summary" id="smartMapLiveSummary" aria-live="polite"></p>
           <div class="map-intelligence-toolbar">
             <select id="smartMapLayer"><option value="properties">Inventario</option><option value="leads">Demanda / leads</option><option value="valuations">Valoraciones</option></select>
             <select id="smartMapZone" data-location-select="zone"><option value="">Todas las zonas</option></select>
@@ -1575,6 +1581,10 @@
                   <option value="email_sequence">Secuencia de seguimiento por correo</option>
                   <option value="image_brief">Brief para contenido visual</option>
                   <option value="price">Analizar precio interno</option>
+                  <option value="listing_checklist">Checklist antes de publicar</option>
+                  <option value="photo_plan">Plan de fotografías</option>
+                  <option value="buyer_match">Perfil de comprador y objeciones</option>
+                  <option value="legal_check">Revisar afirmaciones y riesgos</option>
                 </select>
               </label>
               <label>
@@ -1639,6 +1649,18 @@
             <label>
               <span data-i18n="taskDue">Fecha limite</span>
               <input name="dueDate" type="date" />
+            </label>
+            <label>
+              <span>Recordarme</span>
+              <input name="reminderAt" type="datetime-local" />
+            </label>
+            <label>
+              <span>Canal de seguimiento</span>
+              <select name="reminderChannel">
+                <option value="panel">Panel</option>
+                <option value="email">Correo</option>
+                <option value="whatsapp">WhatsApp</option>
+              </select>
             </label>
             <label>
               <span data-i18n="priority">Prioridad</span>
@@ -1756,6 +1778,7 @@
             <form id="campaignForm" class="module-form-grid">
               <h3 class="span-2">Crear correo</h3>
               <label><span>Asunto del correo</span><input name="name" required /></label>
+              <label><span>Plantilla profesional</span><select name="template" id="campaignTemplate"><option value="">Redacción libre</option><option value="property_spotlight">Propiedad destacada</option><option value="personal_followup">Seguimiento personalizado</option><option value="valuation">Resultado de valoración</option><option value="newsletter">Boletín inmobiliario</option></select></label>
               <label><span>Objetivo</span><select name="objective"><option value="promote_property">Promocionar propiedad</option><option value="buyers_followup">Recontactar compradores</option><option value="sellers_followup">Recontactar vendedores</option><option value="valuation">Enviar valoración</option><option value="zone">Promocionar zona</option><option value="presale">Preventa</option></select></label>
               <label><span>Segmento</span><select name="segment"><option value="all">Todos los contactos</option><option value="buyers">Compradores</option><option value="sellers">Vendedores</option><option value="premium">Leads premium</option><option value="unanswered">Sin seguimiento reciente</option></select></label>
               <input name="channel" type="hidden" value="email" />
@@ -1763,6 +1786,7 @@
                 <span>Buscar propiedad por MLS o título</span>
                 <input id="campaignPropertySearch" type="search" list="campaignPropertySuggestions" placeholder="Escribe MLS o título" autocomplete="off" />
                 <datalist id="campaignPropertySuggestions"></datalist>
+                <div class="property-search-matches" id="campaignPropertyMatches" hidden></div>
                 <select name="propertyId" id="campaignPropertySelect" hidden><option value="">Sin propiedad</option></select>
               </label>
               <label><span>Programar</span><input name="scheduledAt" type="datetime-local" /></label>
@@ -1794,12 +1818,19 @@
                 </div>
               </fieldset>
               <label class="span-2"><span>Contenido del correo</span><textarea name="message" rows="9" required></textarea></label>
+              <section class="mailing-live-preview span-2" aria-live="polite">
+                <div><span class="eyebrow">VISTA PREVIA DEL CORREO</span><small id="campaignAudiencePreview">Segmento: todos los contactos</small></div>
+                <h4 id="campaignSubjectPreview">Escribe un asunto</h4>
+                <div id="campaignBodyPreview"><p>El contenido aparecerá aquí con el estilo institucional antes de enviarlo.</p></div>
+                <small id="campaignCharacterCount">0 caracteres</small>
+              </section>
               <div class="form-actions span-2">
                 <button class="primary-button" type="submit" name="campaignAction" value="send">Enviar correo ahora</button>
                 <button class="ghost-button" type="submit" name="campaignAction" value="draft">Guardar borrador</button>
                 <button class="ghost-button" type="button" id="generateCampaignCopy">Generar borrador con IA</button>
               </div>
               <p class="form-message span-2" id="campaignFormMessage"></p>
+              <p class="module-help span-2">El envío se realiza desde la plataforma y queda registrado. Si el proveedor de correo no está configurado, el borrador se conserva y se muestra el error sin perder destinatarios ni contenido.</p>
             </form>
             <section>
               <h3>Correos preparados</h3>
@@ -1829,6 +1860,7 @@
                 <span>Buscar por MLS o título</span>
                 <input id="pdfPropertySearch" type="search" list="pdfPropertySuggestions" placeholder="Escribe MLS o título" autocomplete="off" />
                 <datalist id="pdfPropertySuggestions"></datalist>
+                <div class="property-search-matches" id="pdfPropertyMatches" hidden></div>
                 <select name="propertyId" id="pdfPropertySelect" hidden></select>
               </label>
               <label data-pdf-target="valuation" hidden><span>Valoración</span><select name="valuationId" id="pdfValuationSelect"></select></label>
@@ -1999,6 +2031,11 @@
             <form id="listingForm" class="stacked-form">
               <input type="hidden" name="id" />
               <input name="publicationSection" type="hidden" value="properties" />
+              <section class="listing-mode-intro" id="listingModeIntro" aria-live="polite">
+                <span class="eyebrow">PROPIEDAD INDIVIDUAL</span>
+                <h3>Nueva propiedad en venta o renta</h3>
+                <p>Registra los datos y fotografías de la unidad. Si pertenece a un desarrollo, vincúlala para reutilizar automáticamente sus amenidades e imágenes generales.</p>
+              </section>
               <div class="form-row">
                 <label>
                   <span data-i18n="propertyTitleEs">Título de la propiedad en español</span>
@@ -2080,6 +2117,13 @@
                   </select>
                 </label>
               </div>
+              <label data-property-development-link>
+                <span>Desarrollo al que pertenece</span>
+                <select name="developmentId" id="listingDevelopmentSelect">
+                  <option value="">Propiedad independiente / sin desarrollo</option>
+                </select>
+                <small>Las áreas comunes y fotografías generales se tomarán de la ficha del desarrollo. Aquí solo debes subir las fotos de esta unidad.</small>
+              </label>
               <fieldset class="development-fields" data-development-fields hidden>
                 <legend>Información del desarrollo</legend>
                 <div class="form-row">
@@ -2476,10 +2520,31 @@
             <span data-i18n="email">Direccion de correo</span>
             <input name="email" type="email" autocomplete="email" required />
           </label>
-          <label>
-            <span data-i18n="phone">Telefono</span>
-            <input name="phone" type="tel" autocomplete="tel" required />
-          </label>
+          <fieldset class="phone-registration-field">
+            <legend data-i18n="phone">Telefono</legend>
+            <div class="phone-registration-grid">
+              <label>
+                <span>Prefijo</span>
+                <select name="countryCode" aria-label="Prefijo internacional" required>
+                  <option value="+52" selected>Mexico +52</option>
+                  <option value="+1">EE. UU. / Canada +1</option>
+                  <option value="+591">Bolivia +591</option>
+                  <option value="+54">Argentina +54</option>
+                  <option value="+55">Brasil +55</option>
+                  <option value="+56">Chile +56</option>
+                  <option value="+57">Colombia +57</option>
+                  <option value="+51">Peru +51</option>
+                  <option value="+34">Espana +34</option>
+                  <option value="+502">Guatemala +502</option>
+                </select>
+              </label>
+              <label>
+                <span>Numero nacional</span>
+                <input name="phone" type="tel" inputmode="tel" autocomplete="tel-national" placeholder="998 216 6563" required />
+              </label>
+            </div>
+            <small>Guardaremos el numero completo con su prefijo internacional.</small>
+          </fieldset>
           <label>
             <span data-i18n="preferredContact">Metodo de contacto preferido</span>
             <select name="preferredContact" required>

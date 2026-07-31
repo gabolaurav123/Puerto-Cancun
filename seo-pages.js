@@ -75,11 +75,11 @@ function Breadcrumbs(items) {
   `;
 }
 
-function QuickAnswerBlock(paragraphs) {
+function QuickAnswerBlock(paragraphs, title = "Orientación inmobiliaria") {
   return `
     <section class="quick-answer" aria-labelledby="quick-answer-title">
-      <span>Respuesta rapida</span>
-      <h2 id="quick-answer-title">Respuesta rapida</h2>
+      <span>PROCESO INMOBILIARIO</span>
+      <h2 id="quick-answer-title">${escapeHtml(title)}</h2>
       ${paragraphs.map((paragraph) => `<p>${escapeHtml(paragraph)}</p>`).join("")}
     </section>
   `;
@@ -578,7 +578,7 @@ const pages = [
           ${QuickAnswerBlock([
             "Para vender una propiedad en Cancun con Puerto Cancun Center, el primer paso es solicitar una valoracion y registrar la informacion principal del inmueble.",
             "La IA puede ayudarte a ordenar datos, pero la publicacion, el precio y el seguimiento deben revisarse con criterio local y compradores reales.",
-          ])}
+          ], "Cómo empezamos a preparar tu venta")}
           <section class="seo-columns">
             <div>
               <h2>Como trabajamos tu venta</h2>
@@ -1005,8 +1005,11 @@ function formatListingPrice(property, lang = "es") {
 }
 
 function safePublicImages(property) {
-  const images = Array.isArray(property.images) ? property.images : [];
-  return images.filter((image) => /^https?:\/\//i.test(image) || /^\/media\//.test(image) || /^\/assets\//.test(image));
+  const images = [
+    ...(Array.isArray(property.images) ? property.images : []),
+    ...(Array.isArray(property.developmentImages) ? property.developmentImages : []),
+  ];
+  return [...new Set(images)].filter((image) => /^https?:\/\//i.test(image) || /^\/media\//.test(image) || /^\/assets\//.test(image));
 }
 
 function optimizedPublicImage(image, width) {
@@ -1196,7 +1199,11 @@ function renderPropertyPage(property, lang = "es", similar = []) {
     ? `<section class="property-location-map"><div class="property-location-map-heading"><div><span class="seo-eyebrow">${english ? "Location" : "Ubicación"}</span><h2>${english ? "Property location" : "Ubicación de la propiedad"}</h2></div>${publicMapUrl ? `<a class="text-link" href="${escapeHtml(publicMapUrl)}" target="_blank" rel="noopener">${english ? "Open in Google Maps" : "Abrir en Google Maps"}</a>` : ""}</div><iframe title="${english ? "Property location map" : "Mapa de ubicación de la propiedad"}" loading="lazy" referrerpolicy="no-referrer-when-downgrade" src="https://www.google.com/maps?q=${encodeURIComponent(mapQuery)}&output=embed"></iframe></section>`
     : "";
   const similarSection = similar.length ? `<section class="similar-properties"><div class="section-heading"><h2>${english ? "Similar properties" : "Propiedades similares"}</h2></div>${renderInventoryCards(similar.slice(0, 3), lang)}</section>` : "";
-  const amenities = Array.isArray(property.amenities) && property.amenities.length ? `<section class="property-amenities"><h2>${english ? "Amenities" : "Amenidades"}</h2><ul>${property.amenities.map((item) => `<li>${escapeHtml(localizedAmenity(item, lang))}</li>`).join("")}</ul></section>` : "";
+  const allAmenities = [...new Set([
+    ...(Array.isArray(property.amenities) ? property.amenities : []),
+    ...(Array.isArray(property.parentDevelopment?.amenities) ? property.parentDevelopment.amenities : []),
+  ])];
+  const amenities = allAmenities.length ? `<section class="property-amenities"><h2>${english ? "Amenities" : "Amenidades"}</h2>${property.parentDevelopment?.nameEs ? `<p>${english ? "This unit belongs to" : "Esta unidad pertenece a"} <strong>${escapeHtml(english ? property.parentDevelopment.nameEn || property.parentDevelopment.nameEs : property.parentDevelopment.nameEs)}</strong>.</p>` : ""}<ul>${allAmenities.map((item) => `<li>${escapeHtml(localizedAmenity(item, lang))}</li>`).join("")}</ul></section>` : "";
   const development = property.publicationSection === "developments" && property.developmentData
     ? `<section class="development-facts"><h2>${english ? "Development information" : "Información del desarrollo"}</h2><dl>
         ${property.developmentData.developer ? `<div><dt>${english ? "Developer" : "Desarrollador"}</dt><dd>${escapeHtml(property.developmentData.developer)}</dd></div>` : ""}
