@@ -22,8 +22,14 @@ test("marketing separa contenido, imágenes y conexiones", () => {
 });
 
 test("los flujos de contenido e imagen buscan propiedades en tiempo real", () => {
-  assert.match(indexSource, /id="instagramPropertySearch"[^>]+list="instagramPropertySuggestions"/);
-  assert.match(indexSource, /id="marketingPropertySearch"[^>]+list="marketingPropertySuggestions"/);
+  for (const id of [
+    "instagramPropertySearch",
+    "marketingPropertySearch",
+  ]) {
+    const input = indexSource.match(new RegExp(`<input[^>]+id="${id}"[^>]*>`))?.[0] || "";
+    assert.ok(input, `falta el buscador ${id}`);
+    assert.doesNotMatch(input, /\slist=/i);
+  }
   assert.match(appSource, /populatePropertyPicker\("#instagramPropertySearch"/);
   assert.match(appSource, /populatePropertyPicker\("#marketingPropertySearch"/);
   assert.match(appSource, /searchInput\.oninput/);
