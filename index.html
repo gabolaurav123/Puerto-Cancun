@@ -1703,24 +1703,38 @@
           <div class="admin-module-heading">
             <div>
               <h2>Marketing y contenido</h2>
-              <p>Crea contenido para redes sociales a partir del inventario inmobiliario.</p>
+              <p>Prepara textos, piezas visuales institucionales y conexiones de canales desde espacios separados.</p>
             </div>
           </div>
           <div class="marketing-kpis" id="adminMarketing"></div>
-          <section class="instagram-workspace">
+          <div class="marketing-view-tabs" role="tablist" aria-label="Herramientas de marketing">
+            <button class="active" type="button" role="tab" aria-selected="true" aria-controls="marketingContentPanel" data-marketing-view="content">
+              <i data-lucide="file-text"></i><span>Contenido</span>
+            </button>
+            <button type="button" role="tab" aria-selected="false" aria-controls="marketingImagesPanel" data-marketing-view="images">
+              <i data-lucide="image"></i><span>Imágenes</span>
+            </button>
+            <button type="button" role="tab" aria-selected="false" aria-controls="marketingNetworksPanel" data-marketing-view="networks">
+              <i data-lucide="share-2"></i><span>Redes</span>
+            </button>
+          </div>
+          <section class="marketing-section-panel instagram-workspace" id="marketingContentPanel" role="tabpanel" data-marketing-panel="content">
             <div class="instagram-heading">
               <div>
-                <span class="eyebrow">INSTAGRAM + CHATGPT</span>
-                <h3>Crear publicación desde una propiedad</h3>
-                <p>Selecciona el inmueble, genera un borrador y revísalo antes de copiarlo o publicarlo.</p>
-              </div>
-              <div class="instagram-connection" id="instagramConnectionStatus">
-                <span class="status pending">Sin configurar</span>
-                <a class="ghost-button" id="connectInstagram" href="#" target="_blank" rel="noopener" hidden>Conectar Instagram</a>
+                <span class="eyebrow">REDACCIÓN ASISTIDA</span>
+                <h3>Contenido basado en una propiedad real</h3>
+                <p>Busca por título o MLS, confirma el inmueble y prepara textos que siempre requieren revisión humana.</p>
               </div>
             </div>
             <form id="instagramPostForm" class="module-form-grid">
-              <label><span>Propiedad</span><select name="propertyId" id="instagramPropertySelect" required></select></label>
+              <label class="span-2 property-picker-field">
+                <span>Buscar propiedad</span>
+                <input id="instagramPropertySearch" type="search" list="instagramPropertySuggestions" placeholder="Escribe el título o MLS" autocomplete="off" />
+                <datalist id="instagramPropertySuggestions"></datalist>
+                <div class="property-search-matches" id="instagramPropertyMatches" hidden></div>
+                <select name="propertyId" id="instagramPropertySelect" hidden required><option value="">Selecciona una propiedad</option></select>
+              </label>
+              <div class="marketing-property-preview span-2" id="instagramPropertyPreview" hidden></div>
               <label><span>Objetivo</span><select name="objective"><option value="leads">Generar consultas</option><option value="sale">Promover venta</option><option value="rent">Promover renta</option><option value="investment">Destacar inversión</option></select></label>
               <label><span>Tono</span><select name="tone"><option value="premium">Premium y claro</option><option value="friendly">Cercano</option><option value="investment">Enfoque inversionista</option></select></label>
               <label><span>Hashtags</span><input name="hashtags" value="#PuertoCancun #BienesRaicesCancun #RealEstateMexico" /></label>
@@ -1728,40 +1742,69 @@
               <div class="form-actions span-2">
                 <button class="primary-button" type="submit"><i data-lucide="sparkles"></i> Generar con ChatGPT</button>
                 <button class="ghost-button" type="button" id="copyInstagramPost">Copiar texto</button>
-                <a class="ghost-button" id="openInstagramProfile" href="https://www.instagram.com/" target="_blank" rel="noopener">Abrir Instagram</a>
+                <button class="ghost-button" type="button" id="generateMarketingKit"><i data-lucide="files"></i> Crear paquete multicanal</button>
               </div>
               <p class="form-message span-2" id="instagramPostMessage"></p>
             </form>
+            <div class="marketing-copy-output" id="marketingCopyOutput" hidden>
+              <label><span>Paquete de textos</span><textarea id="marketingGeneratedCopy" rows="12" aria-label="Texto de campaña generado"></textarea></label>
+              <button class="ghost-button" type="button" id="copyMarketingKit"><i data-lucide="copy"></i> Copiar textos</button>
+            </div>
           </section>
-          <section class="creative-studio">
+          <section class="marketing-section-panel creative-studio" id="marketingImagesPanel" role="tabpanel" data-marketing-panel="images" hidden>
             <div class="instagram-heading">
               <div>
-                <span class="eyebrow">ESTUDIO CREATIVO</span>
-                <h3>Crear imagen y paquete de campaña</h3>
-                <p>Genera una propuesta visual, textos por canal y una llamada a la acción a partir de una propiedad real.</p>
+                <span class="eyebrow">ESTUDIO DE IMAGEN</span>
+                <h3>Crear una pieza institucional</h3>
+                <p>La composición utiliza la portada publicada; no inventa otra casa ni altera la propiedad.</p>
               </div>
             </div>
             <form id="marketingCreativeForm" class="module-form-grid">
-              <label><span>Propiedad</span><select name="propertyId" id="marketingPropertySelect" required></select></label>
+              <label class="span-2 property-picker-field">
+                <span>Buscar propiedad</span>
+                <input id="marketingPropertySearch" type="search" list="marketingPropertySuggestions" placeholder="Escribe el título o MLS" autocomplete="off" />
+                <datalist id="marketingPropertySuggestions"></datalist>
+                <div class="property-search-matches" id="marketingPropertyMatches" hidden></div>
+                <select name="propertyId" id="marketingPropertySelect" hidden required><option value="">Selecciona una propiedad</option></select>
+              </label>
+              <div class="marketing-property-preview span-2" id="marketingPropertyPreview" hidden></div>
               <label><span>Formato visual</span><select name="format"><option value="square">Cuadrado 1:1</option><option value="portrait">Vertical 4:5</option><option value="landscape">Horizontal 16:9</option></select></label>
-              <label><span>Canal</span><select name="channel"><option value="instagram">Instagram</option><option value="facebook">Facebook</option><option value="email">Mailing</option><option value="web">Blog / Web</option></select></label>
               <label><span>Objetivo</span><select name="objective"><option value="leads">Generar consultas</option><option value="sale">Venta</option><option value="investment">Inversión</option><option value="awareness">Reconocimiento</option></select></label>
-              <label class="span-2"><span>Dirección creativa</span><textarea name="prompt" rows="4" placeholder="Ejemplo: composición editorial seria, vista completa de la propiedad y espacio limpio para titular"></textarea></label>
+              <label class="span-2"><span>Titular adicional (opcional)</span><input name="prompt" maxlength="90" placeholder="Ejemplo: Residencia frente al mar lista para habitar" /></label>
               <div class="form-actions span-2">
-                <button class="primary-button" type="submit"><i data-lucide="image-plus"></i> Generar propuesta visual</button>
-                <button class="ghost-button" type="button" id="generateMarketingKit"><i data-lucide="sparkles"></i> Generar paquete de textos</button>
+                <button class="primary-button" type="submit"><i data-lucide="layout-template"></i> Crear pieza con foto real</button>
               </div>
               <p class="form-message span-2" id="marketingCreativeMessage"></p>
             </form>
             <div class="creative-output" id="marketingCreativeOutput" hidden>
               <img id="marketingGeneratedImage" alt="Propuesta visual generada" />
-              <div>
-                <textarea id="marketingGeneratedCopy" rows="10" aria-label="Texto de campaña generado"></textarea>
-                <div class="form-actions">
-                  <a class="primary-button" id="downloadMarketingImage" download="puerto-cancun-marketing.png" hidden>Descargar imagen</a>
-                  <button class="ghost-button" type="button" id="copyMarketingKit">Copiar textos</button>
-                </div>
+              <div class="creative-output-copy">
+                <span class="eyebrow">LISTA PARA REVISIÓN</span>
+                <h3>Pieza de Puerto Cancún Center</h3>
+                <p>Incluye fotografía real, identidad, datos de la propiedad y teléfono comercial.</p>
+                <a class="primary-button" id="downloadMarketingImage" download="puerto-cancun-marketing.png" hidden><i data-lucide="download"></i> Descargar imagen</a>
               </div>
+            </div>
+          </section>
+          <section class="marketing-section-panel marketing-networks-panel" id="marketingNetworksPanel" role="tabpanel" data-marketing-panel="networks" hidden>
+            <div class="instagram-heading">
+              <div>
+                <span class="eyebrow">CANALES</span>
+                <h3>Conexiones y publicación</h3>
+                <p>Revisa cada integración por separado. La plataforma nunca publica una pieza sin una acción del administrador.</p>
+              </div>
+            </div>
+            <div class="marketing-network-grid">
+              <article class="marketing-network-card" id="instagramConnectionStatus">
+                <i data-lucide="instagram"></i>
+                <div><h4>Instagram</h4><span class="status pending">Sin configurar</span><p>Conecta la cuenta o abre el perfil para publicar manualmente.</p></div>
+                <div class="form-actions">
+                  <a class="ghost-button" id="connectInstagram" href="#" target="_blank" rel="noopener" hidden>Conectar</a>
+                  <a class="ghost-button" id="openInstagramProfile" href="https://www.instagram.com/" target="_blank" rel="noopener">Abrir perfil</a>
+                </div>
+              </article>
+              <article class="marketing-network-card"><i data-lucide="message-circle"></i><div><h4>WhatsApp</h4><span class="status approved">Disponible</span><p>Los contactos y conversaciones se administran desde el módulo WhatsApp.</p></div></article>
+              <article class="marketing-network-card"><i data-lucide="mail"></i><div><h4>Correo</h4><span class="status pending">Revisar proveedor</span><p>Los envíos segmentados se preparan y supervisan desde Mailing.</p></div></article>
             </div>
           </section>
         </article>

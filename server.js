@@ -6251,12 +6251,160 @@ app.post("/api/admin/ai/generate", requireRole("admin"), async (req, res, next) 
   }
 });
 
+function escapeSvgText(value) {
+  return String(value || "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&apos;");
+}
+
+function wrapMarketingLines(value, maxCharacters, maxLines = 2) {
+  const words = String(value || "").replace(/\s+/g, " ").trim().split(" ").filter(Boolean);
+  const lines = [];
+  let current = "";
+  let consumedWords = 0;
+  for (const word of words) {
+    const candidate = current ? `${current} ${word}` : word;
+    if (candidate.length <= maxCharacters || !current) {
+      current = candidate;
+      consumedWords += 1;
+      continue;
+    }
+    if (lines.length >= maxLines - 1) break;
+    lines.push(current);
+    current = word;
+    consumedWords += 1;
+  }
+  if (current && lines.length < maxLines) lines.push(current);
+  if (consumedWords < words.length && lines.length) {
+    lines[lines.length - 1] = `${lines[lines.length - 1].replace(/[.,;:]?$/, "").slice(0, Math.max(1, maxCharacters - 3)).trim()}...`;
+  }
+  return lines;
+}
+
+function marketingFormatDimensions(format) {
+  if (format === "portrait") return { width: 1080, height: 1350, lowerHeight: 510, titleSize: 58, maxTitleCharacters: 28 };
+  if (format === "landscape") return { width: 1600, height: 900, lowerHeight: 380, titleSize: 46, maxTitleCharacters: 48 };
+  return { width: 1080, height: 1080, lowerHeight: 450, titleSize: 54, maxTitleCharacters: 29 };
+}
+
+function marketingPriceLabel(property) {
+  const currency = property.currency || (property.priceUsd !== null && property.priceUsd !== undefined ? "USD" : "MXN");
+  const amount = property.price ?? (currency === "USD" ? property.priceUsd : property.priceMxn);
+  if (!Number.isFinite(Number(amount))) return "PRECIO A CONSULTAR";
+  const unit = property.priceUnit === "sqm" ? " POR M²" : "";
+  return `${currency} $${new Intl.NumberFormat("es-MX", { maximumFractionDigits: 0 }).format(Number(amount))}${unit}`;
+}
+
+async function loadMarketingSourceImage(propertyRow) {
+  const assetRoot = path.resolve(__dirname, "assets");
+  const configuredHosts = String(process.env.MARKETING_IMAGE_HOSTS || "")
+    .split(",")
+    .map((host) => host.trim().toLowerCase())
+    .filter(Boolean);
+  const publicImageHosts = new Set([
+    "images.unsplash.com",
+    "images.pexels.com",
+    "res.cloudinary.com",
+    "storage.googleapis.com",
+    ...configuredHosts,
+  ]);
+  const sources = mergeLegacyImages(propertyRow.images, propertyRow.image);
+  for (const sourceValue of sources) {
+    const source = String(sourceValue || "").trim();
+    const decoded = decodeDataImage(source);
+    if (decoded) return decoded.buffer;
+    if (source.startsWith("/assets/")) {
+      const cleanPath = decodeURIComponent(source.split(/[?#]/, 1)[0]);
+      const absolutePath = path.resolve(__dirname, `.${cleanPath}`);
+      if ((absolutePath === assetRoot || absolutePath.startsWith(`${assetRoot}${path.sep}`)) && fs.existsSync(absolutePath)) {
+        return fs.promises.readFile(absolutePath);
+      }
+      continue;
+    }
+    if (/^https:\/\//i.test(source)) {
+      try {
+        const url = new URL(source);
+        if (!publicImageHosts.has(url.hostname.toLowerCase())) continue;
+        const response = await fetch(url, { redirect: "follow", signal: AbortSignal.timeout(12000) });
+        const contentType = String(response.headers.get("content-type") || "").toLowerCase();
+        const contentLength = Number(response.headers.get("content-length") || 0);
+        if (!response.ok || !contentType.startsWith("image/") || contentLength > 15 * 1024 * 1024) continue;
+        const buffer = Buffer.from(await response.arrayBuffer());
+        if (buffer.length && buffer.length <= 15 * 1024 * 1024) return buffer;
+      } catch {
+        // Continue with the next stored property image.
+      }
+    }
+  }
+  throw Object.assign(new Error("La propiedad no tiene una portada utilizable. Sube una imagen real antes de crear la pieza."), { status: 422 });
+}
+
+async function composePropertyMarketingImage(propertyRow, property, format, headline) {
+  const dimensions = marketingFormatDimensions(format);
+  const { width, height, lowerHeight, titleSize, maxTitleCharacters } = dimensions;
+  const pad = Math.round(width * 0.05);
+  const logoWidth = Math.round(Math.min(width, height) * 0.095);
+  const imageBuffer = await loadMarketingSourceImage(propertyRow);
+  const validatedImage = await sharp(imageBuffer, { limitInputPixels: 48_000_000, failOn: "warning" })
+    .rotate()
+    .resize({ width, height, fit: "cover", position: "attention" })
+    .png()
+    .toBuffer();
+  const logoPath = path.resolve(__dirname, "assets", "puerto-cancun-logo.png");
+  const logoBuffer = await sharp(logoPath).resize({ width: logoWidth, withoutEnlargement: true }).png().toBuffer();
+  const title = property.titleEs || property.titleEn || "Propiedad en Cancún";
+  const titleLines = wrapMarketingLines(title, maxTitleCharacters, 2);
+  const location = [property.neighborhood, property.zone, property.city, property.state]
+    .filter(Boolean)
+    .filter((part, index, parts) => parts.indexOf(part) === index)
+    .join(" · ");
+  const kicker = String(headline || "").trim().slice(0, 90) || "PROPIEDAD DISPONIBLE";
+  const propertyFacts = [
+    property.beds ? `${property.beds} RECÁMARAS` : "",
+    property.baths ? `${property.baths} BAÑOS` : "",
+    property.area ? `${new Intl.NumberFormat("es-MX").format(property.area)} M²` : "",
+    property.mls ? `MLS# ${property.mls}` : "",
+  ].filter(Boolean).join("   ·   ");
+  const lowerTop = height - lowerHeight;
+  const titleY = lowerTop + Math.round(lowerHeight * 0.28);
+  const titleSpans = titleLines.map((line, index) => `<tspan x="${pad}" dy="${index ? Math.round(titleSize * 1.08) : 0}">${escapeSvgText(line)}</tspan>`).join("");
+  const priceY = titleY + Math.max(0, titleLines.length - 1) * Math.round(titleSize * 1.08) + Math.round(titleSize * 0.94);
+  const ctaWidth = Math.round(width * 0.3);
+  const ctaHeight = Math.max(54, Math.round(height * 0.052));
+  const ctaY = height - pad - ctaHeight;
+  const svg = Buffer.from(`
+    <svg width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <linearGradient id="shade" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#032f3a" stop-opacity="0"/><stop offset="0.52" stop-color="#032f3a" stop-opacity="0.22"/><stop offset="1" stop-color="#021f27" stop-opacity="0.97"/></linearGradient>
+        <linearGradient id="gold" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#b78225"/><stop offset="0.48" stop-color="#f1d77d"/><stop offset="1" stop-color="#c59632"/></linearGradient>
+      </defs>
+      <rect width="${width}" height="${height}" fill="url(#shade)"/>
+      <rect x="0" y="0" width="${width}" height="${Math.round(height * 0.145)}" fill="#032f3a" fill-opacity="0.88"/>
+      <rect x="0" y="${lowerTop}" width="${width}" height="5" fill="url(#gold)"/>
+      <text x="${pad + logoWidth + 22}" y="${Math.round(height * 0.071)}" fill="#ffffff" font-family="Georgia, serif" font-size="${Math.round(width * 0.024)}" font-weight="700">PUERTO CANCÚN CENTER</text>
+      <text x="${width - pad}" y="${Math.round(height * 0.071)}" fill="#f1d77d" font-family="Arial, sans-serif" font-size="${Math.round(width * 0.014)}" font-weight="700" text-anchor="end">+52 1 998 216 6563</text>
+      <text x="${pad}" y="${lowerTop + Math.round(lowerHeight * 0.13)}" fill="#f1d77d" font-family="Arial, sans-serif" font-size="${Math.round(titleSize * 0.37)}" font-weight="700" letter-spacing="2">${escapeSvgText(kicker.toUpperCase())}</text>
+      <text x="${pad}" y="${titleY}" fill="#ffffff" font-family="Georgia, serif" font-size="${titleSize}" font-weight="700">${titleSpans}</text>
+      <text x="${pad}" y="${priceY}" fill="#f1d77d" font-family="Arial, sans-serif" font-size="${Math.round(titleSize * 0.54)}" font-weight="800">${escapeSvgText(marketingPriceLabel(property))}</text>
+      <rect x="${pad}" y="${ctaY}" width="${ctaWidth}" height="${ctaHeight}" fill="url(#gold)"/>
+      <text x="${pad + ctaWidth / 2}" y="${ctaY + ctaHeight * 0.63}" fill="#032f3a" font-family="Arial, sans-serif" font-size="${Math.round(ctaHeight * 0.29)}" font-weight="800" text-anchor="middle">AGENDA UNA VISITA</text>
+      <text x="${width - pad}" y="${ctaY + ctaHeight * 0.37}" fill="#ffffff" font-family="Arial, sans-serif" font-size="${Math.round(titleSize * 0.27)}" font-weight="700" text-anchor="end">${escapeSvgText(propertyFacts || location)}</text>
+      <text x="${width - pad}" y="${ctaY + ctaHeight * 0.76}" fill="#f1d77d" font-family="Arial, sans-serif" font-size="${Math.round(titleSize * 0.23)}" font-weight="700" text-anchor="end">${escapeSvgText(location || "puertocancun.center")}</text>
+    </svg>`);
+  return sharp(validatedImage)
+    .composite([
+      { input: svg, top: 0, left: 0 },
+      { input: logoBuffer, top: Math.round(height * 0.025), left: pad },
+    ])
+    .png({ compressionLevel: 9, palette: false })
+    .toBuffer();
+}
+
 app.post("/api/admin/ai/generate-image", requireRole("admin"), async (req, res, next) => {
   try {
-    if (!process.env.OPENAI_API_KEY) {
-      res.status(503).json({ error: "Configura OPENAI_API_KEY para generar imágenes." });
-      return;
-    }
     const propertyId = String(req.body.propertyId || "").trim();
     const result = await query("SELECT * FROM properties WHERE id = $1", [propertyId]);
     const propertyRow = result.rows[0] || null;
@@ -6266,46 +6414,14 @@ app.post("/api/admin/ai/generate-image", requireRole("admin"), async (req, res, 
       return;
     }
     const format = ["square", "portrait", "landscape"].includes(req.body.format) ? req.body.format : "square";
-    const sizes = { square: "1024x1024", portrait: "1024x1536", landscape: "1536x1024" };
-    const direction = String(req.body.prompt || "").trim().slice(0, 1200);
-    const sourceImages = mergeLegacyImages(propertyRow.images, propertyRow.image)
-      .filter((image) => /^data:image\//.test(String(image || "")))
-      .slice(0, 2);
-    const prompt = [
-      "Create a polished, photorealistic luxury real-estate marketing image for Puerto Cancun Center.",
-      "The property itself must be the clear subject. Keep architecture physically plausible and do not add text, logos, people, or invented amenities.",
-      `Property facts: ${buildInstagramPropertyContext(property)}`,
-      direction ? `Creative direction: ${direction}` : "",
-      sourceImages.length ? "Use the attached property photos as factual visual references." : "Use only the written facts and avoid unsupported features.",
-    ].filter(Boolean).join("\n");
-    const content = [{ type: "input_text", text: prompt }];
-    sourceImages.forEach((imageUrl) => content.push({ type: "input_image", image_url: imageUrl }));
-    const response = await fetch("https://api.openai.com/v1/responses", {
-      method: "POST",
-      headers: { Authorization: `Bearer ${process.env.OPENAI_API_KEY}`, "Content-Type": "application/json" },
-      body: JSON.stringify({
-        model: process.env.OPENAI_IMAGE_MODEL || process.env.OPENAI_MODEL || "gpt-5-mini",
-        input: [{ role: "user", content }],
-        tools: [{ type: "image_generation", size: sizes[format], quality: process.env.OPENAI_IMAGE_QUALITY || "medium", output_format: "png" }],
-        tool_choice: { type: "image_generation" },
-        store: false,
-      }),
-      signal: AbortSignal.timeout(120000),
-    });
-    if (!response.ok) {
-      const failure = await response.json().catch(() => ({}));
-      throw new Error(failure.error?.message || `El servicio de imágenes respondió ${response.status}.`);
-    }
-    const payload = await response.json();
-    const imageResult = payload.output?.find((item) => item.type === "image_generation_call")?.result;
-    if (!imageResult) throw new Error("La API no devolvió una imagen.");
-    const buffer = Buffer.from(imageResult, "base64");
-    if (!buffer.length || buffer.length > 15 * 1024 * 1024) throw new Error("La imagen generada no es válida.");
+    const image = await composePropertyMarketingImage(propertyRow, property, format, String(req.body.prompt || ""));
+    const safeMls = String(property.mls || property.id || "propiedad").replace(/[^a-z0-9-]+/gi, "-").replace(/^-|-$/g, "").toLowerCase();
     res.json({
-      dataUrl: `data:image/png;base64,${imageResult}`,
+      dataUrl: `data:image/png;base64,${image.toString("base64")}`,
+      filename: `puerto-cancun-${safeMls || "propiedad"}-${format}.png`,
       format,
-      provider: "openai",
-      model: payload.model || process.env.OPENAI_IMAGE_MODEL || process.env.OPENAI_MODEL || "gpt-5-mini",
+      provider: "property-media-layout",
+      source: "property-cover",
       requiresApproval: true,
     });
   } catch (error) {
@@ -7150,6 +7266,7 @@ module.exports = {
   app,
   buildInstagramFallbackCaption,
   buildInstagramPropertyContext,
+  composePropertyMarketingImage,
   databaseRuntimeState,
   ensureNumericColumn,
   geocodeAddress,

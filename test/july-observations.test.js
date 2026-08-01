@@ -59,5 +59,8 @@ test("marketing e IA producen entregables de contenido y una propuesta visual", 
   assert.match(indexSource, /value="ads">Anuncios para Meta y Google/);
   assert.match(indexSource, /value="email_sequence">Secuencia de seguimiento/);
   assert.match(serverSource, /app\.post\("\/api\/admin\/ai\/generate-image"/);
-  assert.match(serverSource, /type: "image_generation"/);
+  assert.match(serverSource, /provider: "property-media-layout"/);
+  assert.match(serverSource, /source: "property-cover"/);
+  assert.match(serverSource, /puerto-cancun-logo\.png/);
+  assert.doesNotMatch(serverSource, /type: "image_generation"/);
 });

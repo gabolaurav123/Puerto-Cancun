@@ -4307,13 +4307,53 @@ function populatePropertyPicker(searchSelector, datalistSelector, selectSelector
     const selected = state.properties.find((property) => property.id === select.value);
     if (selected) searchInput.value = propertySearchLabel(selected);
     else if (!searchInput.matches(":focus")) searchInput.value = "";
+    renderMarketingSelectionPreviews();
   };
+}
+
+function renderMarketingPropertyPreview(selectSelector, previewSelector) {
+  const select = $(selectSelector);
+  const preview = $(previewSelector);
+  if (!preview) return;
+  const property = state.properties.find((item) => item.id === select?.value);
+  preview.hidden = !property;
+  if (!property) {
+    preview.innerHTML = "";
+    return;
+  }
+  preview.innerHTML = `
+    <img src="${escapeHtml(optimizedMediaUrl(primaryImage(property), 640))}" alt="${escapeHtml(localizedTitle(property))}" />
+    <div>
+      <span class="eyebrow">${escapeHtml(property.mls ? `MLS# ${property.mls}` : "PROPIEDAD SELECCIONADA")}</span>
+      <strong>${escapeHtml(localizedTitle(property))}</strong>
+      <p>${escapeHtml(displayLocation(property))}</p>
+      <b>${escapeHtml(formatPriceSummary(property))}</b>
+    </div>`;
+}
+
+function renderMarketingSelectionPreviews() {
+  renderMarketingPropertyPreview("#instagramPropertySelect", "#instagramPropertyPreview");
+  renderMarketingPropertyPreview("#marketingPropertySelect", "#marketingPropertyPreview");
+}
+
+function setMarketingView(view) {
+  const selected = ["content", "images", "networks"].includes(view) ? view : "content";
+  $$('[data-marketing-view]').forEach((button) => {
+    const active = button.dataset.marketingView === selected;
+    button.classList.toggle("active", active);
+    button.setAttribute("aria-selected", String(active));
+  });
+  $$('[data-marketing-panel]').forEach((panel) => {
+    panel.hidden = panel.dataset.marketingPanel !== selected;
+  });
+  if (selected === "content" || selected === "images") renderMarketingSelectionPreviews();
+  window.requestAnimationFrame(() => window.lucide?.createIcons());
 }
 
 function populateOperationalSelects() {
   populateSelect($("#aiPropertySelect"), state.properties, (item) => item.titleEs, "id", "Sin propiedad");
-  populateSelect($("#instagramPropertySelect"), state.properties, (item) => `${item.titleEs} · ${displayLocation(item)}`, "id", "Selecciona una propiedad");
-  populateSelect($("#marketingPropertySelect"), state.properties, (item) => `${item.titleEs} · ${displayLocation(item)}`, "id", "Selecciona una propiedad");
+  populatePropertyPicker("#instagramPropertySearch", "#instagramPropertySuggestions", "#instagramPropertySelect", "#instagramPropertyMatches", "Selecciona una propiedad");
+  populatePropertyPicker("#marketingPropertySearch", "#marketingPropertySuggestions", "#marketingPropertySelect", "#marketingPropertyMatches", "Selecciona una propiedad");
   populatePropertyPicker("#campaignPropertySearch", "#campaignPropertySuggestions", "#campaignPropertySelect", "#campaignPropertyMatches", "Sin propiedad");
   populatePropertyPicker("#pdfPropertySearch", "#pdfPropertySuggestions", "#pdfPropertySelect", "#pdfPropertyMatches", "Selecciona una propiedad");
   populateSelect($("#pdfValuationSelect"), state.valuations, (item) => `${item.ownerName} · ${item.zone || "Sin zona"}`, "id", "Selecciona una valoración");
@@ -4326,6 +4366,7 @@ function populateOperationalSelects() {
       .forEach((user) => select.append(new Option(`${user.name} · ${user.role}`, user.id)));
     if (current) select.value = current;
   });
+  renderMarketingSelectionPreviews();
 }
 
 function renderMarketing() {
@@ -4702,10 +4743,10 @@ async function generateCampaignCopy() {
 }
 
 async function generateMarketingKit() {
-  const form = $("#marketingCreativeForm");
+  const form = $("#instagramPostForm");
   const button = $("#generateMarketingKit");
   if (!form?.propertyId.value) {
-    setFormMessage($("#marketingCreativeMessage"), "Selecciona una propiedad.", true);
+    setFormMessage($("#instagramPostMessage"), "Selecciona una propiedad por título o MLS.", true);
     return;
   }
   setButtonLoading(button, true, "Generando paquete...");
@@ -4715,7 +4756,12 @@ async function generateMarketingKit() {
       body: {
         tool: "campaign",
         propertyId: form.propertyId.value,
-        input: `Canal: ${form.channel.value}. Objetivo: ${form.objective.value}. ${form.prompt.value}`,
+        input: [
+          `Objetivo: ${form.objective.value}.`,
+          `Tono: ${form.tone.value}.`,
+          `Hashtags: ${form.hashtags.value}.`,
+          form.caption.value ? `Borrador actual: ${form.caption.value}` : "",
+        ].filter(Boolean).join(" "),
       },
       timeoutMs: 60000,
     });
@@ -4725,10 +4771,10 @@ async function generateMarketingKit() {
       data.result.social ? `REDES\n${data.result.social}` : "",
       data.result.whatsapp ? `WHATSAPP\n${data.result.whatsapp}` : "",
     ].filter(Boolean).join("\n\n");
-    $("#marketingCreativeOutput").hidden = false;
-    setFormMessage($("#marketingCreativeMessage"), "Paquete generado. Revisa cada texto antes de publicarlo.");
+    $("#marketingCopyOutput").hidden = false;
+    setFormMessage($("#instagramPostMessage"), "Paquete generado. Revisa cada texto antes de publicarlo.");
   } catch (error) {
-    setFormMessage($("#marketingCreativeMessage"), error.message, true);
+    setFormMessage($("#instagramPostMessage"), error.message, true);
   } finally {
     setButtonLoading(button, false);
   }
@@ -4738,7 +4784,11 @@ async function marketingCreativeSubmit(event) {
   event.preventDefault();
   const form = event.currentTarget;
   const button = event.submitter || form.querySelector('[type="submit"]');
-  setButtonLoading(button, true, "Generando imagen...");
+  if (!form.propertyId.value) {
+    setFormMessage($("#marketingCreativeMessage"), "Selecciona una propiedad por título o MLS.", true);
+    return;
+  }
+  setButtonLoading(button, true, "Componiendo pieza...");
   try {
     const data = await api("/api/admin/ai/generate-image", {
       method: "POST",
@@ -4751,8 +4801,9 @@ async function marketingCreativeSubmit(event) {
     $("#marketingCreativeOutput").hidden = false;
     const download = $("#downloadMarketingImage");
     download.href = imageUrl;
+    download.download = data.filename || "puerto-cancun-marketing.png";
     download.hidden = false;
-    setFormMessage($("#marketingCreativeMessage"), "Propuesta visual generada. Revísala antes de descargarla o publicarla.");
+    setFormMessage($("#marketingCreativeMessage"), "Pieza creada con la fotografía original de la propiedad. Revísala antes de descargarla o publicarla.");
   } catch (error) {
     setFormMessage($("#marketingCreativeMessage"), error.message, true);
   } finally {
@@ -8075,6 +8126,7 @@ function bindEvents() {
   $("#marketingCreativeForm")?.addEventListener("submit", marketingCreativeSubmit);
   $("#generateMarketingKit")?.addEventListener("click", () => void generateMarketingKit());
   $("#copyMarketingKit")?.addEventListener("click", () => navigator.clipboard.writeText($("#marketingGeneratedCopy")?.value || "").then(() => showToast("Textos copiados.")));
+  $$('[data-marketing-view]').forEach((button) => button.addEventListener("click", () => setMarketingView(button.dataset.marketingView)));
   $("#blogForm")?.addEventListener("submit", blogSubmit);
   $("#translateBlogPost")?.addEventListener("click", () => void translateBlogPost());
   $("#resetBlogForm")?.addEventListener("click", resetBlogForm);
@@ -8572,10 +8624,13 @@ function initializeMortgageCalculator() {
         annualPrincipal += principalPayment;
         balance = Math.max(0, balance - principalPayment);
       }
-      rows.push(`<tr><th scope="row">${year}</th><td>${escapeHtml(format(annualPrincipal))}</td><td>${escapeHtml(format(annualInterest))}</td><td>${escapeHtml(format(balance))}</td></tr>`);
+      rows.push(`<tr><th scope="row"><span>${state.lang === "en" ? "Year" : "Año"}</span>${year}</th><td data-label="${state.lang === "en" ? "Principal" : "Capital"}">${escapeHtml(format(annualPrincipal))}</td><td data-label="${state.lang === "en" ? "Interest" : "Interés"}">${escapeHtml(format(annualInterest))}</td><td data-label="${state.lang === "en" ? "Balance" : "Saldo"}">${escapeHtml(format(balance))}</td></tr>`);
     }
-    tableOutput.innerHTML = `<h3>${state.lang === "en" ? "Annual amortization table" : "Tabla anual de amortización"}</h3>
-      <div class="table-scroll"><table><thead><tr><th>${state.lang === "en" ? "Year" : "Año"}</th><th>${state.lang === "en" ? "Principal" : "Capital"}</th><th>${state.lang === "en" ? "Interest" : "Interés"}</th><th>${state.lang === "en" ? "Remaining balance" : "Saldo restante"}</th></tr></thead><tbody>${rows.join("")}</tbody></table></div>
+    tableOutput.innerHTML = `<div class="mortgage-amortization-heading">
+        <div><span class="seo-eyebrow">${state.lang === "en" ? "PAYMENT PROJECTION" : "PROYECCIÓN DE PAGOS"}</span><h3>${state.lang === "en" ? "Annual amortization" : "Amortización anual"}</h3><p>${state.lang === "en" ? "See how principal, interest and the outstanding balance change each year." : "Consulta cómo cambian el capital, los intereses y el saldo pendiente cada año."}</p></div>
+        <dl class="mortgage-table-summary"><div><dt>${state.lang === "en" ? "Term" : "Plazo"}</dt><dd>${years} ${state.lang === "en" ? "years" : "años"}</dd></div><div><dt>${state.lang === "en" ? "Financed" : "Financiado"}</dt><dd>${escapeHtml(format(principal))}</dd></div><div><dt>${state.lang === "en" ? "Annual rate" : "Tasa anual"}</dt><dd>${escapeHtml(`${(annualRate * 100).toFixed(2)}%`)}</dd></div></dl>
+      </div>
+      <div class="mortgage-table-wrap"><table class="mortgage-table"><thead><tr><th>${state.lang === "en" ? "Year" : "Año"}</th><th>${state.lang === "en" ? "Principal paid" : "Capital pagado"}</th><th>${state.lang === "en" ? "Interest paid" : "Interés pagado"}</th><th>${state.lang === "en" ? "Remaining balance" : "Saldo restante"}</th></tr></thead><tbody>${rows.join("")}</tbody></table></div>
       <p class="mortgage-disclaimer">${state.lang === "en" ? "Reference estimate only. Rates, taxes, insurance and fees vary by institution, property and transaction." : "Estimación exclusivamente referencial. Las tasas, impuestos, seguros y comisiones varían según institución, inmueble y operación."}</p>`;
   };
   form.addEventListener("submit", (event) => {

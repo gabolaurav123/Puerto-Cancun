@@ -8226,6 +8226,186 @@ body[data-page="home"] .hero h1 {
   width: 100%;
 }
 
+.marketing-view-tabs {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1px;
+  margin-bottom: 18px;
+  border: 1px solid var(--line);
+  background: var(--line);
+}
+
+.marketing-view-tabs button {
+  display: inline-flex;
+  min-height: 52px;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  padding: 12px 18px;
+  border: 0;
+  background: var(--white);
+  color: var(--blue-900);
+  font: inherit;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.marketing-view-tabs button svg {
+  width: 19px;
+  height: 19px;
+}
+
+.marketing-view-tabs button:hover,
+.marketing-view-tabs button:focus-visible {
+  background: var(--surface);
+}
+
+.marketing-view-tabs button.active {
+  background: var(--blue-900);
+  color: var(--white);
+  box-shadow: inset 0 -3px 0 var(--gold-light);
+}
+
+.marketing-section-panel {
+  margin: 0;
+  border: 1px solid var(--line);
+  border-top: 4px solid var(--blue-700);
+  background: #f8fbfa;
+}
+
+.marketing-section-panel[hidden] {
+  display: none;
+}
+
+.instagram-workspace,
+.creative-studio,
+.marketing-networks-panel {
+  padding: 24px;
+}
+
+.instagram-workspace {
+  background: #f8fbfa;
+}
+
+.property-picker-field {
+  position: relative;
+}
+
+.marketing-property-preview {
+  display: grid;
+  grid-template-columns: 180px minmax(0, 1fr);
+  gap: 18px;
+  align-items: center;
+  padding: 14px;
+  border: 1px solid #bdd7d4;
+  background: var(--white);
+}
+
+.marketing-property-preview[hidden] {
+  display: none;
+}
+
+.marketing-property-preview img {
+  width: 180px;
+  height: 118px;
+  object-fit: cover;
+}
+
+.marketing-property-preview strong,
+.marketing-property-preview b {
+  display: block;
+  color: var(--blue-950);
+}
+
+.marketing-property-preview strong {
+  margin: 3px 0;
+  font-size: 1.05rem;
+}
+
+.marketing-property-preview p {
+  margin: 0 0 6px;
+  color: var(--muted);
+}
+
+.marketing-copy-output {
+  display: grid;
+  gap: 12px;
+  margin-top: 18px;
+  padding: 18px;
+  border: 1px solid var(--line);
+  background: var(--white);
+}
+
+.marketing-copy-output[hidden] {
+  display: none;
+}
+
+.marketing-copy-output label,
+.marketing-copy-output textarea {
+  width: 100%;
+}
+
+.creative-output {
+  grid-template-columns: minmax(280px, 1.1fr) minmax(240px, 0.9fr);
+  padding: 18px;
+  border: 1px solid var(--line);
+  background: var(--white);
+}
+
+.creative-output-copy {
+  align-self: center;
+}
+
+.creative-output-copy h3 {
+  margin: 6px 0 10px;
+  color: var(--blue-950);
+  font-family: "Playfair Display", Georgia, serif;
+  font-size: 1.7rem;
+}
+
+.creative-output-copy p {
+  margin: 0 0 20px;
+  color: var(--muted);
+}
+
+.marketing-network-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.marketing-network-card {
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr);
+  gap: 12px;
+  min-height: 190px;
+  padding: 20px;
+  border: 1px solid var(--line);
+  background: var(--white);
+}
+
+.marketing-network-card > svg {
+  width: 26px;
+  height: 26px;
+  color: var(--blue-700);
+}
+
+.marketing-network-card h4 {
+  margin: 0 0 8px;
+  color: var(--blue-950);
+  font-size: 1.05rem;
+}
+
+.marketing-network-card p {
+  margin: 12px 0;
+  color: var(--muted);
+}
+
+.marketing-network-card .form-actions {
+  grid-column: 1 / -1;
+  align-self: end;
+}
+
 .blog-workspace {
   align-items: start;
 }
@@ -8346,6 +8526,140 @@ body[data-page="home"] .hero h1 {
   font-size: 1.35rem;
 }
 
+.mortgage-amortization {
+  grid-column: 1 / -1;
+  min-width: 0;
+  margin-top: 18px;
+  padding: 28px;
+  border: 1px solid #c7dad7;
+  border-top: 4px solid var(--gold);
+  background: var(--white);
+  box-shadow: 0 16px 38px rgba(4, 55, 66, 0.09);
+}
+
+.mortgage-amortization-heading {
+  display: grid;
+  grid-template-columns: minmax(240px, 1fr) minmax(420px, 1.2fr);
+  gap: 28px;
+  align-items: end;
+  margin-bottom: 22px;
+}
+
+.mortgage-amortization-heading h3 {
+  margin: 5px 0 6px;
+  color: var(--blue-950);
+  font-family: "Playfair Display", Georgia, serif;
+  font-size: clamp(1.65rem, 3vw, 2.35rem);
+  line-height: 1.08;
+}
+
+.mortgage-amortization-heading p {
+  max-width: 620px;
+  margin: 0;
+  color: var(--muted);
+}
+
+.mortgage-table-summary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin: 0;
+  border: 1px solid var(--line);
+  background: var(--surface);
+}
+
+.mortgage-table-summary div {
+  min-width: 0;
+  padding: 14px;
+  border-right: 1px solid var(--line);
+}
+
+.mortgage-table-summary div:last-child {
+  border-right: 0;
+}
+
+.mortgage-table-summary dt {
+  color: var(--muted);
+  font-size: 0.7rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.mortgage-table-summary dd {
+  margin: 4px 0 0;
+  overflow-wrap: anywhere;
+  color: var(--blue-950);
+  font-weight: 800;
+}
+
+.mortgage-table-wrap {
+  max-height: 520px;
+  overflow: auto;
+  border: 1px solid var(--line);
+}
+
+.mortgage-table {
+  width: 100%;
+  min-width: 680px;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.mortgage-table th,
+.mortgage-table td {
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--line);
+  text-align: right;
+  white-space: nowrap;
+}
+
+.mortgage-table thead th {
+  position: sticky;
+  z-index: 2;
+  top: 0;
+  background: var(--blue-950);
+  color: var(--white);
+  font-size: 0.76rem;
+  text-transform: uppercase;
+}
+
+.mortgage-table thead th:first-child,
+.mortgage-table tbody th {
+  text-align: left;
+}
+
+.mortgage-table tbody tr:nth-child(even) {
+  background: #f2f8f6;
+}
+
+.mortgage-table tbody tr:hover {
+  background: #e7f3f0;
+}
+
+.mortgage-table tbody th {
+  width: 90px;
+  color: var(--blue-900);
+  font-size: 1.05rem;
+}
+
+.mortgage-table tbody th span {
+  display: none;
+}
+
+.mortgage-table tbody td:last-child {
+  color: var(--blue-950);
+  font-weight: 800;
+}
+
+.mortgage-disclaimer {
+  margin: 18px 0 0;
+  padding: 13px 15px;
+  border-left: 4px solid var(--gold);
+  background: #faf7ee;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
 .public-blog-grid,
 .buyer-requirements-grid {
   display: grid;
@@ -8430,6 +8744,14 @@ body[data-page="home"] .hero h1 {
     grid-template-columns: 1fr;
   }
 
+  .mortgage-amortization-heading {
+    grid-template-columns: 1fr;
+  }
+
+  .marketing-network-grid {
+    grid-template-columns: 1fr;
+  }
+
   .mortgage-results,
   .public-blog-grid,
   .buyer-requirements-grid {
@@ -8453,6 +8775,110 @@ body[data-page="home"] .hero h1 {
   .public-blog-grid,
   .buyer-requirements-grid {
     grid-template-columns: 1fr;
+  }
+
+  .marketing-view-tabs {
+    grid-template-columns: 1fr;
+  }
+
+  .marketing-view-tabs button {
+    justify-content: flex-start;
+  }
+
+  .instagram-workspace,
+  .creative-studio,
+  .marketing-networks-panel,
+  .mortgage-amortization {
+    padding: 18px;
+  }
+
+  .marketing-property-preview {
+    grid-template-columns: 1fr;
+  }
+
+  .marketing-property-preview img {
+    width: 100%;
+    height: auto;
+    aspect-ratio: 16 / 9;
+  }
+
+  .mortgage-table-summary {
+    grid-template-columns: 1fr;
+  }
+
+  .mortgage-table-summary div {
+    border-right: 0;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .mortgage-table-summary div:last-child {
+    border-bottom: 0;
+  }
+
+  .mortgage-table-wrap {
+    max-height: none;
+    overflow: visible;
+    border: 0;
+  }
+
+  .mortgage-table,
+  .mortgage-table tbody {
+    display: grid;
+    min-width: 0;
+    gap: 10px;
+  }
+
+  .mortgage-table thead {
+    display: none;
+  }
+
+  .mortgage-table tbody tr {
+    display: grid;
+    grid-template-columns: 70px minmax(0, 1fr);
+    border: 1px solid var(--line);
+    background: var(--white);
+  }
+
+  .mortgage-table tbody tr:nth-child(even) {
+    background: #f2f8f6;
+  }
+
+  .mortgage-table tbody th {
+    grid-row: 1 / 4;
+    display: grid;
+    place-content: center;
+    width: auto;
+    padding: 12px;
+    border-right: 1px solid var(--line);
+    border-bottom: 0;
+    background: var(--blue-950);
+    color: var(--white);
+    text-align: center;
+  }
+
+  .mortgage-table tbody th span {
+    display: block;
+    color: var(--gold-light);
+    font-family: "Montserrat", Arial, sans-serif;
+    font-size: 0.62rem;
+    text-transform: uppercase;
+  }
+
+  .mortgage-table tbody td {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 10px 12px;
+    white-space: normal;
+  }
+
+  .mortgage-table tbody td::before {
+    content: attr(data-label);
+    color: var(--muted);
+    font-size: 0.68rem;
+    font-weight: 800;
+    text-transform: uppercase;
   }
 
   .blog-post-body {
