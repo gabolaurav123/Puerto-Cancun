@@ -54,13 +54,16 @@ test("blog, calculadora y búsquedas de compradores tienen superficie pública",
 
 test("marketing e IA producen entregables de contenido y una propuesta visual", () => {
   assert.match(indexSource, /id="marketingCreativeForm"/);
-  assert.match(indexSource, /value="seo">Paquete SEO/);
-  assert.match(indexSource, /value="blog">Artículo para el blog/);
-  assert.match(indexSource, /value="ads">Anuncios para Meta y Google/);
-  assert.match(indexSource, /value="email_sequence">Secuencia de seguimiento/);
+  assert.match(indexSource, /data-ai-category="publication"/);
+  assert.match(indexSource, /data-ai-category="commercial"/);
+  assert.match(indexSource, /data-ai-category="operation"/);
+  assert.match(indexSource, /data-ai-tool="quality_audit"/);
+  assert.match(indexSource, /data-ai-tool="duplicate_risk"/);
+  assert.match(indexSource, /data-ai-tool="market_position"/);
+  assert.match(indexSource, /data-ai-tool="email_sequence"/);
   assert.match(serverSource, /app\.post\("\/api\/admin\/ai\/generate-image"/);
   assert.match(serverSource, /provider: "property-media-layout"/);
-  assert.match(serverSource, /source: "property-cover"/);
+  assert.match(serverSource, /source: "property-gallery-best-resolution"/);
   assert.match(serverSource, /puerto-cancun-logo\.png/);
   assert.doesNotMatch(serverSource, /type: "image_generation"/);
 });

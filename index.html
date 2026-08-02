@@ -1436,6 +1436,20 @@
               <p data-i18n="matchHint">Cruza compradores con propiedades activas por zona, tipo y presupuesto.</p>
             </div>
           </div>
+          <section class="match-explainer" aria-labelledby="matchHowTitle">
+            <div class="match-explainer-copy">
+              <span class="eyebrow">CÓMO FUNCIONA</span>
+              <h3 id="matchHowTitle">Prioriza coincidencias, no decisiones automáticas</h3>
+              <p>El sistema compara requisitos registrados del comprador con inventario público activo. El asesor debe confirmar disponibilidad, presupuesto y preferencias antes de contactar.</p>
+            </div>
+            <ol>
+              <li><b>1</b><span><strong>Perfil</strong>Zona, tipo, operación, presupuesto, recámaras y baños.</span></li>
+              <li><b>2</b><span><strong>Puntuación</strong>Asigna peso a cada coincidencia y explica las razones.</span></li>
+              <li><b>3</b><span><strong>Seguimiento</strong>Permite preparar WhatsApp o crear una tarea para un asesor.</span></li>
+            </ol>
+            <div class="match-score-legend"><span><i class="premium"></i>85–100 alta</span><span><i class="hot"></i>70–84 buena</span><span><i class="warm"></i>50–69 revisar</span></div>
+          </section>
+          <p class="match-live-summary" id="matchLiveSummary" aria-live="polite"></p>
           <div class="wide-data-list" id="adminMatches"></div>
         </article>
         <article class="panel-card admin-map-card" id="adminSmartMapCard" data-admin-section-panel="smart-map">
@@ -1565,28 +1579,41 @@
           </div>
           <div class="ai-workspace">
             <form id="aiToolForm" class="ai-tool-sidebar">
-              <label>
-                <span>Herramienta</span>
-                <select name="tool">
-                  <option value="listing">Redactar publicación</option>
-                  <option value="improve">Mejorar descripción</option>
-                  <option value="missing">Detectar datos faltantes</option>
-                  <option value="summary">Resumir solicitud</option>
-                  <option value="next_action">Siguiente mejor acción</option>
-                  <option value="whatsapp">Mensajes de WhatsApp</option>
-                  <option value="campaign">Generar campaña</option>
-                  <option value="seo">Paquete SEO de la propiedad</option>
-                  <option value="blog">Artículo para el blog</option>
-                  <option value="ads">Anuncios para Meta y Google</option>
-                  <option value="email_sequence">Secuencia de seguimiento por correo</option>
-                  <option value="image_brief">Brief para contenido visual</option>
-                  <option value="price">Analizar precio interno</option>
-                  <option value="listing_checklist">Checklist antes de publicar</option>
-                  <option value="photo_plan">Plan de fotografías</option>
-                  <option value="buyer_match">Perfil de comprador y objeciones</option>
-                  <option value="legal_check">Revisar afirmaciones y riesgos</option>
-                </select>
-              </label>
+              <input name="tool" type="hidden" value="missing" />
+              <section class="ai-tool-catalog" aria-labelledby="aiToolCatalogTitle">
+                <div class="ai-tool-catalog-heading">
+                  <span class="eyebrow">CENTRO DE INTELIGENCIA</span>
+                  <h3 id="aiToolCatalogTitle">Elige un flujo de trabajo</h3>
+                  <p>Estas herramientas auditan, priorizan y preparan decisiones. La creación de campañas permanece en Marketing.</p>
+                </div>
+                <div class="ai-category-tabs" role="tablist" aria-label="Categorías de herramientas IA">
+                  <button class="active" type="button" role="tab" aria-selected="true" data-ai-category="publication">Publicación</button>
+                  <button type="button" role="tab" aria-selected="false" data-ai-category="commercial">Comercial</button>
+                  <button type="button" role="tab" aria-selected="false" data-ai-category="operation">Operación</button>
+                </div>
+                <div class="ai-tool-grid" data-ai-tool-panel="publication">
+                  <button class="active" type="button" data-ai-tool="missing"><strong>Datos faltantes</strong><span>Detecta vacíos antes de publicar.</span></button>
+                  <button type="button" data-ai-tool="quality_audit"><strong>Auditoría de calidad</strong><span>Evalúa contenido, fotos, precio y confianza.</span></button>
+                  <button type="button" data-ai-tool="duplicate_risk"><strong>Riesgo de duplicado</strong><span>Señala inventario potencialmente repetido.</span></button>
+                  <button type="button" data-ai-tool="listing_checklist"><strong>Checklist editorial</strong><span>Prepara la revisión final.</span></button>
+                  <button type="button" data-ai-tool="legal_check"><strong>Control de afirmaciones</strong><span>Detecta promesas o datos sensibles.</span></button>
+                </div>
+                <div class="ai-tool-grid" data-ai-tool-panel="commercial" hidden>
+                  <button type="button" data-ai-tool="market_position"><strong>Posición de mercado</strong><span>Organiza comparables y señales de precio.</span></button>
+                  <button type="button" data-ai-tool="buyer_match"><strong>Perfil comprador</strong><span>Motivaciones, preguntas y objeciones.</span></button>
+                  <button type="button" data-ai-tool="lead_priority"><strong>Prioridad de lead</strong><span>Clasifica urgencia y próximo contacto.</span></button>
+                  <button type="button" data-ai-tool="negotiation"><strong>Preparar negociación</strong><span>Argumentos, límites y verificaciones.</span></button>
+                </div>
+                <div class="ai-tool-grid" data-ai-tool-panel="operation" hidden>
+                  <button type="button" data-ai-tool="summary"><strong>Resumen para asesor</strong><span>Condensa una solicitud sin perder datos.</span></button>
+                  <button type="button" data-ai-tool="next_action"><strong>Siguiente acción</strong><span>Propone prioridad y responsable.</span></button>
+                  <button type="button" data-ai-tool="visit_brief"><strong>Brief de visita</strong><span>Prepara recorrido, dudas y seguimiento.</span></button>
+                  <button type="button" data-ai-tool="whatsapp"><strong>Seguimiento WhatsApp</strong><span>Primer contacto y recordatorio.</span></button>
+                  <button type="button" data-ai-tool="email_sequence"><strong>Secuencia de correo</strong><span>Ordena tres contactos de seguimiento.</span></button>
+                  <button type="button" data-ai-tool="photo_plan"><strong>Plan fotográfico</strong><span>Lista tomas reales y orden de galería.</span></button>
+                </div>
+                <p class="ai-selected-tool" id="aiSelectedTool" aria-live="polite"><b>Seleccionada:</b> Datos faltantes</p>
+              </section>
               <label>
                 <span>Propiedad</span>
                 <select name="propertyId" id="aiPropertySelect"><option value="">Sin propiedad</option></select>
@@ -1955,7 +1982,19 @@
               <label class="span-2"><span>Resumen en inglés</span><textarea name="excerptEn" rows="3" maxlength="600"></textarea></label>
               <label class="span-2"><span>Contenido en español</span><textarea name="contentEs" rows="10" required maxlength="50000"></textarea></label>
               <label class="span-2"><span>Contenido en inglés</span><textarea name="contentEn" rows="10" required maxlength="50000"></textarea></label>
-              <label class="span-2 file-field"><span>Imagen de portada</span><input name="coverFile" type="file" accept="image/jpeg,image/png,image/webp" /></label>
+              <section class="blog-media-fields span-2" aria-labelledby="blogMediaHeading">
+                <div>
+                  <span class="eyebrow">IMÁGENES DEL ARTÍCULO</span>
+                  <h3 id="blogMediaHeading">Portada y contenido visual</h3>
+                  <p>La portada identifica el artículo. Las imágenes internas se distribuyen de forma natural entre los párrafos.</p>
+                </div>
+                <label class="file-field"><span>Imagen de portada</span><input name="coverFile" type="file" accept="image/jpeg,image/png,image/webp" /></label>
+                <div class="blog-cover-preview" id="blogCoverPreview"><span>Sin portada seleccionada</span></div>
+                <label class="file-field"><span>Imágenes dentro del contenido</span><input name="contentFiles" type="file" accept="image/jpeg,image/png,image/webp" multiple /></label>
+                <small>Hasta 8 imágenes. Si eliges archivos nuevos al editar, reemplazarán el grupo actual.</small>
+                <label class="checkbox-row"><input name="clearContentImages" type="checkbox" /><span>Quitar todas las imágenes internas actuales</span></label>
+                <div class="blog-content-image-preview" id="blogContentImagePreview"></div>
+              </section>
               <div class="form-actions span-2">
                 <button class="primary-button" type="submit">Guardar artículo</button>
                 <button class="ghost-button" type="button" id="translateBlogPost">Traducir con IA</button>

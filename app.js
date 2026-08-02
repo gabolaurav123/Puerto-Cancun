@@ -1025,6 +1025,8 @@ const state = {
   documents: [],
   campaigns: [],
   blogPosts: [],
+  blogContentImageFiles: [],
+  blogPreviewObjectUrls: [],
   campaignRecipientEmails: new Set(),
   instagramStatus: { connected: false, oauthUrl: "", profileUrl: "https://www.instagram.com/", aiConfigured: false },
   settings: {},
@@ -3014,8 +3016,31 @@ function renderAdminInsights() {
     .sort((a, b) => b[1] - a[1])
     .slice(0, 4);
   const operationCounts = countBy(properties, "operation");
+  const maxZoneInventory = Math.max(1, ...topZones.map(([, count]) => count));
+  const overdueTasks = state.tasks.filter((task) => task.status === "overdue").length;
+  const priorityActions = [
+    [pending, "Solicitudes pendientes", "pending-requests", "message-circle"],
+    [newLeads, "Leads sin atender", "new-leads", "inbox"],
+    [incompleteProperties, "Fichas incompletas", "incomplete-properties", "file-warning"],
+    [openTasks, "Tareas abiertas", "tasks", "list-checks"],
+  ].sort((a, b) => b[0] - a[0]);
 
   container.innerHTML = `
+    <section class="dashboard-operations" aria-labelledby="dashboardOperationsTitle">
+      <div class="dashboard-operations-heading">
+        <div><span class="eyebrow">OPERACIÓN EN VIVO</span><h3 id="dashboardOperationsTitle">Qué requiere atención ahora</h3></div>
+        <span class="dashboard-health ${overdueTasks ? "warning" : "healthy"}">${overdueTasks ? `${overdueTasks} vencidas` : "Sin tareas vencidas"}</span>
+      </div>
+      <div class="dashboard-priority-list">
+        ${priorityActions.map(([value, label, metric, icon], index) => `<button type="button" data-admin-metric="${metric}" class="dashboard-priority-item ${index === 0 && value ? "urgent" : ""}"><i data-lucide="${icon}"></i><span><b>${escapeHtml(label)}</b><small>${value ? "Abrir y gestionar" : "Sin pendientes"}</small></span><strong>${value}</strong></button>`).join("")}
+      </div>
+    </section>
+    <section class="dashboard-inventory" aria-labelledby="dashboardInventoryTitle">
+      <div class="dashboard-operations-heading"><div><span class="eyebrow">INVENTARIO</span><h3 id="dashboardInventoryTitle">Distribución por zona</h3></div><b>${properties.length} fichas</b></div>
+      <div class="dashboard-zone-bars">
+        ${topZones.length ? topZones.map(([zone, count]) => `<div><span>${escapeHtml(zone || "Sin zona")}</span><div><i style="width:${Math.max(8, Math.round((count / maxZoneInventory) * 100))}%"></i></div><b>${count}</b></div>`).join("") : `<p class="empty-state">Sin inventario disponible.</p>`}
+      </div>
+    </section>
     <article class="insight-card attention-card">
       <span>${escapeHtml(t("adminAttentionTitle"))}</span>
       <strong>${pending + newLeads + premiumLeads + incompleteProperties + openTasks}</strong>
@@ -3642,7 +3667,14 @@ async function createTaskFromButton(button) {
 
 function renderAdminMatches() {
   const list = $("#adminMatches");
+  const summary = $("#matchLiveSummary");
   if (!list) return;
+  if (summary) {
+    const high = state.matches.filter((match) => match.score >= 85).length;
+    const contacts = new Set(state.matches.map((match) => match.contactId || match.contactName)).size;
+    const properties = new Set(state.matches.map((match) => match.propertyId || match.propertyTitle)).size;
+    summary.textContent = `${state.matches.length} coincidencias · ${high} de prioridad alta · ${contacts} compradores · ${properties} propiedades`;
+  }
   if (!state.matches.length) {
     list.innerHTML = `<p class="empty-state">${escapeHtml(t("noMatches"))}</p>`;
     return;
@@ -4132,11 +4164,44 @@ function renderAdminBlogPosts() {
   refreshIcons();
 }
 
+function clearBlogPreviewObjectUrls() {
+  state.blogPreviewObjectUrls.forEach((url) => URL.revokeObjectURL(url));
+  state.blogPreviewObjectUrls = [];
+}
+
+function blogPreviewUrl(file) {
+  const url = URL.createObjectURL(file);
+  state.blogPreviewObjectUrls.push(url);
+  return url;
+}
+
+function renderBlogMediaPreviews(post = null) {
+  const form = $("#blogForm");
+  const coverPreview = $("#blogCoverPreview");
+  const contentPreview = $("#blogContentImagePreview");
+  if (!form || !coverPreview || !contentPreview) return;
+  clearBlogPreviewObjectUrls();
+  const coverFile = formField(form, "coverFile").files?.[0];
+  const coverSource = coverFile ? blogPreviewUrl(coverFile) : post?.coverImage || "";
+  coverPreview.innerHTML = coverSource
+    ? `<img src="${escapeHtml(coverSource)}" alt="Vista previa de la portada" />`
+    : `<span>Sin portada seleccionada</span>`;
+  const sources = state.blogContentImageFiles.length
+    ? state.blogContentImageFiles.map((file) => ({ src: blogPreviewUrl(file), removable: true }))
+    : (post?.contentImages || []).map((src) => ({ src, removable: false }));
+  contentPreview.innerHTML = sources.length
+    ? sources.map((item, index) => `<figure><img src="${escapeHtml(item.src)}" alt="Imagen interna ${index + 1}" />${item.removable ? `<button type="button" data-remove-blog-image="${index}" aria-label="Quitar imagen ${index + 1}"><i data-lucide="x"></i></button>` : ""}<figcaption>${item.removable ? `Nueva ${index + 1}` : `Actual ${index + 1}`}</figcaption></figure>`).join("")
+    : `<p>Las imágenes internas aparecerán aquí antes de guardar.</p>`;
+  refreshIcons();
+}
+
 function resetBlogForm() {
   const form = $("#blogForm");
   if (!form) return;
   form.reset();
   formField(form, "id").value = "";
+  state.blogContentImageFiles = [];
+  renderBlogMediaPreviews();
   setFormMessage($("#blogFormMessage"), "");
 }
 
@@ -4147,6 +4212,8 @@ function editBlogPost(id) {
   ["id", "slug", "titleEs", "titleEn", "excerptEs", "excerptEn", "contentEs", "contentEn", "status"].forEach((name) => {
     formField(form, name).value = post[name] || "";
   });
+  state.blogContentImageFiles = [];
+  renderBlogMediaPreviews(post);
   setAdminSection("blog");
   form.scrollIntoView({ behavior: "smooth", block: "start" });
 }
@@ -4161,6 +4228,14 @@ async function blogSubmit(event) {
     let coverImage;
     const coverFile = formField(form, "coverFile").files?.[0];
     if (coverFile) coverImage = (await readImageFile(coverFile)).imageDataUrl;
+    let contentImages;
+    if (state.blogContentImageFiles.length) {
+      contentImages = await Promise.all(
+        state.blogContentImageFiles.map(async (file) => (await readImageFile(file)).imageDataUrl)
+      );
+    } else if (formField(form, "clearContentImages").checked) {
+      contentImages = [];
+    }
     const payload = {
       titleEs: formField(form, "titleEs").value.trim(),
       titleEn: formField(form, "titleEn").value.trim(),
@@ -4172,6 +4247,7 @@ async function blogSubmit(event) {
       status: formField(form, "status").value,
     };
     if (coverImage !== undefined) payload.coverImage = coverImage;
+    if (contentImages !== undefined) payload.contentImages = contentImages;
     const data = await api(id ? `/api/admin/blog/${encodeURIComponent(id)}` : "/api/admin/blog", {
       method: id ? "PUT" : "POST",
       body: payload,
@@ -4951,6 +5027,26 @@ async function deleteDocument(id) {
   await api(`/api/admin/documents/${encodeURIComponent(id)}`, { method: "DELETE" });
   await renderPanel();
   showToast("Ficha eliminada.");
+}
+
+function setAiToolCategory(category) {
+  $$('[data-ai-category]').forEach((button) => {
+    const active = button.dataset.aiCategory === category;
+    button.classList.toggle("active", active);
+    button.setAttribute("aria-selected", String(active));
+  });
+  $$('[data-ai-tool-panel]').forEach((panel) => {
+    panel.hidden = panel.dataset.aiToolPanel !== category;
+  });
+}
+
+function selectAiTool(button) {
+  const form = $("#aiToolForm");
+  if (!form || !button?.dataset.aiTool) return;
+  formField(form, "tool").value = button.dataset.aiTool;
+  $$('[data-ai-tool]').forEach((item) => item.classList.toggle("active", item === button));
+  const label = button.querySelector("strong")?.textContent || button.dataset.aiTool;
+  $("#aiSelectedTool").innerHTML = `<b>Seleccionada:</b> ${escapeHtml(label)}`;
 }
 
 async function deleteAllDocuments() {
@@ -8128,10 +8224,35 @@ function bindEvents() {
   $("#copyMarketingKit")?.addEventListener("click", () => navigator.clipboard.writeText($("#marketingGeneratedCopy")?.value || "").then(() => showToast("Textos copiados.")));
   $$('[data-marketing-view]').forEach((button) => button.addEventListener("click", () => setMarketingView(button.dataset.marketingView)));
   $("#blogForm")?.addEventListener("submit", blogSubmit);
+  formField($("#blogForm"), "coverFile")?.addEventListener("change", () => {
+    const post = state.blogPosts.find((item) => item.id === formField($("#blogForm"), "id")?.value) || null;
+    renderBlogMediaPreviews(post);
+  });
+  formField($("#blogForm"), "contentFiles")?.addEventListener("change", (event) => {
+    const selected = Array.from(event.currentTarget.files || []);
+    state.blogContentImageFiles = selected.slice(0, 8);
+    if (selected.length > 8) showToast("Solo se utilizarán las primeras 8 imágenes internas.");
+    formField($("#blogForm"), "clearContentImages").checked = false;
+    renderBlogMediaPreviews();
+  });
+  $("#blogContentImagePreview")?.addEventListener("click", (event) => {
+    const button = event.target.closest("[data-remove-blog-image]");
+    if (!button) return;
+    state.blogContentImageFiles.splice(Number(button.dataset.removeBlogImage), 1);
+    renderBlogMediaPreviews();
+  });
+  formField($("#blogForm"), "clearContentImages")?.addEventListener("change", (event) => {
+    if (!event.currentTarget.checked) return;
+    state.blogContentImageFiles = [];
+    formField($("#blogForm"), "contentFiles").value = "";
+    renderBlogMediaPreviews();
+  });
   $("#translateBlogPost")?.addEventListener("click", () => void translateBlogPost());
   $("#resetBlogForm")?.addEventListener("click", resetBlogForm);
   $("#blogAdminSearch")?.addEventListener("input", renderAdminBlogPosts);
   $("#aiToolForm")?.addEventListener("submit", aiToolSubmit);
+  $$('[data-ai-category]').forEach((button) => button.addEventListener("click", () => setAiToolCategory(button.dataset.aiCategory)));
+  $$('[data-ai-tool]').forEach((button) => button.addEventListener("click", () => selectAiTool(button)));
   $("#pdfForm")?.addEventListener("submit", pdfSubmit);
   $("#mediaUploadForm")?.addEventListener("submit", mediaUploadSubmit);
   $("#internalUserForm")?.addEventListener("submit", internalUserSubmit);
