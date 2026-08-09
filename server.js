@@ -16,6 +16,15 @@ const { buildLocationSeedOptions, reconcileLocationSeedOptions } = require("./lo
 const packageMetadata = require("./package.json");
 const { ensureMigrationTable, recordMigration, runMigration } = require("./db/migrations");
 const {
+  computeLeadScore,
+  parseIntelligentSearch,
+  propertyMatchesFilters,
+  rankProperties,
+  validateSearchFilters,
+} = require("./intelligence-utils");
+const { features, registryForRole, searchFeatures } = require("./feature-registry");
+const { PROMPT_VERSION, prompts, sanitizeAiMetadata } = require("./ai-prompts");
+const {
   MUTATING_METHODS,
   createRateLimiter,
   inferAuditTarget,
@@ -1459,6 +1468,139 @@ function invalidatePublicPropertyCache() {
   publicPropertyCache = { expiresAt: 0, items: [] };
 }
 
+async function logAiOperation(details = {}) {
+  const metadata = sanitizeAiMetadata(details.metadata || details);
+  await query(
+    `INSERT INTO ai_operation_logs
+      (id, operation, user_id, module, entity_type, entity_id, provider, model, status, metadata, duration_ms, prompt_version)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10::jsonb, $11, $12)`,
+    [
+      uuid("ai-log"),
+      String(details.operation || "unknown").slice(0, 80),
+      details.userId || null,
+      details.module || null,
+      details.entityType || null,
+      details.entityId || null,
+      details.provider || "internal-rules",
+      details.model || null,
+      details.status || "success",
+      JSON.stringify(metadata),
+      Math.max(0, Math.round(Number(details.durationMs || 0))),
+      details.promptVersion || PROMPT_VERSION,
+    ]
+  ).catch((error) => console.warn("AI operation log failed:", error.message));
+}
+
+async function interpretSearchWithOpenAI(queryText, knownLocations, deterministic) {
+  if (!process.env.OPENAI_API_KEY) return { filters: deterministic, provider: "internal-rules", model: null };
+  const model = process.env.OPENAI_MODEL || "gpt-5-mini";
+  const startedAt = Date.now();
+  try {
+    const response = await fetch("https://api.openai.com/v1/responses", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${process.env.OPENAI_API_KEY}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model,
+        reasoning: { effort: "low" },
+        instructions: prompts.searchInterpreter,
+        input: JSON.stringify({ query: queryText, knownLocations: knownLocations.slice(0, 120), deterministic }),
+        text: {
+          verbosity: "low",
+          format: {
+            type: "json_schema",
+            name: "property_search_filters",
+            strict: true,
+            schema: {
+              type: "object",
+              properties: {
+                operation: { type: ["string", "null"] },
+                propertyType: { type: ["string", "null"] },
+                location: { type: ["string", "null"] },
+                minPrice: { type: ["number", "null"] },
+                maxPrice: { type: ["number", "null"] },
+                currency: { type: ["string", "null"] },
+                bedrooms: { type: ["integer", "null"] },
+                bathrooms: { type: ["integer", "null"] },
+                minArea: { type: ["number", "null"] },
+                amenities: { type: "array", items: { type: "string" } },
+                features: { type: "array", items: { type: "string" } },
+                sort: { type: "string" },
+              },
+              required: ["operation", "propertyType", "location", "minPrice", "maxPrice", "currency", "bedrooms", "bathrooms", "minArea", "amenities", "features", "sort"],
+              additionalProperties: false,
+            },
+          },
+        },
+        max_output_tokens: 700,
+        store: false,
+      }),
+      signal: AbortSignal.timeout(15000),
+    });
+    if (!response.ok) throw new Error(`OpenAI search interpreter returned ${response.status}`);
+    const payload = await response.json();
+    const parsed = JSON.parse(responseOutputText(payload));
+    const filters = validateSearchFilters({ ...deterministic, ...parsed }, { knownLocations });
+    await logAiOperation({ operation: "search_interpretation", provider: "openai", model, status: "success", durationMs: Date.now() - startedAt, metadata: { operation: "search_interpretation", provider: "openai", model, status: "success", resultCount: 1, promptVersion: PROMPT_VERSION } });
+    return { filters, provider: "openai", model };
+  } catch (error) {
+    await logAiOperation({ operation: "search_interpretation", provider: "openai", model, status: "fallback", durationMs: Date.now() - startedAt, metadata: { operation: "search_interpretation", provider: "openai", model, status: "fallback", promptVersion: PROMPT_VERSION } });
+    return { filters: deterministic, provider: "internal-rules", model: null, fallbackReason: "AI_UNAVAILABLE" };
+  }
+}
+
+function mergeExplicitSearchFilters(parsed, explicit, knownLocations) {
+  const validated = validateSearchFilters(explicit || {}, { knownLocations });
+  const merged = { ...parsed };
+  Object.entries(validated).forEach(([key, value]) => {
+    const supplied = Object.prototype.hasOwnProperty.call(explicit || {}, key);
+    if (supplied && value !== null && !(Array.isArray(value) && !value.length)) merged[key] = value;
+  });
+  return validateSearchFilters(merged, { knownLocations });
+}
+
+async function getIntegrationHealth() {
+  const whatsappStatus = whatsappService.getStatus();
+  const whatsappConnected = whatsappStatus.connection === "connected";
+  const whatsappHasQr = whatsappStatus.connection === "qr" && Boolean(whatsappStatus.qrDataUrl);
+  return [
+    { id: "database", name: "PostgreSQL", status: databaseRuntimeState.ready ? "connected" : "error", detail: databaseRuntimeState.ready ? "Conexión y consultas disponibles." : "La conexión no está disponible.", configured: Boolean(databaseUrl) },
+    { id: "openai", name: "OpenAI", status: process.env.OPENAI_API_KEY ? "configured" : "pending", detail: process.env.OPENAI_API_KEY ? `Modelo ${process.env.OPENAI_MODEL || "gpt-5-mini"} configurado; se valida al ejecutar una herramienta.` : "Falta OPENAI_API_KEY.", configured: Boolean(process.env.OPENAI_API_KEY) },
+    { id: "email", name: "Correo", status: process.env.RESEND_API_KEY ? "configured" : "pending", detail: process.env.RESEND_API_KEY ? `Proveedor configurado${process.env.MAIL_FROM ? ` desde ${process.env.MAIL_FROM}` : ""}.` : "Falta RESEND_API_KEY.", configured: Boolean(process.env.RESEND_API_KEY) },
+    { id: "whatsapp", name: "WhatsApp", status: whatsappConnected ? "connected" : whatsappHasQr ? "action_required" : whatsappStatus.connection === "error" ? "error" : "disconnected", detail: whatsappConnected ? "Sesión real conectada." : whatsappHasQr ? "QR real disponible para vincular el dispositivo." : String(whatsappStatus.lastError || "Sesión no conectada."), configured: Boolean(process.env.WHATSAPP_AUTH_SECRET), rawStatus: whatsappStatus.connection || "disconnected" },
+    { id: "maps", name: "Mapas", status: process.env.GOOGLE_MAPS_API_KEY ? "configured" : "fallback", detail: process.env.GOOGLE_MAPS_API_KEY ? "Google Maps configurado." : "OpenStreetMap activo como respaldo; Google Maps no configurado.", configured: Boolean(process.env.GOOGLE_MAPS_API_KEY) },
+    { id: "storage", name: "Almacenamiento", status: databaseRuntimeState.ready ? "connected" : "error", detail: "Imágenes y archivos gestionados por la persistencia actual de PostgreSQL.", configured: databaseRuntimeState.ready },
+  ];
+}
+
+async function getDataQualityReport() {
+  const [propertiesResult, contactsResult] = await Promise.all([
+    query(`SELECT ${PROPERTY_SUMMARY_COLUMNS} FROM properties p ORDER BY p.updated_at DESC LIMIT 500`),
+    query("SELECT id, name, email, phone, contact_type, source, created_at FROM contacts WHERE status <> 'archived' ORDER BY created_at DESC LIMIT 500"),
+  ]);
+  const properties = propertiesResult.rows.map(withPropertyMediaPlaceholders).map(toProperty);
+  const incomplete = properties.filter((property) => property.qualityScore < 70).map((property) => ({ id: property.id, title: property.titleEs, mls: property.mls, score: property.qualityScore, missing: property.qualityMissing, section: property.publicationSection }));
+  const groups = new Map();
+  contactsResult.rows.forEach((contact) => {
+    const keys = [contact.email ? `email:${String(contact.email).trim().toLowerCase()}` : "", contact.phone ? `phone:${normalizePhone(contact.phone)}` : ""].filter((key) => !key.endsWith(":"));
+    keys.forEach((key) => groups.set(key, [...(groups.get(key) || []), contact]));
+  });
+  const duplicateContacts = Array.from(groups.entries()).filter(([, items]) => items.length > 1).map(([key, items]) => ({ key, candidates: items.map((item) => ({ id: item.id, name: item.name, contactType: item.contact_type, source: item.source })) }));
+  const duplicateProperties = [];
+  const propertyGroups = new Map();
+  properties.forEach((property) => {
+    const keys = [property.mls ? `mls:${String(property.mls).trim().toLowerCase()}` : "", `title:${String(property.titleEs || "").trim().toLowerCase()}|${String(property.zone || "").trim().toLowerCase()}`].filter(Boolean);
+    keys.forEach((key) => propertyGroups.set(key, [...(propertyGroups.get(key) || []), property]));
+  });
+  Array.from(propertyGroups.entries()).filter(([, items]) => items.length > 1).forEach(([key, items]) => duplicateProperties.push({ key, candidates: items.map((item) => ({ id: item.id, title: item.titleEs, mls: item.mls, zone: item.zone })) }));
+  return {
+    summary: { propertiesReviewed: properties.length, incompleteProperties: incomplete.length, duplicateContactGroups: duplicateContacts.length, duplicatePropertyGroups: duplicateProperties.length },
+    incomplete,
+    duplicateContacts,
+    duplicateProperties,
+    destructiveActionsPerformed: false,
+  };
+}
+
 async function hasPublishedBlogPosts(lang = "es") {
   const language = lang === "en" ? "en" : "es";
   if (publishedBlogCache[language].expiresAt > Date.now()) return publishedBlogCache[language].value;
@@ -1638,6 +1780,49 @@ async function initDatabase() {
       up: (migrationClient) => migrationClient.query(
         "UPDATE seller_accounts SET email_verified_at = COALESCE(email_verified_at, created_at, NOW())"
       ),
+    });
+    await runMigration(client, {
+      id: "0003-intelligence-foundation",
+      description: "Caché de traducciones y telemetría segura para funciones inteligentes",
+      up: async (migrationClient) => {
+        await migrationClient.query(`
+          CREATE TABLE IF NOT EXISTS ai_operation_logs (
+            id TEXT PRIMARY KEY,
+            operation TEXT NOT NULL,
+            user_id TEXT,
+            module TEXT,
+            entity_type TEXT,
+            entity_id TEXT,
+            provider TEXT NOT NULL DEFAULT 'internal-rules',
+            model TEXT,
+            status TEXT NOT NULL,
+            metadata JSONB NOT NULL DEFAULT '{}'::jsonb,
+            duration_ms INTEGER NOT NULL DEFAULT 0,
+            prompt_version TEXT,
+            created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+          )
+        `);
+        await migrationClient.query("CREATE INDEX IF NOT EXISTS idx_ai_operation_logs_created ON ai_operation_logs (created_at DESC, operation)");
+        await migrationClient.query(`
+          CREATE TABLE IF NOT EXISTS translation_cache (
+            id TEXT PRIMARY KEY,
+            entity_type TEXT NOT NULL,
+            entity_id TEXT NOT NULL DEFAULT '',
+            source_hash TEXT NOT NULL,
+            source_language TEXT NOT NULL DEFAULT 'es',
+            target_language TEXT NOT NULL DEFAULT 'en',
+            prompt_version TEXT NOT NULL,
+            translated_title TEXT NOT NULL,
+            translated_description TEXT NOT NULL,
+            provider TEXT NOT NULL,
+            model TEXT,
+            created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+            updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+            UNIQUE (entity_type, entity_id, source_hash, target_language, prompt_version)
+          )
+        `);
+        await migrationClient.query("CREATE INDEX IF NOT EXISTS idx_translation_cache_lookup ON translation_cache (entity_type, entity_id, source_hash)");
+      },
     });
     await client.query("ALTER TABLE properties ADD COLUMN IF NOT EXISTS price_mxn NUMERIC");
     await client.query("ALTER TABLE properties ADD COLUMN IF NOT EXISTS publication_section TEXT NOT NULL DEFAULT 'properties'");
@@ -2394,6 +2579,7 @@ app.use("/api", (req, res, next) => {
 });
 app.use("/api/auth", createRateLimiter({ windowMs: 15 * 60 * 1000, max: 12, message: "Demasiados intentos de acceso. Espera 15 minutos antes de volver a intentar." }));
 app.use("/api/geocode", createRateLimiter({ windowMs: 10 * 60 * 1000, max: 80, message: "Se alcanzó el límite temporal de búsquedas de dirección." }));
+app.use("/api/search/intelligent", createRateLimiter({ windowMs: 10 * 60 * 1000, max: 30, message: "Se alcanzó el límite temporal de búsquedas inteligentes." }));
 app.use("/api/leads", createRateLimiter({ windowMs: 10 * 60 * 1000, max: 12, message: "Se recibieron demasiadas solicitudes desde esta conexión." }));
 app.use("/api/analytics", createRateLimiter({ windowMs: 5 * 60 * 1000, max: 180 }));
 app.use("/api/metrics", createRateLimiter({ windowMs: 5 * 60 * 1000, max: 180 }));
@@ -3107,6 +3293,58 @@ app.get("/api/properties", async (req, res, next) => {
   }
 });
 
+app.post("/api/search/intelligent", async (req, res, next) => {
+  const startedAt = Date.now();
+  try {
+    const queryText = String(req.body?.query || "").trim().slice(0, 600);
+    const explicitFilters = req.body?.filters && typeof req.body.filters === "object" ? req.body.filters : {};
+    if (!queryText && !Object.keys(explicitFilters).length) {
+      res.status(400).json({ error: "Describe la propiedad que buscas o selecciona al menos un filtro." });
+      return;
+    }
+    const properties = await getPublicProperties();
+    const locationResult = await query("SELECT name FROM location_options WHERE is_active = TRUE AND type IN ('zone', 'city', 'neighborhood') ORDER BY name LIMIT 300");
+    const knownLocations = [...new Set([...locationResult.rows.map((row) => row.name), ...properties.flatMap((property) => [property.zone, property.city, property.neighborhood]).filter(Boolean)])];
+    const deterministic = parseIntelligentSearch(queryText, { locations: knownLocations });
+    const interpretation = queryText
+      ? await interpretSearchWithOpenAI(queryText, knownLocations, deterministic)
+      : { filters: deterministic, provider: "structured-filters", model: null };
+    const filters = mergeExplicitSearchFilters(interpretation.filters, explicitFilters, knownLocations);
+    const exact = rankProperties(properties.filter((property) => propertyMatchesFilters(property, filters)), filters, queryText);
+    const alternatives = exact.length
+      ? []
+      : rankProperties(properties.filter((property) => propertyMatchesFilters(property, filters, { relaxed: true })), filters, queryText).slice(0, 12);
+    const selected = exact.length ? exact : alternatives;
+    const message = exact.length
+      ? `Encontramos ${exact.length} ${exact.length === 1 ? "propiedad" : "propiedades"} en el inventario real.`
+      : alternatives.length
+        ? "No encontramos una coincidencia exacta. Mostramos alternativas reales ampliando ligeramente los criterios."
+        : "No encontramos propiedades que coincidan con tu búsqueda. Puedes ajustar los filtros tradicionales.";
+    await Promise.all([
+      query("UPDATE app_metrics SET searches = searches + 1 WHERE id = 1"),
+      query(
+        `INSERT INTO analytics_events (id, event_type, user_id, metadata)
+         VALUES ($1, 'ai_search', $2, $3::jsonb)`,
+        [uuid("event"), req.session.user?.id || null, JSON.stringify({ filters, resultCount: selected.length, exactMatch: exact.length > 0, provider: interpretation.provider, queryLength: queryText.length })]
+      ),
+      logAiOperation({ operation: "intelligent_search", userId: req.session.user?.id || null, provider: interpretation.provider, model: interpretation.model, status: "success", durationMs: Date.now() - startedAt, metadata: { operation: "intelligent_search", provider: interpretation.provider, model: interpretation.model, status: "success", resultCount: selected.length, promptVersion: PROMPT_VERSION } }),
+    ]);
+    res.json({
+      query: queryText,
+      interpreted: filters,
+      exactMatch: exact.length > 0,
+      properties: selected,
+      alternatives: alternatives.length ? alternatives : [],
+      total: selected.length,
+      provider: interpretation.provider,
+      fallback: interpretation.provider === "internal-rules" && Boolean(process.env.OPENAI_API_KEY),
+      message,
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
 app.get("/api/location-options", async (req, res, next) => {
   try {
     const isAdmin = req.session.user?.role === "admin";
@@ -3675,6 +3913,169 @@ app.post("/api/seller/requests", requireRole("seller"), async (req, res, next) =
   }
 });
 
+async function getCopilotOperationalResult(question, context = {}) {
+  const normalized = String(question || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+  if (/integracion|whatsapp|correo|openai|base de datos|mapa/.test(normalized)) {
+    const integrations = await getIntegrationHealth();
+    return { tool: "getIntegrationHealth", title: "Estado real de integraciones", facts: integrations, section: "integrations" };
+  }
+  if (/calidad|incomplet|sin foto|sin precio|sin ubicacion|duplicad/.test(normalized)) {
+    const report = await getDataQualityReport();
+    return { tool: "getDataQualityReport", title: "Calidad de datos", facts: report.summary, items: report.incomplete.slice(0, 10), section: "data-quality" };
+  }
+  if (/tarea|atrasad|vencid|seguimiento/.test(normalized)) {
+    const result = await query(
+      `SELECT id, title, status, priority, assigned_to, due_date, related_entity_type, related_entity_id
+       FROM tasks WHERE status IN ('pending', 'in_progress', 'overdue')
+       ORDER BY (due_date < NOW()) DESC, due_date NULLS LAST LIMIT 30`
+    );
+    return { tool: "getPendingTasks", title: "Tareas pendientes", facts: { total: result.rows.length, overdue: result.rows.filter((row) => row.due_date && new Date(row.due_date) < new Date()).length }, items: result.rows, section: "tasks" };
+  }
+  if (/solicitud|lead|asesoria|pendiente/.test(normalized)) {
+    const [requests, leads] = await Promise.all([
+      query("SELECT COUNT(*)::int AS count FROM seller_requests WHERE status = 'pending'"),
+      query("SELECT COUNT(*)::int AS count FROM lead_requests WHERE status = 'new'"),
+    ]);
+    return { tool: "getDashboardStats", title: "Solicitudes pendientes", facts: { sellerRequests: requests.rows[0].count, advisoryLeads: leads.rows[0].count }, section: "leads" };
+  }
+  const contactMatch = /(?:busca|buscar|encuentra|contacto)\s+(?:a\s+)?(.{2,80})/i.exec(String(question || ""));
+  if (contactMatch) {
+    const term = `%${contactMatch[1].trim()}%`;
+    const result = await query("SELECT id, name, email, phone, contact_type, lead_score, status FROM contacts WHERE name ILIKE $1 OR email ILIKE $1 OR phone ILIKE $1 ORDER BY updated_at DESC LIMIT 12", [term]);
+    return { tool: "searchContacts", title: "Contactos encontrados", facts: { total: result.rows.length }, items: result.rows, section: "contacts" };
+  }
+  if (context.entityType === "property" && context.entityId) {
+    const result = await query(`SELECT ${PROPERTY_SUMMARY_COLUMNS} FROM properties p WHERE p.id = $1`, [context.entityId]);
+    const property = result.rows[0] ? toProperty(withPropertyMediaPlaceholders(result.rows[0])) : null;
+    return { tool: "getProperty", title: property ? property.titleEs : "Propiedad no encontrada", facts: property ? { mls: property.mls, qualityScore: property.qualityScore, missing: property.qualityMissing, status: property.status } : {}, section: property?.publicationSection === "developments" ? "developments" : "properties" };
+  }
+  return null;
+}
+
+async function phraseCopilotAnswer(question, documentation, operational) {
+  const fallback = operational
+    ? `${operational.title}. ${JSON.stringify(operational.facts)}${operational.items?.length ? ` Encontré ${operational.items.length} registros para revisar.` : ""}`
+    : documentation.length
+      ? `${documentation[0].name}: ${documentation[0].description}\n\n${documentation[0].steps.map((step, index) => `${index + 1}. ${step}`).join("\n")}`
+      : "No encontré una función registrada que corresponda exactamente. Prueba indicando el módulo y el objetivo que quieres completar.";
+  if (!process.env.OPENAI_API_KEY) return { answer: fallback, provider: "internal-registry", model: null };
+  const model = process.env.OPENAI_MODEL || "gpt-5-mini";
+  try {
+    const response = await fetch("https://api.openai.com/v1/responses", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${process.env.OPENAI_API_KEY}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model,
+        reasoning: { effort: "low" },
+        instructions: prompts.copilot,
+        input: JSON.stringify({ question, documentation, toolResult: operational }),
+        max_output_tokens: 900,
+        store: false,
+      }),
+      signal: AbortSignal.timeout(20000),
+    });
+    if (!response.ok) throw new Error(`OpenAI Copilot returned ${response.status}`);
+    const answer = responseOutputText(await response.json());
+    if (!answer) throw new Error("Copilot returned an empty answer");
+    return { answer, provider: "openai", model };
+  } catch {
+    return { answer: fallback, provider: "internal-registry", model: null, fallback: true };
+  }
+}
+
+app.get("/api/admin/copilot/features", requireRole("admin"), (req, res) => {
+  res.json({ features: registryForRole(req.session.user.role), promptVersion: PROMPT_VERSION });
+});
+
+app.post("/api/admin/copilot/query", requireRole("admin"), async (req, res, next) => {
+  const startedAt = Date.now();
+  try {
+    const question = String(req.body?.question || "").trim().slice(0, 1200);
+    const contextInput = req.body?.context && typeof req.body.context === "object" ? req.body.context : {};
+    const context = {
+      module: String(contextInput.module || contextInput.section || "dashboard").slice(0, 80),
+      section: String(contextInput.section || contextInput.module || "dashboard").slice(0, 80),
+      entityType: ["property", "development", "contact", "request", "lead", "task"].includes(contextInput.entityType) ? contextInput.entityType : "",
+      entityId: String(contextInput.entityId || "").slice(0, 160),
+    };
+    if (question.length < 2) {
+      res.status(400).json({ error: "Escribe una pregunta para Puerto Cancún Copilot." });
+      return;
+    }
+    const documentation = searchFeatures(question, req.session.user.role, context).slice(0, 4);
+    const operational = await getCopilotOperationalResult(question, context);
+    const result = await phraseCopilotAnswer(question, documentation, operational);
+    const suggestedFeature = documentation[0] || features.find((feature) => feature.section === operational?.section) || null;
+    await logAiOperation({ operation: "copilot_query", userId: req.session.user.id, module: context.module, entityType: context.entityType || null, entityId: context.entityId || null, provider: result.provider, model: result.model, status: "success", durationMs: Date.now() - startedAt, metadata: { operation: "copilot_query", provider: result.provider, model: result.model, status: "success", module: context.module, entityType: context.entityType, featureId: suggestedFeature?.id, resultCount: operational?.items?.length || 0, promptVersion: PROMPT_VERSION } });
+    res.json({ answer: result.answer, provider: result.provider, fallback: Boolean(result.fallback), documentation, tool: operational?.tool || "getFeatureDocumentation", facts: operational?.facts || null, items: operational?.items || [], suggestedSection: operational?.section || suggestedFeature?.section || "dashboard" });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.get("/api/admin/integrations", requireRole("admin"), async (_req, res, next) => {
+  try {
+    res.json({ integrations: await getIntegrationHealth(), checkedAt: new Date().toISOString() });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.get("/api/admin/data-quality", requireRole("admin"), async (_req, res, next) => {
+  try {
+    res.json(await getDataQualityReport());
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.get("/api/admin/intelligence", requireRole("admin"), async (_req, res, next) => {
+  try {
+    const [pendingRequests, newLeads, overdueTasks, dataQuality, aiSearches, integrations] = await Promise.all([
+      query("SELECT COUNT(*)::int AS count FROM seller_requests WHERE status = 'pending'"),
+      query("SELECT COUNT(*)::int AS count FROM lead_requests WHERE status = 'new'"),
+      query("SELECT COUNT(*)::int AS count FROM tasks WHERE status IN ('pending', 'in_progress', 'overdue') AND due_date < NOW()"),
+      getDataQualityReport(),
+      query("SELECT COUNT(*)::int AS count FROM analytics_events WHERE event_type = 'ai_search' AND created_at > NOW() - INTERVAL '30 days'"),
+      getIntegrationHealth(),
+    ]);
+    const priorities = [
+      { id: "requests", label: "Solicitudes pendientes", count: pendingRequests.rows[0].count, section: "requests", severity: pendingRequests.rows[0].count ? "high" : "ok" },
+      { id: "leads", label: "Asesorías nuevas", count: newLeads.rows[0].count, section: "leads", severity: newLeads.rows[0].count ? "high" : "ok" },
+      { id: "tasks", label: "Tareas vencidas", count: overdueTasks.rows[0].count, section: "tasks", severity: overdueTasks.rows[0].count ? "critical" : "ok" },
+      { id: "quality", label: "Publicaciones por mejorar", count: dataQuality.summary.incompleteProperties, section: "data-quality", severity: dataQuality.summary.incompleteProperties ? "medium" : "ok" },
+    ];
+    res.json({ priorities, metrics: { aiSearches30Days: aiSearches.rows[0].count, integrationIssues: integrations.filter((item) => ["error", "pending", "disconnected"].includes(item.status)).length }, generatedAt: new Date().toISOString() });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.get("/api/admin/global-search", requireRole("admin"), async (req, res, next) => {
+  try {
+    const text = String(req.query.q || "").trim().slice(0, 120);
+    if (text.length < 2) {
+      res.json({ results: [] });
+      return;
+    }
+    const term = `%${text}%`;
+    const [propertiesResult, contactsResult, leadsResult, tasksResult] = await Promise.all([
+      query("SELECT id, title_es AS title, mls, publication_section FROM properties WHERE title_es ILIKE $1 OR title_en ILIKE $1 OR mls ILIKE $1 OR zone ILIKE $1 ORDER BY updated_at DESC LIMIT 12", [term]),
+      query("SELECT id, name AS title, email, phone FROM contacts WHERE name ILIKE $1 OR email ILIKE $1 OR phone ILIKE $1 ORDER BY updated_at DESC LIMIT 12", [term]),
+      query("SELECT id, name AS title, lead_type, status FROM lead_requests WHERE name ILIKE $1 OR email ILIKE $1 OR phone ILIKE $1 OR payload::text ILIKE $1 ORDER BY updated_at DESC LIMIT 12", [term]),
+      query("SELECT id, title, status, due_date FROM tasks WHERE title ILIKE $1 OR description ILIKE $1 ORDER BY updated_at DESC LIMIT 12", [term]),
+    ]);
+    res.json({ results: [
+      ...propertiesResult.rows.map((item) => ({ type: item.publication_section === "developments" ? "development" : "property", id: item.id, title: item.title, detail: item.mls ? `MLS# ${item.mls}` : "", section: item.publication_section === "developments" ? "developments" : "properties" })),
+      ...contactsResult.rows.map((item) => ({ type: "contact", id: item.id, title: item.title, detail: item.email || item.phone || "", section: "contacts" })),
+      ...leadsResult.rows.map((item) => ({ type: "lead", id: item.id, title: item.title, detail: `${item.lead_type} · ${item.status}`, section: "leads" })),
+      ...tasksResult.rows.map((item) => ({ type: "task", id: item.id, title: item.title, detail: item.status, section: "tasks" })),
+    ].slice(0, 32) });
+  } catch (error) {
+    next(error);
+  }
+});
+
 app.get("/api/admin/stats", requireRole("admin"), async (_req, res, next) => {
   try {
     const [
@@ -3845,7 +4246,7 @@ app.post("/api/admin/valuations", requireRole("admin"), async (req, res, next) =
     const body = req.body || {};
     const ownerName = String(body.ownerName || body.name || "").trim();
     if (!ownerName) {
-      res.status(400).json({ error: "Owner name is required" });
+      res.status(400).json({ error: "El nombre del propietario es obligatorio." });
       return;
     }
     const result = await query(
@@ -4086,7 +4487,23 @@ app.get("/api/admin/matches", requireRole("admin"), async (_req, res, next) => {
         [uuid("match"), match.propertyId, match.contactId, match.score, match.reason]
       );
     }
-    res.json({ matches: matches.slice(0, 80) });
+    const visibleMatches = matches.slice(0, 80);
+    const inverseMatches = Array.from(visibleMatches.reduce((groups, match) => {
+      const group = groups.get(match.propertyId) || { propertyId: match.propertyId, propertyTitle: match.propertyTitle, buyers: [] };
+      group.buyers.push({ contactId: match.contactId, contactName: match.contactName, contactPhone: match.contactPhone, score: match.score, reason: match.reason });
+      groups.set(match.propertyId, group);
+      return groups;
+    }, new Map()).values()).map((group) => ({ ...group, buyers: group.buyers.sort((a, b) => b.score - a.score).slice(0, 8) }));
+    res.json({
+      matches: visibleMatches,
+      inverseMatches,
+      method: {
+        type: "deterministic-weighted",
+        confirmedFactors: ["zona", "tipo de propiedad", "presupuesto", "operación", "recámaras", "baños"],
+        inferredFactors: ["prioridad por publicación destacada"],
+        disclaimer: "El porcentaje orienta el seguimiento. Un asesor debe confirmar presupuesto, disponibilidad e intención antes de contactar.",
+      },
+    });
   } catch (error) {
     next(error);
   }
@@ -4283,7 +4700,37 @@ app.get("/api/admin/contacts", requireRole("admin"), async (req, res, next) => {
        LIMIT 300`,
       params
     );
-    res.json({ contacts: result.rows.map(toContact) });
+    const ids = result.rows.map((row) => row.id);
+    const activityResult = ids.length
+      ? await query(
+          `SELECT c.id,
+             (SELECT COUNT(*)::int FROM lead_requests l WHERE l.contact_id = c.id OR (c.email IS NOT NULL AND lower(l.email) = lower(c.email))) AS interactions,
+             (SELECT COUNT(*)::int FROM analytics_events e WHERE e.contact_id = c.id AND e.event_type IN ('property_view', 'property_detail')) AS property_views,
+             EXISTS (SELECT 1 FROM tasks t WHERE t.related_entity_type = 'contact' AND t.related_entity_id = c.id AND t.status IN ('pending', 'in_progress', 'overdue')) AS pending_task
+           FROM contacts c WHERE c.id = ANY($1::text[])`,
+          [ids]
+        )
+      : { rows: [] };
+    const activityById = new Map(activityResult.rows.map((row) => [row.id, row]));
+    const contacts = result.rows.map((row) => {
+      const contact = toContact(row);
+      const activity = activityById.get(contact.id) || { interactions: 0, property_views: 0, pending_task: false };
+      const smartScore = computeLeadScore(contact, { interactions: Number(activity.interactions || 0), propertyViews: Number(activity.property_views || 0), pendingTask: Boolean(activity.pending_task) });
+      const inferredIntent = contact.contactType === "buyer"
+        ? "Interés de compra"
+        : contact.contactType === "seller"
+          ? "Interés de venta"
+          : contact.objective || "Intención por confirmar";
+      return {
+        ...contact,
+        smartScore,
+        smartSummary: `${inferredIntent}. ${smartScore.factors.length ? smartScore.factors.map((factor) => factor.label).slice(0, 3).join("; ") : "Aún faltan señales de actividad."}`,
+        recommendedAction: activity.pending_task ? "Completar el seguimiento pendiente." : smartScore.value >= 55 ? "Contactar y confirmar necesidad, plazo y presupuesto." : "Completar datos antes de priorizar.",
+        confirmed: { contactType: contact.contactType || "", preferredZones: contact.preferredZones, budgetMin: contact.budgetMin, budgetMax: contact.budgetMax, propertyType: contact.propertyType || "" },
+        inferred: { intent: inferredIntent, scoreLevel: smartScore.level },
+      };
+    });
+    res.json({ contacts });
   } catch (error) {
     next(error);
   }
@@ -6568,22 +7015,38 @@ app.post("/api/admin/ai/generate-image", requireRole("admin"), async (req, res, 
 });
 
 app.post("/api/admin/ai/translate-property", requireRole("admin"), async (req, res, next) => {
+  const startedAt = Date.now();
   try {
-    if (!process.env.OPENAI_API_KEY) {
-      res.status(503).json({ error: "Configura OPENAI_API_KEY para traducir contenido automáticamente." });
-      return;
-    }
     const title = String(req.body.title || "").trim().slice(0, 500);
     const description = String(req.body.description || "").trim().slice(0, 24000);
+    const entityType = req.body.entityType === "development" ? "development" : "property";
+    const entityId = String(req.body.entityId || "").trim().slice(0, 160);
     if (!title || !description) {
       res.status(400).json({ error: "Completa primero el título y la descripción en español." });
       return;
     }
+    const sourceHash = crypto.createHash("sha256").update(JSON.stringify({ title, description })).digest("hex");
+    const cached = await query(
+      `SELECT translated_title, translated_description, provider, model, updated_at
+       FROM translation_cache
+       WHERE entity_type = $1 AND entity_id = $2 AND source_hash = $3 AND target_language = 'en' AND prompt_version = $4
+       LIMIT 1`,
+      [entityType, entityId, sourceHash, PROMPT_VERSION]
+    );
+    if (cached.rows[0]) {
+      res.json({ titleEn: cached.rows[0].translated_title, descriptionEn: cached.rows[0].translated_description, requiresApproval: true, cached: true, sourceHash, provider: cached.rows[0].provider });
+      return;
+    }
+    if (!process.env.OPENAI_API_KEY) {
+      res.status(503).json({ error: "Configura OPENAI_API_KEY para traducir contenido automáticamente." });
+      return;
+    }
+    const model = process.env.OPENAI_MODEL || "gpt-5-mini";
     const response = await fetch("https://api.openai.com/v1/responses", {
       method: "POST",
       headers: { Authorization: `Bearer ${process.env.OPENAI_API_KEY}`, "Content-Type": "application/json" },
       body: JSON.stringify({
-        model: process.env.OPENAI_MODEL || "gpt-5-mini",
+        model,
         reasoning: { effort: "low" },
         text: {
           verbosity: "low",
@@ -6602,7 +7065,7 @@ app.post("/api/admin/ai/translate-property", requireRole("admin"), async (req, r
             },
           },
         },
-        instructions: "Translate Cancun real-estate copy from Mexican Spanish to natural professional English. Preserve facts, measurements, proper names and paragraph breaks. Do not add claims. Return only valid JSON with keys titleEn and descriptionEn.",
+        instructions: `${prompts.translation} Return only valid JSON with keys titleEn and descriptionEn.`,
         input: JSON.stringify({ title, description }),
         max_output_tokens: 5000,
         store: false,
@@ -6618,10 +7081,25 @@ app.post("/api/admin/ai/translate-property", requireRole("admin"), async (req, r
     if (!raw) throw new Error("OpenAI no devolvió texto traducido. Revisa el modelo configurado.");
     const translated = JSON.parse(raw.replace(/^```json\s*|\s*```$/gi, ""));
     if (!translated.titleEn || !translated.descriptionEn) throw new Error("La traducción no devolvió los campos esperados.");
+    const titleEn = String(translated.titleEn).trim().slice(0, 500);
+    const descriptionEn = String(translated.descriptionEn).trim().slice(0, DESCRIPTION_MAX_LENGTH);
+    await query(
+      `INSERT INTO translation_cache
+        (id, entity_type, entity_id, source_hash, source_language, target_language, prompt_version, translated_title, translated_description, provider, model)
+       VALUES ($1, $2, $3, $4, 'es', 'en', $5, $6, $7, 'openai', $8)
+       ON CONFLICT (entity_type, entity_id, source_hash, target_language, prompt_version)
+       DO UPDATE SET translated_title = EXCLUDED.translated_title, translated_description = EXCLUDED.translated_description,
+         provider = EXCLUDED.provider, model = EXCLUDED.model, updated_at = NOW()`,
+      [uuid("translation"), entityType, entityId, sourceHash, PROMPT_VERSION, titleEn, descriptionEn, model]
+    );
+    await logAiOperation({ operation: "translation", userId: req.session.user.id, module: entityType === "development" ? "developments" : "properties", entityType, entityId: entityId || null, provider: "openai", model, status: "success", durationMs: Date.now() - startedAt, metadata: { operation: "translation", provider: "openai", model, status: "success", module: entityType, entityType, promptVersion: PROMPT_VERSION } });
     res.json({
-      titleEn: String(translated.titleEn).trim().slice(0, 500),
-      descriptionEn: String(translated.descriptionEn).trim().slice(0, DESCRIPTION_MAX_LENGTH),
+      titleEn,
+      descriptionEn,
       requiresApproval: true,
+      cached: false,
+      sourceHash,
+      provider: "openai",
     });
   } catch (error) {
     next(error);

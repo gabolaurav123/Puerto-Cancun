@@ -1043,6 +1043,11 @@ const state = {
     selectedJid: "",
   },
   analytics: { eventsByType: [], propertyEvents: [], searchZones: [], leadSources: [] },
+  intelligence: { priorities: [], metrics: {} },
+  integrations: [],
+  dataQuality: { summary: {}, incomplete: [], duplicateContacts: [], duplicateProperties: [] },
+  copilotFeatures: [],
+  intelligentSearch: { active: false, ids: [], interpreted: null, exactMatch: true, message: "" },
   adminPrompts: [],
   locationOptions: [],
   adminSection: "dashboard",
@@ -1091,6 +1096,7 @@ let listingDraftTimer = 0;
 let sellerDraftTimer = 0;
 let whatsappPollTimer = 0;
 let whatsappSearchTimer = 0;
+let adminGlobalSearchTimer = 0;
 let draftDbPromise = null;
 let draftWriteQueue = Promise.resolve();
 const mapGeocodeTimers = new WeakMap();
@@ -1988,6 +1994,9 @@ function formatUsd(value) {
 function resetFilters() {
   state.filters = { text: "", type: "", zone: "", operation: "", featured: false };
   state.guided = { budget: 0, beds: 0 };
+  state.intelligentSearch = { active: false, ids: [], interpreted: null, exactMatch: true, message: "" };
+  const intelligentStatus = $("#intelligentSearchStatus");
+  if (intelligentStatus) intelligentStatus.hidden = true;
   const searchInput = $("#searchInput");
   if (searchInput) searchInput.value = "";
   syncFilterControls();
@@ -2087,6 +2096,7 @@ function propertyMatches(property) {
   if (filters.zone && property.zone !== filters.zone) return false;
   if (filters.operation && property.operation !== filters.operation) return false;
   if (filters.featured && !property.featured) return false;
+  if (state.intelligentSearch.active && !state.intelligentSearch.ids.includes(property.id)) return false;
   if (state.guided.budget && comparablePrice(property) > Number(state.guided.budget)) return false;
   if (state.guided.beds && Number(property.beds || 0) < Number(state.guided.beds)) return false;
   if (filters.text) {
@@ -2920,7 +2930,7 @@ function renderAdminContacts() {
         <article class="contact-entry">
           <div class="contact-main">
             <div>
-              <span class="status score-${escapeHtml(contact.leadScore || "cold")}">${escapeHtml(scoreLabel(contact.leadScore))}</span>
+              <span class="status score-${escapeHtml(contact.smartScore?.level || contact.leadScore || "cold")}">${escapeHtml(contact.smartScore ? `${contact.smartScore.value}/100 · ${scoreLabel(contact.smartScore.level)}` : scoreLabel(contact.leadScore))}</span>
               <h3>${escapeHtml(contact.name || "")}</h3>
               <p>${escapeHtml(contactTypeLabel(contact.contactType))} · ${escapeHtml(contact.source || "")}</p>
             </div>
@@ -2932,6 +2942,7 @@ function renderAdminContacts() {
             <div><span>${escapeHtml(t("zone"))}</span><strong>${escapeHtml(zones || "-")}</strong></div>
             <div><span>${escapeHtml(t("propertyType"))}</span><strong>${escapeHtml(contact.propertyType || "-")}</strong></div>
           </div>
+          ${contact.smartSummary ? `<div class="contact-intelligence"><p><b>Resumen inteligente:</b> ${escapeHtml(contact.smartSummary)}</p><p><b>Siguiente acción:</b> ${escapeHtml(contact.recommendedAction || "")}</p><small>Los datos del perfil son confirmados; intención y score son inferencias operativas.</small></div>` : ""}
           <div class="item-actions">
             <button class="mini-button" type="button" data-edit-contact="${escapeHtml(contact.id)}">${escapeHtml(t("edit"))}</button>
             ${phoneUrl ? `<a class="mini-button primary" href="${escapeHtml(phoneUrl)}" target="_blank" rel="noopener noreferrer">${escapeHtml(t("respondWhatsApp"))}</a>` : ""}
@@ -3089,6 +3100,146 @@ function renderAdminInsights() {
       <p>${escapeHtml(t("adminInsightSearches"))}: ${escapeHtml(state.stats.searches || 0)}</p>
     </article>
   `;
+}
+
+function renderAdminIntelligence() {
+  const container = $("#adminIntelligence");
+  if (!container) return;
+  const priorities = state.intelligence?.priorities || [];
+  const metrics = state.intelligence?.metrics || {};
+  container.innerHTML = `
+    <div class="intelligence-summary">
+      <article><span>Búsquedas inteligentes · 30 días</span><strong>${escapeHtml(metrics.aiSearches30Days || 0)}</strong></article>
+      <article><span>Integraciones por revisar</span><strong>${escapeHtml(metrics.integrationIssues || 0)}</strong></article>
+      <article><span>Última actualización</span><strong>${escapeHtml(formatDate(state.intelligence?.generatedAt || new Date()))}</strong></article>
+    </div>
+    <div class="intelligence-action-list">
+      ${priorities.length ? priorities.map((item) => `<button type="button" data-intelligence-section="${escapeHtml(item.section)}" class="intelligence-action severity-${escapeHtml(item.severity || "ok")}"><span><b>${escapeHtml(item.label)}</b><small>${item.count ? "Requiere revisión" : "Sin pendientes"}</small></span><strong>${escapeHtml(item.count || 0)}</strong><i data-lucide="arrow-right"></i></button>`).join("") : `<p class="empty-state">No fue posible calcular las prioridades en este momento.</p>`}
+    </div>`;
+}
+
+function renderAdminIntegrations() {
+  const container = $("#adminIntegrations");
+  if (!container) return;
+  const labels = { connected: "Conectado", configured: "Configurado", action_required: "Requiere acción", disconnected: "Desconectado", pending: "Pendiente", fallback: "Respaldo activo", error: "Error" };
+  container.innerHTML = state.integrations.length
+    ? state.integrations.map((item) => `<article class="integration-health-item status-${escapeHtml(item.status)}"><div><i data-lucide="${item.id === "database" ? "database" : item.id === "whatsapp" ? "message-circle" : item.id === "email" ? "mail" : item.id === "maps" ? "map" : item.id === "openai" ? "sparkles" : "hard-drive"}"></i><span><b>${escapeHtml(item.name)}</b><small>${escapeHtml(item.detail)}</small></span></div><strong>${escapeHtml(labels[item.status] || item.status)}</strong></article>`).join("")
+    : `<p class="empty-state">No hay diagnóstico disponible.</p>`;
+}
+
+function renderAdminDataQuality() {
+  const container = $("#adminDataQuality");
+  if (!container) return;
+  const report = state.dataQuality || {};
+  const summary = report.summary || {};
+  container.innerHTML = `
+    <div class="quality-summary-grid">
+      <article><span>Propiedades revisadas</span><strong>${escapeHtml(summary.propertiesReviewed || 0)}</strong></article>
+      <article><span>Fichas por mejorar</span><strong>${escapeHtml(summary.incompleteProperties || 0)}</strong></article>
+      <article><span>Grupos de contactos posibles duplicados</span><strong>${escapeHtml(summary.duplicateContactGroups || 0)}</strong></article>
+      <article><span>Grupos de propiedades posibles duplicadas</span><strong>${escapeHtml(summary.duplicatePropertyGroups || 0)}</strong></article>
+    </div>
+    <div class="data-quality-columns">
+      <section><h3>Publicaciones incompletas</h3>${(report.incomplete || []).slice(0, 20).map((item) => `<button type="button" data-quality-property="${escapeHtml(item.id)}"><span><b>${escapeHtml(item.title)}</b><small>MLS# ${escapeHtml(item.mls || "-")} · ${escapeHtml((item.missing || []).join(", "))}</small></span><strong>${escapeHtml(item.score)}%</strong></button>`).join("") || `<p class="empty-state">No se detectaron fichas incompletas.</p>`}</section>
+      <section><h3>Candidatos duplicados</h3>${[...(report.duplicateContacts || []), ...(report.duplicateProperties || [])].slice(0, 16).map((group) => `<article><b>${escapeHtml(group.key)}</b><span>${escapeHtml(group.candidates?.map((item) => item.name || item.title).join(" · ") || "")}</span><small>Revisión humana requerida; no se fusionó ni eliminó nada.</small></article>`).join("") || `<p class="empty-state">No se detectaron grupos duplicados.</p>`}</section>
+    </div>`;
+}
+
+function renderCopilotContext() {
+  const label = $("#copilotContextLabel");
+  if (!label) return;
+  const feature = state.copilotFeatures.find((item) => item.section === state.adminSection);
+  label.textContent = `Contexto: ${feature?.name || state.adminSection || "Dashboard"}`;
+}
+
+function addCopilotMessage(role, content, meta = {}) {
+  const conversation = $("#copilotConversation");
+  if (!conversation) return;
+  const article = document.createElement("div");
+  article.className = `copilot-message ${role}`;
+  article.innerHTML = `<strong>${role === "user" ? "Tú" : "Copilot"}</strong><p>${escapeHtml(content).replace(/\n/g, "<br>")}</p>${meta.suggestedSection ? `<button type="button" data-copilot-open-section="${escapeHtml(meta.suggestedSection)}">Abrir ${escapeHtml(meta.suggestedLabel || meta.suggestedSection)}</button>` : ""}`;
+  conversation.append(article);
+  conversation.scrollTop = conversation.scrollHeight;
+}
+
+async function refreshAdminIntelligence() {
+  const data = await api("/api/admin/intelligence", { timeoutMs: 25000, retry: false });
+  state.intelligence = data;
+  renderAdminIntelligence();
+  refreshIcons();
+}
+
+async function refreshAdminIntegrations() {
+  const data = await api("/api/admin/integrations", { timeoutMs: 25000, retry: false });
+  state.integrations = data.integrations || [];
+  renderAdminIntegrations();
+  refreshIcons();
+}
+
+async function refreshAdminDataQuality() {
+  state.dataQuality = await api("/api/admin/data-quality", { timeoutMs: 25000, retry: false });
+  renderAdminDataQuality();
+}
+
+function toggleAdminGlobalSearch(open = true) {
+  const panel = $("#adminGlobalSearch");
+  if (!panel) return;
+  panel.hidden = !open;
+  if (open) {
+    $("#adminGlobalSearchInput")?.focus();
+  } else {
+    $("#adminGlobalSearchInput").value = "";
+    $("#adminGlobalSearchResults").innerHTML = "";
+  }
+}
+
+async function runAdminGlobalSearch() {
+  const input = $("#adminGlobalSearchInput");
+  const results = $("#adminGlobalSearchResults");
+  if (!input || !results) return;
+  const text = input.value.trim();
+  if (text.length < 2) {
+    results.innerHTML = `<p>Escribe al menos dos caracteres.</p>`;
+    return;
+  }
+  results.innerHTML = `<p class="is-loading">Buscando en módulos autorizados…</p>`;
+  try {
+    const data = await api(`/api/admin/global-search?q=${encodeURIComponent(text)}`, { timeoutMs: 15000, retry: false });
+    results.innerHTML = data.results?.length
+      ? data.results.map((item) => `<button type="button" data-global-result-section="${escapeHtml(item.section)}" data-global-result-id="${escapeHtml(item.id)}"><span><b>${escapeHtml(item.title)}</b><small>${escapeHtml(item.type)} · ${escapeHtml(item.detail || "")}</small></span><i data-lucide="arrow-right"></i></button>`).join("")
+      : `<p>No encontramos resultados con ese dato.</p>`;
+    refreshIcons();
+  } catch (error) {
+    results.innerHTML = `<p class="error">${escapeHtml(error.message)}</p>`;
+  }
+}
+
+async function copilotSubmit(event) {
+  event.preventDefault();
+  const form = event.currentTarget;
+  const question = form.question.value.trim();
+  const submit = form.querySelector('button[type="submit"]');
+  if (!question) return;
+  addCopilotMessage("user", question);
+  form.question.value = "";
+  setButtonLoading(submit, true, "Consultando…");
+  setFormMessage($("#copilotMessage"), "Consultando documentación y herramientas seguras…");
+  try {
+    const data = await api("/api/admin/copilot/query", {
+      method: "POST",
+      body: { question, context: { module: state.adminSection, section: state.adminSection, entityType: state.detailPropertyId ? "property" : "", entityId: state.detailPropertyId || "" } },
+      timeoutMs: 30000,
+      retry: false,
+    });
+    const feature = state.copilotFeatures.find((item) => item.section === data.suggestedSection);
+    addCopilotMessage("assistant", data.answer, { suggestedSection: data.suggestedSection, suggestedLabel: feature?.name });
+    setFormMessage($("#copilotMessage"), data.fallback ? "Respuesta generada con el registro interno porque el proveedor de IA no estuvo disponible." : `Fuente: ${data.tool || "documentación interna"}.`);
+  } catch (error) {
+    addCopilotMessage("assistant", "Puerto Cancún Copilot no está disponible temporalmente. El resto del panel continúa funcionando.");
+    setFormMessage($("#copilotMessage"), error.message, true);
+  } finally {
+    setButtonLoading(submit, false);
+  }
 }
 
 function renderAdminPrompts() {
@@ -3396,7 +3547,7 @@ function renderAdminListings() {
     if (!search) return true;
     const haystack = normalizeSearchText(
       [
-        localizedTitle(property), property.titleEs, property.titleEn, property.zone, property.city, property.state,
+        property.id, localizedTitle(property), property.titleEs, property.titleEn, property.zone, property.city, property.state,
         property.neighborhood, property.address, property.mapPlace, property.type, property.operation, property.status,
         property.mls, localizedDescription(property), ...(Array.isArray(property.keywords) ? property.keywords : []),
       ].join(" ")
@@ -4277,7 +4428,7 @@ async function translateBlogPost() {
   }
   setButtonLoading(button, true, "Traduciendo...");
   try {
-    const translated = await api("/api/admin/ai/translate-property", { method: "POST", body: { title, description }, timeoutMs: 60000 });
+    const translated = await api("/api/admin/ai/translate-property", { method: "POST", body: { title, description, entityType: "blog", entityId: formField(form, "id")?.value || "" }, timeoutMs: 60000 });
     formField(form, "titleEn").value = translated.titleEn;
     formField(form, "contentEn").value = translated.descriptionEn;
     if (!formField(form, "excerptEn").value) formField(form, "excerptEn").value = translated.descriptionEn.slice(0, 360);
@@ -5664,6 +5815,10 @@ async function loadPanelData() {
       panelApi("/api/admin/activity?limit=80"),
       panelApi("/api/health"),
       panelApi("/api/admin/blog"),
+      panelApi("/api/admin/intelligence"),
+      panelApi("/api/admin/integrations"),
+      panelApi("/api/admin/data-quality"),
+      panelApi("/api/admin/copilot/features"),
     ]);
     const adminValue = (index, fallback = {}) => adminResults[index].status === "fulfilled" ? adminResults[index].value : fallback;
     const [
@@ -5691,6 +5846,10 @@ async function loadPanelData() {
       activityData,
       systemHealthData,
       blogData,
+      intelligenceData,
+      integrationsData,
+      dataQualityData,
+      copilotFeaturesData,
     ] = adminResults.map((result, index) => adminValue(index));
     if (adminResults[0].status === "fulfilled") state.stats = statsData;
     state.requests = requestsData.requests || state.requests;
@@ -5716,6 +5875,10 @@ async function loadPanelData() {
     state.activity = activityData.activity || state.activity;
     if (adminResults[22].status === "fulfilled") state.systemHealth = systemHealthData || state.systemHealth;
     state.blogPosts = blogData.posts || state.blogPosts;
+    state.intelligence = intelligenceData.priorities ? intelligenceData : state.intelligence;
+    state.integrations = integrationsData.integrations || state.integrations;
+    state.dataQuality = dataQualityData.summary ? dataQualityData : state.dataQuality;
+    state.copilotFeatures = copilotFeaturesData.features || state.copilotFeatures;
     const failedModules = adminResults.filter((result) => result.status === "rejected").length;
     if (failedModules) showToast(`${failedModules} módulo${failedModules === 1 ? "" : "s"} no respondió. El resto del panel continúa disponible.`, "error");
     state.serviceRequests = [];
@@ -5963,6 +6126,7 @@ function setAdminSection(section) {
   if (state.adminSection === "whatsapp") startWhatsappPolling();
   else stopWhatsappPolling();
   updateAdminShell();
+  renderCopilotContext();
   if (["properties", "developments"].includes(state.adminSection)) {
     state.adminListingFilters = { search: "", type: "", zone: "", operation: "", status: "", quality: "", missingCover: false };
     renderAdminListingFilters();
@@ -6063,6 +6227,7 @@ async function renderPanel() {
   $("#sellerPanel").hidden = isAdmin;
   $("#adminNotificationButton").hidden = !isAdmin;
   $("#sellerNotificationButton").hidden = isAdmin;
+  document.body.classList.toggle("admin-session", isAdmin);
   if (isAdmin) {
     renderStats();
     updateAdminShell();
@@ -6074,6 +6239,10 @@ async function renderPanel() {
   if (isAdmin) {
     renderStats();
     renderAdminInsights();
+    renderAdminIntelligence();
+    renderAdminIntegrations();
+    renderAdminDataQuality();
+    renderCopilotContext();
     renderCatalogParentOptions();
     renderLocationCatalogs();
     renderAdminPrompts();
@@ -7277,7 +7446,7 @@ async function translateListingToEnglish() {
   try {
     const result = await api("/api/admin/ai/translate-property", {
       method: "POST",
-      body: { title, description },
+      body: { title, description, entityType: "property", entityId: formField(form, "id")?.value || "" },
       timeoutMs: 60000,
     });
     formField(form, "titleEn").value = result.titleEn;
@@ -7564,23 +7733,57 @@ async function handleSearch(event) {
   event.preventDefault();
   const text = $("#searchInput").value.trim();
   resetFilters();
-  state.filters.text = text;
   $("#searchInput").value = text;
+  const status = $("#intelligentSearchStatus");
+  const submit = event.currentTarget.querySelector('button[type="submit"]');
+  if (status) {
+    status.hidden = false;
+    status.className = "intelligent-search-status is-loading";
+    status.innerHTML = `<i data-lucide="loader-circle"></i><span>Interpretando tu búsqueda y revisando el inventario real…</span>`;
+    refreshIcons();
+  }
+  setButtonLoading(submit, true, "Buscando…");
   try {
-    await api("/api/metrics/search", { method: "POST" });
-    if (text) {
-      void api("/api/leads", {
-        method: "POST",
-        body: {
-          leadType: "busqueda",
-          name: "Busqueda web",
-          sourcePath: window.location.pathname,
-          query: text,
-        },
-      }).catch(() => null);
+    const result = await api("/api/search/intelligent", { method: "POST", body: { query: text }, timeoutMs: 25000, retry: false });
+    state.intelligentSearch = {
+      active: true,
+      ids: (result.properties || []).map((property) => property.id),
+      interpreted: result.interpreted || null,
+      exactMatch: Boolean(result.exactMatch),
+      message: result.message || "",
+    };
+    if (status) {
+      const filterLabels = {
+        operation: "Operación",
+        propertyType: "Tipo",
+        location: "Ubicación",
+        minPrice: "Precio mínimo",
+        maxPrice: "Precio máximo",
+        currency: "Moneda",
+        bedrooms: "Recámaras",
+        bathrooms: "Baños",
+        minArea: "Superficie mínima",
+        amenities: "Amenidades",
+        features: "Características",
+      };
+      const interpreted = Object.entries(result.interpreted || {})
+        .filter(([key, value]) => key !== "sort" && value !== null && value !== "" && (!Array.isArray(value) || value.length))
+        .slice(0, 6)
+        .map(([key, value]) => `<span>${escapeHtml(filterLabels[key] || key)}: ${escapeHtml(Array.isArray(value) ? value.map((item) => String(item).replace(/_/g, " ")).join(", ") : value)}</span>`)
+        .join("");
+      status.className = `intelligent-search-status ${result.exactMatch ? "is-success" : "is-alternative"}`;
+      status.innerHTML = `<strong>${escapeHtml(result.message || "")}</strong>${interpreted ? `<div class="intelligent-filter-chips">${interpreted}</div>` : ""}${result.fallback ? `<small>Se utilizó la interpretación local segura.</small>` : ""}`;
     }
-  } catch {
-    // Search still works client-side if the metric cannot be recorded.
+  } catch (error) {
+    state.filters.text = text;
+    state.intelligentSearch = { active: false, ids: [], interpreted: null, exactMatch: true, message: "" };
+    if (status) {
+      status.className = "intelligent-search-status is-error";
+      status.innerHTML = `<strong>No pudimos interpretar tu búsqueda.</strong><span>Aplicamos la búsqueda tradicional para que puedas continuar.</span>`;
+    }
+    void api("/api/metrics/search", { method: "POST" }).catch(() => null);
+  } finally {
+    setButtonLoading(submit, false);
   }
   renderProperties();
   $("#properties").scrollIntoView({ behavior: "smooth", block: "start" });
@@ -8031,6 +8234,56 @@ function bindEvents() {
     $("#whatsappButton")?.addEventListener("click", openGeneralWhatsApp);
     return;
   }
+
+  $("#openAdminGlobalSearch")?.addEventListener("click", () => toggleAdminGlobalSearch(true));
+  $("#closeAdminGlobalSearch")?.addEventListener("click", () => toggleAdminGlobalSearch(false));
+  $("#adminGlobalSearchInput")?.addEventListener("input", () => {
+    window.clearTimeout(adminGlobalSearchTimer);
+    adminGlobalSearchTimer = window.setTimeout(() => void runAdminGlobalSearch(), 220);
+  });
+  $("#adminGlobalSearchResults")?.addEventListener("click", (event) => {
+    const result = event.target.closest("[data-global-result-section]");
+    if (!result) return;
+    toggleAdminGlobalSearch(false);
+    setAdminSection(result.dataset.globalResultSection);
+    if (result.dataset.globalResultSection === "properties" || result.dataset.globalResultSection === "developments") {
+      state.adminListingFilters.search = result.dataset.globalResultId;
+      renderAdminListings();
+    }
+  });
+  document.addEventListener("keydown", (event) => {
+    if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "k") {
+      event.preventDefault();
+      toggleAdminGlobalSearch(true);
+    }
+    if (event.key === "Escape" && !$("#adminGlobalSearch")?.hidden) toggleAdminGlobalSearch(false);
+  });
+  $("#copilotForm")?.addEventListener("submit", copilotSubmit);
+  $("#copilotSuggestions")?.addEventListener("click", (event) => {
+    const button = event.target.closest("[data-copilot-question]");
+    if (!button) return;
+    const form = $("#copilotForm");
+    form.question.value = button.dataset.copilotQuestion;
+    form.requestSubmit();
+  });
+  $("#copilotConversation")?.addEventListener("click", (event) => {
+    const button = event.target.closest("[data-copilot-open-section]");
+    if (button) setAdminSection(button.dataset.copilotOpenSection);
+  });
+  $("#refreshIntelligence")?.addEventListener("click", () => void refreshAdminIntelligence().catch((error) => showToast(error.message, "error")));
+  $("#refreshIntegrations")?.addEventListener("click", () => void refreshAdminIntegrations().catch((error) => showToast(error.message, "error")));
+  $("#refreshDataQuality")?.addEventListener("click", () => void refreshAdminDataQuality().catch((error) => showToast(error.message, "error")));
+  $("#adminIntelligence")?.addEventListener("click", (event) => {
+    const button = event.target.closest("[data-intelligence-section]");
+    if (button) setAdminSection(button.dataset.intelligenceSection);
+  });
+  $("#adminDataQuality")?.addEventListener("click", (event) => {
+    const button = event.target.closest("[data-quality-property]");
+    if (!button) return;
+    setAdminSection("properties");
+    state.adminListingFilters.search = button.dataset.qualityProperty;
+    renderAdminListings();
+  });
 
   $("#backToSite").addEventListener("click", hidePanel);
   $("#logoutButton").addEventListener("click", async () => {

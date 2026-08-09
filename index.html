@@ -156,15 +156,16 @@
               <a class="outline-button" href="/valuacion-inmobiliaria-cancun" data-i18n="heroValuationCta">Validar precio con asesor</a>
             </div>
             <form class="search-panel" id="searchForm">
+              <span class="intelligent-search-label"><i data-lucide="sparkles"></i> Búsqueda inteligente</span>
               <label class="search-field">
                 <i data-lucide="map-pin"></i>
                 <input
                   id="searchInput"
                   type="search"
                   autocomplete="off"
-                  aria-label="Buscar por ciudad, dirección o código postal"
+                  aria-label="Describe la propiedad que estás buscando"
                   data-i18n-placeholder="searchPlaceholder"
-                  placeholder="Ciudad, dirección, código postal"
+                  placeholder="Ej. Departamento frente al mar, 2 recámaras, hasta 700,000 USD"
                 />
               </label>
               <button class="accent-button" type="submit">
@@ -172,6 +173,7 @@
                 <span data-i18n="searchButton">Buscar</span>
               </button>
             </form>
+            <div class="intelligent-search-status" id="intelligentSearchStatus" aria-live="polite" hidden></div>
           </div>
         </section>
 
@@ -988,6 +990,14 @@
                 <i data-lucide="layout-dashboard"></i>
                 <span data-i18n="adminJumpDashboard">Dashboard</span>
               </button>
+              <button type="button" data-admin-section="intelligence">
+                <i data-lucide="brain-circuit"></i>
+                <span>Intelligence</span>
+              </button>
+              <button type="button" data-admin-section="copilot">
+                <i data-lucide="sparkles"></i>
+                <span>Copilot</span>
+              </button>
               <button type="button" data-admin-section="leads">
                 <i data-lucide="inbox"></i>
                 <span data-i18n="adminJumpLeads">Asesorias</span>
@@ -1091,6 +1101,14 @@
                 <i data-lucide="chart-column"></i>
                 <span data-i18n="adminJumpAnalytics">Analitica</span>
               </button>
+              <button type="button" data-admin-section="data-quality">
+                <i data-lucide="list-checks"></i>
+                <span>Calidad de datos</span>
+              </button>
+              <button type="button" data-admin-section="integrations">
+                <i data-lucide="plug-zap"></i>
+                <span>Integraciones</span>
+              </button>
               <button type="button" data-admin-section="tasks">
                 <i data-lucide="list-checks"></i>
                 <span data-i18n="adminJumpTasks">Tareas</span>
@@ -1111,6 +1129,18 @@
             </nav>
           </aside>
           <div class="admin-main">
+        <section class="admin-global-tools" aria-label="Búsqueda global del administrador">
+          <button class="admin-global-search-trigger" type="button" id="openAdminGlobalSearch">
+            <i data-lucide="search"></i>
+            <span>Buscar en propiedades, contactos, solicitudes y tareas</span>
+            <kbd>Ctrl K</kbd>
+          </button>
+          <div class="admin-global-search" id="adminGlobalSearch" hidden>
+            <label><span class="sr-only">Búsqueda global</span><input id="adminGlobalSearchInput" type="search" autocomplete="off" placeholder="Escribe nombre, MLS, correo, teléfono o tarea…" /></label>
+            <button class="icon-button" type="button" id="closeAdminGlobalSearch" aria-label="Cerrar búsqueda"><i data-lucide="x"></i></button>
+            <div class="admin-global-results" id="adminGlobalSearchResults"></div>
+          </div>
+        </section>
         <div class="stats-grid" id="statsGrid" data-admin-section-panel="dashboard"></div>
         <div class="admin-command-bar" data-admin-section-panel="dashboard">
           <div>
@@ -1161,6 +1191,41 @@
           </div>
         </div>
         <div class="admin-insights" id="adminInsights" data-admin-section-panel="dashboard"></div>
+        <article class="panel-card admin-intelligence-card" data-admin-section-panel="intelligence">
+          <div class="admin-module-heading">
+            <div><span class="eyebrow">OPERACIÓN EN TIEMPO REAL</span><h2>Puerto Cancún Intelligence</h2><p>Prioridades accionables calculadas con los datos actuales del negocio.</p></div>
+            <button class="ghost-button" type="button" id="refreshIntelligence"><i data-lucide="refresh-cw"></i> Actualizar</button>
+          </div>
+          <div class="intelligence-priorities" id="adminIntelligence"></div>
+        </article>
+        <article class="panel-card admin-copilot-card" data-admin-section-panel="copilot">
+          <div class="admin-module-heading">
+            <div><span class="eyebrow">ASISTENTE INTERNO</span><h2>Puerto Cancún Copilot</h2><p>Guía de uso y consultas seguras sobre información real del negocio.</p></div>
+            <span class="copilot-context" id="copilotContextLabel">Contexto: Dashboard</span>
+          </div>
+          <div class="copilot-suggestions" id="copilotSuggestions">
+            <button type="button" data-copilot-question="Soy nuevo, ¿cómo empiezo?">Soy nuevo, ¿cómo empiezo?</button>
+            <button type="button" data-copilot-question="¿Cómo creo una propiedad?">Crear una propiedad</button>
+            <button type="button" data-copilot-question="¿Cuántas solicitudes están pendientes?">Solicitudes pendientes</button>
+            <button type="button" data-copilot-question="Revisa las integraciones">Revisar integraciones</button>
+          </div>
+          <div class="copilot-conversation" id="copilotConversation" aria-live="polite">
+            <div class="copilot-message assistant"><strong>Copilot</strong><p>Puedo explicar los módulos reales o consultar prioridades, tareas, calidad e integraciones sin modificar datos.</p></div>
+          </div>
+          <form class="copilot-form" id="copilotForm">
+            <label><span class="sr-only">Pregunta para Copilot</span><textarea name="question" rows="3" maxlength="1200" placeholder="Quiero hacer X, ¿cómo lo hago?" required></textarea></label>
+            <button class="primary-button" type="submit"><i data-lucide="send"></i> Consultar</button>
+          </form>
+          <p class="form-message" id="copilotMessage"></p>
+        </article>
+        <article class="panel-card admin-data-quality-card" data-admin-section-panel="data-quality">
+          <div class="admin-module-heading"><div><span class="eyebrow">REVISIÓN SIN BORRADOS AUTOMÁTICOS</span><h2>Centro de calidad de datos</h2><p>Detecta faltantes y candidatos duplicados para revisión humana.</p></div><button class="ghost-button" type="button" id="refreshDataQuality"><i data-lucide="refresh-cw"></i> Actualizar</button></div>
+          <div id="adminDataQuality"></div>
+        </article>
+        <article class="panel-card admin-integrations-card" data-admin-section-panel="integrations">
+          <div class="admin-module-heading"><div><span class="eyebrow">ESTADO VERIFICABLE</span><h2>Centro de integraciones</h2><p>Muestra configuración y conexión real; nunca simula un proveedor conectado.</p></div><button class="ghost-button" type="button" id="refreshIntegrations"><i data-lucide="refresh-cw"></i> Comprobar</button></div>
+          <div class="integration-health-grid" id="adminIntegrations"></div>
+        </article>
         <article class="panel-card admin-leads-card" id="adminLeadsCard" data-admin-section-panel="leads">
           <h2 data-i18n="adminLeadsTitle">Solicitudes de asesoria</h2>
           <div class="panel-card-subhead">
@@ -2135,9 +2200,9 @@
                   </select>
                 </label>
               </div>
-              <label>
+              <label hidden>
                 <span data-i18n="propertyTitleEn">Título de la propiedad en inglés</span>
-                <input name="titleEn" required />
+                <input name="titleEn" />
                 <small data-i18n="bilingualFieldHelp">Este texto se muestra cuando el visitante navega en inglés.</small>
               </label>
               <div class="form-row">
@@ -2215,18 +2280,18 @@
                   <label><span>Unidades totales</span><input name="units" type="number" min="0" /></label>
                   <label><span>Unidades disponibles</span><input name="availableUnits" type="number" min="0" /></label>
                 </div>
-                <div class="form-row">
+                <div class="form-row" hidden>
                   <label><span>Avance de obra (%)</span><input name="constructionProgress" type="number" min="0" max="100" step="0.1" /></label>
                   <label><span>Fecha de actualización del avance</span><input name="progressUpdatedAt" type="date" /></label>
                 </div>
-                <div class="form-row">
+                <div class="form-row" hidden>
                   <label><span>Plan de pagos en español</span><textarea name="paymentPlan" rows="3"></textarea></label>
                   <label><span>Payment plan in English</span><textarea name="paymentPlanEn" rows="3"></textarea></label>
                 </div>
                 <label><span>Amenidades exclusivas del desarrollo</span><input name="developmentAmenities" placeholder="Beach club, alberca, marina, coworking" /></label>
                 <div class="form-row">
                   <label><span>Aspectos destacados de inversión en español</span><textarea name="investmentHighlights" rows="3"></textarea></label>
-                  <label><span>Investment highlights in English</span><textarea name="investmentHighlightsEn" rows="3"></textarea></label>
+                  <label hidden><span>Investment highlights in English</span><textarea name="investmentHighlightsEn" rows="3"></textarea></label>
                 </div>
               </fieldset>
               <label>
@@ -2350,9 +2415,9 @@
                 <textarea name="description" rows="10" maxlength="50000"></textarea>
                 <small class="character-counter" id="listingDescriptionCounter">0 / 50,000 caracteres</small>
               </label>
-              <label>
+              <label hidden>
                 <span data-i18n="descriptionEn">Descripción en inglés</span>
-                <textarea name="descriptionEn" rows="10" maxlength="50000" required></textarea>
+                <textarea name="descriptionEn" rows="10" maxlength="50000"></textarea>
                 <small data-i18n="bilingualFieldHelp">Este texto se muestra cuando el visitante navega en inglés.</small>
               </label>
               <button class="ghost-button" type="button" id="translateListingToEnglish">
