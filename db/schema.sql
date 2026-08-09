@@ -416,3 +416,147 @@ CREATE TABLE IF NOT EXISTS user_sessions (
 );
 
 CREATE INDEX IF NOT EXISTS idx_user_sessions_expire ON user_sessions (expire);
+
+CREATE TABLE IF NOT EXISTS seller_favorites (
+  seller_id TEXT NOT NULL REFERENCES seller_accounts(id) ON DELETE CASCADE,
+  property_id TEXT NOT NULL REFERENCES properties(id) ON DELETE CASCADE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  PRIMARY KEY (seller_id, property_id)
+);
+
+CREATE TABLE IF NOT EXISTS saved_searches (
+  id TEXT PRIMARY KEY,
+  seller_id TEXT NOT NULL REFERENCES seller_accounts(id) ON DELETE CASCADE,
+  name TEXT NOT NULL,
+  query_text TEXT NOT NULL DEFAULT '',
+  filters JSONB NOT NULL DEFAULT '{}'::jsonb,
+  alerts_enabled BOOLEAN NOT NULL DEFAULT FALSE,
+  email_enabled BOOLEAN NOT NULL DEFAULT FALSE,
+  whatsapp_enabled BOOLEAN NOT NULL DEFAULT FALSE,
+  alert_frequency TEXT NOT NULL DEFAULT 'immediate',
+  consent_at TIMESTAMPTZ,
+  last_run_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS saved_search_matches (
+  id TEXT PRIMARY KEY,
+  saved_search_id TEXT NOT NULL REFERENCES saved_searches(id) ON DELETE CASCADE,
+  property_id TEXT NOT NULL REFERENCES properties(id) ON DELETE CASCADE,
+  notification_id TEXT REFERENCES notifications(id) ON DELETE SET NULL,
+  delivery_status JSONB NOT NULL DEFAULT '{}'::jsonb,
+  delivered_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  UNIQUE (saved_search_id, property_id)
+);
+
+CREATE TABLE IF NOT EXISTS tour_requests (
+  id TEXT PRIMARY KEY,
+  property_id TEXT NOT NULL REFERENCES properties(id) ON DELETE CASCADE,
+  seller_id TEXT REFERENCES seller_accounts(id) ON DELETE SET NULL,
+  name TEXT NOT NULL,
+  email TEXT,
+  phone TEXT NOT NULL,
+  preferred_date DATE,
+  preferred_time TEXT,
+  comments TEXT NOT NULL DEFAULT '',
+  status TEXT NOT NULL DEFAULT 'requested' CHECK (status IN ('requested','contacted','confirmed','completed','cancelled')),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS copilot_responses (
+  id TEXT PRIMARY KEY,
+  admin_id TEXT NOT NULL,
+  question TEXT NOT NULL,
+  category TEXT,
+  feature TEXT,
+  tool TEXT,
+  context JSONB NOT NULL DEFAULT '{}'::jsonb,
+  provider TEXT,
+  model TEXT,
+  latency_ms INTEGER NOT NULL DEFAULT 0,
+  success BOOLEAN NOT NULL DEFAULT TRUE,
+  error_code TEXT,
+  metadata JSONB NOT NULL DEFAULT '{}'::jsonb,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS copilot_feedback (
+  id TEXT PRIMARY KEY,
+  response_id TEXT NOT NULL REFERENCES copilot_responses(id) ON DELETE CASCADE,
+  admin_id TEXT NOT NULL,
+  feedback TEXT NOT NULL CHECK (feedback IN ('positive','negative')),
+  comment TEXT NOT NULL DEFAULT '',
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  UNIQUE (response_id, admin_id)
+);
+
+CREATE TABLE IF NOT EXISTS copilot_actions (
+  id TEXT PRIMARY KEY,
+  admin_id TEXT NOT NULL,
+  action_type TEXT NOT NULL,
+  payload JSONB NOT NULL DEFAULT '{}'::jsonb,
+  preview JSONB NOT NULL DEFAULT '{}'::jsonb,
+  status TEXT NOT NULL DEFAULT 'previewed' CHECK (status IN ('previewed','confirmed','cancelled','failed')),
+  result JSONB NOT NULL DEFAULT '{}'::jsonb,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  confirmed_at TIMESTAMPTZ
+);
+
+CREATE TABLE IF NOT EXISTS brochure_imports (
+  id TEXT PRIMARY KEY,
+  admin_id TEXT NOT NULL,
+  development_property_id TEXT REFERENCES properties(id) ON DELETE SET NULL,
+  file_name TEXT NOT NULL,
+  mime_type TEXT NOT NULL,
+  source_hash TEXT NOT NULL,
+  extracted_text TEXT NOT NULL DEFAULT '',
+  extracted_data JSONB NOT NULL DEFAULT '{}'::jsonb,
+  review_data JSONB NOT NULL DEFAULT '{}'::jsonb,
+  status TEXT NOT NULL DEFAULT 'review' CHECK (status IN ('processing','review','applied','rejected','failed')),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS image_analysis_cache (
+  id TEXT PRIMARY KEY,
+  entity_type TEXT NOT NULL CHECK (entity_type IN ('property','development')),
+  entity_id TEXT NOT NULL,
+  image_index INTEGER NOT NULL,
+  source_hash TEXT NOT NULL,
+  perceptual_hash TEXT,
+  result JSONB NOT NULL DEFAULT '{}'::jsonb,
+  provider TEXT NOT NULL DEFAULT 'technical',
+  model TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  UNIQUE (entity_type, entity_id, image_index, source_hash)
+);
+
+CREATE TABLE IF NOT EXISTS property_versions (
+  id TEXT PRIMARY KEY,
+  property_id TEXT NOT NULL REFERENCES properties(id) ON DELETE CASCADE,
+  changed_by TEXT,
+  change_type TEXT NOT NULL,
+  changed_fields JSONB NOT NULL DEFAULT '{}'::jsonb,
+  snapshot JSONB NOT NULL DEFAULT '{}'::jsonb,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+ALTER TABLE properties ADD COLUMN IF NOT EXISTS last_verified_at TIMESTAMPTZ;
+ALTER TABLE properties ADD COLUMN IF NOT EXISTS verified_by TEXT;
+
+CREATE TABLE IF NOT EXISTS integration_diagnostics (
+  id TEXT PRIMARY KEY,
+  integration_id TEXT NOT NULL,
+  status TEXT NOT NULL CHECK (status IN ('success','error','blocked')),
+  message TEXT NOT NULL DEFAULT '',
+  tested_by TEXT,
+  duration_ms INTEGER NOT NULL DEFAULT 0,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_integration_diagnostics_latest
+  ON integration_diagnostics (integration_id, created_at DESC);

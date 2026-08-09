@@ -46,6 +46,9 @@ function createWhatsappService({ pool, query, uuid, secret }) {
     socket: null,
     lockClient: null,
     reconnectTimer: null,
+    qrExpiryTimer: null,
+    connectTimeoutTimer: null,
+    reconnectAttempts: 0,
     socketVersion: 0,
     manualStop: false,
     activeResponses: new Set(),
@@ -55,12 +58,23 @@ function createWhatsappService({ pool, query, uuid, secret }) {
       accountJid: "",
       accountName: "",
       lastError: "",
+      phase: "idle",
+      qrExpiresAt: null,
+      nextRetryAt: null,
+      lastDiagnostic: "Sin sesión vinculada.",
       updatedAt: new Date().toISOString(),
     },
   };
 
   function setState(patch) {
     Object.assign(service.state, patch, { updatedAt: new Date().toISOString() });
+  }
+
+  function clearConnectionTimers() {
+    clearTimeout(service.qrExpiryTimer);
+    clearTimeout(service.connectTimeoutTimer);
+    service.qrExpiryTimer = null;
+    service.connectTimeoutTimer = null;
   }
 
   function encrypt(value, BufferJSON) {
@@ -157,7 +171,7 @@ function createWhatsappService({ pool, query, uuid, secret }) {
     const result = await client.query("SELECT pg_try_advisory_lock(hashtext($1)) AS locked", [AUTH_LOCK_NAME]);
     if (!result.rows[0]?.locked) {
       client.release();
-      setState({ connection: "standby", lastError: "La conexion esta activa en otra instancia del servidor." });
+      setState({ connection: "standby", phase: "standby", lastError: "La conexion esta activa en otra instancia del servidor.", lastDiagnostic: "Otra instancia conserva el bloqueo de la sesión." });
       return false;
     }
     service.lockClient = client;
@@ -303,6 +317,7 @@ function createWhatsappService({ pool, query, uuid, secret }) {
     if (["connecting", "qr", "connected"].includes(service.state.connection) && !reset) return service.getStatus();
     service.manualStop = false;
     clearTimeout(service.reconnectTimer);
+    clearConnectionTimers();
     if (!(await acquireLock())) return service.getStatus();
     try {
       const previousSocket = service.socket;
@@ -313,7 +328,7 @@ function createWhatsappService({ pool, query, uuid, secret }) {
       const makeWASocket = baileys.default || baileys.makeWASocket;
       if (reset) await query("DELETE FROM whatsapp_auth_state");
       const { state, saveCreds } = await databaseAuthState(baileys);
-      setState({ connection: "connecting", qrDataUrl: "", lastError: "" });
+      setState({ connection: "connecting", phase: "opening_socket", qrDataUrl: "", qrExpiresAt: null, nextRetryAt: null, lastError: "", lastDiagnostic: "Abriendo una sesión segura con WhatsApp." });
       const socket = makeWASocket({
         auth: state,
         logger: pino({ level: "silent" }),
@@ -324,6 +339,15 @@ function createWhatsappService({ pool, query, uuid, secret }) {
         shouldSyncHistoryMessage: () => false,
       });
       service.socket = socket;
+      service.connectTimeoutTimer = setTimeout(() => {
+        if (socketVersion !== service.socketVersion || !["connecting"].includes(service.state.connection)) return;
+        service.manualStop = true;
+        service.socket = null;
+        service.socketVersion += 1;
+        socket.end?.(new Error("Tiempo de conexión agotado"));
+        setState({ connection: "error", phase: "connection_timeout", qrDataUrl: "", qrExpiresAt: null, lastError: "WhatsApp no entregó un QR ni abrió la sesión a tiempo.", lastDiagnostic: "Tiempo de espera agotado antes de recibir el QR." });
+        void releaseLock();
+      }, 45000);
       socket.ev.on("creds.update", () => void saveCreds().catch((error) => setState({ lastError: error.message })));
       socket.ev.on("messages.upsert", ({ messages, type }) => {
         for (const message of messages || []) void processMessage(message, type).catch((error) => setState({ lastError: error.message }));
@@ -332,33 +356,64 @@ function createWhatsappService({ pool, query, uuid, secret }) {
         if (socketVersion !== service.socketVersion) return;
         if (update.qr) {
           const qrDataUrl = await QRCode.toDataURL(update.qr, { width: 320, margin: 2, errorCorrectionLevel: "M" }).catch(() => "");
-          setState({ connection: "qr", qrDataUrl, lastError: "" });
+          clearTimeout(service.connectTimeoutTimer);
+          clearTimeout(service.qrExpiryTimer);
+          service.connectTimeoutTimer = null;
+          const qrExpiresAt = new Date(Date.now() + 60000).toISOString();
+          setState({ connection: "qr", phase: "qr_ready", qrDataUrl, qrExpiresAt, lastError: "", lastDiagnostic: "QR generado. Debe escanearse antes de que caduque." });
+          service.qrExpiryTimer = setTimeout(() => {
+            if (socketVersion !== service.socketVersion || service.state.connection !== "qr") return;
+            service.manualStop = true;
+            service.socket = null;
+            service.socketVersion += 1;
+            socket.end?.(new Error("QR expirado"));
+            setState({ connection: "qr_expired", phase: "qr_expired", qrDataUrl: "", qrExpiresAt: null, lastError: "El código QR caducó. Genera uno nuevo.", lastDiagnostic: "El QR no fue escaneado dentro de su ventana de vigencia." });
+            void releaseLock();
+          }, 60000);
         }
         if (update.connection === "open") {
+          clearConnectionTimers();
+          service.reconnectAttempts = 0;
           setState({
             connection: "connected",
+            phase: "session_active",
             qrDataUrl: "",
+            qrExpiresAt: null,
+            nextRetryAt: null,
             accountJid: String(socket.user?.id || ""),
             accountName: String(socket.user?.name || "WhatsApp conectado"),
             lastError: "",
+            lastDiagnostic: "Sesión multidispositivo activa y credenciales persistidas.",
           });
         }
         if (update.connection === "close") {
+          clearConnectionTimers();
           service.socket = null;
           const code = Number(update.lastDisconnect?.error?.output?.statusCode || update.lastDisconnect?.error?.data?.statusCode || 0);
           const loggedOut = code === baileys.DisconnectReason.loggedOut;
           if (loggedOut) await query("DELETE FROM whatsapp_auth_state").catch(() => null);
-          setState({ connection: loggedOut ? "disconnected" : "reconnecting", qrDataUrl: "", lastError: loggedOut ? "La sesion fue cerrada desde WhatsApp." : "Reconectando WhatsApp..." });
+          service.reconnectAttempts += loggedOut ? 0 : 1;
+          const retryDelay = Math.min(30000, 3500 * Math.max(1, service.reconnectAttempts));
+          setState({
+            connection: loggedOut ? "disconnected" : service.manualStop ? service.state.connection : "reconnecting",
+            phase: loggedOut ? "logged_out" : service.manualStop ? service.state.phase : "retry_scheduled",
+            qrDataUrl: "",
+            qrExpiresAt: null,
+            nextRetryAt: loggedOut || service.manualStop ? null : new Date(Date.now() + retryDelay).toISOString(),
+            lastError: loggedOut ? "La sesion fue cerrada desde WhatsApp." : service.manualStop ? service.state.lastError : "Reconectando WhatsApp...",
+            lastDiagnostic: loggedOut ? "WhatsApp invalidó la sesión persistida." : service.manualStop ? service.state.lastDiagnostic : `Reintento ${service.reconnectAttempts} programado.`,
+          });
           if (loggedOut || service.manualStop) {
             await releaseLock();
           } else {
-            service.reconnectTimer = setTimeout(() => void service.connect().catch((error) => setState({ connection: "error", lastError: error.message })), 3500);
+            service.reconnectTimer = setTimeout(() => void service.connect().catch((error) => setState({ connection: "error", phase: "retry_failed", lastError: error.message, lastDiagnostic: "Falló el intento automático de reconexión." })), retryDelay);
           }
         }
       });
       return service.getStatus();
     } catch (error) {
-      setState({ connection: "error", qrDataUrl: "", lastError: error.message });
+      clearConnectionTimers();
+      setState({ connection: "error", phase: "connection_error", qrDataUrl: "", qrExpiresAt: null, lastError: error.message, lastDiagnostic: "No fue posible iniciar el cliente de WhatsApp." });
       await releaseLock();
       throw error;
     }
@@ -367,13 +422,15 @@ function createWhatsappService({ pool, query, uuid, secret }) {
   service.disconnect = async () => {
     service.manualStop = true;
     clearTimeout(service.reconnectTimer);
+    clearConnectionTimers();
     const socket = service.socket;
     service.socket = null;
     service.socketVersion += 1;
     if (socket) await socket.logout().catch(() => socket.end?.(new Error("Sesion cerrada por administrador")));
     await query("DELETE FROM whatsapp_auth_state");
     await releaseLock();
-    setState({ connection: "disconnected", qrDataUrl: "", accountJid: "", accountName: "", lastError: "" });
+    service.reconnectAttempts = 0;
+    setState({ connection: "disconnected", phase: "idle", qrDataUrl: "", qrExpiresAt: null, nextRetryAt: null, accountJid: "", accountName: "", lastError: "", lastDiagnostic: "Sesión desconectada por un administrador." });
     return service.getStatus();
   };
 

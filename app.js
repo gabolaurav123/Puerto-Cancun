@@ -1020,6 +1020,10 @@ const state = {
   buyers: [],
   serviceRequests: [],
   notifications: [],
+  favoriteProperties: [],
+  savedSearches: [],
+  alertCapabilities: { internal: { available: true }, email: { available: false }, whatsapp: { available: false } },
+  tours: [],
   internalUsers: [],
   files: [],
   documents: [],
@@ -1084,6 +1088,10 @@ const state = {
   favorites: safeParseStoredIds(keys.favorites),
   compare: safeParseStoredIds(keys.compare).slice(0, 3),
   guided: { budget: 0, beds: 0 },
+  brochureImport: null,
+  imageAnalysis: null,
+  copilotFeedbackSummary: { rates: [], errors: [], topics: [] },
+  pendingCopilotAction: null,
 };
 
 const $ = (selector) => document.querySelector(selector);
@@ -1749,6 +1757,45 @@ async function api(path, options = {}) {
   throw new Error("No fue posible completar la solicitud.");
 }
 
+function analyticsMetadata(extra = {}) {
+  let visitorId = "";
+  try {
+    visitorId = sessionStorage.getItem("pcc.analyticsVisitor") || "";
+    if (!visitorId) {
+      visitorId = globalThis.crypto?.randomUUID?.() || `visitor-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+      sessionStorage.setItem("pcc.analyticsVisitor", visitorId);
+    }
+  } catch {
+    visitorId = `visitor-${Date.now()}`;
+  }
+  const params = new URLSearchParams(window.location.search);
+  return {
+    visitorId,
+    path: window.location.pathname,
+    lang: state.lang,
+    referrer: document.referrer || "",
+    utmSource: params.get("utm_source") || "",
+    utmMedium: params.get("utm_medium") || "",
+    utmCampaign: params.get("utm_campaign") || "",
+    ...extra,
+  };
+}
+
+function trackAnalyticsEvent(eventType, property = null, extra = {}) {
+  return api("/api/analytics/events", {
+    method: "POST",
+    body: {
+      eventType,
+      propertyId: property?.id || "",
+      metadata: analyticsMetadata({
+        title: property ? localizedTitle(property) : "",
+        zone: property?.zone || "",
+        ...extra,
+      }),
+    },
+  }).catch(() => null);
+}
+
 function downloadFileName(response, fallbackName) {
   const disposition = response.headers.get("content-disposition") || "";
   const encoded = disposition.match(/filename\*=UTF-8''([^;]+)/i)?.[1];
@@ -2242,6 +2289,7 @@ function renderProperties() {
             <div class="property-actions">
               <a class="mini-button primary" href="${escapeHtml(propertyUrl || `/propiedades/${property.slug || property.id}`)}">${escapeHtml(state.lang === "en" ? "View property" : "Ver propiedad")}</a>
               <button class="mini-button icon-only" type="button" data-detail="${escapeHtml(property.id)}" title="${escapeHtml(state.lang === "en" ? "Quick view" : "Vista rapida")}" aria-label="${escapeHtml(state.lang === "en" ? "Quick view" : "Vista rapida")}"><i data-lucide="search"></i></button>
+              <button class="mini-button icon-only" type="button" data-tour="${escapeHtml(property.id)}" title="${escapeHtml(state.lang === "en" ? "Request a tour" : "Solicitar visita")}" aria-label="${escapeHtml(state.lang === "en" ? "Request a tour" : "Solicitar visita")}"><i data-lucide="calendar-days"></i></button>
               <button class="mini-button whatsapp-card-button" type="button" data-contact="${escapeHtml(property.id)}"><i data-lucide="message-circle"></i><span>${escapeHtml(t("contactWhatsApp"))}</span></button>
             </div>
           </div>
@@ -2254,13 +2302,36 @@ function renderProperties() {
   updatePropertyJsonLd();
 }
 
-function toggleFavorite(id) {
-  state.favorites = state.favorites.includes(id)
+async function toggleFavorite(id) {
+  const wasSaved = state.favorites.includes(id);
+  const property = state.properties.find((item) => item.id === id);
+  state.favorites = wasSaved
     ? state.favorites.filter((item) => item !== id)
     : [...state.favorites, id];
   localStorage.setItem(keys.favorites, JSON.stringify(state.favorites));
   renderProperties();
-  showToast(state.favorites.includes(id) ? "Propiedad guardada en favoritos." : "Propiedad eliminada de favoritos.");
+  void trackAnalyticsEvent(wasSaved ? "favorite_removed" : "favorite_added", property);
+  if (state.session?.role !== "seller") {
+    showToast(wasSaved ? "Propiedad eliminada de favoritos." : "Favorito guardado en este dispositivo. Inicia sesión para conservarlo en tu cuenta.");
+    return;
+  }
+  try {
+    await api(`/api/seller/favorites/${encodeURIComponent(id)}`, { method: wasSaved ? "DELETE" : "PUT" });
+    state.favoriteProperties = wasSaved
+      ? state.favoriteProperties.filter((item) => item.id !== id)
+      : property && !state.favoriteProperties.some((item) => item.id === id)
+        ? [property, ...state.favoriteProperties]
+        : state.favoriteProperties;
+    renderSellerFavorites();
+    showToast(wasSaved ? "Propiedad eliminada de tu cuenta." : "Propiedad guardada en tu cuenta.");
+  } catch (error) {
+    state.favorites = wasSaved
+      ? [...state.favorites, id]
+      : state.favorites.filter((item) => item !== id);
+    localStorage.setItem(keys.favorites, JSON.stringify(state.favorites));
+    renderProperties();
+    showToast(error.message, "error");
+  }
 }
 
 function toggleCompare(id) {
@@ -2565,6 +2636,283 @@ function renderSellerNotifications() {
         )
         .join("")
     : `<p class="empty-state">No tienes notificaciones nuevas.</p>`;
+}
+
+function renderSellerFavorites() {
+  const list = $("#sellerFavorites");
+  if (!list) return;
+  const properties = Array.isArray(state.favoriteProperties) ? state.favoriteProperties : [];
+  list.innerHTML = properties.length
+    ? properties.map((property) => `
+        <article class="seller-property-row">
+          <img src="${escapeHtml(optimizedMediaUrl(primaryImage(property), 320))}" alt="${escapeHtml(localizedTitle(property))}" loading="lazy" />
+          <div>
+            <span>${escapeHtml(formatPriceSummary(property))}</span>
+            <h3>${escapeHtml(localizedTitle(property))}</h3>
+            <p>${escapeHtml(displayLocation(property))}</p>
+            <div class="item-actions">
+              <a class="mini-button primary" href="${escapeHtml(state.lang === "en" ? property.urlEn : property.urlEs)}">${state.lang === "en" ? "View property" : "Ver propiedad"}</a>
+              <button class="mini-button" type="button" data-favorite="${escapeHtml(property.id)}"><i data-lucide="heart-off"></i><span>Quitar</span></button>
+            </div>
+          </div>
+        </article>`).join("")
+    : `<div class="empty-state action-empty"><i data-lucide="heart"></i><p>No tienes propiedades favoritas en esta cuenta.</p><a class="mini-button primary" href="/#properties">Explorar propiedades</a></div>`;
+}
+
+function savedSearchSummary(search) {
+  const filters = search.filters || {};
+  return [
+    filters.propertyType || filters.type,
+    filters.location || filters.zone,
+    filters.maxPrice ? `Hasta ${new Intl.NumberFormat("es-MX").format(filters.maxPrice)} ${filters.currency || ""}` : "",
+    filters.bedrooms ? `${filters.bedrooms}+ recámaras` : "",
+  ].filter(Boolean).join(" · ") || search.query || "Sin filtros adicionales";
+}
+
+function renderSellerSavedSearches() {
+  const list = $("#sellerSavedSearches");
+  if (!list) return;
+  const searches = Array.isArray(state.savedSearches) ? state.savedSearches : [];
+  list.innerHTML = searches.length
+    ? searches.map((search) => `
+        <article class="saved-search-row">
+          <div>
+            <span class="status ${search.alertsEnabled ? "active" : "draft"}">${search.alertsEnabled ? "Alertas activas" : "Sin alertas"}</span>
+            <h3>${escapeHtml(search.name)}</h3>
+            <p>${escapeHtml(savedSearchSummary(search))}</p>
+            <div class="saved-search-channels">
+              <span class="status active">Panel</span>
+              <span class="status ${search.emailEnabled ? "active" : "draft"}">Correo ${search.emailEnabled ? "activo" : "inactivo"}</span>
+              <span class="status ${search.whatsappEnabled ? "active" : "draft"}">WhatsApp ${search.whatsappEnabled ? "activo" : "inactivo"}</span>
+            </div>
+            <small>${search.lastRunAt ? `Última ejecución: ${escapeHtml(formatDate(search.lastRunAt))}` : "Todavía no se ha ejecutado"}</small>
+          </div>
+          <div class="item-actions">
+            <button class="mini-button primary" type="button" data-run-saved-search="${escapeHtml(search.id)}"><i data-lucide="search"></i><span>Buscar ahora</span></button>
+            <button class="mini-button" type="button" data-toggle-saved-alert="${escapeHtml(search.id)}" data-alert-value="${search.alertsEnabled ? "false" : "true"}"><i data-lucide="${search.alertsEnabled ? "bell-off" : "bell-ring"}"></i><span>${search.alertsEnabled ? "Pausar alertas" : "Activar alertas"}</span></button>
+            <button class="mini-button" type="button" data-rename-saved-search="${escapeHtml(search.id)}"><i data-lucide="pencil"></i><span>Renombrar</span></button>
+            <button class="mini-button" type="button" data-toggle-saved-channel="email" data-saved-search-id="${escapeHtml(search.id)}" data-channel-value="${search.emailEnabled ? "false" : "true"}"><i data-lucide="mail"></i><span>${search.emailEnabled ? "Quitar correo" : "Usar correo"}</span></button>
+            <button class="mini-button" type="button" data-toggle-saved-channel="whatsapp" data-saved-search-id="${escapeHtml(search.id)}" data-channel-value="${search.whatsappEnabled ? "false" : "true"}"><i data-lucide="message-circle"></i><span>${search.whatsappEnabled ? "Quitar WhatsApp" : "Usar WhatsApp"}</span></button>
+            <button class="mini-button danger" type="button" data-delete-saved-search="${escapeHtml(search.id)}"><i data-lucide="trash-2"></i><span>Eliminar</span></button>
+          </div>
+        </article>`).join("")
+    : `<div class="empty-state action-empty"><i data-lucide="search"></i><p>Guarda una búsqueda para repetirla y recibir nuevas coincidencias.</p></div>`;
+}
+
+function renderSellerAlertCapabilities() {
+  const target = $("#sellerAlertCapabilities");
+  if (!target) return;
+  const email = state.alertCapabilities.email || {};
+  const whatsapp = state.alertCapabilities.whatsapp || {};
+  target.innerHTML = `<strong>Entrega disponible:</strong> Panel interno · Correo: ${email.available ? "disponible" : escapeHtml(email.reason || "pendiente")} · WhatsApp: ${whatsapp.available ? "disponible" : escapeHtml(whatsapp.reason || "pendiente")}`;
+}
+
+function tourStatusLabel(status) {
+  return ({ requested: "Solicitada", contacted: "Contactada", confirmed: "Confirmada", completed: "Realizada", cancelled: "Cancelada" })[status] || "Solicitada";
+}
+
+function renderSellerTours() {
+  const list = $("#sellerTours");
+  if (!list) return;
+  const tours = Array.isArray(state.tours) ? state.tours : [];
+  list.innerHTML = tours.length
+    ? tours.map((tour) => `
+        <article class="seller-tour-row">
+          <div>
+            <span class="status ${escapeHtml(tour.status || "requested")}">${escapeHtml(tourStatusLabel(tour.status))}</span>
+            <h3>${escapeHtml(tour.property_title || "Propiedad")}</h3>
+            <p>${tour.preferred_date ? `Fecha solicitada: ${escapeHtml(formatDate(tour.preferred_date))}` : "Fecha por coordinar"}${tour.preferred_time ? ` · ${escapeHtml(tour.preferred_time)}` : ""}</p>
+            ${tour.comments ? `<small>${escapeHtml(tour.comments)}</small>` : ""}
+          </div>
+        </article>`).join("")
+    : `<div class="empty-state action-empty"><i data-lucide="calendar-days"></i><p>No has solicitado visitas todavía.</p><a class="mini-button primary" href="/#properties">Buscar una propiedad</a></div>`;
+}
+
+function renderAdminTours() {
+  const list = $("#adminTours");
+  if (!list) return;
+  const tours = Array.isArray(state.tours) ? state.tours : [];
+  list.innerHTML = tours.length
+    ? tours.map((tour) => `
+        <article class="admin-tour-row">
+          <div><span class="status ${escapeHtml(tour.status || "requested")}">${escapeHtml(tourStatusLabel(tour.status))}</span><h3>${escapeHtml(tour.property_title || "Propiedad")} ${tour.mls ? `· MLS# ${escapeHtml(tour.mls)}` : ""}</h3><p>${escapeHtml(tour.name || "")} · ${escapeHtml(tour.phone || "")}${tour.email ? ` · ${escapeHtml(tour.email)}` : ""}</p><small>${tour.preferred_date ? escapeHtml(formatDate(tour.preferred_date)) : "Fecha por coordinar"}${tour.preferred_time ? ` · ${escapeHtml(tour.preferred_time)}` : ""}</small></div>
+          <label><span>Estado</span><select data-admin-tour-status="${escapeHtml(tour.id)}"><option value="requested" ${tour.status === "requested" ? "selected" : ""}>Solicitada</option><option value="contacted" ${tour.status === "contacted" ? "selected" : ""}>Contactada</option><option value="confirmed" ${tour.status === "confirmed" ? "selected" : ""}>Confirmada</option><option value="completed" ${tour.status === "completed" ? "selected" : ""}>Realizada</option><option value="cancelled" ${tour.status === "cancelled" ? "selected" : ""}>Cancelada</option></select></label>
+        </article>`).join("")
+    : `<p class="empty-state">No hay solicitudes de visita.</p>`;
+}
+
+async function updateAdminTourStatus(id, status) {
+  try {
+    const data = await api(`/api/admin/tours/${encodeURIComponent(id)}`, { method: "PATCH", body: { status } });
+    state.tours = state.tours.map((tour) => tour.id === id ? { ...tour, ...data.tour } : tour);
+    renderAdminTours();
+    showToast("Estado de visita actualizado.");
+  } catch (error) {
+    showToast(error.message, "error");
+    renderAdminTours();
+  }
+}
+
+async function savedSearchSubmit(event) {
+  event.preventDefault();
+  const form = event.currentTarget;
+  const button = form.querySelector('[type="submit"]');
+  const message = $("#savedSearchMessage");
+  const values = Object.fromEntries(new FormData(form).entries());
+  const filters = {
+    propertyType: values.propertyType || "",
+    location: values.location || "",
+    maxPrice: Number(values.maxPrice || 0) || null,
+    currency: values.currency || "",
+  };
+  setButtonLoading(button, true, "Guardando…");
+  setFormMessage(message, "");
+  try {
+    const data = await api("/api/seller/saved-searches", {
+      method: "POST",
+      body: {
+        name: values.name,
+        query: values.query,
+        filters,
+        alertsEnabled: form.alertsEnabled.checked,
+        emailEnabled: form.emailEnabled.checked,
+        whatsappEnabled: form.whatsappEnabled.checked,
+        consent: form.consent.checked,
+      },
+    });
+    state.savedSearches = [data.savedSearch, ...state.savedSearches];
+    form.reset();
+    renderSellerSavedSearches();
+    setFormMessage(message, "Búsqueda guardada en tu cuenta.");
+    showToast("Búsqueda guardada.");
+    refreshIcons();
+  } catch (error) {
+    setFormMessage(message, error.message, true);
+  } finally {
+    setButtonLoading(button, false);
+  }
+}
+
+async function runSavedSearch(id) {
+  try {
+    const data = await api(`/api/seller/saved-searches/${encodeURIComponent(id)}/run`, { method: "POST", body: { createAlerts: true } });
+    state.intelligentSearch = { active: true, ids: (data.matches || []).map((property) => property.id), interpreted: null, exactMatch: true, message: "" };
+    const search = state.savedSearches.find((item) => item.id === id);
+    if (search) search.lastRunAt = new Date().toISOString();
+    renderSellerSavedSearches();
+    hidePanel();
+    renderProperties();
+    $("#properties")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    showToast(`${(data.matches || []).length} coincidencia${(data.matches || []).length === 1 ? "" : "s"} encontrada${(data.matches || []).length === 1 ? "" : "s"}.`);
+  } catch (error) {
+    showToast(error.message, "error");
+  }
+}
+
+async function toggleSavedSearchAlert(id, value) {
+  try {
+    const data = await api(`/api/seller/saved-searches/${encodeURIComponent(id)}`, { method: "PATCH", body: { alertsEnabled: value, consent: value } });
+    state.savedSearches = state.savedSearches.map((item) => item.id === id ? data.savedSearch : item);
+    renderSellerSavedSearches();
+    refreshIcons();
+    showToast(value ? "Alertas internas activadas." : "Alertas pausadas.");
+  } catch (error) {
+    showToast(error.message, "error");
+  }
+}
+
+async function renameSavedSearch(id) {
+  const search = state.savedSearches.find((item) => item.id === id);
+  if (!search) return;
+  const name = window.prompt("Nuevo nombre de la búsqueda", search.name);
+  if (!name || name.trim() === search.name) return;
+  try {
+    const data = await api(`/api/seller/saved-searches/${encodeURIComponent(id)}`, { method: "PATCH", body: { name: name.trim() } });
+    state.savedSearches = state.savedSearches.map((item) => item.id === id ? data.savedSearch : item);
+    renderSellerSavedSearches();
+    refreshIcons();
+    showToast("Búsqueda renombrada.");
+  } catch (error) {
+    showToast(error.message, "error");
+  }
+}
+
+async function toggleSavedSearchChannel(id, channel, value) {
+  const capability = state.alertCapabilities[channel] || {};
+  if (value && !capability.available) {
+    showToast(capability.reason || "El canal todavía no está disponible; guardaremos la preferencia.", "error");
+  }
+  try {
+    const body = { alertsEnabled: true, consent: true };
+    body[channel === "email" ? "emailEnabled" : "whatsappEnabled"] = value;
+    const data = await api(`/api/seller/saved-searches/${encodeURIComponent(id)}`, { method: "PATCH", body });
+    state.savedSearches = state.savedSearches.map((item) => item.id === id ? data.savedSearch : item);
+    renderSellerSavedSearches();
+    refreshIcons();
+    showToast(value ? `Preferencia de ${channel === "email" ? "correo" : "WhatsApp"} guardada.` : "Canal desactivado.");
+  } catch (error) {
+    showToast(error.message, "error");
+  }
+}
+
+async function deleteSavedSearch(id) {
+  if (!window.confirm("¿Eliminar esta búsqueda guardada?")) return;
+  try {
+    await api(`/api/seller/saved-searches/${encodeURIComponent(id)}`, { method: "DELETE" });
+    state.savedSearches = state.savedSearches.filter((item) => item.id !== id);
+    renderSellerSavedSearches();
+    refreshIcons();
+    showToast("Búsqueda eliminada.");
+  } catch (error) {
+    showToast(error.message, "error");
+  }
+}
+
+function openTourRequest(propertyId) {
+  const property = state.properties.find((item) => item.id === propertyId);
+  const modal = $("#tourRequestModal");
+  const form = $("#tourRequestForm");
+  if (!property || !modal || !form) return;
+  form.reset();
+  form.propertyId.value = property.id;
+  form.name.value = state.session?.name || "";
+  form.email.value = state.session?.email || "";
+  form.phone.value = state.session?.phone || "";
+  $("#tourPropertyTitle").textContent = localizedTitle(property);
+  setFormMessage($("#tourRequestMessage"), "");
+  modal.hidden = false;
+  document.body.classList.add("modal-open");
+  form.name.focus();
+}
+
+function closeTourRequest() {
+  const modal = $("#tourRequestModal");
+  if (modal) modal.hidden = true;
+  document.body.classList.remove("modal-open");
+}
+
+async function tourRequestSubmit(event) {
+  event.preventDefault();
+  const form = event.currentTarget;
+  const button = form.querySelector('[type="submit"]');
+  const message = $("#tourRequestMessage");
+  setButtonLoading(button, true, "Enviando…");
+  setFormMessage(message, "");
+  try {
+    const values = Object.fromEntries(new FormData(form).entries());
+    const data = await api("/api/tour-requests", { method: "POST", body: { ...values, consent: form.consent.checked } });
+    setFormMessage(message, data.message || "Solicitud enviada.");
+    showToast("Visita solicitada. Un asesor confirmará la disponibilidad.");
+    if (state.session?.role === "seller") {
+      state.tours = [{ ...values, id: data.id, status: data.status, property_title: $("#tourPropertyTitle").textContent }, ...state.tours];
+      renderSellerTours();
+    }
+    window.setTimeout(closeTourRequest, 900);
+  } catch (error) {
+    setFormMessage(message, error.message, true);
+  } finally {
+    setButtonLoading(button, false);
+  }
 }
 
 function openSellerFlow(flow) {
@@ -2944,6 +3292,7 @@ function renderAdminContacts() {
           </div>
           ${contact.smartSummary ? `<div class="contact-intelligence"><p><b>Resumen inteligente:</b> ${escapeHtml(contact.smartSummary)}</p><p><b>Siguiente acción:</b> ${escapeHtml(contact.recommendedAction || "")}</p><small>Los datos del perfil son confirmados; intención y score son inferencias operativas.</small></div>` : ""}
           <div class="item-actions">
+            <button class="mini-button primary" type="button" data-contact-intelligence="${escapeHtml(contact.id)}"><i data-lucide="activity"></i> Ver historial</button>
             <button class="mini-button" type="button" data-edit-contact="${escapeHtml(contact.id)}">${escapeHtml(t("edit"))}</button>
             ${phoneUrl ? `<a class="mini-button primary" href="${escapeHtml(phoneUrl)}" target="_blank" rel="noopener noreferrer">${escapeHtml(t("respondWhatsApp"))}</a>` : ""}
             ${contact.email ? `<button class="mini-button" type="button" data-compose-email data-email="${escapeHtml(contact.email)}" data-email-name="${escapeHtml(contact.name || "")}" data-email-context="${escapeHtml(contactTypeLabel(contact.contactType))}">${escapeHtml(t("respondEmail"))}</button>` : ""}
@@ -2953,6 +3302,92 @@ function renderAdminContacts() {
       `;
     })
     .join("");
+}
+
+function closeContactIntelligenceModal() {
+  const modal = $("#contactIntelligenceModal");
+  if (modal) modal.hidden = true;
+  document.body.classList.remove("modal-open");
+}
+
+function contactTimelineIcon(type) {
+  return ({
+    lead: "inbox",
+    message: "message-square-text",
+    valuation: "badge-dollar-sign",
+    tour: "calendar-check",
+    task: "list-checks",
+    match: "git-compare-arrows",
+    whatsapp: "message-circle",
+    analytics: "mouse-pointer-click",
+    saved_search: "search-check",
+    favorite: "heart",
+    audit: "shield-check",
+    contact_created: "user-round-plus",
+  })[type] || "circle-dot";
+}
+
+async function openContactIntelligence(id) {
+  const modal = $("#contactIntelligenceModal");
+  const content = $("#contactIntelligenceContent");
+  if (!modal || !content) return;
+  const knownContact = state.contacts.find((item) => item.id === id);
+  $("#contactIntelligenceTitle").textContent = knownContact?.name || "Detalle del contacto";
+  content.innerHTML = `<div class="loading-inline"><span class="loading-spinner"></span><span>Reconstruyendo historial desde registros reales...</span></div>`;
+  modal.hidden = false;
+  document.body.classList.add("modal-open");
+  try {
+    const data = await api(`/api/admin/contacts/${encodeURIComponent(id)}/intelligence`);
+    const contact = data.contact || {};
+    const confirmed = data.confirmed || {};
+    const inferred = data.inferred || {};
+    const score = inferred.score || {};
+    const summary = data.summary || {};
+    const timeline = Array.isArray(data.timeline) ? data.timeline : [];
+    const facts = [
+      ["Correo", confirmed.email || "No registrado"],
+      ["WhatsApp", confirmed.phone || "No registrado"],
+      ["Tipo", contactTypeLabel(confirmed.contactType || "unclassified")],
+      ["Zonas", Array.isArray(confirmed.preferredZones) && confirmed.preferredZones.length ? confirmed.preferredZones.join(", ") : "No registradas"],
+      ["Tipo de propiedad", confirmed.propertyType || "No registrado"],
+      ["Presupuesto", confirmed.budgetMax ? formatMaybePrice(confirmed.budgetMax) : "No registrado"],
+      ["Consentimiento", confirmed.consentContact ? "Registrado" : "No confirmado"],
+      ["Responsable", contact.assignedTo || "Sin asignar"],
+    ];
+    content.innerHTML = `
+      <div class="contact-intelligence-hero">
+        <div>
+          <span class="status score-${escapeHtml(score.level || "cold")}">${escapeHtml(`${Number(score.value || 0)}/100 · ${scoreLabel(score.level || "cold")}`)}</span>
+          <h3>${escapeHtml(contact.name || "Contacto")}</h3>
+          <p>${escapeHtml(inferred.intent || "Intención por confirmar")}</p>
+        </div>
+        <div class="contact-intelligence-actions">
+          ${contact.phone ? `<a class="mini-button whatsapp-action" href="https://wa.me/${leadPhoneForWhatsApp(contact.phone)}?text=${encodeURIComponent("Hola, soy asesor de Puerto Cancun Center. Quiero dar seguimiento a tu solicitud.")}" target="_blank" rel="noopener noreferrer"><i data-lucide="message-circle"></i> WhatsApp</a>` : ""}
+          ${contact.email ? `<button class="mini-button" type="button" data-compose-email data-email="${escapeHtml(contact.email)}" data-email-name="${escapeHtml(contact.name || "")}" data-email-context="Seguimiento CRM"><i data-lucide="mail"></i> Correo</button>` : ""}
+          <button class="mini-button" type="button" data-task-from="contact" data-task-title="${escapeHtml(`Seguimiento ${contact.name || "contacto"}`)}" data-related-id="${escapeHtml(contact.id)}"><i data-lucide="list-plus"></i> Crear tarea</button>
+        </div>
+      </div>
+      <div class="contact-intelligence-layout">
+        <section>
+          <div class="contact-intelligence-heading"><span>DATOS CONFIRMADOS</span><small>Proceden del perfil o formularios guardados.</small></div>
+          <dl class="contact-facts">${facts.map(([label, value]) => `<div><dt>${escapeHtml(label)}</dt><dd>${escapeHtml(value)}</dd></div>`).join("")}</dl>
+        </section>
+        <section>
+          <div class="contact-intelligence-heading"><span>INFERENCIAS OPERATIVAS</span><small>No sustituyen la revisión de un asesor.</small></div>
+          <div class="inference-panel"><strong>${escapeHtml(inferred.nextAction || "Completar datos del perfil.")}</strong><p>${score.factors?.length ? score.factors.map((factor) => escapeHtml(`${factor.label} (${factor.points > 0 ? "+" : ""}${factor.points})`)).join(" · ") : "Aún no hay señales suficientes para priorizar."}</p></div>
+        </section>
+      </div>
+      <div class="contact-activity-kpis">
+        ${[["Solicitudes", summary.leads], ["Valoraciones", summary.valuations], ["Visitas", summary.tours], ["Tareas", summary.tasks], ["Matches", summary.matches], ["WhatsApp", summary.whatsappChats], ["Búsquedas", summary.savedSearches], ["Favoritos", summary.favorites]].map(([label, value]) => `<div><strong>${Number(value || 0)}</strong><span>${escapeHtml(label)}</span></div>`).join("")}
+      </div>
+      <section class="contact-timeline-section">
+        <div class="contact-intelligence-heading"><span>HISTORIAL REAL</span><small>${timeline.length} eventos vinculados por contacto, correo o teléfono.</small></div>
+        ${timeline.length ? `<ol class="contact-timeline">${timeline.map((item) => `<li><i data-lucide="${contactTimelineIcon(item.type)}"></i><div><div><strong>${escapeHtml(item.title || "Actividad")}</strong><time>${escapeHtml(formatDate(item.date))}</time></div><p>${escapeHtml(item.detail || "")}</p>${item.status ? `<span class="status">${escapeHtml(item.status)}</span>` : ""}</div></li>`).join("")}</ol>` : `<p class="empty-state">Este contacto aún no tiene actividad vinculada.</p>`}
+      </section>`;
+    refreshIcons();
+  } catch (error) {
+    content.innerHTML = `<p class="form-message error">${escapeHtml(error.message)}</p>`;
+  }
 }
 
 function renderStats() {
@@ -3121,10 +3556,26 @@ function renderAdminIntelligence() {
 function renderAdminIntegrations() {
   const container = $("#adminIntegrations");
   if (!container) return;
-  const labels = { connected: "Conectado", configured: "Configurado", action_required: "Requiere acción", disconnected: "Desconectado", pending: "Pendiente", fallback: "Respaldo activo", error: "Error" };
+  const labels = { connected: "Conectado", configured: "Configurado", action_required: "Requiere acción", disconnected: "Desconectado", pending: "Pendiente", fallback: "Respaldo activo", disabled: "Desactivado", error: "Error" };
+  const icons = { database: "database", whatsapp: "message-circle", email: "mail", maps: "map", openai: "sparkles", storage: "hard-drive", translation: "languages", jobs: "workflow" };
   container.innerHTML = state.integrations.length
-    ? state.integrations.map((item) => `<article class="integration-health-item status-${escapeHtml(item.status)}"><div><i data-lucide="${item.id === "database" ? "database" : item.id === "whatsapp" ? "message-circle" : item.id === "email" ? "mail" : item.id === "maps" ? "map" : item.id === "openai" ? "sparkles" : "hard-drive"}"></i><span><b>${escapeHtml(item.name)}</b><small>${escapeHtml(item.detail)}</small></span></div><strong>${escapeHtml(labels[item.status] || item.status)}</strong></article>`).join("")
+    ? state.integrations.map((item) => `<article class="integration-health-item status-${escapeHtml(item.status)}"><div class="integration-health-heading"><i data-lucide="${escapeHtml(icons[item.id] || "activity")}"></i><span><b>${escapeHtml(item.name)}</b><small>${escapeHtml(item.detail)}</small></span><strong>${escapeHtml(labels[item.status] || item.status)}</strong></div>${item.id === "email" ? `<label class="integration-test-recipient"><span>Destinatario de prueba</span><input type="email" data-integration-recipient="email" placeholder="correo@dominio.com" autocomplete="email" /></label>` : ""}<div class="integration-test-footer"><span>${item.lastTest ? `<b>Última prueba:</b> ${escapeHtml(item.lastTest.message)}<small>${escapeHtml(formatDate(item.lastTest.testedAt))} · ${escapeHtml(item.lastTest.durationMs || 0)} ms</small>` : "Sin prueba manual registrada."}</span><button class="mini-button" type="button" data-test-integration="${escapeHtml(item.id)}"><i data-lucide="activity"></i>${item.id === "whatsapp" ? "Verificar estado" : "Probar"}</button></div></article>`).join("")
     : `<p class="empty-state">No hay diagnóstico disponible.</p>`;
+}
+
+async function testAdminIntegration(id, button) {
+  const body = {};
+  if (id === "email") body.recipient = $("[data-integration-recipient='email']")?.value.trim() || "";
+  setButtonLoading(button, true, "Probando…");
+  try {
+    const data = await api(`/api/admin/integrations/${encodeURIComponent(id)}/test`, { method: "POST", body, timeoutMs: 30000, retry: false });
+    showToast(data.diagnostic?.message || "Prueba completada.");
+  } catch (error) {
+    showToast(error.message, "error");
+  } finally {
+    setButtonLoading(button, false);
+    await refreshAdminIntegrations().catch(() => null);
+  }
 }
 
 function renderAdminDataQuality() {
@@ -3157,9 +3608,97 @@ function addCopilotMessage(role, content, meta = {}) {
   if (!conversation) return;
   const article = document.createElement("div");
   article.className = `copilot-message ${role}`;
-  article.innerHTML = `<strong>${role === "user" ? "Tú" : "Copilot"}</strong><p>${escapeHtml(content).replace(/\n/g, "<br>")}</p>${meta.suggestedSection ? `<button type="button" data-copilot-open-section="${escapeHtml(meta.suggestedSection)}">Abrir ${escapeHtml(meta.suggestedLabel || meta.suggestedSection)}</button>` : ""}`;
+  article.innerHTML = `<strong>${role === "user" ? "Tú" : "Copilot"}</strong><p>${escapeHtml(content).replace(/\n/g, "<br>")}</p>${meta.suggestedSection ? `<button type="button" data-copilot-open-section="${escapeHtml(meta.suggestedSection)}">Abrir ${escapeHtml(meta.suggestedLabel || meta.suggestedSection)}</button>` : ""}${role === "assistant" && meta.responseId ? `<div class="copilot-feedback" data-copilot-feedback-group="${escapeHtml(meta.responseId)}"><span>¿Fue útil?</span><button type="button" data-copilot-feedback="positive" data-response-id="${escapeHtml(meta.responseId)}" title="Respuesta útil" aria-label="Respuesta útil"><i data-lucide="thumbs-up"></i></button><button type="button" data-copilot-feedback="negative" data-response-id="${escapeHtml(meta.responseId)}" title="Respuesta no útil" aria-label="Respuesta no útil"><i data-lucide="thumbs-down"></i></button></div>` : ""}`;
   conversation.append(article);
   conversation.scrollTop = conversation.scrollHeight;
+}
+
+function renderCopilotFeedbackSummary() {
+  const container = $("#copilotFeedbackSummary");
+  if (!container) return;
+  const rates = state.copilotFeedbackSummary?.rates || [];
+  const positive = Number(rates.find((item) => item.feedback === "positive")?.count || 0);
+  const negative = Number(rates.find((item) => item.feedback === "negative")?.count || 0);
+  const total = positive + negative;
+  container.innerHTML = total
+    ? `<span>Calidad del Copilot</span><strong>${Math.round((positive / total) * 100)}% útil</strong><small>${positive} positivas · ${negative} negativas</small>`
+    : `<span>Calidad del Copilot</span><small>Aún no hay valoraciones.</small>`;
+}
+
+async function submitCopilotFeedback(responseId, feedback, button) {
+  try {
+    await api("/api/admin/copilot/feedback", { method: "POST", body: { responseId, feedback } });
+    button.closest("[data-copilot-feedback-group]")?.querySelectorAll("button").forEach((item) => item.classList.toggle("active", item === button));
+    const data = await api("/api/admin/copilot/feedback-summary", { timeoutMs: 15000, retry: false });
+    state.copilotFeedbackSummary = data;
+    renderCopilotFeedbackSummary();
+    showToast("Valoración guardada.");
+  } catch (error) {
+    showToast(error.message, "error");
+  }
+}
+
+function copilotActionPayload(form) {
+  const values = Object.fromEntries(new FormData(form).entries());
+  const base = { title: values.title, description: values.note, note: values.note, entityType: values.entityType, entityId: values.entityId, assignedTo: values.assignedTo, dueDate: values.dueDate || null, status: values.status };
+  if (values.actionType === "create_crm_note") base.contactId = values.entityId;
+  if (values.actionType === "complete_task") base.taskId = values.entityId;
+  if (values.actionType === "update_request_status") {
+    base.requestId = values.entityId;
+    base.requestTable = values.entityType === "lead" ? "lead_request" : "seller_request";
+  }
+  return { actionType: values.actionType, payload: base };
+}
+
+async function copilotActionPreviewSubmit(event) {
+  event.preventDefault();
+  const form = event.currentTarget;
+  const button = form.querySelector('[type="submit"]');
+  setButtonLoading(button, true, "Preparando…");
+  setFormMessage($("#copilotActionMessage"), "");
+  try {
+    const data = await api("/api/admin/copilot/actions/preview", { method: "POST", body: copilotActionPayload(form) });
+    state.pendingCopilotAction = data;
+    $("#copilotActionChanges").innerHTML = `<strong>${escapeHtml(data.preview?.title || data.actionType)}</strong>${(data.preview?.changes || []).map((change) => `<div class="copilot-change"><span>${escapeHtml(change.field)}</span><del>${escapeHtml(change.from ?? "Sin valor")}</del><i data-lucide="arrow-right"></i><ins>${escapeHtml(change.to ?? "Sin valor")}</ins></div>`).join("")}`;
+    $("#copilotActionPreview").hidden = false;
+    refreshIcons();
+  } catch (error) {
+    setFormMessage($("#copilotActionMessage"), error.message, true);
+  } finally {
+    setButtonLoading(button, false);
+  }
+}
+
+async function confirmCopilotAction() {
+  const action = state.pendingCopilotAction;
+  if (!action?.actionId) return;
+  const button = $("#confirmCopilotAction");
+  setButtonLoading(button, true, "Ejecutando…");
+  try {
+    await api(`/api/admin/copilot/actions/${encodeURIComponent(action.actionId)}/confirm`, { method: "POST" });
+    state.pendingCopilotAction = null;
+    $("#copilotActionPreview").hidden = true;
+    $("#copilotActionForm").reset();
+    setFormMessage($("#copilotActionMessage"), "Acción confirmada y registrada en auditoría.");
+    await loadPanelData();
+    renderAdminTasks();
+    renderAdminContacts();
+    renderAdminLeads();
+    renderAdminTours();
+    showToast("Acción completada.");
+  } catch (error) {
+    setFormMessage($("#copilotActionMessage"), error.message, true);
+  } finally {
+    setButtonLoading(button, false);
+  }
+}
+
+async function cancelCopilotAction() {
+  const action = state.pendingCopilotAction;
+  if (action?.actionId) await api(`/api/admin/copilot/actions/${encodeURIComponent(action.actionId)}/cancel`, { method: "POST" }).catch(() => null);
+  state.pendingCopilotAction = null;
+  $("#copilotActionPreview").hidden = true;
+  setFormMessage($("#copilotActionMessage"), "Acción cancelada. No se modificó información.");
 }
 
 async function refreshAdminIntelligence() {
@@ -3186,11 +3725,33 @@ function toggleAdminGlobalSearch(open = true) {
   if (!panel) return;
   panel.hidden = !open;
   if (open) {
+    renderAdminCommandPalette();
     $("#adminGlobalSearchInput")?.focus();
   } else {
     $("#adminGlobalSearchInput").value = "";
     $("#adminGlobalSearchResults").innerHTML = "";
   }
+}
+
+function renderAdminCommandPalette(query = "") {
+  const results = $("#adminGlobalSearchResults");
+  if (!results) return;
+  const commands = [
+    ["new-property", "plus", "Nueva propiedad", "Crear una publicación individual"],
+    ["new-development", "building-2", "Nuevo desarrollo", "Crear una ficha maestra"],
+    ["contacts", "user-plus", "Nuevo contacto", "Abrir CRM y formulario de contacto"],
+    ["tasks", "list-plus", "Nueva tarea", "Abrir seguimiento y tareas"],
+    ["blog", "file-plus-2", "Nuevo artículo", "Abrir editor del blog"],
+    ["properties", "house", "Inventario", "Buscar y editar publicaciones"],
+    ["mailing", "mail", "Mailing", "Preparar y enviar un correo"],
+    ["copilot", "sparkles", "Abrir Copilot", "Consultar el manual inteligente"],
+  ];
+  const normalized = String(query || "").toLocaleLowerCase("es-MX").trim();
+  const visible = commands.filter(([, , title, detail]) => !normalized || `${title} ${detail}`.toLocaleLowerCase("es-MX").includes(normalized));
+  results.innerHTML = visible.length
+    ? `<div class="command-palette-label">Acciones rápidas</div>${visible.map(([section, icon, title, detail]) => `<button type="button" data-global-result-section="${section}" data-global-result-id=""><i data-lucide="${icon}"></i><span><b>${title}</b><small>${detail}</small></span><kbd>Enter</kbd></button>`).join("")}`
+    : `<p>No hay comandos con ese texto.</p>`;
+  refreshIcons();
 }
 
 async function runAdminGlobalSearch() {
@@ -3199,7 +3760,7 @@ async function runAdminGlobalSearch() {
   if (!input || !results) return;
   const text = input.value.trim();
   if (text.length < 2) {
-    results.innerHTML = `<p>Escribe al menos dos caracteres.</p>`;
+    renderAdminCommandPalette(text);
     return;
   }
   results.innerHTML = `<p class="is-loading">Buscando en módulos autorizados…</p>`;
@@ -3232,7 +3793,7 @@ async function copilotSubmit(event) {
       retry: false,
     });
     const feature = state.copilotFeatures.find((item) => item.section === data.suggestedSection);
-    addCopilotMessage("assistant", data.answer, { suggestedSection: data.suggestedSection, suggestedLabel: feature?.name });
+    addCopilotMessage("assistant", data.answer, { suggestedSection: data.suggestedSection, suggestedLabel: feature?.name, responseId: data.responseId });
     setFormMessage($("#copilotMessage"), data.fallback ? "Respuesta generada con el registro interno porque el proveedor de IA no estuvo disponible." : `Fuente: ${data.tool || "documentación interna"}.`);
   } catch (error) {
     addCopilotMessage("assistant", "Puerto Cancún Copilot no está disponible temporalmente. El resto del panel continúa funcionando.");
@@ -3569,6 +4130,14 @@ function renderAdminListings() {
       const description = localizedDescription(property);
       const excerpt = truncateText(description, 180);
       const hasMore = description.length > excerpt.length;
+      const freshnessDays = property.lastVerifiedAt
+        ? Math.floor((Date.now() - new Date(property.lastVerifiedAt).getTime()) / 86400000)
+        : null;
+      const freshnessLabel = freshnessDays === null
+        ? "Sin verificar"
+        : freshnessDays <= 30
+          ? `Verificada hace ${freshnessDays} día${freshnessDays === 1 ? "" : "s"}`
+          : `Revisar disponibilidad · ${freshnessDays} días`;
       return `
         <div class="listing-item detailed-listing">
           <img src="${escapeHtml(primaryImage(property))}" alt="${escapeHtml(localizedTitle(property))}" loading="lazy" onerror="this.onerror=null;this.src='${escapeHtml(fallbackImage)}';" />
@@ -3593,6 +4162,7 @@ function renderAdminListings() {
               <span>${escapeHtml(property.area || 0)} ${escapeHtml(t("sqmBuild"))}</span>
               <span>${escapeHtml(property.operation === "rent" ? t("rent") : t("sale"))}</span>
               <span>${escapeHtml(t("qualityScore"))}: ${escapeHtml(property.qualityScore || 0)}% · ${escapeHtml(qualityLevelLabel(property.qualityLevel))}</span>
+              <span class="inventory-freshness ${freshnessDays === null || freshnessDays > 90 ? "needs-review" : ""}">${escapeHtml(freshnessLabel)}</span>
             </div>
             ${
               Array.isArray(property.qualityMissing) && property.qualityMissing.length
@@ -3616,6 +4186,9 @@ function renderAdminListings() {
               <button class="mini-button pdf-neutral-button" type="button" data-generate-property-pdf="${escapeHtml(property.id)}" data-pdf-mode="neutral">PDF neutro</button>
               <button class="mini-button" type="button" data-pdf-property="${escapeHtml(property.id)}">Configurar PDF</button>
               <button class="mini-button" type="button" data-detail="${escapeHtml(property.id)}">Ver detalle público</button>
+              <button class="mini-button" type="button" data-review-property-quality="${escapeHtml(property.id)}">Revisar calidad</button>
+              <button class="mini-button" type="button" data-verify-property="${escapeHtml(property.id)}">Confirmar vigencia</button>
+              <button class="mini-button" type="button" data-property-history="${escapeHtml(property.id)}">Historial</button>
               <button class="mini-button danger" type="button" data-delete-listing="${escapeHtml(property.id)}">${escapeHtml(t("archiveListing"))}</button>
             </div>
           </div>
@@ -3853,18 +4426,30 @@ function renderAdminMatches() {
 function renderAdminAnalytics() {
   const container = $("#adminAnalytics");
   if (!container) return;
+  const summary = state.analytics.summary || {};
+  const funnel = state.analytics.funnel || [];
+  const funnelMax = Math.max(1, ...funnel.map((item) => Number(item.count || 0)));
+  const propertyRows = state.analytics.propertyEvents || [];
   const blocks = [
-    [t("analyticsTitle"), state.analytics.eventsByType || [], "event_type"],
     [t("adminTopZones"), state.analytics.searchZones || [], "zone"],
     [t("tableSource"), state.analytics.leadSources || [], "source"],
-    [t("adminJumpListings"), state.analytics.propertyEvents || [], "title_es"],
     ["Propiedades por estado", state.analytics.propertyStatus || [], "status"],
     ["Inventario por zona", state.analytics.zoneInventory || [], "zone"],
     ["Tareas por estado", state.analytics.taskStatus || [], "status"],
     ["Campañas por estado", state.analytics.campaignStatus || [], "status"],
     ["Solicitudes por tipo", state.analytics.leadTypes || [], "lead_type"],
   ];
-  container.innerHTML = blocks
+  const summaryCards = [
+    ["Vistas", summary.views || 0, "eye"],
+    ["Favoritos", summary.favorites || 0, "heart"],
+    ["WhatsApp", summary.contacts || 0, "message-circle"],
+    ["Visitas", summary.tours || 0, "calendar-days"],
+    ["Formularios", summary.leads || 0, "inbox"],
+    ["Conversión", `${summary.conversionRate || 0}%`, "trending-up"],
+  ].map(([label, value, icon]) => `<article class="analytics-summary-card"><i data-lucide="${icon}"></i><span>${escapeHtml(label)}</span><strong>${escapeHtml(value)}</strong></article>`).join("");
+  const funnelMarkup = `<article class="analytics-card analytics-funnel-card"><h3>Embudo de conversión</h3><p class="analytics-note">Acciones registradas en el periodo seleccionado. No se estiman eventos ausentes.</p><div class="analytics-funnel">${funnel.length ? funnel.map((item) => `<div class="analytics-funnel-row"><span>${escapeHtml(item.label)}</span><div><i style="width:${Math.max(4, (Number(item.count || 0) / funnelMax) * 100)}%"></i></div><strong>${escapeHtml(item.count || 0)}</strong></div>`).join("") : `<p class="empty-state">Todavía no hay eventos para este periodo.</p>`}</div></article>`;
+  const propertyTable = `<article class="analytics-card analytics-property-card"><h3>Rendimiento por propiedad</h3><div class="analytics-table-wrap"><table class="data-table"><thead><tr><th>Propiedad</th><th>Vistas</th><th>Visitantes</th><th>Favoritos</th><th>WhatsApp</th><th>Visitas</th><th>Leads</th></tr></thead><tbody>${propertyRows.length ? propertyRows.map((row) => `<tr><td><strong>${escapeHtml(row.title_es || "-")}</strong><small>${escapeHtml(row.zone || "")}</small></td><td>${escapeHtml(row.views || 0)}</td><td>${escapeHtml(row.unique_visitors || 0)}</td><td>${escapeHtml(row.favorites || 0)}</td><td>${escapeHtml(row.contacts || 0)}</td><td>${escapeHtml(row.tours || 0)}</td><td>${escapeHtml(row.leads || 0)}</td></tr>`).join("") : `<tr><td colspan="7" class="empty-state">No hay actividad atribuida a propiedades en este periodo.</td></tr>`}</tbody></table></div></article>`;
+  const detailBlocks = blocks
     .map(
       ([title, rows, key]) => `
         <article class="analytics-card">
@@ -3880,6 +4465,18 @@ function renderAdminAnalytics() {
       `
     )
     .join("");
+  container.innerHTML = `<div class="analytics-summary-grid">${summaryCards}</div>${funnelMarkup}${propertyTable}<div class="analytics-breakdown-grid">${detailBlocks}</div>`;
+}
+
+async function refreshAdminAnalytics() {
+  const period = $("#analyticsPeriod")?.value || "30";
+  const zone = $("#analyticsZone")?.value || "";
+  const params = new URLSearchParams({ period });
+  if (zone) params.set("zone", zone);
+  const data = await api(`/api/admin/analytics?${params.toString()}`, { timeoutMs: 25000, retry: false });
+  state.analytics = data || {};
+  renderAdminAnalytics();
+  refreshIcons();
 }
 
 function renderAdminMap() {
@@ -4064,6 +4661,59 @@ function renderContactSegment(contacts, emptyLabel) {
 
 function operationCard(title, value, copy) {
   return `<article class="operation-card"><span>${escapeHtml(title)}</span><strong>${escapeHtml(value)}</strong><p>${escapeHtml(copy)}</p></article>`;
+}
+
+function closePropertyQualityModal() {
+  const modal = $("#propertyQualityModal");
+  if (modal) modal.hidden = true;
+  document.body.classList.remove("modal-open");
+}
+
+function openPropertyQualityModal(title, html) {
+  $("#propertyQualityTitle").textContent = title;
+  $("#propertyQualityContent").innerHTML = html;
+  $("#propertyQualityModal").hidden = false;
+  document.body.classList.add("modal-open");
+  refreshIcons();
+}
+
+async function reviewPropertyQuality(id) {
+  const property = state.properties.find((item) => item.id === id);
+  try {
+    const data = await api(`/api/admin/properties/${encodeURIComponent(id)}/readiness`);
+    const readiness = data.readiness || {};
+    openPropertyQualityModal(`Calidad · ${property?.titleEs || "Publicación"}`, `
+      <div class="quality-score-display"><strong>${Number(readiness.score || 0)}%</strong><span>${readiness.publishable ? "Lista para publicar" : "Requiere atención"}</span></div>
+      <section><h3>Errores bloqueantes</h3>${readiness.blocking?.length ? `<ul>${readiness.blocking.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ul>` : `<p class="quality-ok"><i data-lucide="circle-check"></i> No hay errores bloqueantes.</p>`}</section>
+      <section><h3>Mejoras recomendadas</h3>${readiness.improvements?.length ? `<ul>${readiness.improvements.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ul>` : `<p class="quality-ok"><i data-lucide="circle-check"></i> No hay mejoras pendientes.</p>`}</section>
+      <p class="quality-review-note">La publicación no necesita 100% para publicarse; los bloqueos sí deben corregirse.</p>`);
+  } catch (error) {
+    showToast(error.message, "error");
+  }
+}
+
+async function verifyPropertyFreshness(id) {
+  try {
+    const data = await api(`/api/admin/properties/${encodeURIComponent(id)}/verify`, { method: "POST" });
+    state.properties = state.properties.map((property) => property.id === id ? { ...property, ...data.property } : property);
+    renderAdminListings();
+    showToast("Vigencia confirmada y registrada en auditoría.");
+  } catch (error) {
+    showToast(error.message, "error");
+  }
+}
+
+async function showPropertyHistory(id) {
+  const property = state.properties.find((item) => item.id === id);
+  try {
+    const data = await api(`/api/admin/properties/${encodeURIComponent(id)}/versions`);
+    const versions = data.versions || [];
+    openPropertyQualityModal(`Historial · ${property?.titleEs || "Publicación"}`, versions.length
+      ? `<div class="property-version-list">${versions.map((version) => `<article><span>${escapeHtml(formatDate(version.created_at))}</span><strong>${escapeHtml(version.change_type || "actualización")}</strong><p>${escapeHtml(Object.keys(version.changed_fields || {}).join(", ") || "Cambio registrado")}</p><small>${escapeHtml(version.changed_by || "Sistema")}</small></article>`).join("")}</div>`
+      : `<p class="empty-state">Todavía no hay versiones registradas para esta publicación.</p>`);
+  } catch (error) {
+    showToast(error.message, "error");
+  }
 }
 
 function campaignContactsWithEmail() {
@@ -5438,6 +6088,7 @@ const whatsappStatusLabels = {
   disconnected: "Sin conectar",
   connecting: "Conectando",
   qr: "QR listo",
+  qr_expired: "QR vencido",
   connected: "Conectado",
   reconnecting: "Reconectando",
   standby: "Activo en otra instancia",
@@ -5509,7 +6160,7 @@ function renderWhatsappOverview() {
   const counts = overview.counts || {};
   const dot = $("#whatsappConnectionDot");
   if (!dot) return;
-  dot.className = `whatsapp-connection-dot ${connection === "connected" ? "connected" : ["qr", "connecting", "reconnecting", "standby"].includes(connection) ? "pending" : connection === "error" ? "error" : ""}`;
+  dot.className = `whatsapp-connection-dot ${connection === "connected" ? "connected" : ["qr", "connecting", "reconnecting", "standby"].includes(connection) ? "pending" : ["error", "qr_expired"].includes(connection) ? "error" : ""}`;
   $("#whatsappConnectionLabel").textContent = label;
   $("#whatsappKpiStatus").textContent = label;
   $("#whatsappKpiChats").textContent = String(counts.chats || 0);
@@ -5526,6 +6177,7 @@ function renderWhatsappOverview() {
   const copy = {
     connected: ["WhatsApp comercial conectado", "La cuenta esta lista para recibir y responder conversaciones desde este CRM."],
     qr: ["Escanea el codigo QR", "En tu celular abre WhatsApp > Dispositivos vinculados > Vincular dispositivo."],
+    qr_expired: ["El codigo QR vencio", "Genera un codigo nuevo. El QR anterior ya no se muestra ni puede reutilizarse."],
     connecting: ["Preparando la conexion", "Estamos generando una sesion segura. El codigo QR aparecera en unos segundos."],
     reconnecting: ["Restableciendo la conexion", "La sesion se reconectara automaticamente sin volver a escanear el QR."],
     standby: ["Sesion activa en otra instancia", "Este servidor queda en espera para evitar conexiones duplicadas."],
@@ -5537,6 +6189,10 @@ function renderWhatsappOverview() {
   $("#whatsappAccountName").textContent = status.accountName || (connection === "connected" ? "Cuenta comercial" : "No vinculada");
   $("#whatsappAccountPhone").textContent = status.phone ? `+${status.phone}` : "Sin numero";
   $("#whatsappUpdatedAt").textContent = formatWhatsappTime(status.updatedAt, true);
+  $("#whatsappDiagnostic").textContent = status.lastDiagnostic || status.lastError || "Sin diagnostico disponible.";
+  const expiresAt = status.qrExpiresAt ? new Date(status.qrExpiresAt).getTime() : 0;
+  const remainingSeconds = expiresAt ? Math.max(0, Math.ceil((expiresAt - Date.now()) / 1000)) : 0;
+  $("#whatsappQrExpiry").textContent = connection === "qr" ? `${remainingSeconds} segundos` : connection === "qr_expired" ? "Vencido" : "No aplica";
   $("#connectWhatsapp").disabled = ["connecting", "qr", "connected", "reconnecting"].includes(connection);
   $("#resetWhatsapp").disabled = connection === "connecting";
   $("#disconnectWhatsapp").disabled = connection === "disconnected";
@@ -5819,6 +6475,8 @@ async function loadPanelData() {
       panelApi("/api/admin/integrations"),
       panelApi("/api/admin/data-quality"),
       panelApi("/api/admin/copilot/features"),
+      panelApi("/api/admin/copilot/feedback-summary"),
+      panelApi("/api/admin/tours"),
     ]);
     const adminValue = (index, fallback = {}) => adminResults[index].status === "fulfilled" ? adminResults[index].value : fallback;
     const [
@@ -5850,6 +6508,8 @@ async function loadPanelData() {
       integrationsData,
       dataQualityData,
       copilotFeaturesData,
+      copilotFeedbackData,
+      toursData,
     ] = adminResults.map((result, index) => adminValue(index));
     if (adminResults[0].status === "fulfilled") state.stats = statsData;
     state.requests = requestsData.requests || state.requests;
@@ -5879,6 +6539,8 @@ async function loadPanelData() {
     state.integrations = integrationsData.integrations || state.integrations;
     state.dataQuality = dataQualityData.summary ? dataQualityData : state.dataQuality;
     state.copilotFeatures = copilotFeaturesData.features || state.copilotFeatures;
+    state.copilotFeedbackSummary = copilotFeedbackData.rates ? copilotFeedbackData : state.copilotFeedbackSummary;
+    state.tours = toursData.tours || state.tours;
     const failedModules = adminResults.filter((result) => result.status === "rejected").length;
     if (failedModules) showToast(`${failedModules} módulo${failedModules === 1 ? "" : "s"} no respondió. El resto del panel continúa disponible.`, "error");
     state.serviceRequests = [];
@@ -5889,12 +6551,22 @@ async function loadPanelData() {
       panelApi("/api/seller/service-requests"),
       panelApi("/api/seller/notifications"),
       panelApi("/api/seller/messages"),
+      panelApi("/api/seller/favorites"),
+      panelApi("/api/seller/saved-searches"),
+      panelApi("/api/seller/tours"),
+      panelApi("/api/seller/alert-capabilities"),
     ]);
     const sellerValue = (index, fallback = {}) => sellerResults[index].status === "fulfilled" ? sellerResults[index].value : fallback;
     state.requests = sellerValue(0).requests || state.requests;
     state.serviceRequests = sellerValue(1).requests || state.serviceRequests;
     state.notifications = sellerValue(2).notifications || state.notifications;
     state.messages = sellerValue(3).messages || state.messages;
+    state.favoriteProperties = sellerValue(4).favorites || state.favoriteProperties;
+    state.favorites = state.favoriteProperties.map((property) => property.id);
+    localStorage.setItem(keys.favorites, JSON.stringify(state.favorites));
+    state.savedSearches = sellerValue(5).savedSearches || state.savedSearches;
+    state.tours = sellerValue(6).tours || state.tours;
+    state.alertCapabilities = sellerValue(7, state.alertCapabilities);
     const failedModules = sellerResults.filter((result) => result.status === "rejected").length;
     if (failedModules) showToast("Parte de tu panel tardó en responder. Conservamos la información disponible para que puedas reintentar.", "error");
     state.adminPrompts = [];
@@ -6070,8 +6742,10 @@ function configureListingFormMode(section = state.adminSection) {
   formField(form, "publicationSection").value = developmentMode ? "developments" : "properties";
   const developmentFields = form.querySelector("[data-development-fields]");
   const developmentLink = form.querySelector("[data-property-development-link]");
+  const brochureImporter = form.querySelector("[data-development-brochure]");
   if (developmentFields) developmentFields.hidden = !developmentMode;
   if (developmentLink) developmentLink.hidden = developmentMode;
+  if (brochureImporter) brochureImporter.hidden = !developmentMode;
 
   const type = formField(form, "type");
   if (type) {
@@ -6100,7 +6774,7 @@ function configureListingFormMode(section = state.adminSection) {
   const intro = $("#listingModeIntro");
   if (intro) {
     intro.innerHTML = developmentMode
-      ? `<span class="eyebrow">FICHA MAESTRA DE DESARROLLO</span><h3>Nuevo desarrollo inmobiliario</h3><p>Esta ficha conserva amenidades, áreas comunes, imágenes generales, avance de obra y plan de pagos aunque todavía no existan unidades publicadas.</p>`
+      ? `<span class="eyebrow">FICHA MAESTRA DE DESARROLLO</span><h3>Nuevo desarrollo inmobiliario</h3><p>Registra identidad, ubicación, amenidades, entrega e imágenes generales aunque todavía no existan unidades publicadas.</p>`
       : `<span class="eyebrow">PROPIEDAD INDIVIDUAL</span><h3>Nueva propiedad en venta o renta</h3><p>Registra los datos y fotografías de la unidad. Si pertenece a un desarrollo, vincúlala para reutilizar sus amenidades e imágenes generales.</p>`;
   }
   const imageLabel = formField(form, "imageFile")?.closest("label")?.querySelector("span");
@@ -6243,6 +6917,7 @@ async function renderPanel() {
     renderAdminIntegrations();
     renderAdminDataQuality();
     renderCopilotContext();
+    renderCopilotFeedbackSummary();
     renderCatalogParentOptions();
     renderLocationCatalogs();
     renderAdminPrompts();
@@ -6266,6 +6941,10 @@ async function renderPanel() {
     renderSellerRequests();
     renderSellerServiceRequests();
     renderSellerNotifications();
+    renderSellerFavorites();
+    renderSellerSavedSearches();
+    renderSellerAlertCapabilities();
+    renderSellerTours();
   }
   bindMapPickers();
   if (isAdmin) void restoreListingDraft();
@@ -6879,6 +7558,200 @@ function initializeCookiePreferences() {
   });
 }
 
+const brochureFieldLabels = {
+  title: "Título",
+  description: "Descripción",
+  developer: "Desarrollador",
+  type: "Tipo",
+  zone: "Zona",
+  address: "Dirección",
+  amenities: "Amenidades",
+  priceFrom: "Precio desde",
+  currency: "Moneda",
+  status: "Estado",
+  estimatedDelivery: "Fecha estimada de entrega",
+  units: "Unidades",
+  additionalInformation: "Información adicional",
+};
+
+function brochureDisplayValue(value) {
+  if (Array.isArray(value)) return value.join(", ");
+  if (value === null || value === undefined || value === "") return "No encontrado";
+  return String(value);
+}
+
+function renderBrochureReview(fields) {
+  const review = $("#brochureReview");
+  const list = $("#brochureFieldList");
+  if (!review || !list) return;
+  const entries = Object.entries(fields || {}).filter(([key]) => brochureFieldLabels[key]);
+  list.innerHTML = entries.map(([key, detail]) => {
+    const structured = detail && typeof detail === "object" && !Array.isArray(detail) && Object.hasOwn(detail, "value")
+      ? detail
+      : { value: detail, confidence: null, page: null };
+    const hasValue = structured.value !== null && structured.value !== undefined && structured.value !== "" && (!Array.isArray(structured.value) || structured.value.length);
+    const confidence = Number.isFinite(Number(structured.confidence)) ? `${Math.round(Number(structured.confidence) * 100)}%` : "No disponible";
+    return `<label class="brochure-field-row ${hasValue ? "" : "is-empty"}">
+      <input type="checkbox" data-brochure-field="${escapeHtml(key)}" ${hasValue ? "checked" : "disabled"} />
+      <span><strong>${escapeHtml(brochureFieldLabels[key])}</strong><small>Confianza: ${escapeHtml(confidence)}${structured.page ? ` · página ${escapeHtml(structured.page)}` : ""}</small></span>
+      <textarea rows="${key === "description" || key === "additionalInformation" ? 4 : 2}" data-brochure-value="${escapeHtml(key)}" ${hasValue ? "" : "disabled"}>${escapeHtml(brochureDisplayValue(structured.value))}</textarea>
+    </label>`;
+  }).join("");
+  review.hidden = false;
+}
+
+async function analyzeBrochure() {
+  const file = $("#brochureFile")?.files?.[0];
+  const button = $("#analyzeBrochure");
+  const message = $("#brochureMessage");
+  if (!file || file.type !== "application/pdf" || file.size > 15 * 1024 * 1024) {
+    setFormMessage(message, "Selecciona un PDF válido de máximo 15 MB.", true);
+    return;
+  }
+  setButtonLoading(button, true, "Analizando…");
+  setFormMessage(message, "Validando el PDF y extrayendo únicamente datos explícitos…");
+  try {
+    const content = await blobToDataUrl(file);
+    const developmentPropertyId = formField($("#listingForm"), "id")?.value || "";
+    const data = await api("/api/admin/developments/brochures/analyze", {
+      method: "POST",
+      body: { fileName: file.name, content, developmentPropertyId },
+      timeoutMs: 60000,
+      retry: false,
+    });
+    state.brochureImport = { id: data.importId, fields: data.fields || {} };
+    renderBrochureReview(data.fields || {});
+    setFormMessage(message, `${data.cached ? "Extracción recuperada de caché" : "Análisis completado"}. Revisa los campos antes de aplicarlos. ${data.imageExtractionLimitation || ""}`);
+    refreshIcons();
+  } catch (error) {
+    setFormMessage(message, error.message, true);
+  } finally {
+    setButtonLoading(button, false);
+  }
+}
+
+function parseBrochureEditableValue(key, value) {
+  if (key === "amenities") return value.split(",").map((item) => item.trim()).filter(Boolean);
+  if (["priceFrom", "units"].includes(key)) return Number(String(value).replace(/[^0-9.]/g, "")) || null;
+  return value.trim() || null;
+}
+
+async function applyBrochureFields() {
+  const form = $("#listingForm");
+  if (!form || !state.brochureImport?.id) return;
+  const selected = {};
+  $$("[data-brochure-field]:checked").forEach((checkbox) => {
+    const key = checkbox.dataset.brochureField;
+    const input = $(`[data-brochure-value="${CSS.escape(key)}"]`);
+    selected[key] = parseBrochureEditableValue(key, input?.value || "");
+  });
+  const assign = (name, value) => {
+    const field = formField(form, name);
+    if (!field || value === null || value === undefined || value === "") return;
+    field.value = Array.isArray(value) ? value.join(", ") : value;
+  };
+  assign("title", selected.title);
+  assign("description", selected.description);
+  assign("developer", selected.developer);
+  assign("zone", selected.zone);
+  assign("address", selected.address);
+  assign("developmentAmenities", selected.amenities);
+  assign("amenities", selected.amenities);
+  assign("price", selected.priceFrom);
+  assign("currency", selected.currency);
+  assign("deliveryDate", selected.estimatedDelivery);
+  assign("units", selected.units);
+  assign("investmentHighlights", selected.additionalInformation);
+  updateListingDescriptionCounter();
+  updateMapPickerForForm(form);
+  saveListingDraft();
+  try {
+    await api(`/api/admin/developments/brochures/${encodeURIComponent(state.brochureImport.id)}/review`, { method: "PATCH", body: { status: "applied", reviewData: selected } });
+    setFormMessage($("#brochureMessage"), "Campos aplicados al formulario. Revisa la ficha y guarda manualmente el desarrollo.");
+    showToast("Datos del brochure aplicados al borrador.");
+  } catch (error) {
+    setFormMessage($("#brochureMessage"), `Los campos están en el formulario, pero no se pudo registrar la revisión: ${error.message}`, true);
+  }
+}
+
+async function rejectBrochureFields() {
+  const importId = state.brochureImport?.id;
+  if (importId) {
+    await api(`/api/admin/developments/brochures/${encodeURIComponent(importId)}/review`, { method: "PATCH", body: { status: "rejected", reviewData: {} } }).catch(() => null);
+  }
+  state.brochureImport = null;
+  $("#brochureReview").hidden = true;
+  if ($("#brochureFile")) $("#brochureFile").value = "";
+  setFormMessage($("#brochureMessage"), "Extracción descartada. No se modificó el formulario.");
+}
+
+function renderListingImageAnalysis(data) {
+  const panel = $("#listingImageAnalysis");
+  const summary = $("#listingImageAnalysisSummary");
+  const images = safeParseImages($("#listingForm")?.dataset.currentImages);
+  if (!panel || !summary) return;
+  const items = Array.isArray(data?.items) ? data.items : [];
+  summary.innerHTML = items.length ? `<div class="image-analysis-grid">${items.map((item) => `
+    <article class="image-analysis-row ${item.duplicateOf !== null && item.duplicateOf !== undefined ? "has-warning" : ""}">
+      <img src="${escapeHtml(images[item.index] || fallbackImage)}" alt="Fotografía ${Number(item.index) + 1}" />
+      <div><strong>${escapeHtml(item.classification || "Sin clasificar")}</strong><p>${escapeHtml(item.suggestedAlt || "Sin texto ALT sugerido")}</p><small>${item.width && item.height ? `${escapeHtml(item.width)} × ${escapeHtml(item.height)} · ` : ""}${item.lowResolution ? "Resolución baja · " : ""}${item.duplicateOf !== null && item.duplicateOf !== undefined ? `Posible duplicado de la foto ${Number(item.duplicateOf) + 1}` : "Sin duplicados detectados"}</small>${Array.isArray(item.tags) && item.tags.length ? `<div class="keyword-chips">${item.tags.map((tag) => `<span>${escapeHtml(tag)}</span>`).join("")}</div>` : ""}</div>
+    </article>`).join("")}</div>` : `<p class="empty-state">No hay fotografías analizables.</p>`;
+  const coverButton = $("#useRecommendedCover");
+  const orderButton = $("#applySuggestedImageOrder");
+  coverButton.hidden = !items.length;
+  orderButton.hidden = !items.length;
+  coverButton.dataset.index = String(data?.recommendedCoverIndex ?? 0);
+  panel.hidden = false;
+  refreshIcons();
+}
+
+async function analyzeListingImages() {
+  const form = $("#listingForm");
+  const id = formField(form, "id")?.value;
+  const button = $("#analyzeListingImages");
+  if (!id) {
+    setFormMessage($("#listingFormMessage"), "Guarda primero la publicación y su galería antes de analizar fotografías.", true);
+    return;
+  }
+  if (form.dataset.mediaDirty === "true") {
+    setFormMessage($("#listingFormMessage"), "Guarda los cambios de la galería antes de ejecutar el análisis.", true);
+    return;
+  }
+  setButtonLoading(button, true, "Analizando…");
+  setFormMessage($("#listingFormMessage"), "Revisando resolución, duplicados y composición sin alterar los archivos…");
+  try {
+    const data = await api(`/api/admin/properties/${encodeURIComponent(id)}/analyze-images`, { method: "POST", timeoutMs: 90000, retry: false });
+    state.imageAnalysis = data;
+    renderListingImageAnalysis(data);
+    setFormMessage($("#listingFormMessage"), data.provider === "openai" ? "Análisis visual completado. Revisa cada recomendación antes de aplicarla." : "Análisis técnico completado. Configura OpenAI para clasificación visual y ALT contextual.");
+  } catch (error) {
+    setFormMessage($("#listingFormMessage"), error.message, true);
+  } finally {
+    setButtonLoading(button, false);
+  }
+}
+
+function useRecommendedCover() {
+  const index = Number($("#useRecommendedCover")?.dataset.index || 0);
+  if (!Number.isInteger(index) || index < 0) return;
+  if (!window.confirm(`¿Usar la fotografía ${index + 1} como portada? El cambio se aplicará al guardar la galería.`)) return;
+  moveListingImage(index, 0);
+  showToast("Portada recomendada aplicada al borrador. Guarda la galería para confirmar.");
+}
+
+function applySuggestedImageOrder() {
+  const form = $("#listingForm");
+  const current = safeParseImages(form?.dataset.currentImages);
+  const order = state.imageAnalysis?.suggestedOrder;
+  if (!Array.isArray(order) || order.length !== current.length || new Set(order).size !== current.length) {
+    showToast("La propuesta de orden no coincide con la galería actual.", "error");
+    return;
+  }
+  if (!window.confirm("¿Aplicar el orden sugerido? Podrás revisarlo antes de guardar la galería.")) return;
+  setListingImages(order.map((index) => current[index]).filter(Boolean));
+  showToast("Orden sugerido aplicado al borrador.");
+}
+
 function parseKeywordInput(value) {
   const seen = new Set();
   return String(value || "")
@@ -7012,6 +7885,12 @@ function resetListingForm(clearDraft = true) {
   resetMapPickerForForm(form);
   updateListingImagePreview([]);
   if ($("#saveListingImages")) $("#saveListingImages").hidden = true;
+  if ($("#analyzeListingImages")) $("#analyzeListingImages").hidden = true;
+  if ($("#listingImageAnalysis")) $("#listingImageAnalysis").hidden = true;
+  if ($("#brochureReview")) $("#brochureReview").hidden = true;
+  if ($("#brochureFile")) $("#brochureFile").value = "";
+  state.brochureImport = null;
+  state.imageAnalysis = null;
   setListingQualityPreview(null);
   setFormMessage($("#listingFormMessage"), "");
   renderListingKeywordChips();
@@ -7067,6 +7946,8 @@ function updateSellerImagePreview(images) {
 
 function updateListingImagePreview(images) {
   renderImagePreview($("#listingImagePreview"), images, true);
+  const analyze = $("#analyzeListingImages");
+  if (analyze) analyze.hidden = !formField($("#listingForm"), "id")?.value || !Array.isArray(images) || images.length === 0;
 }
 
 function setListingImages(images) {
@@ -7732,6 +8613,7 @@ async function responseFormSubmit(event) {
 async function handleSearch(event) {
   event.preventDefault();
   const text = $("#searchInput").value.trim();
+  void trackAnalyticsEvent("search_submitted", null, { title: text.slice(0, 220) });
   resetFilters();
   $("#searchInput").value = text;
   const status = $("#intelligentSearchStatus");
@@ -7840,6 +8722,7 @@ function propertyFacts(property) {
 
 function openPropertyDetail(property) {
   state.detailPropertyId = property.id;
+  void trackAnalyticsEvent("property_detail", property);
   renderPropertyDetail(property);
   $("#propertyDetailModal").hidden = false;
   document.body.classList.add("modal-open");
@@ -7894,6 +8777,7 @@ function renderPropertyDetail(property) {
         ${mapsUrl ? `<a class="property-detail-map-link" href="${escapeHtml(mapsUrl)}" target="_blank" rel="noopener"><i data-lucide="map-pin"></i><span>${escapeHtml(state.lang === "en" ? "Open location in Google Maps" : "Abrir ubicacion en Google Maps")}</span></a>` : ""}
         <div class="property-detail-description">${paragraphs || `<p>${escapeHtml(t("noResults"))}</p>`}</div>
         <div class="property-detail-actions">
+          <button class="ghost-button" type="button" data-tour="${escapeHtml(property.id)}"><i data-lucide="calendar-days"></i><span>${escapeHtml(state.lang === "en" ? "Request a tour" : "Solicitar visita")}</span></button>
           <button class="primary-button whatsapp-detail-button" type="button" data-detail-contact="${escapeHtml(property.id)}"><i data-lucide="message-circle"></i><span>${escapeHtml(t("contactWhatsApp"))}</span></button>
         </div>
       </div>
@@ -7916,10 +8800,7 @@ function openPropertyWhatsApp(property) {
       budgetOrPrice: formatPriceSummary(property),
     },
   }).catch(() => null);
-  void api("/api/analytics/events", {
-    method: "POST",
-    body: { eventType: "property_contact_clicked", propertyId: property.id, metadata: { title: localizedTitle(property) } },
-  }).catch(() => null);
+  void trackAnalyticsEvent("property_contact_clicked", property);
   const message = [
     "Hola, estoy interesado/a en esta propiedad:",
     "",
@@ -7938,10 +8819,7 @@ function openPropertyWhatsApp(property) {
 
 function openGeneralWhatsApp(event) {
   event?.preventDefault();
-  void api("/api/analytics/events", {
-    method: "POST",
-    body: { eventType: "whatsapp_clicked", metadata: { path: window.location.pathname } },
-  }).catch(() => null);
+  void trackAnalyticsEvent("whatsapp_clicked");
   const message = "Hola, quiero recibir informacion de Puerto Cancun Center.";
   window.open(`https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(message)}`, "_blank", "noopener,noreferrer");
 }
@@ -8180,6 +9058,11 @@ function bindEvents() {
   $("#propertyDetailModal").addEventListener("click", (event) => {
     if (event.target.id === "propertyDetailModal") closePropertyDetail();
   });
+  $("#tourRequestClose")?.addEventListener("click", closeTourRequest);
+  $("#tourRequestModal")?.addEventListener("click", (event) => {
+    if (event.target.id === "tourRequestModal") closeTourRequest();
+  });
+  $("#tourRequestForm")?.addEventListener("submit", tourRequestSubmit);
   $("#openCompare")?.addEventListener("click", openCompareModal);
   $("#clearCompare")?.addEventListener("click", () => {
     state.compare = [];
@@ -8227,9 +9110,11 @@ function bindEvents() {
       const detailContact = event.target.closest("[data-detail-contact]");
       if (detailContact) contactAdvisor(detailContact.dataset.detailContact);
       const favorite = event.target.closest("[data-favorite]");
-      if (favorite) toggleFavorite(favorite.dataset.favorite);
+      if (favorite) void toggleFavorite(favorite.dataset.favorite);
       const compare = event.target.closest("[data-compare]");
       if (compare) toggleCompare(compare.dataset.compare);
+      const tour = event.target.closest("[data-tour]");
+      if (tour) openTourRequest(tour.dataset.tour);
     });
     $("#whatsappButton")?.addEventListener("click", openGeneralWhatsApp);
     return;
@@ -8269,10 +9154,21 @@ function bindEvents() {
   $("#copilotConversation")?.addEventListener("click", (event) => {
     const button = event.target.closest("[data-copilot-open-section]");
     if (button) setAdminSection(button.dataset.copilotOpenSection);
+    const feedback = event.target.closest("[data-copilot-feedback]");
+    if (feedback) void submitCopilotFeedback(feedback.dataset.responseId, feedback.dataset.copilotFeedback, feedback);
   });
+  $("#copilotActionForm")?.addEventListener("submit", copilotActionPreviewSubmit);
+  $("#confirmCopilotAction")?.addEventListener("click", () => void confirmCopilotAction());
+  $("#cancelCopilotAction")?.addEventListener("click", () => void cancelCopilotAction());
   $("#refreshIntelligence")?.addEventListener("click", () => void refreshAdminIntelligence().catch((error) => showToast(error.message, "error")));
   $("#refreshIntegrations")?.addEventListener("click", () => void refreshAdminIntegrations().catch((error) => showToast(error.message, "error")));
+  $("#refreshAnalytics")?.addEventListener("click", () => void refreshAdminAnalytics().catch((error) => showToast(error.message, "error")));
+  ["#analyticsPeriod", "#analyticsZone"].forEach((selector) => $(selector)?.addEventListener("change", () => void refreshAdminAnalytics().catch((error) => showToast(error.message, "error"))));
   $("#refreshDataQuality")?.addEventListener("click", () => void refreshAdminDataQuality().catch((error) => showToast(error.message, "error")));
+  $("#adminIntegrations")?.addEventListener("click", (event) => {
+    const button = event.target.closest("[data-test-integration]");
+    if (button) void testAdminIntegration(button.dataset.testIntegration, button);
+  });
   $("#adminIntelligence")?.addEventListener("click", (event) => {
     const button = event.target.closest("[data-intelligence-section]");
     if (button) setAdminSection(button.dataset.intelligenceSection);
@@ -8306,6 +9202,7 @@ function bindEvents() {
     sellerDraftTimer = window.setTimeout(saveSellerDraft, 300);
   });
   $("#sellerServiceForm")?.addEventListener("submit", sellerServiceSubmit);
+  $("#savedSearchForm")?.addEventListener("submit", savedSearchSubmit);
   $("#sellerReplyForm")?.addEventListener("submit", sellerReplySubmit);
   $("#cancelSellerReply")?.addEventListener("click", closeSellerReply);
   $("#sellerReplyModal")?.addEventListener("click", (event) => {
@@ -8359,6 +9256,12 @@ function bindEvents() {
     setFormMessage($("#sellerFormMessage"), t("imageRemoved"));
   });
   $("#listingForm").addEventListener("submit", listingSubmit);
+  $("#analyzeBrochure")?.addEventListener("click", () => void analyzeBrochure());
+  $("#applyBrochureFields")?.addEventListener("click", () => void applyBrochureFields());
+  $("#rejectBrochureFields")?.addEventListener("click", () => void rejectBrochureFields());
+  $("#analyzeListingImages")?.addEventListener("click", () => void analyzeListingImages());
+  $("#useRecommendedCover")?.addEventListener("click", useRecommendedCover);
+  $("#applySuggestedImageOrder")?.addEventListener("click", applySuggestedImageOrder);
   $("#translateListingToEnglish")?.addEventListener("click", () => void translateListingToEnglish());
   $("#adminListingSearch")?.addEventListener("input", (event) => {
     window.clearTimeout(adminListingSearchTimer);
@@ -8730,6 +9633,8 @@ function bindEvents() {
   document.addEventListener("change", (event) => {
     const select = event.target.closest("[data-location-select]");
     if (select) handleLocationSelectChange(select);
+    const tourStatus = event.target.closest("[data-admin-tour-status]");
+    if (tourStatus) void updateAdminTourStatus(tourStatus.dataset.adminTourStatus, tourStatus.value);
   });
 
   document.addEventListener("click", (event) => {
@@ -8764,10 +9669,28 @@ function bindEvents() {
     if (detailContact) contactAdvisor(detailContact.dataset.detailContact);
 
     const favorite = event.target.closest("[data-favorite]");
-    if (favorite) toggleFavorite(favorite.dataset.favorite);
+    if (favorite) void toggleFavorite(favorite.dataset.favorite);
 
     const compare = event.target.closest("[data-compare]");
     if (compare) toggleCompare(compare.dataset.compare);
+
+    const tour = event.target.closest("[data-tour]");
+    if (tour) openTourRequest(tour.dataset.tour);
+
+    const runSearch = event.target.closest("[data-run-saved-search]");
+    if (runSearch) void runSavedSearch(runSearch.dataset.runSavedSearch);
+
+    const toggleAlert = event.target.closest("[data-toggle-saved-alert]");
+    if (toggleAlert) void toggleSavedSearchAlert(toggleAlert.dataset.toggleSavedAlert, toggleAlert.dataset.alertValue === "true");
+
+    const renameSaved = event.target.closest("[data-rename-saved-search]");
+    if (renameSaved) void renameSavedSearch(renameSaved.dataset.renameSavedSearch);
+
+    const toggleChannel = event.target.closest("[data-toggle-saved-channel]");
+    if (toggleChannel) void toggleSavedSearchChannel(toggleChannel.dataset.savedSearchId, toggleChannel.dataset.toggleSavedChannel, toggleChannel.dataset.channelValue === "true");
+
+    const deleteSearch = event.target.closest("[data-delete-saved-search]");
+    if (deleteSearch) void deleteSavedSearch(deleteSearch.dataset.deleteSavedSearch);
 
     const approve = event.target.closest("[data-approve]");
     if (approve) void approveRequest(approve.dataset.approve);
@@ -8778,8 +9701,24 @@ function bindEvents() {
     const edit = event.target.closest("[data-edit-listing]");
     if (edit) editListing(edit.dataset.editListing);
 
+    const reviewQuality = event.target.closest("[data-review-property-quality]");
+    if (reviewQuality) void reviewPropertyQuality(reviewQuality.dataset.reviewPropertyQuality);
+
+    const verifyProperty = event.target.closest("[data-verify-property]");
+    if (verifyProperty) void verifyPropertyFreshness(verifyProperty.dataset.verifyProperty);
+
+    const propertyHistory = event.target.closest("[data-property-history]");
+    if (propertyHistory) void showPropertyHistory(propertyHistory.dataset.propertyHistory);
+
+    if (event.target.closest("[data-close-quality-review]") || event.target.id === "propertyQualityModal") closePropertyQualityModal();
+
     const editContactButton = event.target.closest("[data-edit-contact]");
     if (editContactButton) editContact(editContactButton.dataset.editContact);
+
+    const contactIntelligenceButton = event.target.closest("[data-contact-intelligence]");
+    if (contactIntelligenceButton) void openContactIntelligence(contactIntelligenceButton.dataset.contactIntelligence);
+
+    if (event.target.closest("[data-close-contact-intelligence]") || event.target.id === "contactIntelligenceModal") closeContactIntelligenceModal();
 
     const deleteContactButton = event.target.closest("[data-delete-contact]");
     if (deleteContactButton) void deleteContact(deleteContactButton.dataset.deleteContact);

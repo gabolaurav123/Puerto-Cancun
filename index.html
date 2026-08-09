@@ -719,6 +719,39 @@
           </div>
           <div id="sellerNotifications" class="notification-list"></div>
         </aside>
+        <section class="seller-account-tools" aria-label="Herramientas de mi cuenta">
+          <article class="panel-card seller-library-card">
+            <div class="admin-module-heading">
+              <div><span class="eyebrow">MI COLECCIÓN</span><h2>Favoritos</h2><p>Propiedades guardadas en tu cuenta.</p></div>
+            </div>
+            <div class="seller-property-list" id="sellerFavorites"></div>
+          </article>
+          <article class="panel-card seller-searches-card">
+            <div class="admin-module-heading">
+              <div><span class="eyebrow">SEGUIMIENTO</span><h2>Búsquedas y alertas</h2><p>Guarda criterios y recibe coincidencias internas sin duplicados.</p></div>
+            </div>
+            <form id="savedSearchForm" class="module-form-grid compact-form">
+              <label><span>Nombre</span><input name="name" maxlength="100" placeholder="Ej. Departamentos frente al mar" required /></label>
+              <label><span>Consulta</span><input name="query" maxlength="600" placeholder="Ej. 2 recámaras hasta 700 mil USD" /></label>
+              <label><span>Tipo</span><select name="propertyType"><option value="">Cualquiera</option><option>Casa</option><option>Departamento</option><option>Terreno</option><option>Comercial</option><option>Preventa</option></select></label>
+              <label><span>Zona</span><select name="location" data-location-select="zone"><option value="">Cualquier zona</option></select></label>
+              <label><span>Precio máximo</span><input name="maxPrice" type="number" min="0" step="1000" /></label>
+              <label><span>Moneda</span><select name="currency"><option value="">Cualquiera</option><option>USD</option><option>MXN</option></select></label>
+              <label class="check-field"><input name="alertsEnabled" type="checkbox" /><span>Crear alertas internas</span></label>
+              <label class="check-field"><input name="emailEnabled" type="checkbox" /><span>También por correo</span></label>
+              <label class="check-field"><input name="whatsappEnabled" type="checkbox" /><span>También por WhatsApp</span></label>
+              <label class="check-field"><input name="consent" type="checkbox" /><span>Acepto recibir avisos relacionados con esta búsqueda.</span></label>
+              <p class="alert-capability-status span-2" id="sellerAlertCapabilities">Las alertas internas siempre están disponibles.</p>
+              <div class="form-actions span-2"><button class="primary-button" type="submit"><i data-lucide="bell-plus"></i><span>Guardar búsqueda</span></button></div>
+            </form>
+            <p class="form-message" id="savedSearchMessage"></p>
+            <div class="saved-search-list" id="sellerSavedSearches"></div>
+          </article>
+          <article class="panel-card seller-tours-card">
+            <div class="admin-module-heading"><div><span class="eyebrow">AGENDA</span><h2>Mis visitas</h2><p>Consulta el estado de tus solicitudes.</p></div></div>
+            <div class="seller-tour-list" id="sellerTours"></div>
+          </article>
+        </section>
         <article class="panel-card seller-help-card seller-help-card-top">
           <div>
             <h2 data-i18n="sellerHelpTitle">Necesitas asesoria para llenar el formulario?</h2>
@@ -1217,6 +1250,28 @@
             <button class="primary-button" type="submit"><i data-lucide="send"></i> Consultar</button>
           </form>
           <p class="form-message" id="copilotMessage"></p>
+          <div class="copilot-feedback-summary" id="copilotFeedbackSummary"></div>
+          <details class="copilot-actions-panel">
+            <summary><i data-lucide="wand-sparkles"></i><span>Preparar una acción segura</span></summary>
+            <p>Copilot mostrará exactamente qué cambiará. Nada se ejecuta hasta confirmar.</p>
+            <form id="copilotActionForm" class="module-form-grid compact-form">
+              <label><span>Acción</span><select name="actionType"><option value="create_task">Crear tarea</option><option value="schedule_followup">Programar seguimiento</option><option value="create_crm_note">Crear nota CRM</option><option value="assign_responsible">Asignar responsable</option><option value="update_request_status">Cambiar estado de solicitud</option><option value="complete_task">Marcar tarea completada</option></select></label>
+              <label><span>Título / seguimiento</span><input name="title" maxlength="180" /></label>
+              <label><span>Tipo de entidad</span><select name="entityType"><option value="">Sin entidad</option><option value="contact">Contacto</option><option value="lead">Lead</option><option value="request">Solicitud</option><option value="task">Tarea</option></select></label>
+              <label><span>ID de entidad</span><input name="entityId" maxlength="160" /></label>
+              <label><span>Responsable</span><input name="assignedTo" maxlength="180" /></label>
+              <label><span>Vencimiento</span><input name="dueDate" type="datetime-local" /></label>
+              <label><span>Estado</span><select name="status"><option value="in_review">En revisión</option><option value="contacted">Contactada</option><option value="approved">Aprobada</option><option value="rejected">Rechazada</option></select></label>
+              <label class="span-2"><span>Nota / descripción</span><textarea name="note" rows="3" maxlength="3000"></textarea></label>
+              <div class="form-actions span-2"><button class="secondary-button" type="submit"><i data-lucide="scan-search"></i><span>Revisar antes de ejecutar</span></button></div>
+            </form>
+            <p class="form-message" id="copilotActionMessage"></p>
+            <section class="copilot-action-preview" id="copilotActionPreview" hidden>
+              <h3>Voy a realizar esta acción</h3>
+              <div id="copilotActionChanges"></div>
+              <div class="form-actions"><button class="primary-button" id="confirmCopilotAction" type="button">Confirmar</button><button class="ghost-button" id="cancelCopilotAction" type="button">Cancelar</button></div>
+            </section>
+          </details>
         </article>
         <article class="panel-card admin-data-quality-card" data-admin-section-panel="data-quality">
           <div class="admin-module-heading"><div><span class="eyebrow">REVISIÓN SIN BORRADOS AUTOMÁTICOS</span><h2>Centro de calidad de datos</h2><p>Detecta faltantes y candidatos duplicados para revisión humana.</p></div><button class="ghost-button" type="button" id="refreshDataQuality"><i data-lucide="refresh-cw"></i> Actualizar</button></div>
@@ -1242,6 +1297,10 @@
             <button type="button" data-lead-filter="whatsapp_help" data-i18n="leadFilterWhatsApp">WhatsApp / ayuda</button>
           </div>
           <div class="lead-list" id="adminLeads"></div>
+          <section class="admin-tour-section">
+            <div class="table-heading"><div><span class="eyebrow">AGENDA COMERCIAL</span><h3>Solicitudes de visita</h3></div><span>Actualiza el estado después de contactar al interesado.</span></div>
+            <div class="admin-tour-list" id="adminTours"></div>
+          </section>
         </article>
         <article class="panel-card admin-contacts-card" id="adminContactsCard" data-admin-section-panel="contacts">
           <div class="admin-module-heading">
@@ -1331,6 +1390,8 @@
                   <div><dt>Cuenta</dt><dd id="whatsappAccountName">No vinculada</dd></div>
                   <div><dt>Numero</dt><dd id="whatsappAccountPhone">Sin numero</dd></div>
                   <div><dt>Ultima actualizacion</dt><dd id="whatsappUpdatedAt">--</dd></div>
+                  <div><dt>Diagnostico</dt><dd id="whatsappDiagnostic">Sin sesion vinculada.</dd></div>
+                  <div><dt>Vigencia QR</dt><dd id="whatsappQrExpiry">No aplica</dd></div>
                 </dl>
                 <div class="form-actions whatsapp-connection-actions">
                   <button class="primary-button" type="button" id="connectWhatsapp"><i data-lucide="qr-code"></i> Generar QR</button>
@@ -1888,7 +1949,7 @@
             </div>
             <div class="marketing-network-grid">
               <article class="marketing-network-card" id="instagramConnectionStatus">
-                <i data-lucide="instagram"></i>
+                <i data-lucide="share-2"></i>
                 <div><h4>Instagram</h4><span class="status pending">Sin configurar</span><p>Conecta la cuenta o abre el perfil para publicar manualmente.</p></div>
                 <div class="form-actions">
                   <a class="ghost-button" id="connectInstagram" href="#" target="_blank" rel="noopener" hidden>Conectar</a>
@@ -2183,6 +2244,25 @@
                 <h3>Nueva propiedad en venta o renta</h3>
                 <p>Registra los datos y fotografías de la unidad. Si pertenece a un desarrollo, vincúlala para reutilizar automáticamente sus amenidades e imágenes generales.</p>
               </section>
+              <section class="brochure-importer" id="developmentBrochureImporter" data-development-brochure hidden>
+                <div class="admin-module-heading">
+                  <div>
+                    <span class="eyebrow">ASISTENTE DE CAPTURA</span>
+                    <h3>Importar brochure con IA</h3>
+                    <p>Extrae únicamente datos explícitos del PDF. Revisa cada valor antes de aplicarlo; nunca se guarda ni publica automáticamente.</p>
+                  </div>
+                </div>
+                <div class="brochure-upload-row">
+                  <label class="file-field"><span>Brochure PDF</span><input id="brochureFile" type="file" accept="application/pdf,.pdf" /><small>PDF con texto seleccionable, máximo 15 MB.</small></label>
+                  <button class="secondary-button" id="analyzeBrochure" type="button"><i data-lucide="scan-text"></i><span>Analizar brochure</span></button>
+                </div>
+                <p class="form-message" id="brochureMessage"></p>
+                <div class="brochure-review" id="brochureReview" hidden>
+                  <div class="table-heading"><div><span class="eyebrow">REVISIÓN HUMANA</span><h3>Campos encontrados</h3></div><span>Selecciona solo los datos correctos.</span></div>
+                  <div class="brochure-field-list" id="brochureFieldList"></div>
+                  <div class="form-actions"><button class="primary-button" id="applyBrochureFields" type="button"><i data-lucide="check-check"></i><span>Aplicar campos seleccionados</span></button><button class="ghost-button" id="rejectBrochureFields" type="button">Descartar extracción</button></div>
+                </div>
+              </section>
               <div class="form-row">
                 <label>
                   <span data-i18n="propertyTitleEs">Título de la propiedad en español</span>
@@ -2355,6 +2435,7 @@
                 <div class="image-preview-header">
                   <span data-i18n="imageGalleryTitle">Galería y orden de publicación</span>
                   <div class="image-preview-header-actions">
+                    <button class="text-button" type="button" id="analyzeListingImages" hidden><i data-lucide="scan-eye"></i><span>Analizar fotografías</span></button>
                     <button class="text-button" type="button" id="saveListingImages" hidden>Guardar galería</button>
                     <button class="text-button danger" type="button" id="clearListingImage" data-i18n="removeImage">Quitar todas</button>
                   </div>
@@ -2362,6 +2443,11 @@
                 <div class="image-preview-grid"></div>
                 <small data-i18n="imageGalleryHelp">La primera imagen será la portada. Arrastra las fotos o usa las flechas para cambiar su orden.</small>
               </div>
+              <section class="image-analysis-panel" id="listingImageAnalysis" hidden>
+                <div class="table-heading"><div><span class="eyebrow">RECOMENDACIONES</span><h3>Análisis de fotografías</h3></div><span>La herramienta no altera ni elimina archivos.</span></div>
+                <div id="listingImageAnalysisSummary"></div>
+                <div class="form-actions"><button class="secondary-button" id="useRecommendedCover" type="button" hidden>Usar portada recomendada</button><button class="ghost-button" id="applySuggestedImageOrder" type="button" hidden>Aplicar orden sugerido</button></div>
+              </section>
               <p class="form-message" id="listingFormMessage"></p>
               <div class="form-row listing-metrics-row">
                 <label>
@@ -2768,11 +2854,48 @@
       </section>
     </div>
 
+    <div class="modal-backdrop" id="tourRequestModal" hidden>
+      <section class="modal-card tour-request-modal" role="dialog" aria-modal="true" aria-labelledby="tourRequestTitle">
+        <button class="modal-close" type="button" id="tourRequestClose" aria-label="Cerrar"><i data-lucide="x"></i></button>
+        <span class="eyebrow">VISITA A LA PROPIEDAD</span>
+        <h2 id="tourRequestTitle">Solicitar visita</h2>
+        <p id="tourPropertyTitle"></p>
+        <form id="tourRequestForm" class="stacked-form">
+          <input name="propertyId" type="hidden" />
+          <div class="form-row"><label><span>Nombre</span><input name="name" required /></label><label><span>Teléfono</span><input name="phone" required /></label></div>
+          <label><span>Correo</span><input name="email" type="email" /></label>
+          <div class="form-row"><label><span>Fecha preferida</span><input name="preferredDate" type="date" /></label><label><span>Horario</span><select name="preferredTime"><option value="">Por confirmar</option><option>Mañana</option><option>Mediodía</option><option>Tarde</option></select></label></div>
+          <label><span>Comentarios</span><textarea name="comments" rows="3"></textarea></label>
+          <label class="check-field"><input name="consent" type="checkbox" required /><span>Acepto el aviso de privacidad y que un asesor me contacte para coordinar la visita.</span></label>
+          <button class="primary-button" type="submit"><i data-lucide="calendar-check"></i><span>Enviar solicitud</span></button>
+          <p class="form-message" id="tourRequestMessage"></p>
+        </form>
+      </section>
+    </div>
+
     <div class="modal-backdrop" id="compareModal" hidden>
       <section class="property-detail-modal compare-modal" role="dialog" aria-modal="true" aria-labelledby="compareModalTitle">
         <button class="modal-close" type="button" id="compareModalClose" aria-label="Cerrar"><i data-lucide="x"></i></button>
         <h2 id="compareModalTitle">Comparar propiedades</h2>
         <div class="compare-table-wrap" id="compareContent"></div>
+      </section>
+    </div>
+
+    <div class="modal-backdrop" id="propertyQualityModal" hidden>
+      <section class="property-detail-modal quality-review-modal" role="dialog" aria-modal="true" aria-labelledby="propertyQualityTitle">
+        <button class="modal-close" type="button" data-close-quality-review aria-label="Cerrar"><i data-lucide="x"></i></button>
+        <span class="eyebrow">CALIDAD Y VIGENCIA</span>
+        <h2 id="propertyQualityTitle">Revisión de publicación</h2>
+        <div id="propertyQualityContent"></div>
+      </section>
+    </div>
+
+    <div class="modal-backdrop" id="contactIntelligenceModal" hidden>
+      <section class="property-detail-modal contact-intelligence-modal" role="dialog" aria-modal="true" aria-labelledby="contactIntelligenceTitle">
+        <button class="modal-close" type="button" data-close-contact-intelligence aria-label="Cerrar"><i data-lucide="x"></i></button>
+        <span class="eyebrow">CRM VERIFICABLE</span>
+        <h2 id="contactIntelligenceTitle">Detalle del contacto</h2>
+        <div id="contactIntelligenceContent" aria-live="polite"></div>
       </section>
     </div>
 
