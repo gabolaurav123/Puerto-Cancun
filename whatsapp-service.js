@@ -398,16 +398,17 @@ function createWhatsappService({ pool, query, uuid, secret }) {
           const qrDataUrl = await QRCode.toDataURL(update.qr, { width: 320, margin: 2, errorCorrectionLevel: "M" }).catch(() => "");
           clearTimeout(service.connectTimeoutTimer);
           clearTimeout(service.qrExpiryTimer);
+          service.reconnectAttempts = 0;
           service.connectTimeoutTimer = null;
           const qrExpiresAt = new Date(Date.now() + 60000).toISOString();
-          setState({ connection: "qr", phase: "qr_ready", qrDataUrl, qrExpiresAt, lastError: "", lastDiagnostic: "QR generado. Debe escanearse antes de que caduque." });
+          setState({ connection: "qr", phase: "qr_ready", qrDataUrl, qrExpiresAt, nextRetryAt: null, lastError: "", lastDiagnostic: "QR generado. Debe escanearse antes de que caduque." });
           service.qrExpiryTimer = setTimeout(() => {
             if (socketVersion !== service.socketVersion || service.state.connection !== "qr") return;
             service.manualStop = true;
             service.socket = null;
             service.socketVersion += 1;
             socket.end?.(new Error("QR expirado"));
-            setState({ connection: "qr_expired", phase: "qr_expired", qrDataUrl: "", qrExpiresAt: null, lastError: "El código QR caducó. Genera uno nuevo.", lastDiagnostic: "El QR no fue escaneado dentro de su ventana de vigencia." });
+            setState({ connection: "qr_expired", phase: "qr_expired", qrDataUrl: "", qrExpiresAt: null, nextRetryAt: null, lastError: "El código QR caducó. Genera uno nuevo.", lastDiagnostic: "El QR no fue escaneado dentro de su ventana de vigencia." });
             void releaseLock();
           }, 60000);
         }

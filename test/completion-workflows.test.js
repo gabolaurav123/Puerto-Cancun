@@ -154,6 +154,7 @@ test("WhatsApp conserva estados explícitos, vigencia de QR y reintento acotado"
   assert.match(service, /fetchLatestWaWebVersion/);
   assert.match(service, /browser: baileys\.Browsers\.ubuntu\("Chrome"\)/);
   assert.match(service, /if \(socketVersion !== service\.socketVersion\) return;[\s\S]*saveCreds/);
+  assert.match(service, /if \(update\.qr\)[\s\S]*service\.reconnectAttempts = 0/);
   assert.match(service, /retryLimitReached/);
   assert.match(service, /phase: "connection_timeout"/);
   assert.match(app, /connectWhatsapp\(true\)/);
