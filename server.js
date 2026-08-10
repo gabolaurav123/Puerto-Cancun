@@ -4568,7 +4568,8 @@ async function getCopilotOperationalResult(question, context = {}) {
 
 function isGenericCopilotOnboardingQuestion(question) {
   const normalized = String(question || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
-  return /^(?:hola[,.! ]*)?(?:soy nuevo|soy nueva|como empiezo|por donde empiezo|necesito ayuda|que puedo hacer)(?:[?.! ]*)$/.test(normalized.trim());
+  const words = normalized.replace(/[^a-z0-9\s]/g, " ").replace(/\s+/g, " ").trim();
+  return /^(?:hola )?(?:soy nuev[oa](?: como empiezo)?|como empiezo|por donde empiezo|necesito ayuda|que puedo hacer)$/.test(words);
 }
 
 async function phraseCopilotAnswer(question, documentation, operational) {

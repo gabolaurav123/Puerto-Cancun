@@ -66,6 +66,7 @@ test("Copilot queda limitado al administrador y a un registry real", () => {
   assert.equal(fromCopilot[0].id, "new-property");
   assert.match(serverSource, /app\.post\("\/api\/admin\/copilot\/query", requireRole\("admin"\)/);
   assert.match(serverSource, /isGenericCopilotOnboardingQuestion/);
+  assert.match(serverSource, /soy nuev\[oa\]\(\?: como empiezo\)\?/);
   assert.match(serverSource, /Las publicaciones son el flujo principal/);
   assert.equal(registryForRole("admin").some((feature) => ["matches", "smart-map"].includes(feature.id)), false);
   assert.doesNotMatch(serverSource, /SELECT\s+\$\{[^}]*question/i);
