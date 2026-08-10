@@ -4,7 +4,28 @@ const pino = require("pino");
 
 const AUTH_LOCK_NAME = "pcc-whatsapp-service";
 const AUTH_SALT = "puerto-cancun-whatsapp-auth-v1";
+const MAX_RECONNECT_ATTEMPTS = 5;
+const TERMINAL_DISCONNECT_CODES = new Set([401, 403, 411, 440]);
 const DEFAULT_BOT_PROMPT = `Eres el asistente inmobiliario de Puerto Cancun Center. Responde en espanol de forma profesional, breve y cordial. Tu objetivo es conocer si la persona quiere comprar, vender, rentar o solicitar una valoracion; recopilar nombre, zona, tipo de propiedad, presupuesto y plazo; y ofrecer seguimiento de un asesor. No inventes propiedades, precios, disponibilidad ni condiciones. Cuando falte informacion o exista una decision sensible, indica que un asesor humano continuara la conversacion.`;
+
+function disconnectDetails(error) {
+  const code = Number(
+    error?.output?.statusCode ||
+      error?.data?.statusCode ||
+      error?.statusCode ||
+      error?.cause?.output?.statusCode ||
+      error?.cause?.statusCode ||
+      0
+  );
+  return {
+    code: Number.isFinite(code) ? code : 0,
+    message: String(error?.message || error?.cause?.message || "Conexion cerrada por WhatsApp.").slice(0, 500),
+  };
+}
+
+function versionLabel(version) {
+  return Array.isArray(version) ? version.join(".") : "desconocida";
+}
 
 function messageText(message) {
   const content = message?.message || {};
@@ -61,6 +82,7 @@ function createWhatsappService({ pool, query, uuid, secret }) {
       phase: "idle",
       qrExpiresAt: null,
       nextRetryAt: null,
+      waWebVersion: "",
       lastDiagnostic: "Sin sesión vinculada.",
       updatedAt: new Date().toISOString(),
     },
@@ -326,13 +348,28 @@ function createWhatsappService({ pool, query, uuid, secret }) {
       if (previousSocket) previousSocket.end?.(new Error("Generando una nueva vinculacion de WhatsApp"));
       const baileys = await import("baileys");
       const makeWASocket = baileys.default || baileys.makeWASocket;
-      if (reset) await query("DELETE FROM whatsapp_auth_state");
+      if (reset) {
+        service.reconnectAttempts = 0;
+        await query("DELETE FROM whatsapp_auth_state");
+      }
       const { state, saveCreds } = await databaseAuthState(baileys);
+      const versionResult = await baileys.fetchLatestWaWebVersion({ signal: AbortSignal.timeout(10000) });
+      const waWebVersion = Array.isArray(versionResult?.version) && versionResult.version.length === 3
+        ? versionResult.version
+        : undefined;
+      const waWebVersionText = versionLabel(waWebVersion);
       setState({ connection: "connecting", phase: "opening_socket", qrDataUrl: "", qrExpiresAt: null, nextRetryAt: null, lastError: "", lastDiagnostic: "Abriendo una sesión segura con WhatsApp." });
+      setState({
+        waWebVersion: waWebVersionText,
+        lastDiagnostic: versionResult?.isLatest
+          ? `Abriendo una sesion segura con WhatsApp Web ${waWebVersionText}.`
+          : `Abriendo la sesion con la version compatible ${waWebVersionText}.`,
+      });
       const socket = makeWASocket({
         auth: state,
+        ...(waWebVersion ? { version: waWebVersion } : {}),
         logger: pino({ level: "silent" }),
-        browser: baileys.Browsers.macOS("Puerto Cancun CRM"),
+        browser: baileys.Browsers.ubuntu("Chrome"),
         printQRInTerminal: false,
         markOnlineOnConnect: false,
         syncFullHistory: false,
@@ -348,7 +385,10 @@ function createWhatsappService({ pool, query, uuid, secret }) {
         setState({ connection: "error", phase: "connection_timeout", qrDataUrl: "", qrExpiresAt: null, lastError: "WhatsApp no entregó un QR ni abrió la sesión a tiempo.", lastDiagnostic: "Tiempo de espera agotado antes de recibir el QR." });
         void releaseLock();
       }, 45000);
-      socket.ev.on("creds.update", () => void saveCreds().catch((error) => setState({ lastError: error.message })));
+      socket.ev.on("creds.update", () => {
+        if (socketVersion !== service.socketVersion) return;
+        void saveCreds().catch((error) => setState({ lastError: error.message }));
+      });
       socket.ev.on("messages.upsert", ({ messages, type }) => {
         for (const message of messages || []) void processMessage(message, type).catch((error) => setState({ lastError: error.message }));
       });
@@ -389,30 +429,54 @@ function createWhatsappService({ pool, query, uuid, secret }) {
         if (update.connection === "close") {
           clearConnectionTimers();
           service.socket = null;
-          const code = Number(update.lastDisconnect?.error?.output?.statusCode || update.lastDisconnect?.error?.data?.statusCode || 0);
+          const { code, message } = disconnectDetails(update.lastDisconnect?.error);
           const loggedOut = code === baileys.DisconnectReason.loggedOut;
           if (loggedOut) await query("DELETE FROM whatsapp_auth_state").catch(() => null);
-          service.reconnectAttempts += loggedOut ? 0 : 1;
-          const retryDelay = Math.min(30000, 3500 * Math.max(1, service.reconnectAttempts));
+          const terminalFailure = TERMINAL_DISCONNECT_CODES.has(code);
+          const restartRequired = code === baileys.DisconnectReason.restartRequired;
+          if (!loggedOut && !service.manualStop) service.reconnectAttempts += 1;
+          const retryLimitReached = service.reconnectAttempts >= MAX_RECONNECT_ATTEMPTS;
+          const shouldRetry = !loggedOut && !terminalFailure && !service.manualStop && !retryLimitReached;
+          const retryDelay = restartRequired ? 750 : Math.min(20000, 2500 * Math.max(1, service.reconnectAttempts));
+          const failureMessage = code
+            ? `WhatsApp cerro la conexion (codigo ${code}). ${message}`
+            : `WhatsApp cerro la conexion. ${message}`;
           setState({
-            connection: loggedOut ? "disconnected" : service.manualStop ? service.state.connection : "reconnecting",
-            phase: loggedOut ? "logged_out" : service.manualStop ? service.state.phase : "retry_scheduled",
+            connection: loggedOut ? "disconnected" : service.manualStop ? service.state.connection : shouldRetry ? "reconnecting" : "error",
+            phase: loggedOut ? "logged_out" : service.manualStop ? service.state.phase : shouldRetry ? "retry_scheduled" : terminalFailure ? "connection_rejected" : "retry_limit_reached",
             qrDataUrl: "",
             qrExpiresAt: null,
-            nextRetryAt: loggedOut || service.manualStop ? null : new Date(Date.now() + retryDelay).toISOString(),
-            lastError: loggedOut ? "La sesion fue cerrada desde WhatsApp." : service.manualStop ? service.state.lastError : "Reconectando WhatsApp...",
-            lastDiagnostic: loggedOut ? "WhatsApp invalidó la sesión persistida." : service.manualStop ? service.state.lastDiagnostic : `Reintento ${service.reconnectAttempts} programado.`,
+            nextRetryAt: shouldRetry ? new Date(Date.now() + retryDelay).toISOString() : null,
+            lastError: loggedOut
+              ? "La sesion fue cerrada desde WhatsApp. Genera un QR nuevo."
+              : service.manualStop
+                ? service.state.lastError
+                : shouldRetry
+                  ? `Reconectando WhatsApp despues del cierre ${code || "sin codigo"}...`
+                  : `${failureMessage} Genera un QR nuevo para volver a intentarlo.`,
+            lastDiagnostic: loggedOut
+              ? "WhatsApp invalido la sesion persistida."
+              : service.manualStop
+                ? service.state.lastDiagnostic
+                : shouldRetry
+                  ? restartRequired
+                    ? "WhatsApp solicito reiniciar la sesion para completar la vinculacion."
+                    : `Reintento ${service.reconnectAttempts} de ${MAX_RECONNECT_ATTEMPTS} programado (codigo ${code || "desconocido"}).`
+                  : terminalFailure
+                    ? `Conexion rechazada por WhatsApp con codigo ${code}. No se repetira indefinidamente.`
+                    : `Se alcanzo el limite de ${MAX_RECONNECT_ATTEMPTS} intentos. Ultimo codigo: ${code || "desconocido"}.`,
           });
-          if (loggedOut || service.manualStop) {
+          if (!shouldRetry) {
             await releaseLock();
           } else {
-            service.reconnectTimer = setTimeout(() => void service.connect().catch((error) => setState({ connection: "error", phase: "retry_failed", lastError: error.message, lastDiagnostic: "Falló el intento automático de reconexión." })), retryDelay);
+            service.reconnectTimer = setTimeout(() => void service.connect().catch((error) => setState({ connection: "error", phase: "retry_failed", lastError: error.message, lastDiagnostic: "Fallo el intento automatico de reconexion." })), retryDelay);
           }
         }
       });
       return service.getStatus();
     } catch (error) {
       clearConnectionTimers();
+      service.socket = null;
       setState({ connection: "error", phase: "connection_error", qrDataUrl: "", qrExpiresAt: null, lastError: error.message, lastDiagnostic: "No fue posible iniciar el cliente de WhatsApp." });
       await releaseLock();
       throw error;

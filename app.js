@@ -6187,7 +6187,7 @@ function renderWhatsappOverview() {
   const expiresAt = status.qrExpiresAt ? new Date(status.qrExpiresAt).getTime() : 0;
   const remainingSeconds = expiresAt ? Math.max(0, Math.ceil((expiresAt - Date.now()) / 1000)) : 0;
   $("#whatsappQrExpiry").textContent = connection === "qr" ? `${remainingSeconds} segundos` : connection === "qr_expired" ? "Vencido" : "No aplica";
-  $("#connectWhatsapp").disabled = ["connecting", "qr", "connected", "reconnecting"].includes(connection);
+  $("#connectWhatsapp").disabled = ["connecting", "qr", "connected"].includes(connection);
   $("#resetWhatsapp").disabled = connection === "connecting";
   $("#disconnectWhatsapp").disabled = connection === "disconnected";
 
@@ -6303,8 +6303,23 @@ async function connectWhatsapp(reset = false) {
   setFormMessage($("#whatsappConnectionFormMessage"), "Preparando conexion segura...");
   try {
     await api("/api/admin/whatsapp/connect", { method: "POST", body: { reset }, timeoutMs: 60000 });
-    setFormMessage($("#whatsappConnectionFormMessage"), "Conexion iniciada. Espera a que aparezca el codigo QR.");
-    await refreshWhatsappData({ includeLists: false });
+    setFormMessage($("#whatsappConnectionFormMessage"), "Solicitando el codigo QR a WhatsApp...");
+    for (let attempt = 0; attempt < 20; attempt += 1) {
+      await new Promise((resolve) => window.setTimeout(resolve, attempt === 0 ? 400 : 1500));
+      await refreshWhatsappData({ includeLists: false, silent: true });
+      const status = state.whatsapp.overview?.status || {};
+      if (["qr", "connected", "error", "qr_expired", "standby"].includes(status.connection)) break;
+    }
+    const status = state.whatsapp.overview?.status || {};
+    if (status.connection === "qr") {
+      setFormMessage($("#whatsappConnectionFormMessage"), "Codigo QR listo. Escanealo desde Dispositivos vinculados en WhatsApp.");
+    } else if (status.connection === "connected") {
+      setFormMessage($("#whatsappConnectionFormMessage"), "WhatsApp se conecto correctamente.");
+    } else if (status.connection === "error") {
+      throw new Error(status.lastError || "WhatsApp no pudo generar el codigo QR.");
+    } else {
+      setFormMessage($("#whatsappConnectionFormMessage"), "La solicitud sigue en curso. Usa Actualizar para consultar el estado.");
+    }
   } catch (error) {
     setFormMessage($("#whatsappConnectionFormMessage"), error.message, true);
   } finally {
@@ -9409,7 +9424,7 @@ function bindEvents() {
   $("#whatsappChatbotForm")?.addEventListener("submit", whatsappChatbotSubmit);
   $("#whatsappMessageForm")?.addEventListener("submit", whatsappMessageSubmit);
   $("#refreshWhatsapp")?.addEventListener("click", () => void refreshWhatsappData({ includeLists: true }));
-  $("#connectWhatsapp")?.addEventListener("click", () => void connectWhatsapp(false));
+  $("#connectWhatsapp")?.addEventListener("click", () => void connectWhatsapp(true));
   $("#resetWhatsapp")?.addEventListener("click", () => void connectWhatsapp(true));
   $("#disconnectWhatsapp")?.addEventListener("click", () => void disconnectWhatsapp());
   $("#whatsappChatSearch")?.addEventListener("input", () => {

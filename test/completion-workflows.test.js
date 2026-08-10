@@ -146,11 +146,18 @@ test("el CRM distingue datos confirmados, inferencias y actividad real", () => {
 
 test("WhatsApp conserva estados explícitos, vigencia de QR y reintento acotado", () => {
   const service = source("whatsapp-service.js");
+  const app = source("app.js");
   assert.match(service, /qrExpiresAt/);
   assert.match(service, /connection: "qr_expired"/);
   assert.match(service, /phase: "qr_ready"/);
-  assert.match(service, /Math\.min\(30000/);
+  assert.match(service, /MAX_RECONNECT_ATTEMPTS = 5/);
+  assert.match(service, /fetchLatestWaWebVersion/);
+  assert.match(service, /browser: baileys\.Browsers\.ubuntu\("Chrome"\)/);
+  assert.match(service, /if \(socketVersion !== service\.socketVersion\) return;[\s\S]*saveCreds/);
+  assert.match(service, /retryLimitReached/);
   assert.match(service, /phase: "connection_timeout"/);
+  assert.match(app, /connectWhatsapp\(true\)/);
+  assert.match(app, /Solicitando el codigo QR a WhatsApp/);
 });
 
 test("las alertas guardan el match antes de asociar su notificación", () => {
