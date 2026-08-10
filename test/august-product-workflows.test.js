@@ -44,11 +44,12 @@ test("herramientas IA están separadas de creación de campañas", () => {
   assert.match(appSource, /function selectAiTool/);
 });
 
-test("Match explica su puntuación y el dashboard prioriza trabajo real", () => {
-  assert.match(indexSource, /class="match-explainer"/);
-  assert.match(indexSource, /id="matchLiveSummary"/);
+test("el panel retira Match y Mapa inteligente y conserva un dashboard operativo", () => {
+  assert.doesNotMatch(indexSource, /data-admin-section="matches"/);
+  assert.doesNotMatch(indexSource, /data-admin-section="smart-map"/);
+  assert.doesNotMatch(indexSource, /data-admin-section-panel="matches"/);
+  assert.doesNotMatch(indexSource, /data-admin-section-panel="smart-map"/);
   assert.match(appSource, /dashboard-priority-list/);
   assert.match(appSource, /dashboard-zone-bars/);
   assert.match(stylesSource, /\.dashboard-operations/);
-  assert.match(stylesSource, /\.match-score-legend/);
 });

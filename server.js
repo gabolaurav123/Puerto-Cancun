@@ -1549,7 +1549,7 @@ async function interpretSearchWithOpenAI(queryText, knownLocations, deterministi
       }),
       signal: AbortSignal.timeout(15000),
     });
-    if (!response.ok) throw new Error(`OpenAI search interpreter returned ${response.status}`);
+    if (!response.ok) throw await createOpenAIResponseError(response, "Interpretación de búsqueda");
     const payload = await response.json();
     const parsed = JSON.parse(responseOutputText(payload));
     const filters = validateSearchFilters({ ...deterministic, ...parsed }, { knownLocations });
@@ -4566,7 +4566,20 @@ async function getCopilotOperationalResult(question, context = {}) {
   return null;
 }
 
+function isGenericCopilotOnboardingQuestion(question) {
+  const normalized = String(question || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+  return /^(?:hola[,.! ]*)?(?:soy nuevo|soy nueva|como empiezo|por donde empiezo|necesito ayuda|que puedo hacer)(?:[?.! ]*)$/.test(normalized.trim());
+}
+
 async function phraseCopilotAnswer(question, documentation, operational) {
+  if (isGenericCopilotOnboardingQuestion(question)) {
+    return {
+      answer: "Para orientarte bien, dime qué quieres hacer primero: 1) crear o editar una publicación, 2) revisar solicitudes y asesorías, 3) gestionar contactos, 4) preparar marketing o fichas PDF, o 5) revisar el estado del sistema. Las publicaciones son el flujo principal; los desarrollos se usan solo cuando necesitas registrar un proyecto maestro independiente.",
+      provider: "internal-onboarding",
+      model: null,
+      needsClarification: true,
+    };
+  }
   const fallback = operational
     ? `${operational.title}. ${JSON.stringify(operational.facts)}${operational.items?.length ? ` Encontré ${operational.items.length} registros para revisar.` : ""}`
     : documentation.length
@@ -4588,11 +4601,12 @@ async function phraseCopilotAnswer(question, documentation, operational) {
       }),
       signal: AbortSignal.timeout(20000),
     });
-    if (!response.ok) throw new Error(`OpenAI Copilot returned ${response.status}`);
+    if (!response.ok) throw await createOpenAIResponseError(response, "Copilot");
     const answer = responseOutputText(await response.json());
     if (!answer) throw new Error("Copilot returned an empty answer");
     return { answer, provider: "openai", model };
-  } catch {
+  } catch (error) {
+    console.warn("Copilot OpenAI fallback:", error.code || error.message);
     return { answer: fallback, provider: "internal-registry", model: null, fallback: true };
   }
 }
@@ -4617,8 +4631,9 @@ app.post("/api/admin/copilot/query", requireRole("admin"), async (req, res, next
       res.status(400).json({ error: "Escribe una pregunta para Puerto Cancún Copilot." });
       return;
     }
-    const documentation = searchFeatures(question, req.session.user.role, context).slice(0, 4);
-    const operational = await getCopilotOperationalResult(question, context);
+    const needsClarification = isGenericCopilotOnboardingQuestion(question);
+    const documentation = needsClarification ? [] : searchFeatures(question, req.session.user.role, context).slice(0, 4);
+    const operational = needsClarification ? null : await getCopilotOperationalResult(question, context);
     const result = await phraseCopilotAnswer(question, documentation, operational);
     const suggestedFeature = documentation[0] || features.find((feature) => feature.section === operational?.section) || null;
     const category = operational?.tool || suggestedFeature?.id || "documentation";
@@ -4629,7 +4644,7 @@ app.post("/api/admin/copilot/query", requireRole("admin"), async (req, res, next
       [responseId, req.session.user.id, question, category, suggestedFeature?.id || null, operational?.tool || "getFeatureDocumentation", JSON.stringify(context), result.provider, result.model, Date.now() - startedAt, JSON.stringify({ resultCount: operational?.items?.length || 0, promptVersion: PROMPT_VERSION })]
     );
     await logAiOperation({ operation: "copilot_query", userId: req.session.user.id, module: context.module, entityType: context.entityType || null, entityId: context.entityId || null, provider: result.provider, model: result.model, status: "success", durationMs: Date.now() - startedAt, metadata: { operation: "copilot_query", provider: result.provider, model: result.model, status: "success", module: context.module, entityType: context.entityType, featureId: suggestedFeature?.id, resultCount: operational?.items?.length || 0, promptVersion: PROMPT_VERSION } });
-    res.json({ responseId, answer: result.answer, provider: result.provider, fallback: Boolean(result.fallback), documentation, tool: operational?.tool || "getFeatureDocumentation", facts: operational?.facts || null, items: operational?.items || [], suggestedSection: operational?.section || suggestedFeature?.section || "dashboard" });
+    res.json({ responseId, answer: result.answer, provider: result.provider, fallback: Boolean(result.fallback), needsClarification: Boolean(result.needsClarification), documentation, tool: operational?.tool || "getFeatureDocumentation", facts: operational?.facts || null, items: operational?.items || [], suggestedSection: operational?.section || suggestedFeature?.section || "dashboard" });
   } catch (error) {
     await query(
       `INSERT INTO copilot_responses
@@ -4884,13 +4899,16 @@ app.post("/api/admin/integrations/:id/test", requireRole("admin"), async (req, r
         body: JSON.stringify({
           model: process.env.OPENAI_MODEL || "gpt-5-mini",
           input: "Responde únicamente: OK",
-          max_output_tokens: 12,
+          reasoning: { effort: "low" },
+          max_output_tokens: 128,
           store: false,
         }),
         signal: AbortSignal.timeout(15000),
       });
-      if (!response.ok) throw Object.assign(new Error("El proveedor rechazó la prueba."), { code: `OPENAI_${response.status}` });
-      message = `OpenAI respondió usando ${process.env.OPENAI_MODEL || "gpt-5-mini"}.`;
+      if (!response.ok) throw await createOpenAIResponseError(response, "Prueba de integracion");
+      const payload = await response.json();
+      if (!responseOutputText(payload)) throw Object.assign(new Error("OpenAI respondio sin texto util."), { code: "OPENAI_EMPTY_RESPONSE" });
+      message = `OpenAI respondió correctamente usando ${payload.model || process.env.OPENAI_MODEL || "gpt-5-mini"}.`;
     }
   } catch (error) {
     status = ["EMAIL_NOT_CONFIGURED", "OPENAI_NOT_CONFIGURED"].includes(error.code) ? "blocked" : "error";
@@ -4899,7 +4917,7 @@ app.post("/api/admin/integrations/:id/test", requireRole("admin"), async (req, r
       OPENAI_NOT_CONFIGURED: "Configura OPENAI_API_KEY antes de probar.",
       MAPS_NO_RESULT: "El proveedor de mapas no devolvió un resultado de prueba.",
     };
-    message = safeMessages[error.code] || `La prueba de ${integrationId} no pudo completarse.`;
+    message = safeMessages[error.code] || (integrationId === "openai" ? openAIUserMessage(error) : `La prueba de ${integrationId} no pudo completarse.`);
   }
   const durationMs = Date.now() - startedAt;
   await query(
@@ -7387,7 +7405,7 @@ async function extractBrochureWithAi(text, fallback) {
       }),
       signal: AbortSignal.timeout(30000),
     });
-    if (!response.ok) throw new Error(`OpenAI brochure extraction returned ${response.status}`);
+    if (!response.ok) throw await createOpenAIResponseError(response, "Extracción de brochure");
     const output = responseOutputText(await response.json()).replace(/^```json\s*|\s*```$/g, "").trim();
     const parsed = JSON.parse(output);
     return { data: { ...fallback, ...parsed }, provider: "openai", model };
@@ -7504,7 +7522,7 @@ async function visionImageRecommendations(property, technical) {
       body: JSON.stringify({ model, input: [{ role: "user", content }], max_output_tokens: 1800, store: false }),
       signal: AbortSignal.timeout(45000),
     });
-    if (!response.ok) throw new Error(`OpenAI image analysis returned ${response.status}`);
+    if (!response.ok) throw await createOpenAIResponseError(response, "Análisis de imágenes");
     const parsed = JSON.parse(responseOutputText(await response.json()).replace(/^```json\s*|\s*```$/g, "").trim());
     const items = technical.map((item, index) => ({ ...item, ...(parsed.items?.find((candidate) => Number(candidate.index) === index) || {}) }));
     return { items, provider: "openai", model, recommendedCoverIndex: Number(parsed.recommendedCoverIndex || 0), suggestedOrder: parsed.suggestedOrder || [] };
@@ -8010,6 +8028,33 @@ function responseOutputText(payload) {
   ).trim();
 }
 
+async function createOpenAIResponseError(response, operation = "Solicitud") {
+  const payload = await response.json().catch(() => ({}));
+  const providerCode = String(payload?.error?.code || payload?.error?.type || "").toLowerCase();
+  let code = `OPENAI_HTTP_${response.status}`;
+  if (response.status === 401 || providerCode.includes("api_key")) code = "OPENAI_INVALID_KEY";
+  else if (providerCode.includes("insufficient_quota")) code = "OPENAI_INSUFFICIENT_QUOTA";
+  else if (response.status === 429) code = "OPENAI_RATE_LIMIT";
+  else if (providerCode.includes("model") || response.status === 404) code = "OPENAI_MODEL_UNAVAILABLE";
+  else if (response.status >= 500) code = "OPENAI_TEMPORARY_ERROR";
+  const error = new Error(`${operation} rechazada por OpenAI (${response.status}, ${providerCode || "sin_codigo"}).`);
+  error.code = code;
+  error.providerStatus = response.status;
+  return error;
+}
+
+function openAIUserMessage(error) {
+  const messages = {
+    OPENAI_INVALID_KEY: "OpenAI rechazó la credencial. Reemplaza OPENAI_API_KEY y vuelve a desplegar.",
+    OPENAI_INSUFFICIENT_QUOTA: "La credencial es reconocida, pero el proyecto de OpenAI no tiene cuota o saldo disponible.",
+    OPENAI_RATE_LIMIT: "OpenAI alcanzó temporalmente el límite de solicitudes. Espera unos segundos y vuelve a probar.",
+    OPENAI_MODEL_UNAVAILABLE: "El modelo configurado no está disponible para este proyecto. Revisa OPENAI_MODEL.",
+    OPENAI_TEMPORARY_ERROR: "OpenAI presenta una incidencia temporal. Vuelve a probar en unos minutos.",
+    OPENAI_EMPTY_RESPONSE: "OpenAI respondió, pero no devolvió texto utilizable.",
+  };
+  return messages[error?.code] || "OpenAI no pudo completar la solicitud. Revisa la credencial, la cuota y el modelo configurado.";
+}
+
 function aiToolInstructions(tool) {
   const instructions = {
     listing: "Redacta una publicación inmobiliaria profesional en español de México. Entrega título, resumen corto, descripción completa, texto de WhatsApp, título SEO y descripción SEO.",
@@ -8059,7 +8104,7 @@ app.post("/api/admin/ai/generate", requireRole("admin"), async (req, res, next) 
       if (property) {
         context = buildInstagramPropertyContext(property);
         const similar = await query(
-          `SELECT id, title_es, mls, zone, type, price, currency, area
+          `SELECT id, title_es, mls, zone, type, price_amount AS price, price_currency AS currency, area
            FROM properties
            WHERE id <> $1 AND LOWER(COALESCE(zone, '')) = LOWER($2) AND LOWER(COALESCE(type, '')) = LOWER($3)
            ORDER BY updated_at DESC LIMIT 12`,
@@ -8210,7 +8255,7 @@ app.post("/api/admin/ai/generate", requireRole("admin"), async (req, res, next) 
           }),
           signal: AbortSignal.timeout(30000),
         });
-        if (!response.ok) throw new Error(`OpenAI respondió ${response.status}`);
+        if (!response.ok) throw await createOpenAIResponseError(response, "Generación de contenido");
         const aiPayload = await response.json();
         const generated = responseOutputText(aiPayload);
         if (generated) {
@@ -8223,8 +8268,8 @@ app.post("/api/admin/ai/generate", requireRole("admin"), async (req, res, next) 
         }
         throw new Error("OpenAI no devolvió texto");
       } catch (error) {
-        console.warn("AI content fallback:", error.message);
-        res.json({ tool, result: outputs[tool] || outputs.summary, provider: "internal-rules", warning: "OpenAI no estuvo disponible; se generó un borrador local.", requiresApproval: true });
+        console.warn("AI content fallback:", error.code || error.message);
+        res.json({ tool, result: outputs[tool] || outputs.summary, provider: "internal-rules", warning: `${openAIUserMessage(error)} Se generó un borrador local para no interrumpir el trabajo.`, requiresApproval: true });
         return;
       }
     }
@@ -8501,10 +8546,7 @@ app.post("/api/admin/ai/translate-property", requireRole("admin"), async (req, r
       }),
       signal: AbortSignal.timeout(45000),
     });
-    if (!response.ok) {
-      const failure = await response.json().catch(() => ({}));
-      throw new Error(failure.error?.message || `El servicio de traducción respondió ${response.status}.`);
-    }
+    if (!response.ok) throw await createOpenAIResponseError(response, "Traducción");
     const payload = await response.json();
     const raw = String(payload.output_text || payload.output?.flatMap((item) => item.content || []).find((item) => item.type === "output_text")?.text || "").trim();
     if (!raw) throw new Error("OpenAI no devolvió texto traducido. Revisa el modelo configurado.");

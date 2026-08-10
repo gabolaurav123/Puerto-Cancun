@@ -3378,7 +3378,7 @@ async function openContactIntelligence(id) {
         </section>
       </div>
       <div class="contact-activity-kpis">
-        ${[["Solicitudes", summary.leads], ["Valoraciones", summary.valuations], ["Visitas", summary.tours], ["Tareas", summary.tasks], ["Matches", summary.matches], ["WhatsApp", summary.whatsappChats], ["Búsquedas", summary.savedSearches], ["Favoritos", summary.favorites]].map(([label, value]) => `<div><strong>${Number(value || 0)}</strong><span>${escapeHtml(label)}</span></div>`).join("")}
+        ${[["Solicitudes", summary.leads], ["Valoraciones", summary.valuations], ["Visitas", summary.tours], ["Tareas", summary.tasks], ["WhatsApp", summary.whatsappChats], ["Búsquedas", summary.savedSearches], ["Favoritos", summary.favorites]].map(([label, value]) => `<div><strong>${Number(value || 0)}</strong><span>${escapeHtml(label)}</span></div>`).join("")}
       </div>
       <section class="contact-timeline-section">
         <div class="contact-intelligence-heading"><span>HISTORIAL REAL</span><small>${timeline.length} eventos vinculados por contacto, correo o teléfono.</small></div>
@@ -4571,10 +4571,7 @@ function renderAdminSegments() {
   if (buyers) {
     buyers.innerHTML = state.buyers.length
       ? state.buyers
-          .map((buyer) => {
-            const compatible = state.matches.filter((match) => match.contactId === buyer.contactId);
-            const best = compatible[0];
-            return `
+          .map((buyer) => `
               <article class="wide-row">
                 <div class="wide-row-main">
                   <span class="status score-${escapeHtml(buyer.leadScore || "warm")}">${escapeHtml(scoreLabel(buyer.leadScore))}</span>
@@ -4585,19 +4582,16 @@ function renderAdminSegments() {
                   <div><span>Presupuesto</span><strong>${escapeHtml(formatMaybePrice(buyer.budgetMax))}</strong></div>
                   <div><span>Operación</span><strong>${escapeHtml(buyer.operation === "rent" ? "Renta" : "Compra")}</strong></div>
                   <div><span>Urgencia</span><strong>${escapeHtml(buyer.urgency || "media")}</strong></div>
-                  <div><span>Radar</span><strong>${escapeHtml(best ? `${best.score}%` : "Sin match")}</strong></div>
                 </div>
-                ${best ? `<p><strong>Mejor coincidencia:</strong> ${escapeHtml(best.propertyTitle)}. ${escapeHtml(best.reason)}</p>` : `<p>Completa zona, tipo y presupuesto para generar coincidencias.</p>`}
+                <p>Revisa sus preferencias confirmadas antes de preparar una selección de propiedades.</p>
                 <div class="item-actions">
                   ${buyer.phone ? `<a class="mini-button primary" href="https://wa.me/${leadPhoneForWhatsApp(buyer.phone)}" target="_blank" rel="noopener">Preparar WhatsApp</a>` : ""}
                   <button class="mini-button" type="button" data-task-from="buyer" data-task-title="${escapeHtml(`Seguimiento comprador ${buyer.contactName}`)}" data-related-id="${escapeHtml(buyer.contactId)}">Crear tarea</button>
-                  <button class="mini-button" type="button" data-admin-section-link="matches">Ver radar</button>
                 </div>
               </article>
-            `;
-          })
+            `)
           .join("")
-      : `<p class="empty-state">Crea un perfil comprador para registrar presupuesto, zonas, objetivo y generar su radar de propiedades.</p>`;
+      : `<p class="empty-state">Crea un perfil comprador para registrar presupuesto, zonas y objetivo de búsqueda.</p>`;
   }
   if (sellers) {
     sellers.innerHTML = sellerContacts.length
@@ -5649,7 +5643,7 @@ async function generateMarketingKit() {
       data.result.whatsapp ? `WHATSAPP\n${data.result.whatsapp}` : "",
     ].filter(Boolean).join("\n\n");
     $("#marketingCopyOutput").hidden = false;
-    setFormMessage($("#instagramPostMessage"), "Paquete generado. Revisa cada texto antes de publicarlo.");
+    setFormMessage($("#instagramPostMessage"), data.warning || "Paquete generado con IA. Revisa cada texto antes de publicarlo.", Boolean(data.warning));
   } catch (error) {
     setFormMessage($("#instagramPostMessage"), error.message, true);
   } finally {
@@ -5701,7 +5695,7 @@ async function aiToolSubmit(event) {
     $("#aiResult").value = typeof data.result === "string" ? data.result : JSON.stringify(data.result, null, 2);
     setFormMessage($("#aiToolMessage"), data.provider === "openai"
       ? "Borrador generado con IA. Requiere revisión humana."
-      : "Borrador generado con reglas internas. Requiere revisión humana.");
+      : data.warning || "Borrador generado con reglas internas. Requiere revisión humana.", Boolean(data.warning));
   } catch (error) {
     setFormMessage($("#aiToolMessage"), error.message, true);
   } finally {
@@ -6455,7 +6449,6 @@ async function loadPanelData() {
       panelApi("/api/admin/contacts"),
       panelApi("/api/admin/valuations"),
       panelApi("/api/admin/tasks"),
-      panelApi("/api/admin/matches"),
       panelApi("/api/admin/analytics"),
       panelApi("/api/admin/buyers"),
       panelApi("/api/admin/users"),
@@ -6488,7 +6481,6 @@ async function loadPanelData() {
       contactsData,
       valuationsData,
       tasksData,
-      matchesData,
       analyticsData,
       buyersData,
       usersData,
@@ -6519,21 +6511,20 @@ async function loadPanelData() {
     state.contacts = contactsData.contacts || state.contacts;
     state.valuations = valuationsData.valuations || state.valuations;
     state.tasks = tasksData.tasks || state.tasks;
-    state.matches = matchesData.matches || state.matches;
-    if (adminResults[9].status === "fulfilled") state.analytics = analyticsData || state.analytics;
+    if (adminResults[8].status === "fulfilled") state.analytics = analyticsData || state.analytics;
     state.buyers = buyersData.buyers || state.buyers;
     state.internalUsers = usersData.users || state.internalUsers;
     state.files = filesData.files || state.files;
     state.documents = documentsData.documents || state.documents;
     state.campaigns = campaignsData.campaigns || state.campaigns;
-    if (adminResults[15].status === "fulfilled") state.instagramStatus = instagramStatusData || state.instagramStatus;
+    if (adminResults[14].status === "fulfilled") state.instagramStatus = instagramStatusData || state.instagramStatus;
     state.settings = settingsData.settings || state.settings;
     state.notifications = notificationsData.notifications || state.notifications;
-    if (adminResults[18].status === "fulfilled") state.whatsapp.overview = whatsappOverviewData;
+    if (adminResults[17].status === "fulfilled") state.whatsapp.overview = whatsappOverviewData;
     state.whatsapp.chats = whatsappChatsData.chats || state.whatsapp.chats;
     state.whatsapp.leads = whatsappLeadsData.leads || state.whatsapp.leads;
     state.activity = activityData.activity || state.activity;
-    if (adminResults[22].status === "fulfilled") state.systemHealth = systemHealthData || state.systemHealth;
+    if (adminResults[21].status === "fulfilled") state.systemHealth = systemHealthData || state.systemHealth;
     state.blogPosts = blogData.posts || state.blogPosts;
     state.intelligence = intelligenceData.priorities ? intelligenceData : state.intelligence;
     state.integrations = integrationsData.integrations || state.integrations;
@@ -6782,6 +6773,9 @@ function configureListingFormMode(section = state.adminSection) {
 }
 
 function setAdminSection(section) {
+  const requestedSection = /^[a-z0-9-]+$/i.test(String(section || "")) ? String(section) : "dashboard";
+  const available = requestedSection === "dashboard" || $$(`[data-admin-section-panel~="${requestedSection}"]`).length > 0;
+  section = available ? requestedSection : "dashboard";
   const previousSection = state.adminSection;
   const listingForm = $("#listingForm");
   const wasListingForm = ["new-property", "new-development"].includes(previousSection);
@@ -6928,9 +6922,7 @@ async function renderPanel() {
     renderAdminListings();
     renderAdminValuations();
     renderAdminTasks();
-    renderAdminMatches();
     renderAdminAnalytics();
-    renderAdminMap();
     renderAdminSegments();
     renderOperationalModules();
     renderSettingsFields();

@@ -1093,14 +1093,6 @@
                 <i data-lucide="handshake"></i>
                 <span data-i18n="adminJumpSellers">Vendedores</span>
               </button>
-              <button type="button" data-admin-section="matches">
-                <i data-lucide="git-compare-arrows"></i>
-                <span data-i18n="adminJumpMatches">Match</span>
-              </button>
-              <button type="button" data-admin-section="smart-map">
-                <i data-lucide="map"></i>
-                <span data-i18n="adminJumpMap">Mapa inteligente</span>
-              </button>
               <button type="button" data-admin-section="catalogs">
                 <i data-lucide="map-pin"></i>
                 <span data-i18n="adminJumpCatalogs">Catálogos</span>
@@ -1243,7 +1235,7 @@
             <button type="button" data-copilot-question="Revisa las integraciones">Revisar integraciones</button>
           </div>
           <div class="copilot-conversation" id="copilotConversation" aria-live="polite">
-            <div class="copilot-message assistant"><strong>Copilot</strong><p>Puedo explicar los módulos reales o consultar prioridades, tareas, calidad e integraciones sin modificar datos.</p></div>
+            <div class="copilot-message assistant"><strong>Copilot</strong><p>¿Qué deseas hacer? Puedo ayudarte primero con publicaciones, solicitudes, contactos, marketing, fichas PDF o el estado del sistema. Si tu objetivo aún no está claro, te haré una pregunta antes de recomendar un módulo.</p></div>
           </div>
           <form class="copilot-form" id="copilotForm">
             <label><span class="sr-only">Pregunta para Copilot</span><textarea name="question" rows="3" maxlength="1200" placeholder="Quiero hacer X, ¿cómo lo hago?" required></textarea></label>
@@ -1554,56 +1546,6 @@
             <span>Se calcula con fotos, ubicación, precio, descripción y avance de la solicitud.</span>
           </div>
           <div class="wide-data-list" id="adminSellers"></div>
-        </article>
-        <article class="panel-card admin-matches-card" id="adminMatchesCard" data-admin-section-panel="matches">
-          <div class="admin-module-heading">
-            <div>
-              <h2 data-i18n="matchTitle">Match comprador-propiedad</h2>
-              <p data-i18n="matchHint">Cruza compradores con propiedades activas por zona, tipo y presupuesto.</p>
-            </div>
-          </div>
-          <section class="match-explainer" aria-labelledby="matchHowTitle">
-            <div class="match-explainer-copy">
-              <span class="eyebrow">CÓMO FUNCIONA</span>
-              <h3 id="matchHowTitle">Prioriza coincidencias, no decisiones automáticas</h3>
-              <p>El sistema compara requisitos registrados del comprador con inventario público activo. El asesor debe confirmar disponibilidad, presupuesto y preferencias antes de contactar.</p>
-            </div>
-            <ol>
-              <li><b>1</b><span><strong>Perfil</strong>Zona, tipo, operación, presupuesto, recámaras y baños.</span></li>
-              <li><b>2</b><span><strong>Puntuación</strong>Asigna peso a cada coincidencia y explica las razones.</span></li>
-              <li><b>3</b><span><strong>Seguimiento</strong>Permite preparar WhatsApp o crear una tarea para un asesor.</span></li>
-            </ol>
-            <div class="match-score-legend"><span><i class="premium"></i>85–100 alta</span><span><i class="hot"></i>70–84 buena</span><span><i class="warm"></i>50–69 revisar</span></div>
-          </section>
-          <p class="match-live-summary" id="matchLiveSummary" aria-live="polite"></p>
-          <div class="wide-data-list" id="adminMatches"></div>
-        </article>
-        <article class="panel-card admin-map-card" id="adminSmartMapCard" data-admin-section-panel="smart-map">
-          <div class="admin-module-heading">
-            <div>
-              <h2 data-i18n="smartMapTitle">Mapa inteligente</h2>
-              <p data-i18n="smartMapHint">Vista operativa por zonas, inventario y leads registrados.</p>
-            </div>
-          </div>
-          <div class="smart-map-guide">
-            <div><b>1</b><span><strong>Elige una capa</strong>Inventario, demanda o valoraciones.</span></div>
-            <div><b>2</b><span><strong>Aplica filtros</strong>Reduce los resultados por zona, estado y tipo.</span></div>
-            <div><b>3</b><span><strong>Abre un resultado</strong>El mapa se centrará en su ubicación registrada.</span></div>
-          </div>
-          <p class="smart-map-live-summary" id="smartMapLiveSummary" aria-live="polite"></p>
-          <div class="map-intelligence-toolbar">
-            <select id="smartMapLayer"><option value="properties">Inventario</option><option value="leads">Demanda / leads</option><option value="valuations">Valoraciones</option></select>
-            <select id="smartMapZone" data-location-select="zone"><option value="">Todas las zonas</option></select>
-            <select id="smartMapStatus"><option value="">Todos los estados</option><option value="active">Activas</option><option value="disabled">Deshabilitadas</option><option value="pending">Pendientes</option></select>
-            <select id="smartMapType"><option value="">Todos los tipos</option><option>Casa</option><option>Departamento</option><option>Terreno</option><option>Preventa</option></select>
-          </div>
-          <div class="smart-map-grid">
-            <iframe id="adminMapFrame" title="Mapa operativo Cancún" loading="lazy" referrerpolicy="no-referrer-when-downgrade" src="https://www.google.com/maps?q=Cancun%2C%20Quintana%20Roo&output=embed"></iframe>
-            <div>
-              <div class="wide-data-list" id="adminMapSummary"></div>
-              <div class="wide-data-list map-property-list" id="adminMapPropertyList"></div>
-            </div>
-          </div>
         </article>
         <article class="panel-card admin-catalogs-card" id="adminCatalogsCard" data-admin-section-panel="catalogs">
           <div class="admin-prompts-heading catalog-page-heading">

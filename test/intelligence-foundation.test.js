@@ -65,7 +65,17 @@ test("Copilot queda limitado al administrador y a un registry real", () => {
   const fromCopilot = searchFeatures("cómo creo una propiedad", "admin", { section: "copilot" });
   assert.equal(fromCopilot[0].id, "new-property");
   assert.match(serverSource, /app\.post\("\/api\/admin\/copilot\/query", requireRole\("admin"\)/);
+  assert.match(serverSource, /isGenericCopilotOnboardingQuestion/);
+  assert.match(serverSource, /Las publicaciones son el flujo principal/);
+  assert.equal(registryForRole("admin").some((feature) => ["matches", "smart-map"].includes(feature.id)), false);
   assert.doesNotMatch(serverSource, /SELECT\s+\$\{[^}]*question/i);
+});
+
+test("las herramientas IA consultan las columnas vigentes de precio", () => {
+  assert.match(serverSource, /price_amount AS price, price_currency AS currency, area/);
+  assert.doesNotMatch(serverSource, /SELECT id, title_es, mls, zone, type, price, currency, area/);
+  assert.match(serverSource, /createOpenAIResponseError/);
+  assert.match(serverSource, /OPENAI_INSUFFICIENT_QUOTA/);
 });
 
 test("la interfaz integra búsqueda, Intelligence, calidad e integraciones sin chatbot público", () => {
