@@ -735,20 +735,21 @@ function propertyQuality(property) {
     ? Array.from({ length: Math.max(0, calculatedImageCount) })
     : mergeLegacyImages(property.images, property.image);
   const missing = [];
+  const developmentMode = property.publication_section === "developments" || property.type === "Desarrollo";
   if (!images.length) missing.push("portada");
   if (images.length < 5) missing.push("minimo 5 fotos");
   if (!property.latitude || !property.longitude) missing.push("ubicacion precisa");
-  if (!property.price_usd && !property.price_mxn) missing.push("precio");
+  if (!developmentMode && !property.price_usd && !property.price_mxn) missing.push("precio");
   if (!String(property.description_es || "").trim()) missing.push("descripcion");
   if (String(property.description_es || "").length < 220) missing.push("descripcion larga");
   if (!property.zone) missing.push("zona");
-  if (!property.beds && !property.baths && !property.area) missing.push("caracteristicas");
+  if (!developmentMode && !property.beds && !property.baths && !property.area) missing.push("caracteristicas");
   const parts = [
     Math.min(images.length, 8) / 8,
     property.latitude && property.longitude ? 1 : property.address ? 0.65 : 0,
-    property.price_usd || property.price_mxn ? 1 : 0,
+    developmentMode || property.price_usd || property.price_mxn ? 1 : 0,
     String(property.description_es || "").length > 220 ? 1 : String(property.description_es || "").length > 80 ? 0.55 : 0,
-    property.beds || property.baths || property.area ? 1 : 0.25,
+    developmentMode || property.beds || property.baths || property.area ? 1 : 0.25,
     property.featured || Number(property.price_usd || 0) >= 1000000 ? 1 : 0.6,
   ];
   const score = Math.round((parts.reduce((sum, value) => sum + value, 0) / parts.length) * 100);
@@ -757,13 +758,10 @@ function propertyQuality(property) {
 }
 
 function propertyEnglishFallback(row) {
-  const normalize = (value) => String(value || "").trim().toLocaleLowerCase("es-MX").replace(/\s+/g, " ");
   const titleEs = String(row.title_es || "").trim();
   const titleEn = String(row.title_en || "").trim();
   const descriptionEs = String(row.description_es || "").trim();
   const descriptionEn = String(row.description_en || "").trim();
-  const titleLooksSpanish = /[áéíóúñ¿¡]|\b(en venta|en renta|departamento|casa|terreno|lote|frente al mar|oportunidad|residencia)\b/i.test(titleEn);
-  const descriptionLooksSpanish = /[áéíóúñ¿¡]|\b(la|el|de|del|en|con|para|una|cuenta|propiedad|ubicad[oa]|ofrece|recámaras|baños)\b/i.test(descriptionEn);
   const type = {
     Casa: "Home",
     Departamento: "Condo",
@@ -788,11 +786,8 @@ function propertyEnglishFallback(row) {
   ].filter(Boolean).join(" ");
   const fallbackDescription = fallbackOverview;
   return {
-    title: !titleEn || normalize(titleEn) === normalize(titleEs) || titleLooksSpanish ? fallbackTitle : titleEn,
-    description:
-      !descriptionEn || normalize(descriptionEn) === normalize(descriptionEs) || descriptionLooksSpanish
-        ? fallbackDescription
-        : descriptionEn,
+    title: titleEn || fallbackTitle,
+    description: descriptionEn || fallbackDescription,
   };
 }
 
@@ -841,6 +836,7 @@ function toBlogPost(row, includeContent = true) {
 function toProperty(row) {
   const stored = mergeLegacyImages(row.images, row.image);
   const images = publicMediaUrls(stored, "properties", row.id);
+  const imageMetadata = normalizeImageMetadata(row.image_metadata, images.length);
   const quality = propertyQuality(row);
   const english = propertyEnglishFallback(row);
   const parentDevelopment = row.parent_development_record && typeof row.parent_development_record === "object"
@@ -856,6 +852,7 @@ function toProperty(row) {
     id: row.id,
     titleEs: row.title_es,
     titleEn: english.title,
+    titleEnStored: row.title_en || "",
     type: row.type,
     publicationSection: row.publication_section || (row.type === "Desarrollo" ? "developments" : "properties"),
     state: row.state || "Quintana Roo",
@@ -903,6 +900,8 @@ function toProperty(row) {
     verifiedBy: row.verified_by || "",
     descriptionEs: row.description_es,
     descriptionEn: english.description,
+    descriptionEnStored: row.description_en || "",
+    imageMetadata,
     developmentData: row.development_record && typeof row.development_record === "object"
       ? row.development_record
       : row.development_data && typeof row.development_data === "object"
@@ -1358,6 +1357,37 @@ function internalRoleAllows(req, user) {
   return allowed.some((prefix) => route.startsWith(prefix));
 }
 
+function documentShareSignature(id, expiresAt) {
+  return crypto.createHmac("sha256", sessionSecret).update(`${id}.${expiresAt}`).digest("base64url");
+}
+
+function validDocumentShareSignature(id, expiresAt, token) {
+  if (!Number.isSafeInteger(expiresAt) || expiresAt <= Math.floor(Date.now() / 1000)) return false;
+  const expected = documentShareSignature(id, expiresAt);
+  const supplied = String(token || "");
+  if (supplied.length !== expected.length) return false;
+  return crypto.timingSafeEqual(Buffer.from(supplied), Buffer.from(expected));
+}
+
+function propertyWhatsappSheetText(property, shareUrl) {
+  const amount = property.price ?? (property.currency === "MXN" ? property.priceMxn : property.priceUsd);
+  const unit = property.priceUnit === "sqm" ? " por m²" : "";
+  const reference = [property.type, property.zone, property.city, property.mls ? `MLS# ${property.mls}` : ""]
+    .filter(Boolean)
+    .join(" · ");
+  return [
+    `Puerto Cancún Center te ofrece ${property.operation === "rent" ? "en renta" : "en venta"}:`,
+    property.titleEs,
+    reference ? `Referencia: ${reference}` : "",
+    Number.isFinite(Number(amount)) && Number(amount) > 0 ? `Precio: ${formatPdfMoney(amount, property.currency)}${unit}` : "Precio: a consultar",
+    property.lot ? `Terreno: ${new Intl.NumberFormat("es-MX", { maximumFractionDigits: 2 }).format(property.lot)} m²` : "",
+    property.beds ? `Recámaras: ${property.beds}` : "",
+    property.baths ? `Baños: ${property.baths}` : "",
+    "",
+    `Consulta la ficha completa: ${shareUrl}`,
+  ].filter((line) => line !== "").join("\n");
+}
+
 function requireRole(role) {
   return async (req, res, next) => {
     if (!req.session.user || req.session.user.role !== role) {
@@ -1398,7 +1428,7 @@ const PROPERTY_SUMMARY_COLUMNS = `
   p.price_currency, p.price_amount, p.price_unit, p.price_usd, p.price_mxn, p.beds, p.baths, p.parking, p.area, p.lot, p.amenities, p.keywords,
   p.mls, p.featured, p.badges, p.status, p.is_public, p.created_at, p.updated_at, p.published_at,
   p.disabled_at, p.sold_at, p.archived_at, p.description_es, p.description_en, p.source_request_id,
-  p.idempotency_key, p.development_data, p.parent_development_id, p.last_verified_at, p.verified_by,
+  p.idempotency_key, p.development_data, p.parent_development_id, p.last_verified_at, p.verified_by, p.image_metadata,
   (SELECT jsonb_build_object(
     'id', d.id,
     'developer', COALESCE(d.developer, ''),
@@ -1779,6 +1809,7 @@ async function initDatabase() {
         mls TEXT NOT NULL,
         image TEXT,
         images JSONB NOT NULL DEFAULT '[]'::jsonb,
+        image_metadata JSONB NOT NULL DEFAULT '[]'::jsonb,
         featured BOOLEAN NOT NULL DEFAULT FALSE,
         badges JSONB NOT NULL DEFAULT '[]'::jsonb,
         created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -2141,6 +2172,7 @@ async function initDatabase() {
     await client.query("ALTER TABLE properties ADD COLUMN IF NOT EXISTS longitude NUMERIC");
     await client.query("ALTER TABLE properties ADD COLUMN IF NOT EXISTS map_place TEXT");
     await client.query("ALTER TABLE properties ADD COLUMN IF NOT EXISTS images JSONB NOT NULL DEFAULT '[]'::jsonb");
+    await client.query("ALTER TABLE properties ADD COLUMN IF NOT EXISTS image_metadata JSONB NOT NULL DEFAULT '[]'::jsonb");
     await client.query("UPDATE properties SET images = jsonb_build_array(image) WHERE image IS NOT NULL AND images = '[]'::jsonb");
     await client.query("ALTER TABLE seller_requests ADD COLUMN IF NOT EXISTS state TEXT NOT NULL DEFAULT 'Quintana Roo'");
     await client.query("ALTER TABLE seller_requests ADD COLUMN IF NOT EXISTS city TEXT NOT NULL DEFAULT 'Cancun'");
@@ -6334,11 +6366,11 @@ app.post("/api/admin/properties", requireRole("admin"), async (req, res, next) =
         (id, title_es, title_en, type, state, city, zone, neighborhood, address, latitude, longitude, map_place, location_precision, google_maps_url, operation,
          price_usd, price_mxn, beds, baths, area, lot, mls, image, images, featured, status, is_public, badges, description_es, description_en, keywords,
          idempotency_key, slug, parking, amenities, publication_section, price_currency, price_amount, price_unit, development_data,
-         parent_development_id, published_at)
+         parent_development_id, image_metadata, published_at)
        VALUES
         ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24::jsonb,
          $25, $26, $27, $28::jsonb, $29, $30, $31::jsonb, $32, $33, $34, $35::jsonb, $36, $37, $38, $39, $40::jsonb, $41,
-         CASE WHEN $26 = 'active' AND $27 = TRUE THEN NOW() ELSE NULL END)
+         $42::jsonb, CASE WHEN $26 = 'active' AND $27 = TRUE THEN NOW() ELSE NULL END)
        RETURNING id`,
       [
         property.id,
@@ -6382,6 +6414,7 @@ app.post("/api/admin/properties", requireRole("admin"), async (req, res, next) =
         property.priceUnit,
         JSON.stringify(property.developmentData),
         property.developmentId,
+        JSON.stringify(property.imageMetadata),
       ]
     );
     await syncDevelopmentEntity(property, client);
@@ -6392,6 +6425,9 @@ app.post("/api/admin/properties", requireRole("admin"), async (req, res, next) =
     const createdProperty = toProperty(createdRow);
     if (createdProperty.isPublic && PUBLIC_PROPERTY_STATUSES.has(createdProperty.status)) void notifyIndexNow(propertyIndexPaths(createdProperty));
     void createSavedSearchAlertsForProperty(createdProperty).catch((error) => console.warn("Saved-search alert failed:", error.message));
+    if (!property.titleEn || !property.descriptionEn) {
+      void automaticallyTranslateProperty(createdProperty.id).catch((error) => console.warn("Automatic translation failed:", error.message));
+    }
     res.status(201).json({ property: createdProperty });
   } catch (error) {
     if (client && inTransaction) await client.query("ROLLBACK").catch(() => null);
@@ -6433,6 +6469,9 @@ app.put("/api/admin/properties/:id", requireRole("admin"), async (req, res, next
     await client.query("BEGIN");
     inTransaction = true;
     const versionSource = await client.query("SELECT * FROM properties WHERE id = $1", [req.params.id]);
+    if (safeBody.publicationSection === "developments" && !safeBody.developmentData && versionSource.rows[0]?.development_data) {
+      safeBody.developmentData = versionSource.rows[0].development_data;
+    }
     const existing = await client.query(
       preserveImages
         ? "SELECT id, GREATEST(COALESCE(jsonb_array_length(images), 0), CASE WHEN image IS NULL THEN 0 ELSE 1 END)::int AS image_count FROM properties WHERE id = $1"
@@ -6465,6 +6504,7 @@ app.put("/api/admin/properties/:id", requireRole("admin"), async (req, res, next
            archived_at = CASE WHEN $26 = 'archived' THEN NOW() ELSE archived_at END,
            publication_section = $36, price_currency = $37, price_amount = $38, price_unit = $39, development_data = $40::jsonb,
            parent_development_id = $41,
+           image_metadata = CASE WHEN $32 THEN image_metadata ELSE $42::jsonb END,
            updated_at = NOW()
        WHERE id = $1
          AND ($35::timestamptz IS NULL OR date_trunc('milliseconds', updated_at) = date_trunc('milliseconds', $35::timestamptz))
@@ -6511,6 +6551,7 @@ app.put("/api/admin/properties/:id", requireRole("admin"), async (req, res, next
         property.priceUnit,
         JSON.stringify(property.developmentData),
         property.developmentId,
+        JSON.stringify(property.imageMetadata),
       ]
     );
     if (!result.rows[0]) {
@@ -6534,6 +6575,9 @@ app.put("/api/admin/properties/:id", requireRole("admin"), async (req, res, next
     invalidatePublicPropertyCache();
     if (updatedProperty.isPublic && PUBLIC_PROPERTY_STATUSES.has(updatedProperty.status)) void notifyIndexNow(propertyIndexPaths(updatedProperty));
     void createSavedSearchAlertsForProperty(updatedProperty).catch((error) => console.warn("Saved-search alert failed:", error.message));
+    if (!property.titleEn || !property.descriptionEn) {
+      void automaticallyTranslateProperty(updatedProperty.id).catch((error) => console.warn("Automatic translation failed:", error.message));
+    }
     res.json({ property: updatedProperty });
   } catch (error) {
     if (client && inTransaction) await client.query("ROLLBACK").catch(() => null);
@@ -6546,7 +6590,7 @@ app.put("/api/admin/properties/:id", requireRole("admin"), async (req, res, next
 app.patch("/api/admin/properties/:id/images", requireRole("admin"), async (req, res, next) => {
   try {
     const safeBody = await sanitizePropertyImageBody(req.body || {});
-    const existing = await query("SELECT id, image, images, status, is_public, updated_at FROM properties WHERE id = $1", [req.params.id]);
+    const existing = await query("SELECT id, image, images, image_metadata, status, is_public, updated_at FROM properties WHERE id = $1", [req.params.id]);
     const row = existing.rows[0];
     if (!row) {
       res.status(404).json({ error: "Property not found" });
@@ -6561,16 +6605,17 @@ app.patch("/api/admin/properties/:id/images", requireRole("admin"), async (req, 
       }
     }
     const images = parseUploadedImages(safeBody, mergeLegacyImages(row.images, row.image), req.params.id);
+    const imageMetadata = normalizeImageMetadata(safeBody.imageMetadata ?? row.image_metadata, images.length);
     if (!images.length && row.is_public && PUBLIC_PROPERTY_STATUSES.has(row.status)) {
       res.status(400).json({ error: "Una publicación visible debe conservar al menos una imagen. Despublícala antes de eliminar la última." });
       return;
     }
     const result = await query(
       `UPDATE properties
-       SET image = $2, images = $3::jsonb, updated_at = NOW()
+       SET image = $2, images = $3::jsonb, image_metadata = $5::jsonb, updated_at = NOW()
        WHERE id = $1 AND ($4::timestamptz IS NULL OR updated_at = $4::timestamptz)
        RETURNING id`,
-      [req.params.id, images[0] || null, JSON.stringify(images), expectedUpdatedAt]
+      [req.params.id, images[0] || null, JSON.stringify(images), expectedUpdatedAt, JSON.stringify(imageMetadata)]
     );
     if (!result.rows[0]) {
       res.status(409).json({ error: "Esta propiedad cambió en otra sesión. Recarga el panel antes de guardar la galería." });
@@ -6624,11 +6669,12 @@ app.post("/api/admin/properties/:id/duplicate", requireRole("admin"), async (req
         (id, title_es, title_en, type, state, city, zone, neighborhood, address, latitude, longitude, map_place,
          location_precision, google_maps_url, operation, price_usd, price_mxn, beds, baths, area, lot, mls,
          image, images, featured, status, is_public, badges, description_es, description_en, keywords, publication_section,
-         price_currency, price_amount, price_unit, development_data)
+         price_currency, price_amount, price_unit, development_data, parent_development_id, image_metadata)
        SELECT $2, title_es || ' (copia)', title_en || ' (copy)', type, state, city, zone, neighborhood, address,
          latitude, longitude, map_place, location_precision, google_maps_url, operation, price_usd, price_mxn,
           beds, baths, area, lot, $3, image, images, FALSE, 'draft', FALSE, badges, description_es, description_en, keywords,
           publication_section, price_currency, price_amount, price_unit, development_data
+          , parent_development_id, image_metadata
        FROM properties WHERE id = $1
        RETURNING *`,
       [req.params.id, uuid("prop"), String(Math.floor(2000 + Math.random() * 8000))]
@@ -7268,6 +7314,60 @@ app.get("/api/admin/documents/:id/download", requireRole("admin"), async (req, r
     }
     res.setHeader("Content-Type", "application/pdf");
     res.setHeader("Content-Disposition", `attachment; filename="${document.file_name}"`);
+    res.send(Buffer.from(document.content_base64, "base64"));
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.post("/api/admin/documents/:id/share", requireRole("admin"), async (req, res, next) => {
+  try {
+    const result = await query(
+      `SELECT d.id AS document_id, ${PROPERTY_SUMMARY_COLUMNS}
+       FROM generated_documents d
+       JOIN properties p ON p.id = d.property_id
+       WHERE d.id = $1 AND d.document_type = 'property'`,
+      [req.params.id]
+    );
+    const row = result.rows[0];
+    if (!row) {
+      res.status(404).json({ error: "Ficha de propiedad no encontrada." });
+      return;
+    }
+    const expiresAt = Math.floor(Date.now() / 1000) + 7 * 24 * 60 * 60;
+    const token = documentShareSignature(row.document_id, expiresAt);
+    const sharePath = `/fichas/${encodeURIComponent(row.document_id)}?expires=${expiresAt}&token=${encodeURIComponent(token)}`;
+    const requestOrigin = `${String(req.get("x-forwarded-proto") || req.protocol || "https").split(",")[0].trim()}://${String(req.get("x-forwarded-host") || req.get("host") || "").split(",")[0].trim()}`;
+    const shareUrl = absoluteUrl(sharePath, requestOrigin || siteUrl);
+    const property = toProperty(withPropertyMediaPlaceholders(row));
+    const message = propertyWhatsappSheetText(property, shareUrl);
+    res.json({
+      shareUrl,
+      expiresAt: new Date(expiresAt * 1000).toISOString(),
+      message,
+      whatsappUrl: `https://wa.me/?text=${encodeURIComponent(message)}`,
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.get("/fichas/:id", async (req, res, next) => {
+  try {
+    const expiresAt = Number(req.query.expires);
+    if (!validDocumentShareSignature(req.params.id, expiresAt, req.query.token)) {
+      res.status(410).type("text/plain").send("Este enlace de ficha es inválido o ya venció.");
+      return;
+    }
+    const result = await query("SELECT file_name, content_base64 FROM generated_documents WHERE id = $1 AND document_type = 'property'", [req.params.id]);
+    const document = result.rows[0];
+    if (!document) {
+      res.status(404).type("text/plain").send("La ficha solicitada no existe.");
+      return;
+    }
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader("Content-Disposition", `inline; filename="${String(document.file_name).replace(/"/g, "")}"`);
+    res.setHeader("Cache-Control", "private, no-store, max-age=0");
     res.send(Buffer.from(document.content_base64, "base64"));
   } catch (error) {
     next(error);
@@ -8044,6 +8144,84 @@ async function createOpenAIResponseError(response, operation = "Solicitud") {
   return error;
 }
 
+async function requestAutomaticPropertyTranslation(title, description) {
+  if (!process.env.OPENAI_API_KEY) return null;
+  const model = process.env.OPENAI_MODEL || "gpt-5-mini";
+  const response = await fetch("https://api.openai.com/v1/responses", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${process.env.OPENAI_API_KEY}`, "Content-Type": "application/json" },
+    body: JSON.stringify({
+      model,
+      reasoning: { effort: "low" },
+      text: {
+        verbosity: "low",
+        format: {
+          type: "json_schema",
+          name: "automatic_property_translation",
+          strict: true,
+          schema: {
+            type: "object",
+            properties: {
+              titleEn: { type: "string" },
+              descriptionEn: { type: "string" },
+            },
+            required: ["titleEn", "descriptionEn"],
+            additionalProperties: false,
+          },
+        },
+      },
+      instructions: `${prompts.translation} Return only valid JSON with keys titleEn and descriptionEn. Preserve every factual detail and do not add claims.`,
+      input: JSON.stringify({ title, description }),
+      max_output_tokens: 5000,
+      store: false,
+    }),
+    signal: AbortSignal.timeout(45000),
+  });
+  if (!response.ok) throw await createOpenAIResponseError(response, "Traducción automática");
+  const payload = await response.json();
+  const raw = String(payload.output_text || payload.output?.flatMap((item) => item.content || []).find((item) => item.type === "output_text")?.text || "").trim();
+  if (!raw) throw new Error("OpenAI no devolvió la traducción automática.");
+  const translated = JSON.parse(raw.replace(/^```json\s*|\s*```$/gi, ""));
+  const titleEn = String(translated.titleEn || "").trim().slice(0, 500);
+  const descriptionEn = String(translated.descriptionEn || "").trim().slice(0, DESCRIPTION_MAX_LENGTH);
+  if (!titleEn || !descriptionEn) throw new Error("La traducción automática llegó incompleta.");
+  return { titleEn, descriptionEn, model };
+}
+
+async function automaticallyTranslateProperty(propertyId) {
+  if (!process.env.OPENAI_API_KEY || !propertyId) return;
+  const result = await query(
+    `SELECT id, title_es, title_en, description_es, description_en, publication_section
+     FROM properties WHERE id = $1`,
+    [propertyId]
+  );
+  const row = result.rows[0];
+  if (!row) return;
+  const missingTitle = !String(row.title_en || "").trim();
+  const missingDescription = !String(row.description_en || "").trim();
+  if (!missingTitle && !missingDescription) return;
+  const translated = await requestAutomaticPropertyTranslation(row.title_es, row.description_es);
+  if (!translated) return;
+  await query(
+    `UPDATE properties
+     SET title_en = CASE WHEN NULLIF(BTRIM(title_en), '') IS NULL THEN $2 ELSE title_en END,
+         description_en = CASE WHEN NULLIF(BTRIM(description_en), '') IS NULL THEN $3 ELSE description_en END
+     WHERE id = $1`,
+    [propertyId, translated.titleEn, translated.descriptionEn]
+  );
+  invalidatePublicPropertyCache();
+  await logAiOperation({
+    operation: "automatic_translation",
+    module: row.publication_section === "developments" ? "developments" : "properties",
+    entityType: row.publication_section === "developments" ? "development" : "property",
+    entityId: propertyId,
+    provider: "openai",
+    model: translated.model,
+    status: "success",
+    metadata: { promptVersion: PROMPT_VERSION, automatic: true },
+  });
+}
+
 function openAIUserMessage(error) {
   const messages = {
     OPENAI_INVALID_KEY: "OpenAI rechazó la credencial. Reemplaza OPENAI_API_KEY y vuelve a desplegar.",
@@ -8704,10 +8882,19 @@ function parseUploadedImages(body, existingImages = [], propertyId = "") {
   });
 }
 
+function normalizeImageMetadata(value, count) {
+  const source = Array.isArray(value) ? value : [];
+  return Array.from({ length: count }, (_unused, index) => ({
+    descriptionEs: String(source[index]?.descriptionEs || "").trim().slice(0, 500),
+    descriptionEn: String(source[index]?.descriptionEn || "").trim().slice(0, 500),
+  }));
+}
+
 function normalizePropertyInput(body, id, existingImages = []) {
   const title = String(body.title || body.titleEs || "").trim();
   const type = String(body.type || "").trim();
   const publicationSection = body.publicationSection === "developments" ? "developments" : "properties";
+  const developmentMode = publicationSection === "developments";
   const state = String(body.state || "Quintana Roo").trim();
   const city = String(body.city || "Cancun").trim();
   const zone = String(body.zone || "").trim();
@@ -8734,6 +8921,7 @@ function normalizePropertyInput(body, id, existingImages = []) {
   const priceUsd = currency === "USD" ? price : null;
   const priceMxn = currency === "MXN" ? price : null;
   const images = parseUploadedImages(body, existingImages, id);
+  const imageMetadata = normalizeImageMetadata(body.imageMetadata, images.length);
   const keywords = normalizeKeywords(body.keywords);
   const status = normalizeStatus(body.status, PROPERTY_STATUSES, "active");
   const isPublic = body.isPublic === undefined ? status === "active" : body.isPublic !== false && body.isPublic !== "false";
@@ -8743,7 +8931,7 @@ function normalizePropertyInput(body, id, existingImages = []) {
     error.status = 400;
     throw error;
   }
-  if (price === null) {
+  if (!developmentMode && price === null) {
     const error = new Error("Agrega el precio y selecciona si se publica en USD o MXN.");
     error.status = 400;
     throw error;
@@ -8753,41 +8941,16 @@ function normalizePropertyInput(body, id, existingImages = []) {
     error.status = 400;
     throw error;
   }
-  const descriptionEs = String(body.description || body.descriptionEs || "").trim() || "Propiedad publicada por administracion.";
-  const descriptionEn = String(body.descriptionEn || body.description || "").trim() || "Property published by administration.";
+  const descriptionEs = String(body.description || body.descriptionEs || "").trim() || (developmentMode ? "Desarrollo publicado por administracion." : "Propiedad publicada por administracion.");
+  const descriptionEn = String(body.descriptionEn || "").trim();
   if (descriptionEs.length > DESCRIPTION_MAX_LENGTH || descriptionEn.length > DESCRIPTION_MAX_LENGTH) {
     const error = new Error(`La descripcion no debe superar ${DESCRIPTION_MAX_LENGTH.toLocaleString("es-MX")} caracteres.`);
     error.status = 400;
     throw error;
   }
 
-  const developmentDataInput = body.developmentData && typeof body.developmentData === "object"
+  const developmentData = developmentMode && body.developmentData && typeof body.developmentData === "object"
     ? body.developmentData
-    : body;
-  const developmentData = publicationSection === "developments"
-    ? {
-        developer: String(developmentDataInput.developer || "").trim().slice(0, 180),
-        stage: String(developmentDataInput.developmentStage || developmentDataInput.stage || "").trim().slice(0, 120),
-        deliveryDate: String(developmentDataInput.deliveryDate || "").trim().slice(0, 40),
-        units: parseNonNegativeInteger(developmentDataInput.units, "Unidades"),
-        availableUnits: parseNonNegativeInteger(developmentDataInput.availableUnits, "Unidades disponibles"),
-        paymentPlan: String(developmentDataInput.paymentPlan || "").trim().slice(0, 1200),
-        paymentPlanEn: String(developmentDataInput.paymentPlanEn || "").trim().slice(0, 1200),
-        amenities: (Array.isArray(developmentDataInput.developmentAmenities)
-          ? developmentDataInput.developmentAmenities
-          : Array.isArray(developmentDataInput.amenities)
-            ? developmentDataInput.amenities
-            : String(developmentDataInput.developmentAmenities || "").split(","))
-          .map((item) => String(item).trim())
-          .filter(Boolean)
-          .slice(0, 40),
-        constructionProgress: Math.min(100, parseNonNegativeNumber(developmentDataInput.constructionProgress, "Avance de obra")),
-        progressUpdatedAt: /^\d{4}-\d{2}-\d{2}$/.test(String(developmentDataInput.progressUpdatedAt || ""))
-          ? String(developmentDataInput.progressUpdatedAt)
-          : "",
-        investmentHighlights: String(developmentDataInput.investmentHighlights || "").trim().slice(0, 3000),
-        investmentHighlightsEn: String(developmentDataInput.investmentHighlightsEn || "").trim().slice(0, 3000),
-      }
     : {};
   const developmentId = publicationSection === "properties"
     ? String(body.developmentId || "").trim().slice(0, 180) || null
@@ -8796,7 +8959,7 @@ function normalizePropertyInput(body, id, existingImages = []) {
   return {
     id,
     titleEs: title,
-    titleEn: String(body.titleEn || title).trim(),
+    titleEn: String(body.titleEn || "").trim(),
     type,
     publicationSection,
     state,
@@ -8809,25 +8972,26 @@ function normalizePropertyInput(body, id, existingImages = []) {
     mapPlace,
     locationPrecision,
     googleMapsUrl,
-    operation,
+    operation: developmentMode ? "sale" : operation,
     currency,
-    price,
-    priceUsd,
-    priceMxn,
+    price: developmentMode ? null : price,
+    priceUsd: developmentMode ? null : priceUsd,
+    priceMxn: developmentMode ? null : priceMxn,
     priceUnit,
-    beds: parseNonNegativeInteger(body.beds, "Recamaras"),
-    baths: parseNonNegativeInteger(body.baths, "Banos"),
-    parking: parseNonNegativeInteger(body.parking, "Estacionamientos"),
-    area: parseNonNegativeNumber(body.area, "M2 construccion"),
-    lot: parseNonNegativeNumber(body.lot, "M2 terreno"),
-    amenities: (Array.isArray(body.amenities) ? body.amenities : String(body.amenities || "").split(","))
+    beds: developmentMode ? 0 : parseNonNegativeInteger(body.beds, "Recamaras"),
+    baths: developmentMode ? 0 : parseNonNegativeInteger(body.baths, "Banos"),
+    parking: developmentMode ? 0 : parseNonNegativeInteger(body.parking, "Estacionamientos"),
+    area: developmentMode ? 0 : parseNonNegativeNumber(body.area, "M2 construccion"),
+    lot: developmentMode ? 0 : parseNonNegativeNumber(body.lot, "M2 terreno"),
+    amenities: (developmentMode ? [] : Array.isArray(body.amenities) ? body.amenities : String(body.amenities || "").split(","))
       .map((item) => String(item).trim())
       .filter(Boolean)
       .slice(0, 30),
     keywords,
-    mls: String(body.mls || Math.floor(2000 + Math.random() * 8000)),
+    mls: developmentMode ? "" : String(body.mls || Math.floor(2000 + Math.random() * 8000)),
     image: images[0] || null,
     images,
+    imageMetadata,
     featured: Boolean(body.featured),
     status,
     isPublic,

@@ -3277,10 +3277,52 @@ input[type="file"] {
   height: 15px;
 }
 
+.image-caption-field {
+  display: grid;
+  gap: 4px;
+  margin: 0;
+}
+
+.image-caption-field span {
+  color: var(--blue-900);
+  font-size: 0.68rem;
+  line-height: 1.3;
+  text-transform: none;
+}
+
+.image-caption-field textarea {
+  width: 100%;
+  min-height: 58px;
+  padding: 7px 8px;
+  resize: vertical;
+  border: 1px solid var(--line);
+  background: #fff;
+  color: var(--ink);
+  font: inherit;
+  font-size: 0.76rem;
+}
+
+.property-detail-slide figcaption {
+  padding: 10px 12px;
+  background: #f6f8f8;
+  color: var(--muted);
+  font-size: 0.86rem;
+}
+
+.whatsapp-share-button {
+  border-color: #128c4a;
+  background: #128c4a;
+  color: #fff;
+}
+
+.whatsapp-share-button:hover {
+  background: #0d733c;
+}
+
 .image-preview-grid {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 8px;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: 12px;
 }
 
 textarea {
@@ -7508,7 +7550,8 @@ button[aria-busy="true"] {
 
 .property-gallery-slide.is-active {
   display: grid;
-  place-items: center;
+  grid-template-rows: minmax(0, 1fr) auto;
+  place-items: stretch;
 }
 
 .property-gallery-slide img {
@@ -7519,6 +7562,14 @@ button[aria-busy="true"] {
   object-fit: contain;
   background: #eef0ef;
   cursor: zoom-in;
+}
+
+.property-gallery-slide figcaption {
+  padding: 12px 8px 4px;
+  color: #3b5458;
+  font-size: 0.9rem;
+  line-height: 1.45;
+  text-align: center;
 }
 
 .property-gallery-open {
@@ -9349,26 +9400,6 @@ body[data-page="home"] .hero h1 {
 [data-admin-listing-view~="new-property"],
 [data-admin-listing-view~="new-development"] {
   margin-top: 8px;
-}
-
-.development-fields {
-  display: grid;
-  gap: 16px;
-  padding: 20px;
-  border: 1px solid #b9d8d3;
-  background: #f4fbfa;
-}
-
-.development-fields[hidden] {
-  display: none;
-}
-
-.development-fields legend {
-  padding: 0 8px;
-  color: var(--blue-900);
-  font-family: "Playfair Display", Georgia, serif;
-  font-size: 1.15rem;
-  font-weight: 700;
 }
 
 .creative-studio {

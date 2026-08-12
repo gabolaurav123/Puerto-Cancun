@@ -2210,7 +2210,7 @@
                   <span data-i18n="propertyTitleEs">Título de la propiedad en español</span>
                   <input name="title" required />
                 </label>
-                <label>
+                <label data-property-only>
                   <span data-i18n="propertyType">Tipo de propiedad</span>
                   <select name="type" required>
                     <option>Casa</option>
@@ -2222,7 +2222,7 @@
                   </select>
                 </label>
               </div>
-              <label hidden>
+              <label>
                 <span data-i18n="propertyTitleEn">Título de la propiedad en inglés</span>
                 <input name="titleEn" />
                 <small data-i18n="bilingualFieldHelp">Este texto se muestra cuando el visitante navega en inglés.</small>
@@ -2246,7 +2246,7 @@
                   <span data-i18n="neighborhoodField">Colonia / desarrollo</span>
                   <select name="neighborhood" data-location-select="neighborhood"></select>
                 </label>
-                <label>
+                <label data-property-only>
                   <span data-i18n="operation">Operacion</span>
                   <select name="operation">
                     <option value="sale" data-i18n="sale">Venta</option>
@@ -2266,7 +2266,7 @@
                   </select>
                 </label>
               </div>
-              <div class="form-row">
+              <div class="form-row" data-property-only>
                 <label>
                   <span>Moneda original de publicación</span>
                   <select name="currency" required>
@@ -2293,29 +2293,6 @@
                 </select>
                 <small>Las áreas comunes y fotografías generales se tomarán de la ficha del desarrollo. Aquí solo debes subir las fotos de esta unidad.</small>
               </label>
-              <fieldset class="development-fields" data-development-fields hidden>
-                <legend>Información del desarrollo</legend>
-                <div class="form-row">
-                  <label><span>Desarrollador</span><input name="developer" /></label>
-                  <label><span>Etapa</span><select name="developmentStage"><option value="">Seleccionar</option><option value="planning">Planeación</option><option value="presale">Preventa</option><option value="construction">Construcción</option><option value="delivery">Entrega inmediata</option><option value="completed">Terminado</option></select></label>
-                  <label><span>Fecha estimada de entrega</span><input name="deliveryDate" type="date" /></label>
-                  <label><span>Unidades totales</span><input name="units" type="number" min="0" /></label>
-                  <label><span>Unidades disponibles</span><input name="availableUnits" type="number" min="0" /></label>
-                </div>
-                <div class="form-row" hidden>
-                  <label><span>Avance de obra (%)</span><input name="constructionProgress" type="number" min="0" max="100" step="0.1" /></label>
-                  <label><span>Fecha de actualización del avance</span><input name="progressUpdatedAt" type="date" /></label>
-                </div>
-                <div class="form-row" hidden>
-                  <label><span>Plan de pagos en español</span><textarea name="paymentPlan" rows="3"></textarea></label>
-                  <label><span>Payment plan in English</span><textarea name="paymentPlanEn" rows="3"></textarea></label>
-                </div>
-                <label><span>Amenidades exclusivas del desarrollo</span><input name="developmentAmenities" placeholder="Beach club, alberca, marina, coworking" /></label>
-                <div class="form-row">
-                  <label><span>Aspectos destacados de inversión en español</span><textarea name="investmentHighlights" rows="3"></textarea></label>
-                  <label hidden><span>Investment highlights in English</span><textarea name="investmentHighlightsEn" rows="3"></textarea></label>
-                </div>
-              </fieldset>
               <label>
                 <span data-i18n="address">Direccion</span>
                 <input name="address" />
@@ -2391,7 +2368,7 @@
                 <div class="form-actions"><button class="secondary-button" id="useRecommendedCover" type="button" hidden>Usar portada recomendada</button><button class="ghost-button" id="applySuggestedImageOrder" type="button" hidden>Aplicar orden sugerido</button></div>
               </section>
               <p class="form-message" id="listingFormMessage"></p>
-              <div class="form-row listing-metrics-row">
+              <div class="form-row listing-metrics-row" data-property-only>
                 <label>
                   <span data-i18n="bedrooms">Recamaras</span>
                   <input name="beds" type="number" min="0" />
@@ -2417,7 +2394,7 @@
                   <input name="mls" maxlength="40" />
                 </label>
               </div>
-              <label>
+              <label data-property-only>
                 <span>Amenidades</span>
                 <input name="amenities" placeholder="Alberca, marina, gimnasio, seguridad" />
               </label>
@@ -2443,7 +2420,7 @@
                 <textarea name="description" rows="10" maxlength="50000"></textarea>
                 <small class="character-counter" id="listingDescriptionCounter">0 / 50,000 caracteres</small>
               </label>
-              <label hidden>
+              <label>
                 <span data-i18n="descriptionEn">Descripción en inglés</span>
                 <textarea name="descriptionEn" rows="10" maxlength="50000"></textarea>
                 <small data-i18n="bilingualFieldHelp">Este texto se muestra cuando el visitante navega en inglés.</small>

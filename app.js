@@ -1757,6 +1757,26 @@ async function api(path, options = {}) {
   throw new Error("No fue posible completar la solicitud.");
 }
 
+function safeParseImageMetadata(value) {
+  try {
+    const parsed = typeof value === "string" ? JSON.parse(value || "[]") : value;
+    return Array.isArray(parsed)
+      ? parsed.map((item) => ({
+          descriptionEs: String(item?.descriptionEs || "").slice(0, 500),
+          descriptionEn: String(item?.descriptionEn || "").slice(0, 500),
+        }))
+      : [];
+  } catch {
+    return [];
+  }
+}
+
+function normalizedImageMetadata(metadata, count) {
+  const list = safeParseImageMetadata(metadata).slice(0, count);
+  while (list.length < count) list.push({ descriptionEs: "", descriptionEn: "" });
+  return list;
+}
+
 function analyticsMetadata(extra = {}) {
   let visitorId = "";
   try {
@@ -4127,6 +4147,7 @@ function renderAdminListings() {
   }
   list.innerHTML = properties
     .map((property) => {
+      const developmentMode = property.publicationSection === "developments";
       const description = localizedDescription(property);
       const excerpt = truncateText(description, 180);
       const hasMore = description.length > excerpt.length;
@@ -4148,15 +4169,15 @@ function renderAdminListings() {
                 <span class="status status-${escapeHtml(property.status || "active")}">${escapeHtml(propertyStatusLabel(property.status))}</span>
                 <h3>${escapeHtml(localizedTitle(property))}</h3>
               </div>
-              <strong>${escapeHtml(formatPriceSummary(property))}</strong>
+              <strong>${escapeHtml(developmentMode ? "Desarrollo" : formatPriceSummary(property))}</strong>
             </div>
-            <p>${escapeHtml(displayLocation(property))} · ${escapeHtml(displayType(property.type))} · ${escapeHtml(property.mls ? `${t("mls")} ${property.mls}` : "")}</p>
+            <p>${escapeHtml([displayLocation(property), displayType(property.type), property.mls ? `${t("mls")} ${property.mls}` : ""].filter(Boolean).join(" · "))}</p>
             ${
               Array.isArray(property.keywords) && property.keywords.length
                 ? `<div class="listing-keywords">${property.keywords.slice(0, 10).map((keyword) => `<span>${escapeHtml(keyword)}</span>`).join("")}</div>`
                 : ""
             }
-            <div class="listing-facts">
+            <div class="listing-facts" ${developmentMode ? "hidden" : ""}>
               <span>${escapeHtml(property.beds || 0)} ${escapeHtml(t("bedShort"))}</span>
               <span>${escapeHtml(property.baths || 0)} ${escapeHtml(t("bathShort"))}</span>
               <span>${escapeHtml(property.area || 0)} ${escapeHtml(t("sqmBuild"))}</span>
@@ -5319,6 +5340,7 @@ function renderDocuments() {
               </div>
               <div class="item-actions">
                 <a class="mini-button primary" href="/api/admin/documents/${encodeURIComponent(document.id)}/download">Descargar</a>
+                ${document.documentType === "property" ? `<button class="mini-button whatsapp-share-button" type="button" data-share-document="${escapeHtml(document.id)}"><i data-lucide="message-circle"></i><span>Compartir ficha por WhatsApp</span></button>` : ""}
                 <button class="mini-button danger" type="button" data-delete-document="${escapeHtml(document.id)}">Eliminar</button>
               </div>
             </article>
@@ -5326,6 +5348,30 @@ function renderDocuments() {
         )
         .join("")
     : `<p class="empty-state">Aún no hay fichas. Selecciona una propiedad o valoración y genera el primer PDF.</p>`;
+  refreshIcons();
+}
+
+async function shareDocumentByWhatsApp(id, button) {
+  if (!id || button?.dataset.loading === "true") return;
+  const popup = window.open("about:blank", "_blank");
+  if (popup) popup.opener = null;
+  setButtonLoading(button, true, "Preparando enlace...");
+  try {
+    const data = await api(`/api/admin/documents/${encodeURIComponent(id)}/share`, { method: "POST" });
+    if (popup) {
+      popup.location.replace(data.whatsappUrl);
+    } else {
+      await navigator.clipboard?.writeText(data.message || data.shareUrl);
+      showToast("El navegador bloqueó WhatsApp. El mensaje y el enlace se copiaron al portapapeles.");
+      return;
+    }
+    showToast("Enlace temporal creado. Estará disponible durante 7 días.");
+  } catch (error) {
+    popup?.close();
+    showToast(error.message || "No se pudo preparar la ficha para WhatsApp.", "error");
+  } finally {
+    setButtonLoading(button, false);
+  }
 }
 
 function renderMediaLibrary() {
@@ -6746,12 +6792,16 @@ function configureListingFormMode(section = state.adminSection) {
   const developmentMode = section === "new-development";
   form.dataset.listingMode = developmentMode ? "development" : "property";
   formField(form, "publicationSection").value = developmentMode ? "developments" : "properties";
-  const developmentFields = form.querySelector("[data-development-fields]");
   const developmentLink = form.querySelector("[data-property-development-link]");
   const brochureImporter = form.querySelector("[data-development-brochure]");
-  if (developmentFields) developmentFields.hidden = !developmentMode;
   if (developmentLink) developmentLink.hidden = developmentMode;
-  if (brochureImporter) brochureImporter.hidden = !developmentMode;
+  if (brochureImporter) brochureImporter.hidden = true;
+  form.querySelectorAll("[data-property-only]").forEach((container) => {
+    container.hidden = developmentMode;
+    container.querySelectorAll("input, select, textarea, button").forEach((control) => {
+      control.disabled = developmentMode;
+    });
+  });
 
   const type = formField(form, "type");
   if (type) {
@@ -6780,7 +6830,7 @@ function configureListingFormMode(section = state.adminSection) {
   const intro = $("#listingModeIntro");
   if (intro) {
     intro.innerHTML = developmentMode
-      ? `<span class="eyebrow">FICHA MAESTRA DE DESARROLLO</span><h3>Nuevo desarrollo inmobiliario</h3><p>Registra identidad, ubicación, amenidades, entrega e imágenes generales aunque todavía no existan unidades publicadas.</p>`
+      ? `<span class="eyebrow">DESARROLLO INMOBILIARIO</span><h3>Nuevo desarrollo</h3><p>Registra nombre, ubicación, galería y descripción en español e inglés. Las propiedades disponibles se vinculan por separado.</p>`
       : `<span class="eyebrow">PROPIEDAD INDIVIDUAL</span><h3>Nueva propiedad en venta o renta</h3><p>Registra los datos y fotografías de la unidad. Si pertenece a un desarrollo, vincúlala para reutilizar sus amenidades e imágenes generales.</p>`;
   }
   const imageLabel = formField(form, "imageFile")?.closest("label")?.querySelector("span");
@@ -7755,7 +7805,11 @@ function applySuggestedImageOrder() {
     return;
   }
   if (!window.confirm("¿Aplicar el orden sugerido? Podrás revisarlo antes de guardar la galería.")) return;
-  setListingImages(order.map((index) => current[index]).filter(Boolean));
+  const metadata = normalizedImageMetadata(form.dataset.imageMetadata, current.length);
+  setListingImages(
+    order.map((index) => current[index]).filter(Boolean),
+    order.map((index) => metadata[index]).filter(Boolean)
+  );
   showToast("Orden sugerido aplicado al borrador.");
 }
 
@@ -7804,6 +7858,7 @@ function listingDraftSnapshot(form) {
   return {
     fields,
     images: safeParseImages(form.dataset.currentImages),
+    imageMetadata: safeParseImageMetadata(form.dataset.imageMetadata),
     mediaDirty: form.dataset.mediaDirty === "true",
     idempotencyKey: form.dataset.idempotencyKey || "",
     savedAt: new Date().toISOString(),
@@ -7841,6 +7896,7 @@ async function restoreListingDraft() {
     const sameNewDraft = richDraft && (!localDraft || richDraft.idempotencyKey === localDraft.idempotencyKey);
     if (draft && sameEntity && sameNewDraft && Array.isArray(richDraft.images)) {
       draft.images = richDraft.images;
+      draft.imageMetadata = richDraft.imageMetadata;
       draft.mediaDirty = richDraft.mediaDirty;
     }
     if (!draft?.fields || !Object.values(draft.fields).some((value) => value !== "" && value !== false)) return;
@@ -7861,6 +7917,7 @@ async function restoreListingDraft() {
     const sourceProperty = state.properties.find((property) => property.id === source.id);
     const restoredImages = draft.mediaDirty ? (Array.isArray(draft.images) ? draft.images : []) : sourceProperty ? storedImages(sourceProperty) : (draft.images || []);
     form.dataset.currentImages = JSON.stringify(restoredImages);
+    form.dataset.imageMetadata = JSON.stringify(normalizedImageMetadata(draft.imageMetadata, restoredImages.length));
     form.dataset.removeImage = restoredImages.length ? "false" : draft.mediaDirty ? "true" : "false";
     form.dataset.mediaDirty = draft.mediaDirty ? "true" : "false";
     updateListingImagePreview(restoredImages);
@@ -7879,6 +7936,7 @@ function resetListingForm(clearDraft = true) {
   form.reset();
   formField(form, "id").value = "";
   form.dataset.currentImages = "[]";
+  form.dataset.imageMetadata = "[]";
   form.dataset.removeImage = "false";
   form.dataset.mediaDirty = "false";
   form.dataset.contentDirty = "false";
@@ -7921,16 +7979,19 @@ function setListingQualityPreview(property) {
   }
 }
 
-function renderImagePreview(preview, images, interactive = false) {
+function renderImagePreview(preview, images, interactive = false, metadata = []) {
   if (!preview) return;
   const list = Array.isArray(images) ? images.filter(Boolean) : images ? [images] : [];
   const grid = preview.querySelector(".image-preview-grid");
+  const captions = normalizedImageMetadata(metadata, list.length);
   if (list.length) {
     grid.innerHTML = list
       .map((src, index) => interactive
         ? `<article class="image-preview-item" draggable="true" data-image-index="${index}">
             <span class="image-order">${index === 0 ? "PORTADA" : index + 1}</span>
             <img src="${escapeHtml(src)}" alt="Vista previa ${index + 1}" loading="lazy" />
+            <label class="image-caption-field"><span>Descripción de imagen en español</span><textarea rows="2" maxlength="500" data-image-description="es" data-image-index="${index}" placeholder="Ej. Terraza principal con vista al mar">${escapeHtml(captions[index].descriptionEs)}</textarea></label>
+            <label class="image-caption-field"><span>Image description in English</span><textarea rows="2" maxlength="500" data-image-description="en" data-image-index="${index}" placeholder="E.g. Main terrace with ocean view">${escapeHtml(captions[index].descriptionEn)}</textarea></label>
             <div class="image-preview-actions">
               <button type="button" data-move-image="up" data-image-index="${index}" aria-label="Mover imagen a la izquierda" ${index === 0 ? "disabled" : ""}><i data-lucide="arrow-left"></i></button>
               <button type="button" data-move-image="down" data-image-index="${index}" aria-label="Mover imagen a la derecha" ${index === list.length - 1 ? "disabled" : ""}><i data-lucide="arrow-right"></i></button>
@@ -7952,15 +8013,17 @@ function updateSellerImagePreview(images) {
 }
 
 function updateListingImagePreview(images) {
-  renderImagePreview($("#listingImagePreview"), images, true);
+  const form = $("#listingForm");
+  renderImagePreview($("#listingImagePreview"), images, true, safeParseImageMetadata(form?.dataset.imageMetadata));
   const analyze = $("#analyzeListingImages");
   if (analyze) analyze.hidden = !formField($("#listingForm"), "id")?.value || !Array.isArray(images) || images.length === 0;
 }
 
-function setListingImages(images) {
+function setListingImages(images, metadata = null) {
   const form = $("#listingForm");
   const list = Array.isArray(images) ? images.filter(Boolean).slice(0, IMAGE_MAX_COUNT) : [];
   form.dataset.currentImages = JSON.stringify(list);
+  form.dataset.imageMetadata = JSON.stringify(normalizedImageMetadata(metadata ?? form.dataset.imageMetadata, list.length));
   form.dataset.removeImage = list.length ? "false" : "true";
   form.dataset.mediaDirty = "true";
   form.dataset.persistentMediaDirty = "true";
@@ -8038,8 +8101,11 @@ function moveListingImage(fromIndex, toIndex) {
   const images = safeParseImages(form.dataset.currentImages);
   if (fromIndex < 0 || toIndex < 0 || fromIndex >= images.length || toIndex >= images.length || fromIndex === toIndex) return;
   const [image] = images.splice(fromIndex, 1);
+  const metadata = normalizedImageMetadata(form.dataset.imageMetadata, images.length + 1);
+  const [caption] = metadata.splice(fromIndex, 1);
   images.splice(toIndex, 0, image);
-  setListingImages(images);
+  metadata.splice(toIndex, 0, caption);
+  setListingImages(images, metadata);
 }
 
 async function saveListingImagesOnly() {
@@ -8051,6 +8117,7 @@ async function saveListingImagesOnly() {
   }
   const button = $("#saveListingImages");
   const images = safeParseImages(form.dataset.currentImages);
+  const imageMetadata = normalizedImageMetadata(form.dataset.imageMetadata, images.length);
   const currentProperty = state.properties.find((property) => property.id === id);
   setButtonLoading(button, true, "Guardando galería...");
   try {
@@ -8058,6 +8125,7 @@ async function saveListingImagesOnly() {
       method: "PATCH",
       body: {
         images,
+        imageMetadata,
         removeImage: images.length === 0,
         expectedUpdatedAt: currentProperty?.updatedAt || null,
       },
@@ -8067,6 +8135,7 @@ async function saveListingImagesOnly() {
     const index = state.properties.findIndex((property) => property.id === saved.id);
     if (index >= 0) state.properties.splice(index, 1, saved);
     form.dataset.currentImages = JSON.stringify(storedImages(saved));
+    form.dataset.imageMetadata = JSON.stringify(normalizedImageMetadata(saved.imageMetadata, storedImages(saved).length));
     form.dataset.mediaDirty = "false";
     form.dataset.persistentMediaDirty = "true";
     updateListingImagePreview(storedImages(saved));
@@ -8179,7 +8248,9 @@ async function getFormImagePayload(form) {
 async function getListingImagePayload(form) {
   const images = safeParseImages(form.dataset.currentImages);
   if (formField(form, "id")?.value && form.dataset.mediaDirty !== "true") return { preserveImages: true };
-  return images.length ? { images } : { removeImage: true };
+  return images.length
+    ? { images, imageMetadata: normalizedImageMetadata(form.dataset.imageMetadata, images.length) }
+    : { removeImage: true, imageMetadata: [] };
 }
 
 async function listingSubmit(event) {
@@ -8189,16 +8260,17 @@ async function listingSubmit(event) {
   if (form.dataset.saving === "true") return;
   const submit = form.querySelector('[type="submit"]');
   const id = field("id").value;
+  const developmentMode = field("publicationSection").value === "developments";
   const message = $("#listingFormMessage");
   setFormMessage(message, "");
   if (!form.reportValidity()) return;
-  const currency = field("currency").value === "MXN" ? "MXN" : "USD";
-  const price = field("price").value === "" ? null : Number(field("price").value);
-  if (price === null) {
+  const currency = developmentMode ? "USD" : field("currency").value === "MXN" ? "MXN" : "USD";
+  const price = developmentMode ? null : field("price").value === "" ? null : Number(field("price").value);
+  if (!developmentMode && price === null) {
     setFormMessage(message, t("missingPrice"), true);
     return;
   }
-  if (!Number.isFinite(price) || price < 0) {
+  if (!developmentMode && (!Number.isFinite(price) || price < 0)) {
     setFormMessage(message, "Revisa el precio ingresado.", true);
     return;
   }
@@ -8230,19 +8302,19 @@ async function listingSubmit(event) {
     mapPlace: field("mapPlace").value,
     locationPrecision: latitude !== null && longitude !== null ? "exact" : "approximate",
     googleMapsUrl: form.querySelector("[data-open-map]")?.href || "",
-    operation: field("operation").value,
+    operation: developmentMode ? "sale" : field("operation").value,
     status: field("status").value,
     isPublic: field("isPublic").checked,
     currency,
     price,
-    priceUnit: field("priceUnit").value === "sqm" ? "sqm" : "total",
-    beds: Number(field("beds").value || 0),
-    baths: Number(field("baths").value || 0),
-    parking: Number(field("parking").value || 0),
-    area: Number(field("area").value || 0),
-    lot: Number(field("lot").value || 0),
-    mls: field("mls").value.trim(),
-    amenities: field("amenities").value.trim(),
+    priceUnit: developmentMode ? "total" : field("priceUnit").value === "sqm" ? "sqm" : "total",
+    beds: developmentMode ? 0 : Number(field("beds").value || 0),
+    baths: developmentMode ? 0 : Number(field("baths").value || 0),
+    parking: developmentMode ? 0 : Number(field("parking").value || 0),
+    area: developmentMode ? 0 : Number(field("area").value || 0),
+    lot: developmentMode ? 0 : Number(field("lot").value || 0),
+    mls: developmentMode ? "" : field("mls").value.trim(),
+    amenities: developmentMode ? [] : field("amenities").value.trim(),
     keywords,
     featured: field("featured").checked,
     description: field("description").value.trim(),
@@ -8250,22 +8322,6 @@ async function listingSubmit(event) {
     badges: ["new"],
     expectedUpdatedAt: currentProperty?.updatedAt || null,
   };
-  if (payload.publicationSection === "developments") {
-    Object.assign(payload, {
-      developer: field("developer").value.trim(),
-      developmentStage: field("developmentStage").value,
-      deliveryDate: field("deliveryDate").value,
-      units: Number(field("units").value || 0),
-      availableUnits: Number(field("availableUnits").value || 0),
-      paymentPlan: field("paymentPlan").value.trim(),
-      paymentPlanEn: field("paymentPlanEn").value.trim(),
-      developmentAmenities: parseKeywordInput(field("developmentAmenities").value),
-      constructionProgress: field("constructionProgress").value === "" ? null : Number(field("constructionProgress").value),
-      progressUpdatedAt: field("progressUpdatedAt").value,
-      investmentHighlights: field("investmentHighlights").value.trim(),
-      investmentHighlightsEn: field("investmentHighlightsEn").value.trim(),
-    });
-  }
   const idempotencyKey = id ? "" : form.dataset.idempotencyKey || globalThis.crypto?.randomUUID?.() || `listing-${Date.now()}-${Math.random().toString(16).slice(2)}`;
   if (!id) form.dataset.idempotencyKey = idempotencyKey;
   form.dataset.saving = "true";
@@ -8334,7 +8390,7 @@ async function translateListingToEnglish() {
   try {
     const result = await api("/api/admin/ai/translate-property", {
       method: "POST",
-      body: { title, description, entityType: "property", entityId: formField(form, "id")?.value || "" },
+      body: { title, description, entityType: form.dataset.listingMode === "development" ? "development" : "property", entityId: formField(form, "id")?.value || "" },
       timeoutMs: 60000,
     });
     formField(form, "titleEn").value = result.titleEn;
@@ -8358,7 +8414,7 @@ function editListing(id) {
   const field = (name) => formField(form, name);
   field("id").value = property.id;
   field("title").value = property.titleEs || property.title || "";
-  field("titleEn").value = property.titleEn || "";
+  field("titleEn").value = property.titleEnStored ?? property.titleEn ?? "";
   field("publicationSection").value = publicationSection;
   configureListingFormMode(editSection);
   field("type").value = property.type;
@@ -8370,19 +8426,6 @@ function editListing(id) {
   field("currency").value = property.currency || (property.priceUsd !== null && property.priceUsd !== undefined ? "USD" : "MXN");
   field("price").value = property.price ?? (field("currency").value === "USD" ? property.priceUsd : property.priceMxn) ?? "";
   field("priceUnit").value = property.priceUnit === "sqm" ? "sqm" : "total";
-  const developmentData = property.developmentData || {};
-  field("developer").value = developmentData.developer || "";
-  field("developmentStage").value = developmentData.stage || "";
-  field("deliveryDate").value = developmentData.deliveryDate || "";
-  field("units").value = developmentData.units || "";
-  field("availableUnits").value = developmentData.availableUnits || "";
-  field("paymentPlan").value = developmentData.paymentPlan || "";
-  field("paymentPlanEn").value = developmentData.paymentPlanEn || "";
-  field("developmentAmenities").value = Array.isArray(developmentData.amenities) ? developmentData.amenities.join(", ") : "";
-  field("constructionProgress").value = developmentData.constructionProgress ?? "";
-  field("progressUpdatedAt").value = developmentData.progressUpdatedAt ? String(developmentData.progressUpdatedAt).slice(0, 10) : "";
-  field("investmentHighlights").value = developmentData.investmentHighlights || "";
-  field("investmentHighlightsEn").value = developmentData.investmentHighlightsEn || "";
   field("address").value = property.address || "";
   field("latitude").value = property.latitude ?? "";
   field("longitude").value = property.longitude ?? "";
@@ -8394,6 +8437,7 @@ function editListing(id) {
   }
   field("imageFile").value = "";
   form.dataset.currentImages = JSON.stringify(storedImages(property));
+  form.dataset.imageMetadata = JSON.stringify(normalizedImageMetadata(property.imageMetadata, storedImages(property).length));
   form.dataset.removeImage = "false";
   form.dataset.mediaDirty = "false";
   form.dataset.contentDirty = "false";
@@ -8410,7 +8454,7 @@ function editListing(id) {
   field("keywords").value = Array.isArray(property.keywords) ? property.keywords.join(", ") : "";
   field("featured").checked = Boolean(property.featured);
   field("description").value = property.descriptionEs || property.description || "";
-  field("descriptionEn").value = property.descriptionEn || "";
+  field("descriptionEn").value = property.descriptionEnStored ?? property.descriptionEn ?? "";
   form.dataset.dirty = "false";
   renderListingKeywordChips();
   updateListingDescriptionCounter();
@@ -8756,11 +8800,13 @@ function renderPropertyDetail(property) {
     .join("");
   const images = storedImages(property);
   const galleryImages = images.length ? images : [fallbackImage];
+  const imageMetadata = normalizedImageMetadata(property.imageMetadata, galleryImages.length);
   const gallery = galleryImages
     .map(
       (src, index) => `
         <figure class="property-detail-slide">
-          <img src="${escapeHtml(src)}" alt="${escapeHtml(`${localizedTitle(property)} ${index + 1}`)}" onerror="this.onerror=null;this.src='${escapeHtml(fallbackImage)}';" />
+          <img src="${escapeHtml(src)}" alt="${escapeHtml((state.lang === "en" ? imageMetadata[index].descriptionEn : imageMetadata[index].descriptionEs) || `${localizedTitle(property)} ${index + 1}`)}" onerror="this.onerror=null;this.src='${escapeHtml(fallbackImage)}';" />
+          ${(state.lang === "en" ? imageMetadata[index].descriptionEn : imageMetadata[index].descriptionEs) ? `<figcaption>${escapeHtml(state.lang === "en" ? imageMetadata[index].descriptionEn : imageMetadata[index].descriptionEs)}</figcaption>` : ""}
         </figure>
       `
     )
@@ -9549,9 +9595,12 @@ function bindEvents() {
   $("#listingImagePreview")?.addEventListener("click", (event) => {
     const remove = event.target.closest("[data-remove-listing-image]");
     if (remove) {
-      const images = safeParseImages($("#listingForm").dataset.currentImages);
+      const form = $("#listingForm");
+      const images = safeParseImages(form.dataset.currentImages);
+      const metadata = normalizedImageMetadata(form.dataset.imageMetadata, images.length);
       images.splice(Number(remove.dataset.removeListingImage), 1);
-      setListingImages(images);
+      metadata.splice(Number(remove.dataset.removeListingImage), 1);
+      setListingImages(images, metadata);
       setFormMessage($("#listingFormMessage"), "Imagen eliminada de la galeria. Guarda la publicacion para confirmar el cambio.");
       return;
     }
@@ -9614,6 +9663,23 @@ function bindEvents() {
       }
       setAdminSection(button.dataset.adminSection);
     });
+  });
+  $("#listingImagePreview")?.addEventListener("input", (event) => {
+    const input = event.target.closest("[data-image-description]");
+    if (!input) return;
+    const form = $("#listingForm");
+    const images = safeParseImages(form.dataset.currentImages);
+    const metadata = normalizedImageMetadata(form.dataset.imageMetadata, images.length);
+    const item = metadata[Number(input.dataset.imageIndex)];
+    if (!item) return;
+    if (input.dataset.imageDescription === "en") item.descriptionEn = input.value.slice(0, 500);
+    else item.descriptionEs = input.value.slice(0, 500);
+    form.dataset.imageMetadata = JSON.stringify(metadata);
+    form.dataset.mediaDirty = "true";
+    form.dataset.persistentMediaDirty = "true";
+    const saveButton = $("#saveListingImages");
+    if (saveButton) saveButton.hidden = !formField(form, "id")?.value;
+    saveListingDraft();
   });
 
   $("#adminSidebarToggle")?.addEventListener("click", () => {
@@ -9800,6 +9866,9 @@ function bindEvents() {
 
     const deleteDocumentButton = event.target.closest("[data-delete-document]");
     if (deleteDocumentButton) void deleteDocument(deleteDocumentButton.dataset.deleteDocument);
+
+    const shareDocumentButton = event.target.closest("[data-share-document]");
+    if (shareDocumentButton) void shareDocumentByWhatsApp(shareDocumentButton.dataset.shareDocument, shareDocumentButton);
 
     const deleteMediaButton = event.target.closest("[data-delete-media]");
     if (deleteMediaButton) void deleteMedia(deleteMediaButton.dataset.deleteMedia);

@@ -15,6 +15,8 @@ test("el idioma se guarda antes de navegar y tambien se controla desde los panel
   assert.match(indexSource, /id="panelLanguageToggle"/);
   assert.match(indexSource, /name="titleEn"/);
   assert.match(indexSource, /name="descriptionEn"/);
+  assert.match(serverSource, /automaticallyTranslateProperty/);
+  assert.match(serverSource, /titleEnStored/);
   assert.match(seoSource, /localizedAmenity\(item, lang\)/);
   assert.match(seoSource, /"seguridad 24\/7": "24\/7 security"/);
   assert.doesNotMatch(serverSource, /Original property description:\\n\$\{descriptionEs\}/);
@@ -25,11 +27,30 @@ test("el idioma se guarda antes de navegar y tambien se controla desde los panel
   assert.match(seoSource, /class="seo-property-description">\$\{escapeHtml\(descriptionSummary\)\}/);
 });
 
+test("desarrollos usa un formulario reducido sin datos propios de una unidad", () => {
+  assert.doesNotMatch(indexSource, /data-development-fields/);
+  assert.match(indexSource, /data-property-only/);
+  assert.match(appSource, /container\.hidden = developmentMode/);
+  assert.match(appSource, /developmentMode \? 0 : Number\(field\("beds"\)/);
+  assert.match(serverSource, /developmentMode \? 0 : parseNonNegativeInteger\(body\.beds/);
+});
+
+test("cada imagen conserva descripciones bilingues y la ficha PDF se comparte por WhatsApp", () => {
+  assert.match(serverSource, /image_metadata JSONB NOT NULL DEFAULT '\[\]'::jsonb/);
+  assert.match(serverSource, /function normalizeImageMetadata/);
+  assert.match(appSource, /data-image-description="es"/);
+  assert.match(appSource, /data-image-description="en"/);
+  assert.match(appSource, /data-share-document/);
+  assert.match(serverSource, /app\.post\("\/api\/admin\/documents\/:id\/share"/);
+  assert.match(serverSource, /app\.get\("\/fichas\/:id"/);
+  assert.match(serverSource, /Consulta la ficha completa/);
+});
+
 test("desarrollos tiene destino editorial y pagina publica propia", () => {
   assert.match(indexSource, /name="publicationSection"/);
   assert.match(indexSource, /data-admin-section="developments"/);
   assert.match(indexSource, /data-admin-section-link="new-development"/);
-  assert.match(indexSource, /data-development-fields/);
+  assert.doesNotMatch(indexSource, /data-development-fields/);
   assert.match(serverSource, /publication_section TEXT NOT NULL DEFAULT 'properties'/);
   assert.match(indexSource, /id="developmentsNavLink"/);
 });

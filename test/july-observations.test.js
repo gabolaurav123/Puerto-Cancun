@@ -32,7 +32,7 @@ test("la moneda publicada se guarda como dato original y no como preferencia de 
   assert.match(schemaSource, /price_amount NUMERIC/);
   assert.match(indexSource, /<select name="currency" required>/);
   assert.match(indexSource, /<input name="price" type="number"/);
-  assert.match(serverSource, /currency,\s+price,\s+priceUsd,\s+priceMxn/s);
+  assert.match(serverSource, /currency,\s+price: developmentMode \? null : price,\s+priceUsd: developmentMode \? null : priceUsd,\s+priceMxn: developmentMode \? null : priceMxn/s);
 });
 
 test("CRM permite editar contactos sin abrir un cliente de correo", () => {
