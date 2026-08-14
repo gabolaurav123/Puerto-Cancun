@@ -2228,8 +2228,6 @@ async function initDatabase() {
     await client.query("CREATE UNIQUE INDEX IF NOT EXISTS idx_seller_requests_idempotency ON seller_requests (idempotency_key) WHERE idempotency_key IS NOT NULL");
     await client.query("CREATE INDEX IF NOT EXISTS idx_seller_requests_seller_created ON seller_requests (seller_id, created_at DESC)");
     await client.query("UPDATE seller_requests SET images = jsonb_build_array(image) WHERE image IS NOT NULL AND images = '[]'::jsonb");
-    await client.query("CREATE INDEX IF NOT EXISTS idx_guest_sale_requests_status_created ON guest_sale_requests (status, created_at DESC)");
-    await client.query("CREATE INDEX IF NOT EXISTS idx_guest_sale_requests_contact ON guest_sale_requests (email, phone)");
     await client.query(`
       CREATE TABLE IF NOT EXISTS app_metrics (
         id INTEGER PRIMARY KEY CHECK (id = 1),
@@ -2492,6 +2490,8 @@ async function initDatabase() {
         reviewed_at TIMESTAMPTZ
       );
     `);
+    await client.query("CREATE INDEX IF NOT EXISTS idx_guest_sale_requests_status_created ON guest_sale_requests (status, created_at DESC)");
+    await client.query("CREATE INDEX IF NOT EXISTS idx_guest_sale_requests_contact ON guest_sale_requests (email, phone)");
     await client.query("ALTER TABLE tasks ADD COLUMN IF NOT EXISTS reminder_at TIMESTAMPTZ");
     await client.query("ALTER TABLE tasks ADD COLUMN IF NOT EXISTS reminder_channel TEXT NOT NULL DEFAULT 'panel'");
     await client.query("ALTER TABLE tasks ADD COLUMN IF NOT EXISTS reminder_sent_at TIMESTAMPTZ");

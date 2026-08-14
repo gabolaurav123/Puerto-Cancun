@@ -19,9 +19,9 @@ test("la venta sin registro solicita solo datos esenciales y el contacto al fina
   assert.match(app, /function updateGuestContactFields/);
   assert.match(app, /setGuestSaleStep\("contact"\)/);
   const sellPage = renderSeoPage("/vender-casa-cancun");
-  assert.match(sellPage, /Venta sin registro/);
-  assert.match(sellPage, /Publicación acompañada/);
-  assert.match(sellPage, /Solicitar valoración/);
+  assert.match(sellPage, /Enviar propiedad sin registro/);
+  assert.match(sellPage, /PUBLICA CON ACOMPAÑAMIENTO/);
+  assert.match(sellPage, /Solicita valoracion de tu propiedad/);
 });
 
 test("las solicitudes sin cuenta se conservan en una tabla aditiva y tienen panel propio", () => {

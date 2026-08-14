@@ -583,22 +583,6 @@ const pages = [
       return pageShell(
         this,
         `
-          <section class="seller-entry-choices" aria-labelledby="seller-entry-title">
-            <div>
-              <span class="seo-eyebrow">ELIGE CÓMO EMPEZAR</span>
-              <h2 id="seller-entry-title">Vende con el nivel de acompañamiento que necesitas</h2>
-              <p>Envía los datos esenciales sin registrarte, prepara una publicación completa con seguimiento o solicita primero una valoración.</p>
-            </div>
-            <div class="seller-entry-choice-grid">
-              <button class="primary-button" type="button" data-open-guest-sale><i data-lucide="send"></i><span>Venta sin registro</span></button>
-              <button class="outline-dark-button" type="button" data-open-detailed-sale><i data-lucide="clipboard-check"></i><span>Publicación acompañada</span></button>
-              <a class="outline-dark-button" href="/valuacion-inmobiliaria-cancun"><i data-lucide="badge-dollar-sign"></i><span>Solicitar valoración</span></a>
-            </div>
-          </section>
-          ${QuickAnswerBlock([
-            "Para vender una propiedad en Cancun con Puerto Cancun Center, el primer paso es solicitar una valoracion y registrar la informacion principal del inmueble.",
-            "La IA puede ayudarte a ordenar datos, pero la publicacion, el precio y el seguimiento deben revisarse con criterio local y compradores reales.",
-          ], "Cómo empezamos a preparar tu venta")}
           <section class="seo-columns">
             <div>
               <h2>Como trabajamos tu venta</h2>
@@ -1425,8 +1409,6 @@ function renderAboutPage(page) {
 
 function renderEnglishSellPage(page) {
   return pageShell(page, `
-    <section class="seller-entry-choices" aria-labelledby="seller-entry-title"><div><span class="seo-eyebrow">CHOOSE HOW TO START</span><h2 id="seller-entry-title">Sell with the level of guidance you need</h2><p>Send the essential details without registering, prepare a complete file with follow-up, or request a valuation first.</p></div><div class="seller-entry-choice-grid"><button class="primary-button" type="button" data-open-guest-sale><i data-lucide="send"></i><span>Sell without registering</span></button><button class="outline-dark-button" type="button" data-open-detailed-sale><i data-lucide="clipboard-check"></i><span>Guided listing</span></button><a class="outline-dark-button" href="/en/property-valuation-cancun"><i data-lucide="badge-dollar-sign"></i><span>Request valuation</span></a></div></section>
-    <section class="quick-answer"><span>SELLING GUIDE</span><h2>Understand the process before registering</h2><p>Learn how the listing process works before creating an account. An advisor reviews the property information, pricing context and images before publication.</p></section>
     <section class="seo-columns"><div><h2>How we support your sale</h2><ul><li>Collect the essential property information.</li><li>Review price, location and selling points.</li><li>Prepare a clear presentation for prospective buyers.</li><li>Follow up on inquiries and next steps.</li></ul></div><div><h2>Benefits of listing with us</h2><ul><li>Connected buyer and advisor workflows.</li><li>Individual image management and organized property information.</li><li>Professional property sheets and marketing support.</li><li>A single panel to follow your requests.</li></ul></div></section>
     <section class="seller-onboarding-cta"><div><span>LIST WITH GUIDANCE</span><h2>Register and list with us</h2><p>Create your account after reviewing the process. You can submit the property details and photos and receive advisor follow-up.</p></div><div class="seller-onboarding-actions"><button class="primary-button" type="button" data-seller-access="register">Register to list</button><button class="outline-dark-button" type="button" data-seller-access="login">I already have an account</button></div></section>
     <section class="seller-onboarding-cta seller-onboarding-quick"><div><span>START WITH THE ESSENTIALS</span><h2>Would you rather continue without an account?</h2><p>Share the title, property type, location and photos. The description is optional, and an advisor will contact you only if more information is needed.</p></div><div class="seller-onboarding-actions"><button class="primary-button" type="button" data-open-guest-sale>Send property without registering</button></div></section>
