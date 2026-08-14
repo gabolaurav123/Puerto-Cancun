@@ -21,7 +21,8 @@ test("propiedades y desarrollos tienen inventarios y altas independientes", () =
 
 test("mailing y PDF buscan propiedades por MLS o título", () => {
   assert.match(indexSource, /id="campaignPropertySearch"[^>]+list="campaignPropertySuggestions"/);
-  assert.match(indexSource, /id="pdfPropertySearch"[^>]+list="pdfPropertySuggestions"/);
+  assert.match(indexSource, /id="pdfPropertySearch"[^>]+aria-controls="pdfPropertyMatches"/);
+  assert.doesNotMatch(indexSource, /id="pdfPropertySearch"[^>]+\slist=/);
   assert.match(appSource, /function populatePropertyPicker/);
   assert.match(appSource, /property\.mls/);
   assert.match(appSource, /property\.titleEs/);

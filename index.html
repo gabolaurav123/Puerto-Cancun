@@ -36,7 +36,7 @@
       href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&family=Playfair+Display:wght@500;600;700&display=swap"
       rel="stylesheet"
     />
-    <link rel="stylesheet" href="/styles.css?v=20260723.1" />
+    <link rel="stylesheet" href="/styles.css?v=20260814.1" />
     <!-- SEO_JSON_LD -->
   </head>
   <body data-page="home">
@@ -2021,8 +2021,7 @@
               <input name="documentType" id="pdfDocumentType" type="hidden" value="property" />
               <label data-pdf-target="property">
                 <span>Buscar por MLS o título</span>
-                <input id="pdfPropertySearch" type="search" list="pdfPropertySuggestions" placeholder="Escribe MLS o título" autocomplete="off" />
-                <datalist id="pdfPropertySuggestions"></datalist>
+                <input id="pdfPropertySearch" type="search" placeholder="Escribe MLS o título" autocomplete="off" aria-controls="pdfPropertyMatches" aria-autocomplete="list" />
                 <div class="property-search-matches" id="pdfPropertyMatches" hidden></div>
                 <select name="propertyId" id="pdfPropertySelect" hidden></select>
               </label>
@@ -2659,15 +2658,20 @@
         <button class="modal-close" type="button" data-close-seller-options aria-label="Cerrar"><i data-lucide="x"></i></button>
         <span class="eyebrow" data-i18n="sellerOptionsEyebrow">ELIGE CÓMO EMPEZAR</span>
         <h2 id="sellerOptionsTitle" data-i18n="sellerOptionsTitle">¿Cómo quieres vender tu propiedad?</h2>
-        <p data-i18n="sellerOptionsCopy">Puedes enviar los datos esenciales sin crear una cuenta, preparar un expediente completo con acompañamiento o solicitar primero una valoración.</p>
+        <p data-i18n="sellerOptionsCopy">Elige una solicitud breve sin cuenta o regístrate para publicar más información, guardar avances y dar seguimiento desde tu panel de vendedor.</p>
         <div class="seller-option-grid">
           <button class="seller-option-card featured" type="button" data-open-guest-sale>
             <i data-lucide="send"></i><strong data-i18n="guestSaleName">Venta sin registro</strong>
             <span data-i18n="guestSaleSummary">Título, tipo, ubicación y fotos. No necesitas crear una cuenta.</span>
           </button>
           <button class="seller-option-card" type="button" data-open-detailed-sale>
-            <i data-lucide="clipboard-check"></i><strong data-i18n="guidedSaleName">Publicación acompañada</strong>
-            <span data-i18n="guidedSaleSummary">Crea una cuenta, guarda avances y da seguimiento con un asesor.</span>
+            <i data-lucide="clipboard-check"></i><strong data-i18n="guidedSaleName">Venta con registro</strong>
+            <span data-i18n="guidedSaleSummary">La opción más completa para presentar y seguir tu propiedad.</span>
+            <span class="seller-option-benefits">
+              <span data-i18n="guidedSaleBenefitDetails">Agrega información detallada y más fotografías.</span>
+              <span data-i18n="guidedSaleBenefitProgress">Guarda avances sin perder lo que ya capturaste.</span>
+              <span data-i18n="guidedSaleBenefitPanel">Consulta solicitudes y seguimiento en tu panel de vendedor.</span>
+            </span>
           </button>
           <a class="seller-option-card" href="/valuacion-inmobiliaria-cancun" data-valuation-option>
             <i data-lucide="badge-dollar-sign"></i><strong data-i18n="valuationSaleName">Solicitar valoración</strong>
@@ -2707,7 +2711,7 @@
             </div>
             <label data-guest-contact-field="email"><span data-i18n="email">Dirección de correo</span><input name="email" type="email" autocomplete="email" /></label>
             <fieldset data-guest-contact-field="whatsapp" hidden><legend>WhatsApp</legend><div class="phone-registration-grid"><label><span data-i18n="countryPrefix">Prefijo</span><select name="countryCode"><option value="+52" selected>México +52</option><option value="+1">EE. UU. / Canadá +1</option><option value="+591">Bolivia +591</option><option value="+54">Argentina +54</option><option value="+55">Brasil +55</option><option value="+56">Chile +56</option><option value="+57">Colombia +57</option><option value="+51">Perú +51</option><option value="+34">España +34</option><option value="+502">Guatemala +502</option></select></label><label><span data-i18n="nationalNumber">Número nacional</span><input name="phone" type="tel" inputmode="tel" autocomplete="tel-national" /></label></div></fieldset>
-            <label class="check-field"><input name="consent" type="checkbox" required /><span data-i18n="guestConsent">Acepto el aviso de privacidad y que un asesor me contacte sobre esta solicitud.</span></label>
+            <label class="check-field guest-consent-field"><input name="consent" type="checkbox" required /><span data-i18n="guestConsent">Acepto el aviso de privacidad y que un asesor me contacte sobre esta solicitud.</span></label>
             <div class="form-actions"><button class="ghost-button" type="button" id="backGuestSale"><i data-lucide="arrow-left"></i><span data-i18n="back">Volver</span></button><button class="primary-button" type="submit"><i data-lucide="send"></i><span data-i18n="confirmSendRequest">Confirmar y enviar</span></button></div>
             <p class="form-message" id="guestSaleMessage" aria-live="polite"></p>
           </section>
@@ -2723,7 +2727,7 @@
         <p>El enlace será temporal y la ficha se guardará en el historial solo cuando elijas un canal.</p>
         <form id="pdfShareForm" class="stacked-form">
           <input name="documentId" type="hidden" />
-          <label data-pdf-share-property-field><span>Buscar propiedad por MLS o título</span><input id="pdfSharePropertySearch" type="search" autocomplete="off" placeholder="Escribe MLS o título" /><div class="property-search-matches" id="pdfSharePropertyMatches" hidden></div><select name="propertyId" id="pdfSharePropertySelect" hidden></select></label>
+          <label class="property-picker-field" data-pdf-share-property-field><span>Buscar propiedad por MLS o título</span><input id="pdfSharePropertySearch" type="search" autocomplete="off" placeholder="Escribe MLS o título" aria-controls="pdfSharePropertyMatches" aria-autocomplete="list" /><div class="property-search-matches" id="pdfSharePropertyMatches" hidden></div><select name="propertyId" id="pdfSharePropertySelect" hidden></select></label>
           <label class="share-mode-toggle"><span><b>Sin datos de contacto</b><small>Actívalo para compartir la ficha neutra.</small></span><input name="neutral" type="checkbox" /></label>
           <div class="share-channel-grid">
             <button type="button" data-pdf-share-channel="whatsapp"><i data-lucide="message-circle"></i><span>WhatsApp</span></button>
@@ -2945,6 +2949,6 @@
     </a>
 
     <script src="https://unpkg.com/lucide@latest"></script>
-    <script src="/app.js?v=20260723.1"></script>
+    <script src="/app.js?v=20260814.1"></script>
   </body>
 </html>

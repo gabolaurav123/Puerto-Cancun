@@ -10,6 +10,7 @@ const { renderSeoPage } = require("../seo-pages");
 test("la venta sin registro solicita solo datos esenciales y el contacto al final", () => {
   const html = source("index.html");
   const app = source("app.js");
+  const styles = source("styles.css");
   for (const value of ["sellerOptionsModal", "guestSaleModal", "guestSaleForm", "preferredContact", "countryCode"]) {
     assert.ok(html.includes(value), `Falta ${value}`);
   }
@@ -18,6 +19,10 @@ test("la venta sin registro solicita solo datos esenciales y el contacto al fina
   assert.match(app, /POST[\s\S]*\/api\/guest-sale-requests/);
   assert.match(app, /function updateGuestContactFields/);
   assert.match(app, /setGuestSaleStep\("contact"\)/);
+  assert.match(html, /Venta con registro/);
+  assert.doesNotMatch(html, /Publicaci[oó]n acompañada/);
+  assert.match(html, /seller-option-benefits/);
+  assert.match(styles, /\.guest-consent-field\s*\{[\s\S]*grid-template-columns:\s*20px minmax\(0, 1fr\)/);
   const sellPage = renderSeoPage("/vender-casa-cancun");
   assert.match(sellPage, /Enviar propiedad sin registro/);
   assert.match(sellPage, /PUBLICA CON ACOMPAÑAMIENTO/);
@@ -57,6 +62,11 @@ test("las fichas se comparten desde un modal común por tres canales", () => {
   const app = source("app.js");
   const server = source("server.js");
   assert.match(html, /id="pdfShareModal"/);
+  const pdfSearch = html.match(/<input id="pdfPropertySearch"[^>]*>/)?.[0] || "";
+  assert.ok(pdfSearch, "Falta el buscador principal de propiedades para PDF");
+  assert.doesNotMatch(pdfSearch, /\slist=/, "El buscador PDF no debe abrir la lista nativa duplicada");
+  assert.doesNotMatch(html, /id="pdfPropertySuggestions"/);
+  assert.match(html, /id="pdfSharePropertySearch"[^>]*aria-controls="pdfSharePropertyMatches"/);
   for (const channel of ["whatsapp", "facebook", "instagram"]) {
     assert.match(html, new RegExp(`data-pdf-share-channel="${channel}"`));
   }
@@ -64,6 +74,8 @@ test("las fichas se comparten desde un modal común por tres canales", () => {
   assert.match(app, /data-open-pdf-share="history"/);
   assert.match(app, /async function preparePdfShareDocument/);
   assert.match(app, /async function sharePdfThroughChannel/);
+  assert.match(app, /pdfSharePropertySearch"\)\?\.addEventListener\("input"/);
+  assert.match(app, /renderPdfSharePropertyMatches\(event\.currentTarget\.value\)/);
   assert.match(server, /d\.options AS document_options/);
   assert.match(server, /neutral: row\.document_options\?\.brandMode === "neutral"/);
 });

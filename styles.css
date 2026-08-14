@@ -2360,6 +2360,52 @@ body.admin-session .whatsapp-float {
   font-size: 0.88rem;
 }
 
+.seller-option-benefits {
+  display: grid;
+  gap: 7px;
+  margin: 0;
+  padding: 0;
+  color: var(--blue-900);
+  font-size: 0.78rem;
+  line-height: 1.42;
+}
+
+.seller-option-card .seller-option-benefits > span {
+  position: relative;
+  padding-left: 15px;
+  color: var(--blue-900);
+  font-size: inherit;
+}
+
+.seller-option-benefits > span::before {
+  content: "";
+  position: absolute;
+  top: 0.52em;
+  left: 0;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--gold);
+}
+
+.guest-consent-field {
+  display: grid !important;
+  grid-template-columns: 20px minmax(0, 1fr);
+  align-items: start;
+  gap: 10px;
+}
+
+.guest-consent-field input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  margin: 2px 0 0;
+}
+
+.guest-consent-field span {
+  min-width: 0;
+  line-height: 1.45;
+}
+
 .contact-method-options {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));

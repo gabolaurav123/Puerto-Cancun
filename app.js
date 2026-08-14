@@ -77,11 +77,14 @@ const translations = {
     heroSellCta: "Quiero vender mi propiedad",
     sellerOptionsEyebrow: "ELIGE CÓMO EMPEZAR",
     sellerOptionsTitle: "¿Cómo quieres vender tu propiedad?",
-    sellerOptionsCopy: "Puedes enviar los datos esenciales sin crear una cuenta, preparar un expediente completo con acompañamiento o solicitar primero una valoración.",
+    sellerOptionsCopy: "Elige una solicitud breve sin cuenta o regístrate para publicar más información, guardar avances y dar seguimiento desde tu panel de vendedor.",
     guestSaleName: "Venta sin registro",
     guestSaleSummary: "Título, tipo, ubicación y fotos. No necesitas crear una cuenta.",
-    guidedSaleName: "Publicación acompañada",
-    guidedSaleSummary: "Crea una cuenta, guarda avances y da seguimiento con un asesor.",
+    guidedSaleName: "Venta con registro",
+    guidedSaleSummary: "La opción más completa para presentar y seguir tu propiedad.",
+    guidedSaleBenefitDetails: "Agrega información detallada y más fotografías.",
+    guidedSaleBenefitProgress: "Guarda avances sin perder lo que ya capturaste.",
+    guidedSaleBenefitPanel: "Consulta solicitudes y seguimiento en tu panel de vendedor.",
     valuationSaleName: "Solicitar valoración",
     valuationSaleSummary: "Valida el precio antes de preparar la publicación.",
     guestSaleEyebrow: "VENTA SIN REGISTRO",
@@ -581,11 +584,14 @@ const translations = {
     heroSellCta: "I want to sell my property",
     sellerOptionsEyebrow: "CHOOSE HOW TO START",
     sellerOptionsTitle: "How would you like to sell your property?",
-    sellerOptionsCopy: "Send the essentials without an account, prepare a complete listing with guidance, or request a valuation first.",
+    sellerOptionsCopy: "Choose a brief request without an account, or register to add more details, save progress and track everything from your seller dashboard.",
     guestSaleName: "Sell without registering",
     guestSaleSummary: "Title, type, location and photos. No account is required.",
-    guidedSaleName: "Guided listing",
-    guidedSaleSummary: "Create an account, save progress and follow up with an advisor.",
+    guidedSaleName: "Registered sale",
+    guidedSaleSummary: "The most complete option to present and track your property.",
+    guidedSaleBenefitDetails: "Add detailed information and more photographs.",
+    guidedSaleBenefitProgress: "Save your progress without losing completed information.",
+    guidedSaleBenefitPanel: "Review requests and follow-up from your seller dashboard.",
     valuationSaleName: "Request valuation",
     valuationSaleSummary: "Validate the price before preparing the listing.",
     guestSaleEyebrow: "NO-ACCOUNT SALE",
@@ -5386,21 +5392,23 @@ function propertySearchLabel(property) {
 
 function populatePropertyPicker(searchSelector, datalistSelector, selectSelector, matchesSelector, emptyLabel = "Sin propiedad") {
   const searchInput = $(searchSelector);
-  const datalist = $(datalistSelector);
+  const datalist = datalistSelector ? $(datalistSelector) : null;
   const select = $(selectSelector);
   const matchesPanel = $(matchesSelector);
-  if (!searchInput || !datalist || !select) return;
+  if (!searchInput || !select) return;
   const currentId = select.value;
   populateSelect(select, state.properties, propertySearchLabel, "id", emptyLabel);
   if (currentId) select.value = currentId;
   const labels = new Map();
-  datalist.innerHTML = "";
+  if (datalist) datalist.innerHTML = "";
   state.properties.forEach((property) => {
     const label = propertySearchLabel(property);
     labels.set(normalizeSearchText(label), property.id);
-    const option = document.createElement("option");
-    option.value = label;
-    datalist.append(option);
+    if (datalist) {
+      const option = document.createElement("option");
+      option.value = label;
+      datalist.append(option);
+    }
   });
   if (select.value) {
     const selected = state.properties.find((property) => property.id === select.value);
@@ -5509,7 +5517,7 @@ function populateOperationalSelects() {
   populatePropertyPicker("#instagramPropertySearch", "#instagramPropertySuggestions", "#instagramPropertySelect", "#instagramPropertyMatches", "Selecciona una propiedad");
   populatePropertyPicker("#marketingPropertySearch", "#marketingPropertySuggestions", "#marketingPropertySelect", "#marketingPropertyMatches", "Selecciona una propiedad");
   populatePropertyPicker("#campaignPropertySearch", "#campaignPropertySuggestions", "#campaignPropertySelect", "#campaignPropertyMatches", "Sin propiedad");
-  populatePropertyPicker("#pdfPropertySearch", "#pdfPropertySuggestions", "#pdfPropertySelect", "#pdfPropertyMatches", "Selecciona una propiedad");
+  populatePropertyPicker("#pdfPropertySearch", null, "#pdfPropertySelect", "#pdfPropertyMatches", "Selecciona una propiedad");
   populateSelect($("#pdfValuationSelect"), state.valuations, (item) => `${item.ownerName} · ${item.zone || "Sin zona"}`, "id", "Selecciona una valoración");
   populateSelect($("#aiRequestSelect"), state.leads, (item) => `${item.name} · ${leadTypeLabel(item.leadType)}`, "id", "Sin solicitud");
   $$("[data-staff-select]").forEach((select) => {
@@ -5639,7 +5647,7 @@ function renderPdfSharePropertyMatches(query = "") {
   if (!matches) return;
   const properties = pdfSharePropertyCandidates(query);
   matches.innerHTML = properties.length
-    ? properties.map((property) => `<button type="button" data-select-pdf-share-property="${escapeHtml(property.id)}"><span><b>${escapeHtml(property.mls ? `MLS# ${property.mls}` : "SIN MLS")}</b> ${escapeHtml(localizedTitle(property))}</span><small>${escapeHtml(displayLocation(property))}</small></button>`).join("")
+    ? properties.map((property) => `<button type="button" data-select-pdf-share-property="${escapeHtml(property.id)}"><strong>${escapeHtml(property.mls ? `MLS# ${property.mls}` : "SIN MLS")}</strong><span>${escapeHtml(localizedTitle(property))}</span><small>${escapeHtml(displayLocation(property))}</small></button>`).join("")
     : `<p>No se encontraron propiedades con ese dato.</p>`;
   matches.hidden = false;
 }
