@@ -130,7 +130,7 @@
             </div>
           </div>
           <a href="/nosotros" id="aboutNavLink" data-i18n="navAbout">Nosotros</a>
-          <a href="/vender-casa-cancun" id="sellNavLink" data-i18n="navSell">Vender</a>
+          <a href="/vender-casa-cancun" id="sellNavLink" data-open-seller-options data-i18n="navSell">Vender</a>
           <a class="login-link" href="/?auth=login" id="loginOpen" data-i18n="navLogin">Iniciar sesion</a>
           <a class="phone-link" href="tel:+5219982166563">998-216-6563</a>
         </nav>
@@ -151,7 +151,7 @@
               decisiones inmobiliarias en Cancun.
             </p>
             <div class="hero-actions">
-              <a class="accent-button" href="/vender-casa-cancun" id="heroSellButton" data-i18n="heroSellCta">Quiero vender mi propiedad</a>
+              <a class="accent-button" href="/vender-casa-cancun" id="heroSellButton" data-open-seller-options data-i18n="heroSellCta">Quiero vender mi propiedad</a>
               <a class="outline-button" href="/comprar-casa-cancun" data-i18n="heroBuyCta">Quiero comprar en Cancun</a>
               <a class="outline-button" href="/valuacion-inmobiliaria-cancun" data-i18n="heroValuationCta">Validar precio con asesor</a>
             </div>
@@ -622,8 +622,8 @@
           </div>
           <div>
             <h3 data-i18n="footerSell">Asesoria de venta</h3>
-            <a href="/vender-casa-cancun" id="footerSellButton" data-i18n="saleProperty">Venta de propiedad</a>
-            <a href="/vender-casa-cancun" data-i18n="resourceSellHere">Vender mi propiedad aqui</a>
+            <a href="/vender-casa-cancun" id="footerSellButton" data-open-seller-options data-i18n="saleProperty">Venta de propiedad</a>
+            <a href="/vender-casa-cancun" data-open-seller-options data-i18n="resourceSellHere">Vender mi propiedad aqui</a>
             <a href="/valuacion-inmobiliaria-cancun" data-i18n="resourceValuation">Valoracion inmobiliaria</a>
             <a href="/faq-inmobiliario-cancun" data-i18n="resourceFaq">Preguntas frecuentes</a>
             <a href="/blog" data-i18n="footerBlog">Blog inmobiliario</a>
@@ -681,7 +681,15 @@
       </section>
 
       <section class="dashboard" id="sellerPanel" hidden>
-        <div class="seller-action-grid">
+        <nav class="seller-panel-nav" aria-label="Secciones de mi cuenta">
+          <button class="active" type="button" data-seller-section="sale"><i data-lucide="badge-dollar-sign"></i><span>Vender propiedad</span></button>
+          <button type="button" data-seller-section="requests"><i data-lucide="messages-square"></i><span>Mis solicitudes</span></button>
+          <button type="button" data-seller-section="favorites"><i data-lucide="heart"></i><span>Favoritos</span></button>
+          <button type="button" data-seller-section="searches"><i data-lucide="bell-ring"></i><span>Búsquedas</span></button>
+          <button type="button" data-seller-section="tours"><i data-lucide="calendar-check"></i><span>Mis visitas</span></button>
+          <button type="button" data-seller-section="services"><i data-lucide="badge-check"></i><span>Asesoría</span></button>
+        </nav>
+        <div class="seller-action-grid" data-seller-panel-section="services" hidden>
           <article class="seller-action-card">
             <span>1</span>
             <h3>Vender mi propiedad</h3>
@@ -720,13 +728,13 @@
           <div id="sellerNotifications" class="notification-list"></div>
         </aside>
         <section class="seller-account-tools" aria-label="Herramientas de mi cuenta">
-          <article class="panel-card seller-library-card">
+          <article class="panel-card seller-library-card" data-seller-panel-section="favorites" hidden>
             <div class="admin-module-heading">
               <div><span class="eyebrow">MI COLECCIÓN</span><h2>Favoritos</h2><p>Propiedades guardadas en tu cuenta.</p></div>
             </div>
             <div class="seller-property-list" id="sellerFavorites"></div>
           </article>
-          <article class="panel-card seller-searches-card">
+          <article class="panel-card seller-searches-card" data-seller-panel-section="searches" hidden>
             <div class="admin-module-heading">
               <div><span class="eyebrow">SEGUIMIENTO</span><h2>Búsquedas y alertas</h2><p>Guarda criterios y recibe coincidencias internas sin duplicados.</p></div>
             </div>
@@ -747,12 +755,12 @@
             <p class="form-message" id="savedSearchMessage"></p>
             <div class="saved-search-list" id="sellerSavedSearches"></div>
           </article>
-          <article class="panel-card seller-tours-card">
+          <article class="panel-card seller-tours-card" data-seller-panel-section="tours" hidden>
             <div class="admin-module-heading"><div><span class="eyebrow">AGENDA</span><h2>Mis visitas</h2><p>Consulta el estado de tus solicitudes.</p></div></div>
             <div class="seller-tour-list" id="sellerTours"></div>
           </article>
         </section>
-        <article class="panel-card seller-help-card seller-help-card-top">
+        <article class="panel-card seller-help-card seller-help-card-top" data-seller-panel-section="sale">
           <div>
             <h2 data-i18n="sellerHelpTitle">Necesitas asesoria para llenar el formulario?</h2>
             <p data-i18n="sellerHelpCopy">Un asesor puede ayudarte a preparar la informacion, fotos y ubicacion antes de enviar la solicitud.</p>
@@ -762,7 +770,7 @@
             <span data-i18n="sellerHelpCta">Solicitar guia por WhatsApp</span>
           </button>
         </article>
-        <article class="panel-card seller-service-card" id="sellerServiceCard" hidden>
+        <article class="panel-card seller-service-card" id="sellerServiceCard" data-seller-panel-section="service-form" hidden>
           <div class="admin-module-heading">
             <div>
               <span class="eyebrow">SERVICIO DEL ASESOR</span>
@@ -821,7 +829,7 @@
           <p class="form-message" id="sellerServiceMessage"></p>
         </article>
         <div class="dashboard-grid" id="sellerSaleWorkspace">
-          <article class="panel-card">
+          <article class="panel-card" data-seller-panel-section="sale">
             <h2 data-i18n="sellerRequestTitle">Enviar solicitud de venta</h2>
             <div class="seller-guide">
               <h3 data-i18n="sellerGuideTitle">Guia rapida para vender</h3>
@@ -993,7 +1001,7 @@
             </form>
           </article>
 
-          <article class="panel-card">
+          <article class="panel-card" data-seller-panel-section="requests" hidden>
             <div class="admin-module-heading">
               <div>
                 <h2>Mis solicitudes y respuestas</h2>
@@ -1041,6 +1049,10 @@
                 <span data-i18n="adminJumpRequests">Solicitudes</span>
                 <b id="sidebarRequestBadge">0</b>
               </button>
+              <div class="admin-sidebar-subnav">
+                <button type="button" data-admin-section-link="requests">Solicitudes de vendedores</button>
+                <button type="button" data-admin-section-link="guest-requests">Venta sin registro</button>
+              </div>
               <button type="button" data-admin-section="properties">
                 <i data-lucide="home"></i>
                 <span data-i18n="adminJumpListings">Publicaciones</span>
@@ -1064,6 +1076,7 @@
               </button>
               <div class="admin-sidebar-subnav">
                 <button type="button" data-admin-section-link="contacts">Contactos y cuentas</button>
+                <button type="button" data-admin-section-link="guest-contacts">Contactos sin registrar</button>
               </div>
               <button type="button" data-admin-section="mailing">
                 <i data-lucide="mail"></i>
@@ -1341,6 +1354,18 @@
           <p class="form-message" id="contactFormMessage"></p>
           <div class="panel-card-subhead"><span id="adminContactSummary"></span></div>
           <div class="contact-list" id="adminContacts"></div>
+        </article>
+        <article class="panel-card admin-contacts-card" id="adminGuestContactsCard" data-admin-section-panel="guest-contacts">
+          <div class="admin-module-heading">
+            <div>
+              <span class="eyebrow">VENTA SIN REGISTRO</span>
+              <h2>Contactos sin cuenta</h2>
+              <p>Correos y números compartidos al enviar una propiedad sin crear una cuenta.</p>
+            </div>
+            <input id="guestContactSearch" type="search" placeholder="Buscar correo, WhatsApp o propiedad" />
+          </div>
+          <div class="panel-card-subhead"><span id="adminGuestContactSummary"></span></div>
+          <div class="contact-list" id="adminGuestContacts"></div>
         </article>
         <article class="panel-card admin-whatsapp-card" id="adminWhatsappCard" data-admin-section-panel="whatsapp">
           <div class="admin-module-heading whatsapp-module-heading">
@@ -2012,6 +2037,7 @@
                 <button class="ghost-button" type="button" id="previewPdf">Vista previa</button>
                 <button class="primary-button" type="button" data-pdf-target="property" data-generate-selected-property-pdf="branded"><i data-lucide="badge-check"></i> Generar institucional</button>
                 <button class="ghost-button" type="button" data-pdf-target="property" data-generate-selected-property-pdf="neutral"><i data-lucide="file-text"></i> Generar neutro</button>
+                <button class="pdf-share-trigger" type="button" data-pdf-target="property" data-open-pdf-share="selected" aria-label="Compartir ficha PDF" title="Compartir ficha PDF"><i data-lucide="share-2"></i></button>
                 <button class="primary-button" type="submit" data-pdf-target="valuation" hidden><i data-lucide="file-down"></i> Generar valoración</button>
               </div>
               <p class="form-message span-2" id="pdfFormMessage"></p>
@@ -2173,6 +2199,13 @@
               <span data-i18n="adminScrollableHint">Desplaza dentro de esta lista para ver mas.</span>
             </div>
             <div class="request-list" id="adminRequests"></div>
+          </article>
+          <article class="panel-card admin-requests-card" id="adminGuestRequestsCard" data-admin-section-panel="guest-requests">
+            <div class="admin-module-heading">
+              <div><span class="eyebrow">SIN CUENTA</span><h2>Solicitudes de venta sin registro</h2><p>Expedientes básicos para contactar al propietario y solicitar la información que falte.</p></div>
+            </div>
+            <div class="panel-card-subhead"><span id="adminGuestRequestSummary"></span><span>Estas solicitudes no se publican automáticamente.</span></div>
+            <div class="request-list" id="adminGuestRequests"></div>
           </article>
 
           <article class="panel-card admin-listings-card" id="adminListingsCard" data-admin-section-panel="properties new-property developments new-development">
@@ -2620,6 +2653,87 @@
         <button class="primary-button" type="button" data-cookie-choice="all" data-i18n="cookieAccept">Aceptar medición</button>
       </div>
     </aside>
+
+    <div class="modal-backdrop" id="sellerOptionsModal" hidden>
+      <section class="modal-card seller-options-modal" role="dialog" aria-modal="true" aria-labelledby="sellerOptionsTitle">
+        <button class="modal-close" type="button" data-close-seller-options aria-label="Cerrar"><i data-lucide="x"></i></button>
+        <span class="eyebrow" data-i18n="sellerOptionsEyebrow">ELIGE CÓMO EMPEZAR</span>
+        <h2 id="sellerOptionsTitle" data-i18n="sellerOptionsTitle">¿Cómo quieres vender tu propiedad?</h2>
+        <p data-i18n="sellerOptionsCopy">Puedes enviar los datos esenciales sin crear una cuenta, preparar un expediente completo con acompañamiento o solicitar primero una valoración.</p>
+        <div class="seller-option-grid">
+          <button class="seller-option-card featured" type="button" data-open-guest-sale>
+            <i data-lucide="send"></i><strong data-i18n="guestSaleName">Venta sin registro</strong>
+            <span data-i18n="guestSaleSummary">Título, tipo, ubicación y fotos. No necesitas crear una cuenta.</span>
+          </button>
+          <button class="seller-option-card" type="button" data-open-detailed-sale>
+            <i data-lucide="clipboard-check"></i><strong data-i18n="guidedSaleName">Publicación acompañada</strong>
+            <span data-i18n="guidedSaleSummary">Crea una cuenta, guarda avances y da seguimiento con un asesor.</span>
+          </button>
+          <a class="seller-option-card" href="/valuacion-inmobiliaria-cancun" data-valuation-option>
+            <i data-lucide="badge-dollar-sign"></i><strong data-i18n="valuationSaleName">Solicitar valoración</strong>
+            <span data-i18n="valuationSaleSummary">Valida el precio antes de preparar la publicación.</span>
+          </a>
+        </div>
+      </section>
+    </div>
+
+    <div class="modal-backdrop" id="guestSaleModal" hidden>
+      <section class="modal-card guest-sale-modal" role="dialog" aria-modal="true" aria-labelledby="guestSaleTitle">
+        <button class="modal-close" type="button" data-close-guest-sale aria-label="Cerrar"><i data-lucide="x"></i></button>
+        <form id="guestSaleForm" class="stacked-form">
+          <section data-guest-sale-step="property">
+            <span class="eyebrow" data-i18n="guestSaleEyebrow">VENTA SIN REGISTRO</span>
+            <h2 id="guestSaleTitle" data-i18n="guestSaleTitle">Envíanos los datos esenciales</h2>
+            <p data-i18n="guestSaleIntro">No necesitas una cuenta. Un asesor revisará la información antes de solicitarte cualquier dato adicional.</p>
+            <input class="honeypot-field" name="website" tabindex="-1" autocomplete="off" aria-hidden="true" />
+            <input name="formStartedAt" type="hidden" />
+            <div class="form-row">
+              <label><span data-i18n="propertyTitle">Título de la propiedad</span><input name="title" maxlength="180" required /></label>
+              <label><span data-i18n="propertyType">Tipo de propiedad</span><select name="type" required><option>Casa</option><option>Departamento</option><option>Terreno</option><option>Comercial</option><option>Preventa</option></select></label>
+            </div>
+            <label><span data-i18n="guestLocation">Ubicación</span><input name="location" maxlength="260" placeholder="Zona, colonia o dirección aproximada" required /></label>
+            <label class="file-field"><span data-i18n="guestImages">Imágenes de la propiedad</span><input name="imageFile" type="file" accept="image/jpeg,image/jpg,image/png,image/webp" multiple required /><small data-i18n="guestImagesHelp">Puedes seleccionar varias fotos JPG, PNG o WEBP.</small></label>
+            <div class="image-preview" id="guestSaleImagePreview" hidden><div class="image-preview-header"><span data-i18n="selectedImage">Imágenes seleccionadas</span><button class="text-button danger" type="button" id="clearGuestSaleImages" data-i18n="removeImage">Quitar imágenes</button></div><div class="image-preview-grid"></div></div>
+            <label><span data-i18n="optionalDescription">Descripción opcional</span><textarea name="description" rows="4" maxlength="4000" placeholder="Agrega solo la información que ya tengas disponible"></textarea></label>
+            <div class="form-actions"><button class="primary-button" type="button" id="continueGuestSale"><span data-i18n="continueContact">Continuar al contacto</span><i data-lucide="arrow-right"></i></button><button class="ghost-button" type="button" data-close-guest-sale data-i18n="cancel">Cancelar</button></div>
+          </section>
+          <section data-guest-sale-step="contact" hidden>
+            <span class="eyebrow" data-i18n="contactPreferenceEyebrow">ÚLTIMO PASO</span>
+            <h2 data-i18n="contactPreferenceTitle">¿Por dónde prefieres que te contactemos?</h2>
+            <p data-i18n="contactPreferenceCopy">Si precisamos más datos sobre tu propiedad, te contactaremos únicamente por el medio que elijas.</p>
+            <div class="contact-method-options">
+              <label><input type="radio" name="preferredContact" value="email" checked /><span><i data-lucide="mail"></i><b data-i18n="contactEmail">Correo</b></span></label>
+              <label><input type="radio" name="preferredContact" value="whatsapp" /><span><i data-lucide="message-circle"></i><b>WhatsApp</b></span></label>
+            </div>
+            <label data-guest-contact-field="email"><span data-i18n="email">Dirección de correo</span><input name="email" type="email" autocomplete="email" /></label>
+            <fieldset data-guest-contact-field="whatsapp" hidden><legend>WhatsApp</legend><div class="phone-registration-grid"><label><span data-i18n="countryPrefix">Prefijo</span><select name="countryCode"><option value="+52" selected>México +52</option><option value="+1">EE. UU. / Canadá +1</option><option value="+591">Bolivia +591</option><option value="+54">Argentina +54</option><option value="+55">Brasil +55</option><option value="+56">Chile +56</option><option value="+57">Colombia +57</option><option value="+51">Perú +51</option><option value="+34">España +34</option><option value="+502">Guatemala +502</option></select></label><label><span data-i18n="nationalNumber">Número nacional</span><input name="phone" type="tel" inputmode="tel" autocomplete="tel-national" /></label></div></fieldset>
+            <label class="check-field"><input name="consent" type="checkbox" required /><span data-i18n="guestConsent">Acepto el aviso de privacidad y que un asesor me contacte sobre esta solicitud.</span></label>
+            <div class="form-actions"><button class="ghost-button" type="button" id="backGuestSale"><i data-lucide="arrow-left"></i><span data-i18n="back">Volver</span></button><button class="primary-button" type="submit"><i data-lucide="send"></i><span data-i18n="confirmSendRequest">Confirmar y enviar</span></button></div>
+            <p class="form-message" id="guestSaleMessage" aria-live="polite"></p>
+          </section>
+        </form>
+      </section>
+    </div>
+
+    <div class="modal-backdrop" id="pdfShareModal" hidden>
+      <section class="modal-card pdf-share-modal" role="dialog" aria-modal="true" aria-labelledby="pdfShareTitle">
+        <button class="modal-close" type="button" data-close-pdf-share aria-label="Cerrar"><i data-lucide="x"></i></button>
+        <span class="eyebrow">FICHA COMERCIAL</span>
+        <h2 id="pdfShareTitle">Compartir ficha PDF</h2>
+        <p>El enlace será temporal y la ficha se guardará en el historial solo cuando elijas un canal.</p>
+        <form id="pdfShareForm" class="stacked-form">
+          <input name="documentId" type="hidden" />
+          <label data-pdf-share-property-field><span>Buscar propiedad por MLS o título</span><input id="pdfSharePropertySearch" type="search" autocomplete="off" placeholder="Escribe MLS o título" /><div class="property-search-matches" id="pdfSharePropertyMatches" hidden></div><select name="propertyId" id="pdfSharePropertySelect" hidden></select></label>
+          <label class="share-mode-toggle"><span><b>Sin datos de contacto</b><small>Actívalo para compartir la ficha neutra.</small></span><input name="neutral" type="checkbox" /></label>
+          <div class="share-channel-grid">
+            <button type="button" data-pdf-share-channel="whatsapp"><i data-lucide="message-circle"></i><span>WhatsApp</span></button>
+            <button type="button" data-pdf-share-channel="facebook"><i data-lucide="facebook"></i><span>Facebook</span></button>
+            <button type="button" data-pdf-share-channel="instagram"><i data-lucide="instagram"></i><span>Instagram</span></button>
+          </div>
+          <p class="form-message" id="pdfShareMessage" aria-live="polite"></p>
+        </form>
+      </section>
+    </div>
 
     <div class="modal-backdrop" id="authModal" hidden>
       <section class="auth-modal" role="dialog" aria-modal="true" aria-labelledby="authTitle">

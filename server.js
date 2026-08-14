@@ -653,7 +653,10 @@ async function upsertContact(client, contact) {
            email = COALESCE(NULLIF($3, ''), email),
            phone = COALESCE(NULLIF($4, ''), phone),
            contact_type = COALESCE(NULLIF($5, ''), contact_type),
-           source = COALESCE(NULLIF($6, ''), source),
+           source = CASE
+             WHEN source = 'registered_account' THEN source
+             ELSE COALESCE(NULLIF($6, ''), source)
+           END,
            preferred_zones = CASE WHEN $7::jsonb = '[]'::jsonb THEN preferred_zones ELSE $7::jsonb END,
            property_type = COALESCE(NULLIF($8, ''), property_type),
            budget_min = COALESCE($9, budget_min),
@@ -1352,7 +1355,7 @@ function internalRoleAllows(req, user) {
   if (!internalRole || ["super_admin", "admin"].includes(internalRole)) return true;
   const route = String(req.originalUrl || "").split("?")[0];
   const editorPrefixes = ["/api/admin/properties", "/api/admin/developments", "/api/admin/blog", "/api/admin/files", "/api/admin/documents", "/api/admin/ai", "/api/admin/campaigns", "/api/admin/instagram"];
-  const advisorPrefixes = ["/api/admin/requests", "/api/admin/leads", "/api/admin/contacts", "/api/admin/valuations", "/api/admin/tasks", "/api/admin/matches", "/api/admin/buyers", "/api/admin/messages", "/api/admin/whatsapp", "/api/admin/notifications"];
+  const advisorPrefixes = ["/api/admin/requests", "/api/admin/guest-sale-requests", "/api/admin/leads", "/api/admin/contacts", "/api/admin/valuations", "/api/admin/tasks", "/api/admin/matches", "/api/admin/buyers", "/api/admin/messages", "/api/admin/whatsapp", "/api/admin/notifications"];
   const allowed = internalRole === "editor" ? editorPrefixes : internalRole === "advisor" ? advisorPrefixes : [];
   return allowed.some((prefix) => route.startsWith(prefix));
 }
@@ -1369,14 +1372,16 @@ function validDocumentShareSignature(id, expiresAt, token) {
   return crypto.timingSafeEqual(Buffer.from(supplied), Buffer.from(expected));
 }
 
-function propertyWhatsappSheetText(property, shareUrl) {
+function propertyWhatsappSheetText(property, shareUrl, { neutral = false } = {}) {
   const amount = property.price ?? (property.currency === "MXN" ? property.priceMxn : property.priceUsd);
   const unit = property.priceUnit === "sqm" ? " por m²" : "";
   const reference = [property.type, property.zone, property.city, property.mls ? `MLS# ${property.mls}` : ""]
     .filter(Boolean)
     .join(" · ");
   return [
-    `Puerto Cancún Center te ofrece ${property.operation === "rent" ? "en renta" : "en venta"}:`,
+    neutral
+      ? `Ficha de propiedad ${property.operation === "rent" ? "en renta" : "en venta"}:`
+      : `Puerto Cancún Center te ofrece ${property.operation === "rent" ? "en renta" : "en venta"}:`,
     property.titleEs,
     reference ? `Referencia: ${reference}` : "",
     Number.isFinite(Number(amount)) && Number(amount) > 0 ? `Precio: ${formatPdfMoney(amount, property.currency)}${unit}` : "Precio: a consultar",
@@ -1412,6 +1417,31 @@ function requireRole(role) {
       }
     }
     next();
+  };
+}
+
+function toGuestSaleRequest(row) {
+  const stored = mergeLegacyImages(row.images, row.image);
+  const images = publicMediaUrls(stored, "guest-requests", row.id);
+  return {
+    id: row.id,
+    title: row.title,
+    type: row.type,
+    location: row.location,
+    description: row.description || "",
+    image: images[0] || null,
+    images,
+    preferredContact: row.preferred_contact,
+    email: row.email || "",
+    countryCode: row.country_code || "",
+    phone: row.phone || "",
+    contactId: row.contact_id || "",
+    status: row.status || "pending",
+    priority: row.priority || "medium",
+    internalNotes: row.internal_notes || "",
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+    reviewedAt: row.reviewed_at,
   };
 }
 
@@ -1469,6 +1499,12 @@ const SELLER_REQUEST_SUMMARY_COLUMNS = `
   GREATEST(COALESCE(jsonb_array_length(r.images), 0), CASE WHEN r.image IS NULL THEN 0 ELSE 1 END)::int AS image_count
 `;
 
+const GUEST_SALE_REQUEST_SUMMARY_COLUMNS = `
+  g.id, g.title, g.type, g.location, g.description, g.preferred_contact, g.email, g.country_code,
+  g.phone, g.contact_id, g.status, g.priority, g.internal_notes, g.created_at, g.updated_at, g.reviewed_at,
+  GREATEST(COALESCE(jsonb_array_length(g.images), 0), CASE WHEN g.image IS NULL THEN 0 ELSE 1 END)::int AS image_count
+`;
+
 function withPropertyMediaPlaceholders(row) {
   const count = Math.max(0, Number(row.image_count || 0));
   const images = Array.from({ length: count }, (_value, index) => `/media/properties/${encodeURIComponent(row.id)}/${index}`);
@@ -1509,6 +1545,12 @@ async function getPublicProperties() {
 
 function invalidatePublicPropertyCache() {
   publicPropertyCache = { expiresAt: 0, items: [] };
+}
+
+function withGuestRequestMediaPlaceholders(row) {
+  const count = Math.max(0, Number(row.image_count || 0));
+  const images = Array.from({ length: count }, (_value, index) => `/media/guest-requests/${encodeURIComponent(row.id)}/${index}`);
+  return { ...row, image: images[0] || null, images };
 }
 
 async function logAiOperation(details = {}) {
@@ -2186,6 +2228,8 @@ async function initDatabase() {
     await client.query("CREATE UNIQUE INDEX IF NOT EXISTS idx_seller_requests_idempotency ON seller_requests (idempotency_key) WHERE idempotency_key IS NOT NULL");
     await client.query("CREATE INDEX IF NOT EXISTS idx_seller_requests_seller_created ON seller_requests (seller_id, created_at DESC)");
     await client.query("UPDATE seller_requests SET images = jsonb_build_array(image) WHERE image IS NOT NULL AND images = '[]'::jsonb");
+    await client.query("CREATE INDEX IF NOT EXISTS idx_guest_sale_requests_status_created ON guest_sale_requests (status, created_at DESC)");
+    await client.query("CREATE INDEX IF NOT EXISTS idx_guest_sale_requests_contact ON guest_sale_requests (email, phone)");
     await client.query(`
       CREATE TABLE IF NOT EXISTS app_metrics (
         id INTEGER PRIMARY KEY CHECK (id = 1),
@@ -2423,6 +2467,29 @@ async function initDatabase() {
         sent_at TIMESTAMPTZ,
         created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
         updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      );
+    `);
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS guest_sale_requests (
+        id TEXT PRIMARY KEY,
+        title TEXT NOT NULL,
+        type TEXT NOT NULL,
+        location TEXT NOT NULL,
+        description TEXT NOT NULL DEFAULT '',
+        image TEXT,
+        images JSONB NOT NULL DEFAULT '[]'::jsonb,
+        preferred_contact TEXT NOT NULL CHECK (preferred_contact IN ('email', 'whatsapp')),
+        email TEXT,
+        country_code TEXT,
+        phone TEXT,
+        contact_id TEXT,
+        status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'contacted', 'archived')),
+        priority TEXT NOT NULL DEFAULT 'medium',
+        internal_notes TEXT NOT NULL DEFAULT '',
+        idempotency_key TEXT UNIQUE,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        reviewed_at TIMESTAMPTZ
       );
     `);
     await client.query("ALTER TABLE tasks ADD COLUMN IF NOT EXISTS reminder_at TIMESTAMPTZ");
@@ -2819,6 +2886,7 @@ app.use("/api/auth", createRateLimiter({ windowMs: 15 * 60 * 1000, max: 12, mess
 app.use("/api/geocode", createRateLimiter({ windowMs: 10 * 60 * 1000, max: 80, message: "Se alcanzó el límite temporal de búsquedas de dirección." }));
 app.use("/api/search/intelligent", createRateLimiter({ windowMs: 10 * 60 * 1000, max: 30, message: "Se alcanzó el límite temporal de búsquedas inteligentes." }));
 app.use("/api/leads", createRateLimiter({ windowMs: 10 * 60 * 1000, max: 12, message: "Se recibieron demasiadas solicitudes desde esta conexión." }));
+app.use("/api/guest-sale-requests", createRateLimiter({ windowMs: 15 * 60 * 1000, max: 6, message: "Se recibieron demasiadas solicitudes de venta desde esta conexión. Espera unos minutos antes de volver a intentar." }));
 app.use("/api/analytics", createRateLimiter({ windowMs: 5 * 60 * 1000, max: 180 }));
 app.use("/api/metrics", createRateLimiter({ windowMs: 5 * 60 * 1000, max: 180 }));
 
@@ -3063,6 +3131,23 @@ app.get("/media/requests/:id/:index", async (req, res, next) => {
 app.get("/api/session", (req, res) => {
   res.set("Cache-Control", "private, no-store");
   res.json({ user: publicUser(req.session.user), csrfToken: req.session.csrfToken || "" });
+});
+
+app.get("/media/guest-requests/:id/:index", requireRole("admin"), async (req, res, next) => {
+  try {
+    const result = await query("SELECT image, images FROM guest_sale_requests WHERE id = $1", [req.params.id]);
+    const request = result.rows[0];
+    const image = request ? mergeLegacyImages(request.images, request.image)[Number(req.params.index)] : null;
+    const decoded = decodeDataImage(image);
+    if (!decoded) {
+      res.status(404).end();
+      return;
+    }
+    res.set({ "Content-Type": decoded.type, "Cache-Control": "private, max-age=3600" });
+    res.send(decoded.buffer);
+  } catch (error) {
+    next(error);
+  }
 });
 
 function passwordPolicyError(password, context = "") {
@@ -3657,6 +3742,109 @@ app.post("/api/analytics/events", async (req, res, next) => {
     res.json({ ok: true });
   } catch (error) {
     next(error);
+  }
+});
+
+app.post("/api/guest-sale-requests", async (req, res, next) => {
+  const idempotencyKey = String(req.get("Idempotency-Key") || "").trim().slice(0, 120);
+  let client;
+  let inTransaction = false;
+  try {
+    client = await pool.connect();
+    if (idempotencyKey) {
+      const existing = await client.query(
+        `SELECT ${GUEST_SALE_REQUEST_SUMMARY_COLUMNS} FROM guest_sale_requests g WHERE g.idempotency_key = $1`,
+        [idempotencyKey]
+      );
+      if (existing.rows[0]) {
+        res.json({ request: toGuestSaleRequest(withGuestRequestMediaPlaceholders(existing.rows[0])), idempotent: true });
+        return;
+      }
+    }
+    const rawBody = req.body || {};
+    if (String(rawBody.website || "").trim()) {
+      res.status(201).json({ ok: true });
+      return;
+    }
+    const formStartedAt = Number(rawBody.formStartedAt || 0);
+    if (!Number.isFinite(formStartedAt) || Date.now() - formStartedAt < 1200 || Date.now() - formStartedAt > 7_200_000) {
+      res.status(400).json({ error: "El formulario venció o se envió demasiado rápido. Ábrelo nuevamente e intenta otra vez." });
+      return;
+    }
+    if (!(rawBody.consent === true || rawBody.consent === "true" || rawBody.consent === "on")) {
+      res.status(400).json({ error: "Confirma que aceptas el aviso de privacidad antes de enviar." });
+      return;
+    }
+    const body = await sanitizePropertyImageBody(rawBody);
+    const title = String(body.title || "").trim().slice(0, 180);
+    const type = String(body.type || "").trim().slice(0, 80);
+    const location = String(body.location || "").trim().slice(0, 260);
+    const description = String(body.description || "").trim().slice(0, 4000);
+    const preferredContact = body.preferredContact === "whatsapp" ? "whatsapp" : "email";
+    const email = String(body.email || "").trim().toLowerCase();
+    const countryCode = String(body.countryCode || "").replace(/[^+\d]/g, "").slice(0, 8);
+    const nationalPhone = String(body.phone || "").trim();
+    const phone = preferredContact === "whatsapp" ? normalizePhone(`${countryCode}${nationalPhone}`) : "";
+    const images = parseUploadedImages(body, []);
+    if (!title || !type || !location || !images.length) {
+      res.status(400).json({ error: "Agrega título, tipo, ubicación y al menos una imagen de la propiedad." });
+      return;
+    }
+    if ((preferredContact === "email" && !isValidEmail(email)) || (preferredContact === "whatsapp" && !phone)) {
+      res.status(400).json({ error: preferredContact === "email" ? "Revisa el correo electrónico." : "Revisa el prefijo y el número de WhatsApp." });
+      return;
+    }
+    const duplicate = await client.query(
+      `SELECT ${GUEST_SALE_REQUEST_SUMMARY_COLUMNS}
+       FROM guest_sale_requests g
+       WHERE lower(g.title) = lower($1)
+         AND (($2 <> '' AND lower(g.email) = lower($2)) OR ($3 <> '' AND g.phone = $3))
+         AND g.created_at > NOW() - INTERVAL '90 seconds'
+       ORDER BY g.created_at DESC LIMIT 1`,
+      [title, email, phone]
+    );
+    if (duplicate.rows[0]) {
+      res.json({ request: toGuestSaleRequest(withGuestRequestMediaPlaceholders(duplicate.rows[0])), duplicate: true });
+      return;
+    }
+    await client.query("BEGIN");
+    inTransaction = true;
+    const contact = await upsertContact(client, {
+      name: `Propietario · ${title}`,
+      email: preferredContact === "email" ? email : "",
+      phone: preferredContact === "whatsapp" ? phone : "",
+      contactType: "seller",
+      source: "guest_sale_request",
+      propertyType: type,
+      leadScore: images.length >= 5 ? "hot" : "warm",
+    });
+    const id = uuid("guest-sale");
+    const result = await client.query(
+      `INSERT INTO guest_sale_requests
+        (id, title, type, location, description, image, images, preferred_contact, email, country_code, phone, contact_id, priority, idempotency_key)
+       VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb, $8, $9, $10, $11, $12, $13, $14)
+       RETURNING id`,
+      [
+        id, title, type, location, description, images[0] || null, JSON.stringify(images), preferredContact,
+        preferredContact === "email" ? email : null, preferredContact === "whatsapp" ? countryCode : null,
+        preferredContact === "whatsapp" ? phone : null, contact?.id || null, images.length >= 5 ? "high" : "medium",
+        idempotencyKey || null,
+      ]
+    );
+    await client.query(
+      `INSERT INTO notifications (id, type, title, message, related_entity_type, related_entity_id)
+       VALUES ($1, 'guest_sale_request_created', 'Nueva venta sin registro', $2, 'guest_sale_request', $3)`,
+      [uuid("notif"), `${title} · ${preferredContact === "email" ? email : phone}`, id]
+    );
+    await client.query("COMMIT");
+    inTransaction = false;
+    const saved = await client.query(`SELECT ${GUEST_SALE_REQUEST_SUMMARY_COLUMNS} FROM guest_sale_requests g WHERE g.id = $1`, [result.rows[0].id]);
+    res.status(201).json({ request: toGuestSaleRequest(withGuestRequestMediaPlaceholders(saved.rows[0])), message: "Solicitud recibida. Un asesor revisará la información antes de contactarte." });
+  } catch (error) {
+    if (client && inTransaction) await client.query("ROLLBACK").catch(() => null);
+    next(error);
+  } finally {
+    client?.release();
   }
 });
 
@@ -6437,6 +6625,40 @@ app.post("/api/admin/properties", requireRole("admin"), async (req, res, next) =
   }
 });
 
+app.get("/api/admin/guest-sale-requests", requireRole("admin"), async (_req, res, next) => {
+  try {
+    const result = await query(`SELECT ${GUEST_SALE_REQUEST_SUMMARY_COLUMNS} FROM guest_sale_requests g ORDER BY g.created_at DESC LIMIT 300`);
+    res.json({ requests: result.rows.map(withGuestRequestMediaPlaceholders).map(toGuestSaleRequest) });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.patch("/api/admin/guest-sale-requests/:id", requireRole("admin"), async (req, res, next) => {
+  try {
+    const status = normalizeStatus(req.body?.status, new Set(["pending", "contacted", "archived"]), "pending");
+    const internalNotes = req.body?.internalNotes === undefined ? null : String(req.body.internalNotes || "").trim().slice(0, 4000);
+    const result = await query(
+      `UPDATE guest_sale_requests
+       SET status = $2,
+           internal_notes = COALESCE($3, internal_notes),
+           reviewed_at = CASE WHEN $2 = 'pending' THEN reviewed_at ELSE NOW() END,
+           updated_at = NOW()
+       WHERE id = $1
+       RETURNING id`,
+      [req.params.id, status, internalNotes]
+    );
+    if (!result.rows[0]) {
+      res.status(404).json({ error: "Solicitud sin registro no encontrada." });
+      return;
+    }
+    const updated = await query(`SELECT ${GUEST_SALE_REQUEST_SUMMARY_COLUMNS} FROM guest_sale_requests g WHERE g.id = $1`, [req.params.id]);
+    res.json({ request: toGuestSaleRequest(withGuestRequestMediaPlaceholders(updated.rows[0])) });
+  } catch (error) {
+    next(error);
+  }
+});
+
 app.delete("/api/admin/contacts/:id", requireRole("admin"), async (req, res, next) => {
   try {
     const existing = await query("SELECT id, source FROM contacts WHERE id = $1", [req.params.id]);
@@ -7323,7 +7545,7 @@ app.get("/api/admin/documents/:id/download", requireRole("admin"), async (req, r
 app.post("/api/admin/documents/:id/share", requireRole("admin"), async (req, res, next) => {
   try {
     const result = await query(
-      `SELECT d.id AS document_id, ${PROPERTY_SUMMARY_COLUMNS}
+      `SELECT d.id AS document_id, d.options AS document_options, ${PROPERTY_SUMMARY_COLUMNS}
        FROM generated_documents d
        JOIN properties p ON p.id = d.property_id
        WHERE d.id = $1 AND d.document_type = 'property'`,
@@ -7340,7 +7562,7 @@ app.post("/api/admin/documents/:id/share", requireRole("admin"), async (req, res
     const requestOrigin = `${String(req.get("x-forwarded-proto") || req.protocol || "https").split(",")[0].trim()}://${String(req.get("x-forwarded-host") || req.get("host") || "").split(",")[0].trim()}`;
     const shareUrl = absoluteUrl(sharePath, requestOrigin || siteUrl);
     const property = toProperty(withPropertyMediaPlaceholders(row));
-    const message = propertyWhatsappSheetText(property, shareUrl);
+    const message = propertyWhatsappSheetText(property, shareUrl, { neutral: row.document_options?.brandMode === "neutral" });
     res.json({
       shareUrl,
       expiresAt: new Date(expiresAt * 1000).toISOString(),

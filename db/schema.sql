@@ -56,6 +56,31 @@ CREATE TABLE IF NOT EXISTS seller_requests (
   reviewed_at TIMESTAMPTZ
 );
 
+CREATE TABLE IF NOT EXISTS guest_sale_requests (
+  id TEXT PRIMARY KEY,
+  title TEXT NOT NULL,
+  type TEXT NOT NULL,
+  location TEXT NOT NULL,
+  description TEXT NOT NULL DEFAULT '',
+  image TEXT,
+  images JSONB NOT NULL DEFAULT '[]'::jsonb,
+  preferred_contact TEXT NOT NULL CHECK (preferred_contact IN ('email', 'whatsapp')),
+  email TEXT,
+  country_code TEXT,
+  phone TEXT,
+  contact_id TEXT,
+  status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'contacted', 'archived')),
+  priority TEXT NOT NULL DEFAULT 'medium',
+  internal_notes TEXT NOT NULL DEFAULT '',
+  idempotency_key TEXT UNIQUE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  reviewed_at TIMESTAMPTZ
+);
+
+CREATE INDEX IF NOT EXISTS idx_guest_sale_requests_status_created ON guest_sale_requests (status, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_guest_sale_requests_contact ON guest_sale_requests (email, phone);
+
 CREATE TABLE IF NOT EXISTS properties (
   id TEXT PRIMARY KEY,
   slug TEXT UNIQUE,

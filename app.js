@@ -75,6 +75,31 @@ const translations = {
     heroSubtitle:
       "Te ayudamos a validar precios, preparar tu propiedad, encontrar compradores reales y tomar mejores decisiones inmobiliarias en Cancún.",
     heroSellCta: "Quiero vender mi propiedad",
+    sellerOptionsEyebrow: "ELIGE CÓMO EMPEZAR",
+    sellerOptionsTitle: "¿Cómo quieres vender tu propiedad?",
+    sellerOptionsCopy: "Puedes enviar los datos esenciales sin crear una cuenta, preparar un expediente completo con acompañamiento o solicitar primero una valoración.",
+    guestSaleName: "Venta sin registro",
+    guestSaleSummary: "Título, tipo, ubicación y fotos. No necesitas crear una cuenta.",
+    guidedSaleName: "Publicación acompañada",
+    guidedSaleSummary: "Crea una cuenta, guarda avances y da seguimiento con un asesor.",
+    valuationSaleName: "Solicitar valoración",
+    valuationSaleSummary: "Valida el precio antes de preparar la publicación.",
+    guestSaleEyebrow: "VENTA SIN REGISTRO",
+    guestSaleTitle: "Envíanos los datos esenciales",
+    guestSaleIntro: "No necesitas una cuenta. Un asesor revisará la información antes de solicitarte cualquier dato adicional.",
+    guestLocation: "Ubicación",
+    guestImages: "Imágenes de la propiedad",
+    guestImagesHelp: "Puedes seleccionar varias fotos JPG, PNG o WEBP.",
+    optionalDescription: "Descripción opcional",
+    continueContact: "Enviar solicitud",
+    confirmSendRequest: "Confirmar y enviar",
+    contactPreferenceEyebrow: "ÚLTIMO PASO",
+    contactPreferenceTitle: "¿Por dónde prefieres que te contactemos?",
+    contactPreferenceCopy: "Si precisamos más datos sobre tu propiedad, te contactaremos únicamente por el medio que elijas.",
+    countryPrefix: "Prefijo",
+    nationalNumber: "Número nacional",
+    guestConsent: "Acepto el aviso de privacidad y que un asesor me contacte sobre esta solicitud.",
+    back: "Volver",
     heroBuyCta: "Quiero comprar en Cancún",
     heroValuationCta: "Validar precio con asesor",
     searchPlaceholder: "Ciudad, dirección, código postal",
@@ -554,6 +579,31 @@ const translations = {
     heroSubtitle:
       "We help you validate pricing, prepare your property, find real buyers, and make better real estate decisions in Cancun.",
     heroSellCta: "I want to sell my property",
+    sellerOptionsEyebrow: "CHOOSE HOW TO START",
+    sellerOptionsTitle: "How would you like to sell your property?",
+    sellerOptionsCopy: "Send the essentials without an account, prepare a complete listing with guidance, or request a valuation first.",
+    guestSaleName: "Sell without registering",
+    guestSaleSummary: "Title, type, location and photos. No account is required.",
+    guidedSaleName: "Guided listing",
+    guidedSaleSummary: "Create an account, save progress and follow up with an advisor.",
+    valuationSaleName: "Request valuation",
+    valuationSaleSummary: "Validate the price before preparing the listing.",
+    guestSaleEyebrow: "NO-ACCOUNT SALE",
+    guestSaleTitle: "Send us the essential details",
+    guestSaleIntro: "You do not need an account. An advisor will review the information before requesting anything else.",
+    guestLocation: "Location",
+    guestImages: "Property images",
+    guestImagesHelp: "You can select multiple JPG, PNG or WEBP photos.",
+    optionalDescription: "Optional description",
+    continueContact: "Submit property",
+    confirmSendRequest: "Confirm and send",
+    contactPreferenceEyebrow: "FINAL STEP",
+    contactPreferenceTitle: "How would you prefer us to contact you?",
+    contactPreferenceCopy: "If we need more information about your property, we will contact you only through your selected channel.",
+    countryPrefix: "Prefix",
+    nationalNumber: "National number",
+    guestConsent: "I accept the privacy notice and agree to be contacted by an advisor about this request.",
+    back: "Back",
     heroBuyCta: "I want to buy in Cancun",
     heroValuationCta: "Validate price with an advisor",
     searchPlaceholder: "City, address, zip code",
@@ -1012,6 +1062,7 @@ const state = {
   session: null,
   properties: [],
   requests: [],
+  guestSaleRequests: [],
   leads: [],
   contacts: [],
   valuations: [],
@@ -1055,6 +1106,7 @@ const state = {
   adminPrompts: [],
   locationOptions: [],
   adminSection: "dashboard",
+  sellerSection: "sale",
   leadFilter: "all",
   adminLeadStatusFilter: "all",
   adminLeadPriorityFilter: "all",
@@ -2911,6 +2963,130 @@ function closeTourRequest() {
   document.body.classList.remove("modal-open");
 }
 
+function openSellerOptions(event) {
+  event?.preventDefault?.();
+  const modal = $("#sellerOptionsModal");
+  if (!modal) return;
+  modal.hidden = false;
+  document.body.classList.add("modal-open");
+  refreshIcons();
+}
+
+function closeSellerOptions() {
+  const modal = $("#sellerOptionsModal");
+  if (modal) modal.hidden = true;
+  if ($$(".modal-backdrop:not([hidden])").length === 0) document.body.classList.remove("modal-open");
+}
+
+function resetGuestSaleForm() {
+  const form = $("#guestSaleForm");
+  if (!form) return;
+  form.reset();
+  form.dataset.images = "[]";
+  delete form.dataset.idempotencyKey;
+  formField(form, "formStartedAt").value = String(Date.now());
+  $("#guestSaleImagePreview").hidden = true;
+  $("#guestSaleImagePreview .image-preview-grid").innerHTML = "";
+  setFormMessage($("#guestSaleMessage"), "");
+  setGuestSaleStep("property");
+  updateGuestContactFields();
+}
+
+function setGuestSaleStep(step) {
+  $$('[data-guest-sale-step]').forEach((section) => {
+    section.hidden = section.dataset.guestSaleStep !== step;
+  });
+}
+
+function openGuestSale() {
+  closeSellerOptions();
+  resetGuestSaleForm();
+  $("#guestSaleModal").hidden = false;
+  document.body.classList.add("modal-open");
+  $("#guestSaleForm [name=title]")?.focus();
+  refreshIcons();
+}
+
+function closeGuestSale() {
+  $("#guestSaleModal").hidden = true;
+  if ($$(".modal-backdrop:not([hidden])").length === 0) document.body.classList.remove("modal-open");
+}
+
+function continueGuestSale() {
+  const form = $("#guestSaleForm");
+  if (!form) return;
+  const requiredFields = [formField(form, "title"), formField(form, "type"), formField(form, "location")];
+  const images = safeParseImages(form.dataset.images);
+  const invalid = requiredFields.find((field) => !field?.reportValidity());
+  if (invalid) return;
+  if (!images.length) {
+    const imageInput = formField(form, "imageFile");
+    imageInput.setCustomValidity(state.lang === "en" ? "Add at least one property image." : "Agrega al menos una imagen de la propiedad.");
+    imageInput.reportValidity();
+    imageInput.setCustomValidity("");
+    return;
+  }
+  setGuestSaleStep("contact");
+  updateGuestContactFields();
+  form.querySelector('[data-guest-contact-field="email"] input')?.focus();
+}
+
+function updateGuestContactFields() {
+  const form = $("#guestSaleForm");
+  if (!form) return;
+  const method = form.querySelector('[name="preferredContact"]:checked')?.value || "email";
+  const emailField = form.querySelector('[data-guest-contact-field="email"]');
+  const whatsappField = form.querySelector('[data-guest-contact-field="whatsapp"]');
+  emailField.hidden = method !== "email";
+  whatsappField.hidden = method !== "whatsapp";
+  formField(form, "email").required = method === "email";
+  formField(form, "phone").required = method === "whatsapp";
+}
+
+async function guestSaleSubmit(event) {
+  event.preventDefault();
+  const form = event.currentTarget;
+  const button = form.querySelector('[type="submit"]');
+  const message = $("#guestSaleMessage");
+  const method = form.querySelector('[name="preferredContact"]:checked')?.value || "email";
+  if (!form.dataset.idempotencyKey) form.dataset.idempotencyKey = crypto.randomUUID();
+  setButtonLoading(button, true, state.lang === "en" ? "Sending..." : "Enviando...");
+  setFormMessage(message, "");
+  try {
+    const body = Object.fromEntries(new FormData(form).entries());
+    body.images = safeParseImages(form.dataset.images);
+    body.preferredContact = method;
+    body.consent = formField(form, "consent").checked;
+    const data = await api("/api/guest-sale-requests", {
+      method: "POST",
+      headers: { "Idempotency-Key": form.dataset.idempotencyKey },
+      body,
+      timeoutMs: 90000,
+    });
+    setFormMessage(message, data.message || (state.lang === "en" ? "Request received." : "Solicitud recibida."));
+    showToast(state.lang === "en" ? "Your property was sent for review." : "Tu propiedad fue enviada para revisión.");
+    window.setTimeout(closeGuestSale, 1200);
+  } catch (error) {
+    setFormMessage(message, error.message, true);
+  } finally {
+    setButtonLoading(button, false);
+  }
+}
+
+async function openDetailedSale() {
+  closeSellerOptions();
+  if (state.session?.role === "seller") {
+    await showPanel();
+    setSellerSection("sale");
+    return;
+  }
+  if (state.session?.role === "admin") {
+    showToast(state.lang === "en" ? "Seller accounts use the guided listing form." : "El formulario acompañado está disponible para cuentas de vendedor.");
+    return;
+  }
+  openAuth("register");
+}
+
 async function tourRequestSubmit(event) {
   event.preventDefault();
   const form = event.currentTarget;
@@ -2935,9 +3111,20 @@ async function tourRequestSubmit(event) {
   }
 }
 
+function setSellerSection(section = "sale") {
+  const available = new Set(["sale", "requests", "favorites", "searches", "tours", "services", "service-form"]);
+  state.sellerSection = available.has(section) ? section : "sale";
+  $$('[data-seller-section]').forEach((button) => button.classList.toggle("active", button.dataset.sellerSection === state.sellerSection));
+  $$('[data-seller-panel-section]').forEach((panel) => {
+    panel.hidden = panel.dataset.sellerPanelSection !== state.sellerSection;
+  });
+  refreshIcons();
+}
+
 function openSellerFlow(flow) {
   if (flow === "sale") {
     $("#sellerServiceCard").hidden = true;
+    setSellerSection("sale");
     $("#sellerSaleWorkspace").scrollIntoView({ behavior: "smooth", block: "start" });
     return;
   }
@@ -2958,6 +3145,7 @@ function openSellerFlow(flow) {
   $("#sellerServiceTitle").textContent = config[0];
   $("#sellerServiceHint").textContent = config[1];
   $("#sellerServicePriceLabel").textContent = config[2];
+  setSellerSection("service-form");
   card.hidden = false;
   refreshLocationSelects();
   card.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -3322,6 +3510,79 @@ function renderAdminContacts() {
       `;
     })
     .join("");
+}
+
+function guestSaleStatusLabel(status) {
+  if (status === "contacted") return state.lang === "en" ? "Contacted" : "Contactada";
+  if (status === "archived") return state.lang === "en" ? "Archived" : "Archivada";
+  return state.lang === "en" ? "Pending" : "Pendiente";
+}
+
+function guestSaleContactActions(request) {
+  const whatsappNumber = leadPhoneForWhatsApp(request.phone);
+  const whatsappUrl = whatsappNumber
+    ? `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(`Hola, te contactamos de Puerto Cancun Center acerca de ${request.title}. Queremos completar algunos datos de la propiedad.`)}`
+    : "";
+  return `
+    ${request.email ? `<button class="mini-button" type="button" data-compose-email data-email="${escapeHtml(request.email)}" data-email-name="Propietario" data-email-context="Venta sin registro · ${escapeHtml(request.title)}"><i data-lucide="mail"></i> Contactar por correo</button>` : ""}
+    ${whatsappUrl ? `<a class="mini-button whatsapp-action" href="${escapeHtml(whatsappUrl)}" target="_blank" rel="noopener noreferrer"><i data-lucide="message-circle"></i> Contactar por WhatsApp</a>` : ""}
+  `;
+}
+
+function renderAdminGuestRequests() {
+  const list = $("#adminGuestRequests");
+  if (!list) return;
+  const requests = state.guestSaleRequests || [];
+  const pending = requests.filter((request) => request.status === "pending").length;
+  if ($("#adminGuestRequestSummary")) $("#adminGuestRequestSummary").textContent = `${requests.length} solicitudes · ${pending} pendientes`;
+  list.innerHTML = requests.length
+    ? requests.map((request) => `
+      <article class="request-admin-entry guest-sale-request">
+        <div class="request-item detailed-request">
+          <div class="request-item-header"><div><span class="status ${escapeHtml(request.status)}">${escapeHtml(guestSaleStatusLabel(request.status))}</span><h3>${escapeHtml(request.title)}</h3></div><strong>${escapeHtml(displayType(request.type))}</strong></div>
+          ${request.image ? `<img class="request-thumb" src="${escapeHtml(request.image)}" alt="${escapeHtml(request.title)}" loading="lazy" />` : ""}
+          <div class="detail-grid compact"><div><span>Ubicación indicada</span><strong>${escapeHtml(request.location)}</strong><small>${escapeHtml(request.images.length)} imagen${request.images.length === 1 ? "" : "es"}</small></div><div><span>Contacto preferido</span><strong>${escapeHtml(request.preferredContact === "whatsapp" ? "WhatsApp" : "Correo")}</strong><small>${escapeHtml(request.email || request.phone || "")}</small></div></div>
+          ${request.description ? `<p class="request-description">${escapeHtml(request.description)}</p>` : `<p class="request-description muted">Sin descripción; solicitar datos solo si son necesarios.</p>`}
+          <p class="request-date">Recibida: ${escapeHtml(formatDate(request.createdAt))}</p>
+        </div>
+        <div class="item-actions">${guestSaleContactActions(request)}<button class="mini-button primary" type="button" data-guest-request-status="${escapeHtml(request.id)}" data-status-value="contacted">Marcar contactada</button><button class="mini-button" type="button" data-guest-request-status="${escapeHtml(request.id)}" data-status-value="archived">Archivar</button></div>
+      </article>`).join("")
+    : `<p class="empty-state">Todavía no hay solicitudes de venta sin registro.</p>`;
+  refreshIcons();
+}
+
+function renderAdminGuestContacts() {
+  const list = $("#adminGuestContacts");
+  if (!list) return;
+  const search = normalizeSearchText($("#guestContactSearch")?.value || "");
+  const unique = new Map();
+  (state.guestSaleRequests || []).forEach((request) => {
+    const key = request.email ? `email:${request.email.toLowerCase()}` : `phone:${request.phone}`;
+    if (!unique.has(key)) unique.set(key, request);
+  });
+  const contacts = [...unique.values()].filter((request) => !search || normalizeSearchText(`${request.email} ${request.phone} ${request.title} ${request.location}`).includes(search));
+  if ($("#adminGuestContactSummary")) $("#adminGuestContactSummary").textContent = `${contacts.length} contactos sin cuenta`;
+  list.innerHTML = contacts.length
+    ? contacts.map((request) => `
+      <article class="contact-entry guest-contact-entry"><div class="contact-main"><div><span class="status">SIN REGISTRO</span><h3>${escapeHtml(request.email || request.phone || "Contacto")}</h3><p>Propietario · ${escapeHtml(request.type)}</p></div><strong>${escapeHtml(formatDate(request.createdAt))}</strong></div><div class="lead-contact-grid"><div><span>Propiedad</span><strong>${escapeHtml(request.title)}</strong></div><div><span>Ubicación</span><strong>${escapeHtml(request.location)}</strong></div><div><span>Correo</span><strong>${escapeHtml(request.email || "-")}</strong></div><div><span>WhatsApp</span><strong>${escapeHtml(request.phone || "-")}</strong></div></div><div class="item-actions">${guestSaleContactActions(request)}</div></article>`).join("")
+    : `<p class="empty-state">No se encontraron contactos sin registro.</p>`;
+  refreshIcons();
+}
+
+async function updateGuestSaleRequestStatus(id, status, button) {
+  setButtonLoading(button, true, "Guardando...");
+  try {
+    const data = await api(`/api/admin/guest-sale-requests/${encodeURIComponent(id)}`, { method: "PATCH", body: { status } });
+    state.guestSaleRequests = state.guestSaleRequests.map((request) => request.id === id ? data.request : request);
+    renderAdminGuestRequests();
+    renderAdminGuestContacts();
+    updateAdminShell();
+    showToast("Solicitud actualizada.");
+  } catch (error) {
+    showToast(error.message, "error");
+  } finally {
+    setButtonLoading(button, false);
+  }
 }
 
 function closeContactIntelligenceModal() {
@@ -4205,6 +4466,7 @@ function renderAdminListings() {
               <button class="mini-button" type="button" data-duplicate-listing="${escapeHtml(property.id)}">Duplicar</button>
               <button class="mini-button pdf-institutional-button" type="button" data-generate-property-pdf="${escapeHtml(property.id)}" data-pdf-mode="branded">PDF institucional</button>
               <button class="mini-button pdf-neutral-button" type="button" data-generate-property-pdf="${escapeHtml(property.id)}" data-pdf-mode="neutral">PDF neutro</button>
+              <button class="pdf-share-trigger mini" type="button" data-open-pdf-share="property" data-share-property="${escapeHtml(property.id)}" aria-label="Compartir ficha PDF de ${escapeHtml(localizedTitle(property))}" title="Compartir ficha PDF"><i data-lucide="share-2"></i></button>
               <button class="mini-button" type="button" data-pdf-property="${escapeHtml(property.id)}">Configurar PDF</button>
               <button class="mini-button" type="button" data-detail="${escapeHtml(property.id)}">Ver detalle público</button>
               <button class="mini-button" type="button" data-review-property-quality="${escapeHtml(property.id)}">Revisar calidad</button>
@@ -5340,7 +5602,7 @@ function renderDocuments() {
               </div>
               <div class="item-actions">
                 <a class="mini-button primary" href="/api/admin/documents/${encodeURIComponent(document.id)}/download">Descargar</a>
-                ${document.documentType === "property" ? `<button class="mini-button whatsapp-share-button" type="button" data-share-document="${escapeHtml(document.id)}"><i data-lucide="message-circle"></i><span>Compartir ficha por WhatsApp</span></button>` : ""}
+                ${document.documentType === "property" ? `<button class="pdf-share-trigger mini" type="button" data-open-pdf-share="history" data-share-document="${escapeHtml(document.id)}" data-share-property="${escapeHtml(document.propertyId || "")}" aria-label="Compartir ficha PDF" title="Compartir ficha PDF"><i data-lucide="share-2"></i></button>` : ""}
                 <button class="mini-button danger" type="button" data-delete-document="${escapeHtml(document.id)}">Eliminar</button>
               </div>
             </article>
@@ -5351,24 +5613,129 @@ function renderDocuments() {
   refreshIcons();
 }
 
-async function shareDocumentByWhatsApp(id, button) {
-  if (!id || button?.dataset.loading === "true") return;
+function pdfSharePropertyCandidates(query = "") {
+  const normalized = normalizeSearchText(query);
+  return state.properties
+    .filter((property) => property.publicationSection !== "developments")
+    .filter((property) => !normalized || normalizeSearchText(`${property.mls || ""} ${localizedTitle(property)} ${displayLocation(property)}`).includes(normalized))
+    .slice(0, 12);
+}
+
+function selectPdfShareProperty(propertyId) {
+  const form = $("#pdfShareForm");
+  const select = formField(form, "propertyId");
+  const search = $("#pdfSharePropertySearch");
+  const matches = $("#pdfSharePropertyMatches");
+  const property = state.properties.find((item) => item.id === propertyId);
+  if (!select || !property) return;
+  select.value = property.id;
+  if (search) search.value = propertySearchLabel(property);
+  if (matches) matches.hidden = true;
+  setFormMessage($("#pdfShareMessage"), "");
+}
+
+function renderPdfSharePropertyMatches(query = "") {
+  const matches = $("#pdfSharePropertyMatches");
+  if (!matches) return;
+  const properties = pdfSharePropertyCandidates(query);
+  matches.innerHTML = properties.length
+    ? properties.map((property) => `<button type="button" data-select-pdf-share-property="${escapeHtml(property.id)}"><span><b>${escapeHtml(property.mls ? `MLS# ${property.mls}` : "SIN MLS")}</b> ${escapeHtml(localizedTitle(property))}</span><small>${escapeHtml(displayLocation(property))}</small></button>`).join("")
+    : `<p>No se encontraron propiedades con ese dato.</p>`;
+  matches.hidden = false;
+}
+
+function closePdfShareModal() {
+  const modal = $("#pdfShareModal");
+  if (modal) modal.hidden = true;
+  if ($$(".modal-backdrop:not([hidden])").length === 0) document.body.classList.remove("modal-open");
+}
+
+function openPdfShareModal(trigger) {
+  const modal = $("#pdfShareModal");
+  const form = $("#pdfShareForm");
+  if (!modal || !form) return;
+  form.reset();
+  setFormMessage($("#pdfShareMessage"), "");
+  const source = trigger?.dataset.openPdfShare || "selected";
+  const documentId = trigger?.dataset.shareDocument || "";
+  const existingDocument = state.documents.find((document) => document.id === documentId);
+  const selectedPropertyId = trigger?.dataset.shareProperty
+    || existingDocument?.propertyId
+    || $("#pdfPropertySelect")?.value
+    || "";
+  const select = formField(form, "propertyId");
+  select.innerHTML = `<option value="">Selecciona una propiedad</option>`;
+  state.properties
+    .filter((property) => property.publicationSection !== "developments")
+    .forEach((property) => select.append(new Option(propertySearchLabel(property), property.id)));
+  formField(form, "documentId").value = documentId;
+  formField(form, "neutral").checked = existingDocument?.options?.brandMode === "neutral";
+  const propertyField = form.querySelector("[data-pdf-share-property-field]");
+  const locked = source === "property" || source === "history";
+  if (propertyField) propertyField.hidden = locked;
+  if (selectedPropertyId) selectPdfShareProperty(selectedPropertyId);
+  else renderPdfSharePropertyMatches("");
+  modal.hidden = false;
+  document.body.classList.add("modal-open");
+  refreshIcons();
+  if (!locked) $("#pdfSharePropertySearch")?.focus();
+}
+
+async function preparePdfShareDocument() {
+  const form = $("#pdfShareForm");
+  const propertyId = formField(form, "propertyId")?.value || "";
+  const brandMode = formField(form, "neutral")?.checked ? "neutral" : "branded";
+  const requestedDocumentId = formField(form, "documentId")?.value || "";
+  const existingDocument = state.documents.find((document) => document.id === requestedDocumentId);
+  if (!propertyId || !state.properties.some((property) => property.id === propertyId)) {
+    throw new Error("Selecciona la propiedad que deseas compartir.");
+  }
+  if (existingDocument?.propertyId === propertyId && (existingDocument.options?.brandMode || "branded") === brandMode) {
+    return existingDocument;
+  }
+  const data = await api("/api/admin/documents/generate", {
+    method: "POST",
+    body: {
+      documentType: "property",
+      propertyId,
+      valuationId: "",
+      options: pdfOptionsFromForm($("#pdfForm"), brandMode),
+    },
+    timeoutMs: 90000,
+  });
+  if (!data.document) throw new Error("No se pudo generar la ficha para compartir.");
+  state.documents = [data.document, ...state.documents.filter((item) => item.id !== data.document.id)];
+  formField(form, "documentId").value = data.document.id;
+  renderDocuments();
+  return data.document;
+}
+
+async function sharePdfThroughChannel(channel, button) {
+  if (button?.dataset.loading === "true") return;
   const popup = window.open("about:blank", "_blank");
   if (popup) popup.opener = null;
-  setButtonLoading(button, true, "Preparando enlace...");
+  setButtonLoading(button, true, "Preparando...");
+  setFormMessage($("#pdfShareMessage"), "Generando el enlace temporal y preparando la ficha...");
   try {
-    const data = await api(`/api/admin/documents/${encodeURIComponent(id)}/share`, { method: "POST" });
-    if (popup) {
-      popup.location.replace(data.whatsappUrl);
-    } else {
+    const document = await preparePdfShareDocument();
+    const data = await api(`/api/admin/documents/${encodeURIComponent(document.id)}/share`, { method: "POST" });
+    let targetUrl = data.whatsappUrl;
+    if (channel === "facebook") {
+      targetUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(data.shareUrl)}&quote=${encodeURIComponent(data.message || "")}`;
+    } else if (channel === "instagram") {
       await navigator.clipboard?.writeText(data.message || data.shareUrl);
-      showToast("El navegador bloqueó WhatsApp. El mensaje y el enlace se copiaron al portapapeles.");
-      return;
+      targetUrl = "https://www.instagram.com/";
+      showToast("Texto y enlace copiados. Pégalos en la publicación o mensaje de Instagram.");
     }
-    showToast("Enlace temporal creado. Estará disponible durante 7 días.");
+    if (popup) popup.location.replace(targetUrl);
+    else {
+      await navigator.clipboard?.writeText(data.message || data.shareUrl);
+      showToast("El navegador bloqueó la ventana. El texto y el enlace quedaron copiados.");
+    }
+    setFormMessage($("#pdfShareMessage"), "Ficha preparada. El enlace permanecerá disponible durante 7 días.");
   } catch (error) {
     popup?.close();
-    showToast(error.message || "No se pudo preparar la ficha para WhatsApp.", "error");
+    setFormMessage($("#pdfShareMessage"), error.message, true);
   } finally {
     setButtonLoading(button, false);
   }
@@ -6531,6 +6898,7 @@ async function loadPanelData() {
       panelApi("/api/admin/copilot/features"),
       panelApi("/api/admin/copilot/feedback-summary"),
       panelApi("/api/admin/tours"),
+      panelApi("/api/admin/guest-sale-requests"),
     ]);
     const adminValue = (index, fallback = {}) => adminResults[index].status === "fulfilled" ? adminResults[index].value : fallback;
     const [
@@ -6563,6 +6931,7 @@ async function loadPanelData() {
       copilotFeaturesData,
       copilotFeedbackData,
       toursData,
+      guestSaleRequestsData,
     ] = adminResults.map((result, index) => adminValue(index));
     if (adminResults[0].status === "fulfilled") state.stats = statsData;
     state.requests = requestsData.requests || state.requests;
@@ -6593,6 +6962,7 @@ async function loadPanelData() {
     state.copilotFeatures = copilotFeaturesData.features || state.copilotFeatures;
     state.copilotFeedbackSummary = copilotFeedbackData.rates ? copilotFeedbackData : state.copilotFeedbackSummary;
     state.tours = toursData.tours || state.tours;
+    state.guestSaleRequests = guestSaleRequestsData.requests || state.guestSaleRequests;
     const failedModules = adminResults.filter((result) => result.status === "rejected").length;
     if (failedModules) showToast(`${failedModules} módulo${failedModules === 1 ? "" : "s"} no respondió. El resto del panel continúa disponible.`, "error");
     state.serviceRequests = [];
@@ -6624,6 +6994,7 @@ async function loadPanelData() {
     state.adminPrompts = [];
     state.leads = [];
     state.contacts = [];
+    state.guestSaleRequests = [];
     state.valuations = [];
     state.tasks = [];
     state.matches = [];
@@ -6741,7 +7112,9 @@ function updateAdminShell() {
   $$("[data-admin-section]").forEach((button) => {
     const active = button.dataset.adminSection === section
       || (button.dataset.adminSection === "properties" && section === "new-property")
-      || (button.dataset.adminSection === "developments" && section === "new-development");
+      || (button.dataset.adminSection === "developments" && section === "new-development")
+      || (button.dataset.adminSection === "requests" && section === "guest-requests")
+      || (button.dataset.adminSection === "contacts" && section === "guest-contacts");
     button.classList.toggle("active", active);
   });
   $$("[data-admin-section-panel]").forEach((panel) => {
@@ -6761,7 +7134,7 @@ function updateAdminShell() {
     listingsTitle.textContent = labels[section] || (state.lang === "en" ? "Listing inventory" : "Inventario de publicaciones");
   }
   const operationsGrid = $("#adminOperationsGrid");
-  if (operationsGrid) operationsGrid.hidden = !["requests", "properties", "new-property", "developments", "new-development"].includes(section);
+  if (operationsGrid) operationsGrid.hidden = !["requests", "guest-requests", "properties", "new-property", "developments", "new-development"].includes(section);
   $$(".admin-sidebar-subnav").forEach((subnav) => {
     const parent = subnav.previousElementSibling;
     const childSections = Array.from(subnav.querySelectorAll("[data-admin-section-link]")).map((item) => item.dataset.adminSectionLink);
@@ -6779,7 +7152,10 @@ function updateAdminShell() {
   const taskBadge = $("#sidebarTaskBadge");
   const whatsappBadge = $("#sidebarWhatsappBadge");
   if (leadBadge) leadBadge.textContent = String(state.leads.filter((lead) => lead.status === "new").length);
-  if (requestBadge) requestBadge.textContent = String(state.requests.filter((request) => request.status === "pending").length);
+  if (requestBadge) requestBadge.textContent = String(
+    state.requests.filter((request) => request.status === "pending").length
+    + state.guestSaleRequests.filter((request) => request.status === "pending").length
+  );
   if (valuationBadge) valuationBadge.textContent = String(state.valuations.filter((valuation) => ["new", "in_review", "in_analysis"].includes(valuation.status)).length);
   if (taskBadge) taskBadge.textContent = String(state.tasks.filter((task) => ["pending", "in_progress"].includes(task.status)).length);
   if (whatsappBadge) whatsappBadge.textContent = String(state.whatsapp.overview?.counts?.unread || 0);
@@ -6983,6 +7359,8 @@ async function renderPanel() {
     renderAdminLeads();
     renderAdminContacts();
     renderAdminRequests();
+    renderAdminGuestRequests();
+    renderAdminGuestContacts();
     renderAdminListingFilters();
     renderAdminListings();
     renderAdminValuations();
@@ -7002,6 +7380,7 @@ async function renderPanel() {
     renderSellerSavedSearches();
     renderSellerAlertCapabilities();
     renderSellerTours();
+    setSellerSection(state.sellerSection || "sale");
   }
   bindMapPickers();
   if (isAdmin) void restoreListingDraft();
@@ -7098,6 +7477,9 @@ function applyTranslations({ renderPanelContent = true } = {}) {
   if ($("#sellNavLink")) $("#sellNavLink").href = state.lang === "en" ? "/en/sell-property-cancun" : "/vender-casa-cancun";
   if ($("#heroSellButton")) $("#heroSellButton").href = state.lang === "en" ? "/en/sell-property-cancun" : "/vender-casa-cancun";
   if ($("#sellCtaButton")) $("#sellCtaButton").href = state.lang === "en" ? "/en/sell-property-cancun" : "/vender-casa-cancun";
+  $$('[data-valuation-option]').forEach((link) => {
+    link.href = state.lang === "en" ? "/en/property-valuation-cancun" : "/valuacion-inmobiliaria-cancun";
+  });
   renderReleaseInfo();
   refreshLocationSelects();
   renderCatalogParentOptions();
@@ -9148,6 +9530,57 @@ function bindEvents() {
   $("#forgotForm")?.addEventListener("submit", forgotPasswordSubmit);
   $("#resetPasswordForm")?.addEventListener("submit", resetPasswordSubmit);
 
+  $$('[data-open-seller-options]').forEach((element) => element.addEventListener("click", openSellerOptions));
+  $$('[data-open-guest-sale]').forEach((element) => element.addEventListener("click", (event) => {
+    event.preventDefault();
+    openGuestSale();
+  }));
+  $$('[data-open-detailed-sale]').forEach((element) => element.addEventListener("click", (event) => {
+    event.preventDefault();
+    void openDetailedSale();
+  }));
+  $$('[data-close-seller-options]').forEach((element) => element.addEventListener("click", closeSellerOptions));
+  $("#sellerOptionsModal")?.addEventListener("click", (event) => {
+    if (event.target.id === "sellerOptionsModal") closeSellerOptions();
+  });
+  $$('[data-close-guest-sale]').forEach((element) => element.addEventListener("click", closeGuestSale));
+  $("#guestSaleModal")?.addEventListener("click", (event) => {
+    if (event.target.id === "guestSaleModal") closeGuestSale();
+  });
+  $("#continueGuestSale")?.addEventListener("click", continueGuestSale);
+  $("#backGuestSale")?.addEventListener("click", () => setGuestSaleStep("property"));
+  $("#guestSaleForm")?.addEventListener("submit", guestSaleSubmit);
+  $("#guestSaleForm")?.querySelectorAll('[name="preferredContact"]').forEach((input) => input.addEventListener("change", updateGuestContactFields));
+  formField($("#guestSaleForm"), "imageFile")?.addEventListener("change", async (event) => {
+    const form = event.currentTarget.form;
+    try {
+      const payload = await readImageFiles(event.currentTarget.files);
+      form.dataset.images = JSON.stringify(payload.images);
+      renderImagePreview($("#guestSaleImagePreview"), payload.images.map((image) => image.imageDataUrl));
+    } catch (error) {
+      event.currentTarget.value = "";
+      form.dataset.images = "[]";
+      renderImagePreview($("#guestSaleImagePreview"), []);
+      showToast(error.message, "error");
+    }
+  });
+  $("#clearGuestSaleImages")?.addEventListener("click", () => {
+    const form = $("#guestSaleForm");
+    formField(form, "imageFile").value = "";
+    form.dataset.images = "[]";
+    renderImagePreview($("#guestSaleImagePreview"), []);
+  });
+  $$('[data-seller-section]').forEach((button) => button.addEventListener("click", () => setSellerSection(button.dataset.sellerSection)));
+  $$('[data-close-pdf-share]').forEach((element) => element.addEventListener("click", closePdfShareModal));
+  $("#pdfShareModal")?.addEventListener("click", (event) => {
+    if (event.target.id === "pdfShareModal") closePdfShareModal();
+  });
+  $("#pdfSharePropertySearch")?.addEventListener("input", (event) => {
+    formField($("#pdfShareForm"), "propertyId").value = "";
+    renderPdfSharePropertyMatches(event.currentTarget.value);
+  });
+  $("#pdfSharePropertySearch")?.addEventListener("focus", (event) => renderPdfSharePropertyMatches(event.currentTarget.value));
+
   if (!$("#panelView")) {
     document.addEventListener("click", (event) => {
       const sellerAccess = event.target.closest("[data-seller-access]");
@@ -9484,6 +9917,7 @@ function bindEvents() {
   $("#exportContactsCsv")?.addEventListener("click", exportContactsCsv);
   $("#contactSearch")?.addEventListener("input", renderAdminContacts);
   $("#contactTypeFilter")?.addEventListener("change", renderAdminContacts);
+  $("#guestContactSearch")?.addEventListener("input", renderAdminGuestContacts);
   $("#mediaSearch")?.addEventListener("input", renderMediaLibrary);
   $("#mediaTypeFilter")?.addEventListener("change", renderMediaLibrary);
   ["#smartMapLayer", "#smartMapZone", "#smartMapStatus", "#smartMapType"].forEach((selector) => {
@@ -9867,8 +10301,17 @@ function bindEvents() {
     const deleteDocumentButton = event.target.closest("[data-delete-document]");
     if (deleteDocumentButton) void deleteDocument(deleteDocumentButton.dataset.deleteDocument);
 
-    const shareDocumentButton = event.target.closest("[data-share-document]");
-    if (shareDocumentButton) void shareDocumentByWhatsApp(shareDocumentButton.dataset.shareDocument, shareDocumentButton);
+    const openPdfShareButton = event.target.closest("[data-open-pdf-share]");
+    if (openPdfShareButton) openPdfShareModal(openPdfShareButton);
+
+    const selectPdfShareButton = event.target.closest("[data-select-pdf-share-property]");
+    if (selectPdfShareButton) selectPdfShareProperty(selectPdfShareButton.dataset.selectPdfShareProperty);
+
+    const pdfShareChannel = event.target.closest("[data-pdf-share-channel]");
+    if (pdfShareChannel) void sharePdfThroughChannel(pdfShareChannel.dataset.pdfShareChannel, pdfShareChannel);
+
+    const guestRequestStatus = event.target.closest("[data-guest-request-status]");
+    if (guestRequestStatus) void updateGuestSaleRequestStatus(guestRequestStatus.dataset.guestRequestStatus, guestRequestStatus.dataset.statusValue, guestRequestStatus);
 
     const deleteMediaButton = event.target.closest("[data-delete-media]");
     if (deleteMediaButton) void deleteMedia(deleteMediaButton.dataset.deleteMedia);
