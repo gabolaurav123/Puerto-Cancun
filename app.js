@@ -1302,6 +1302,21 @@ function fillLocationSelect(select, selectedValue = select?.value || "", options
   const current = selectedValue || select.value;
   const preserveUnknown = optionsConfig.preserveUnknown !== false;
   const options = locationOptionsByType(type, select.form);
+  if (select.tagName === "INPUT") {
+    if (!select.dataset.locationListId) {
+      select.dataset.locationListId = `location-suggestions-${type}-${Math.random().toString(36).slice(2, 9)}`;
+      select.setAttribute("list", select.dataset.locationListId);
+    }
+    let list = document.getElementById(select.dataset.locationListId);
+    if (!list) {
+      list = document.createElement("datalist");
+      list.id = select.dataset.locationListId;
+      select.after(list);
+    }
+    list.innerHTML = options.map((option) => `<option value="${escapeHtml(option.name)}"></option>`).join("");
+    if (current) select.value = current;
+    return;
+  }
   select.innerHTML = required ? "" : `<option value="">${escapeHtml(t("optionalLocation"))}</option>`;
   options.forEach((option) => {
     select.append(new Option(option.name, option.name));
@@ -1335,6 +1350,14 @@ function handleLocationSelectChange(select) {
   if (!form) return;
   const currentIndex = LOCATION_FIELD_ORDER.indexOf(select.name);
   if (currentIndex < 0) return;
+  if (select.tagName === "INPUT") {
+    LOCATION_FIELD_ORDER.slice(currentIndex + 1).forEach((name) => {
+      const field = formField(form, name);
+      fillLocationSelect(field, field?.value || "");
+    });
+    updateMapPickerForForm(form);
+    return;
+  }
   LOCATION_FIELD_ORDER.slice(currentIndex + 1).forEach((name) => {
     fillLocationSelect(formField(form, name), "", { preserveUnknown: false });
   });
@@ -1370,6 +1393,7 @@ function mapQueryFromForm(form) {
   if (latitude && longitude) return `${latitude},${longitude}`;
   const parts = [
     formField(form, "address")?.value,
+    formField(form, "location")?.value,
     formField(form, "neighborhood")?.value,
     formField(form, "zone")?.value,
     formField(form, "city")?.value,
@@ -1382,6 +1406,7 @@ function mapAddressQueryFromForm(form) {
   if (!form) return "";
   return [
     formField(form, "address")?.value,
+    formField(form, "location")?.value,
     formField(form, "neighborhood")?.value,
     formField(form, "zone")?.value,
     formField(form, "city")?.value,
@@ -1394,6 +1419,53 @@ function setMapStatus(picker, message, isError = false) {
   if (!status) return;
   status.textContent = message;
   status.classList.toggle("is-error", isError);
+}
+
+function applyGeocodedLocation(form, result) {
+  if (!form || !result) return;
+  const components = result.components || {};
+  for (const [name, value] of Object.entries({
+    state: components.state || "",
+    city: components.city || "",
+    zone: components.zone || "",
+    neighborhood: components.neighborhood || "",
+  })) {
+    const field = formField(form, name);
+    if (!field || !value) continue;
+    field.value = value;
+    if (field.dataset.locationSelect) fillLocationSelect(field, value);
+  }
+  const formattedAddress = String(result.formattedAddress || "").trim();
+  if (!formattedAddress) return;
+  const addressField = formField(form, "address");
+  if (addressField && !addressField.dataset.locked) addressField.value = formattedAddress;
+  if (formField(form, "location")) formField(form, "location").value = formattedAddress;
+  if (formField(form, "mapPlace")) formField(form, "mapPlace").value = formattedAddress;
+}
+
+async function reverseGeocodeMapPosition(picker, latitude, longitude) {
+  const form = picker?.closest("form");
+  if (!form) return;
+  mapGeocodeControllers.get(picker)?.abort();
+  const controller = new AbortController();
+  mapGeocodeControllers.set(picker, controller);
+  setMapStatus(picker, state.lang === "en" ? "Identifying the selected location…" : "Identificando la ubicación seleccionada…");
+  try {
+    const response = await fetch(`/api/reverse-geocode?latitude=${encodeURIComponent(latitude)}&longitude=${encodeURIComponent(longitude)}`, {
+      credentials: "same-origin",
+      headers: { Accept: "application/json" },
+      signal: controller.signal,
+    });
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(result.error || "Ubicación no identificada");
+    if (controller.signal.aborted) return;
+    applyGeocodedLocation(form, result);
+    updateMapPicker(picker);
+    setMapStatus(picker, state.lang === "en" ? "Location and address updated." : "Ubicación y dirección actualizadas.");
+  } catch (error) {
+    if (error.name === "AbortError") return;
+    setMapStatus(picker, state.lang === "en" ? "The point was saved, but its address could not be identified." : "El punto quedó guardado, pero no se pudo identificar su dirección.", true);
+  }
 }
 
 async function geocodeMapAddress(picker, explicitQuery = "") {
@@ -1414,7 +1486,8 @@ async function geocodeMapAddress(picker, explicitQuery = "") {
     if (!response.ok) throw new Error(result.error || "Dirección no encontrada");
     if (controller.signal.aborted) return;
     setMapCoordinates(picker, result.latitude, result.longitude);
-    if (formField(form, "mapPlace")) formField(form, "mapPlace").value = result.formattedAddress || query;
+    applyGeocodedLocation(form, result);
+    updateMapPicker(picker);
     setMapStatus(picker, t("mapAddressFound"));
   } catch (error) {
     if (error.name === "AbortError") return;
@@ -1613,7 +1686,10 @@ async function enhanceLeafletMapPicker(picker) {
     iconAnchor: [15, 38],
   });
   const marker = L.marker([latitude, longitude], { draggable: true, icon }).addTo(map);
-  const update = (latlng) => setMapCoordinates(picker, latlng.lat, latlng.lng, "locationDetected");
+  const update = (latlng) => {
+    setMapCoordinates(picker, latlng.lat, latlng.lng, "locationDetected");
+    void reverseGeocodeMapPosition(picker, latlng.lat, latlng.lng);
+  };
   marker.on("dragend", (event) => update(event.target.getLatLng()));
   map.on("click", (event) => {
     marker.setLatLng(event.latlng);
@@ -1656,17 +1732,11 @@ async function enhanceMapPicker(picker) {
     streetViewControl: false,
     fullscreenControl: false,
   });
-  const geocoder = new google.maps.Geocoder();
   const marker = new google.maps.Marker({ map, position: center, draggable: true });
   const updateFromLatLng = (latLng) => {
     marker.setPosition(latLng);
     setMapCoordinates(picker, latLng.lat(), latLng.lng());
-    geocoder.geocode({ location: latLng }, (results, status) => {
-      if (status === "OK" && results?.[0]?.formatted_address && formField(form, "address") && !formField(form, "address").dataset.locked) {
-        formField(form, "address").value = results[0].formatted_address;
-        updateMapPicker(picker);
-      }
-    });
+    void reverseGeocodeMapPosition(picker, latLng.lat(), latLng.lng());
   };
   map.addListener("click", (event) => {
     updateFromLatLng(event.latLng);
@@ -1702,9 +1772,14 @@ function bindMapPickers() {
     }
     picker.dataset.bound = "true";
     const form = picker.closest("form");
-    ["address", "state", "city", "zone", "neighborhood"].forEach((name) => {
-      form?.elements[name]?.addEventListener("input", () => scheduleMapAddressGeocode(picker));
-      form?.elements[name]?.addEventListener("change", () => scheduleMapAddressGeocode(picker));
+    ["address", "location", "state", "city", "zone", "neighborhood"].forEach((name) => {
+      const field = form?.elements[name];
+      const schedule = () => {
+        if (name === "location" && formField(form, "address")?.type === "hidden") formField(form, "address").value = field.value;
+        scheduleMapAddressGeocode(picker);
+      };
+      field?.addEventListener("input", schedule);
+      field?.addEventListener("change", schedule);
     });
     ["latitude", "longitude"].forEach((name) => {
       form?.elements[name]?.addEventListener("input", () => updateMapPicker(picker));
@@ -1716,7 +1791,10 @@ function bindMapPickers() {
         return;
       }
       navigator.geolocation.getCurrentPosition(
-        (position) => setMapCoordinates(picker, position.coords.latitude, position.coords.longitude, "locationDetected"),
+        (position) => {
+          setMapCoordinates(picker, position.coords.latitude, position.coords.longitude, "locationDetected");
+          void reverseGeocodeMapPosition(picker, position.coords.latitude, position.coords.longitude);
+        },
         () => setFormMessage(form.querySelector(".form-message"), t("locationUnavailable"), true),
         { enableHighAccuracy: true, timeout: 9000 }
       );
@@ -2994,6 +3072,7 @@ function resetGuestSaleForm() {
   $("#guestSaleImagePreview").hidden = true;
   $("#guestSaleImagePreview .image-preview-grid").innerHTML = "";
   setFormMessage($("#guestSaleMessage"), "");
+  resetMapPickerForForm(form);
   setGuestSaleStep("property");
   updateGuestContactFields();
 }
@@ -3022,16 +3101,8 @@ function continueGuestSale() {
   const form = $("#guestSaleForm");
   if (!form) return;
   const requiredFields = [formField(form, "title"), formField(form, "type"), formField(form, "location")];
-  const images = safeParseImages(form.dataset.images);
   const invalid = requiredFields.find((field) => !field?.reportValidity());
   if (invalid) return;
-  if (!images.length) {
-    const imageInput = formField(form, "imageFile");
-    imageInput.setCustomValidity(state.lang === "en" ? "Add at least one property image." : "Agrega al menos una imagen de la propiedad.");
-    imageInput.reportValidity();
-    imageInput.setCustomValidity("");
-    return;
-  }
   setGuestSaleStep("contact");
   updateGuestContactFields();
   form.querySelector('[data-guest-contact-field="email"] input')?.focus();
@@ -3520,6 +3591,7 @@ function renderAdminContacts() {
 
 function guestSaleStatusLabel(status) {
   if (status === "contacted") return state.lang === "en" ? "Contacted" : "Contactada";
+  if (status === "approved") return state.lang === "en" ? "Approved as draft" : "Aprobada como borrador";
   if (status === "archived") return state.lang === "en" ? "Archived" : "Archivada";
   return state.lang === "en" ? "Pending" : "Pendiente";
 }
@@ -3551,7 +3623,7 @@ function renderAdminGuestRequests() {
           ${request.description ? `<p class="request-description">${escapeHtml(request.description)}</p>` : `<p class="request-description muted">Sin descripción; solicitar datos solo si son necesarios.</p>`}
           <p class="request-date">Recibida: ${escapeHtml(formatDate(request.createdAt))}</p>
         </div>
-        <div class="item-actions">${guestSaleContactActions(request)}<button class="mini-button primary" type="button" data-guest-request-status="${escapeHtml(request.id)}" data-status-value="contacted">Marcar contactada</button><button class="mini-button" type="button" data-guest-request-status="${escapeHtml(request.id)}" data-status-value="archived">Archivar</button></div>
+        <div class="item-actions">${guestSaleContactActions(request)}<button class="mini-button" type="button" data-respond-guest="${escapeHtml(request.id)}"><i data-lucide="messages-square"></i> Registrar seguimiento</button>${request.status !== "approved" ? `<button class="mini-button primary" type="button" data-approve-guest-request="${escapeHtml(request.id)}"><i data-lucide="file-plus-2"></i> Aprobar como borrador</button>` : ""}<button class="mini-button" type="button" data-guest-request-status="${escapeHtml(request.id)}" data-status-value="contacted">Marcar contactada</button><button class="mini-button" type="button" data-guest-request-status="${escapeHtml(request.id)}" data-status-value="archived">Archivar</button></div>
       </article>`).join("")
     : `<p class="empty-state">Todavía no hay solicitudes de venta sin registro.</p>`;
   refreshIcons();
@@ -3584,6 +3656,32 @@ async function updateGuestSaleRequestStatus(id, status, button) {
     renderAdminGuestContacts();
     updateAdminShell();
     showToast("Solicitud actualizada.");
+  } catch (error) {
+    showToast(error.message, "error");
+  } finally {
+    setButtonLoading(button, false);
+  }
+}
+
+async function approveGuestSaleRequest(id, button) {
+  if (!id || button?.disabled) return;
+  setButtonLoading(button, true, "Creando borrador...");
+  try {
+    const data = await api(`/api/admin/guest-sale-requests/${encodeURIComponent(id)}/approve`, {
+      method: "POST",
+    });
+    state.guestSaleRequests = state.guestSaleRequests.map((request) => request.id === id ? data.request : request);
+    if (data.property) {
+      const existingIndex = state.properties.findIndex((property) => property.id === data.property.id);
+      if (existingIndex >= 0) state.properties.splice(existingIndex, 1, data.property);
+      else state.properties.unshift(data.property);
+    }
+    renderAdminGuestRequests();
+    renderAdminGuestContacts();
+    renderAdminListings();
+    renderProperties();
+    updateAdminShell();
+    showToast("Solicitud aprobada. Se creó un borrador privado para completar y revisar antes de publicarlo.");
   } catch (error) {
     showToast(error.message, "error");
   } finally {
@@ -7219,6 +7317,10 @@ function configureListingFormMode(section = state.adminSection) {
   }
   const imageLabel = formField(form, "imageFile")?.closest("label")?.querySelector("span");
   if (imageLabel) imageLabel.textContent = developmentMode ? "Imágenes generales del desarrollo" : "Imágenes propias de la unidad";
+  if (developmentMode && !formField(form, "id")?.value) {
+    formField(form, "status").value = "draft";
+    formField(form, "isPublic").checked = false;
+  }
 }
 
 function setAdminSection(section) {
@@ -8717,9 +8819,10 @@ async function listingSubmit(event) {
   form.dataset.saving = "true";
   form.dataset.persistentMediaDirty = "true";
   saveListingDraft();
-  setButtonLoading(submit, true, "Guardando publicación...");
-  updateFormProgress(submit, 18, "Preparando publicación", "Validando los datos y conservando el borrador local.");
-  setFormMessage(message, "Guardando publicación, por favor espera...");
+  const entityLabel = developmentMode ? "desarrollo" : "publicación";
+  setButtonLoading(submit, true, `Guardando ${entityLabel}...`);
+  updateFormProgress(submit, 18, `Preparando ${entityLabel}`, "Validando los datos y conservando el borrador local.");
+  setFormMessage(message, `Guardando ${entityLabel}, por favor espera...`);
   const slowTimer = window.setTimeout(() => {
     setFormMessage(message, "El guardado está tardando más de lo normal. No cierres esta ventana.");
   }, 12000);
@@ -8747,7 +8850,7 @@ async function listingSubmit(event) {
     renderAdminListingFilters();
     renderAdminListings();
     renderProperties();
-    const savedMessage = `Publicación guardada correctamente · ${new Date().toLocaleTimeString("es-MX", { hour: "2-digit", minute: "2-digit" })}`;
+    const savedMessage = `${developmentMode ? "Desarrollo" : "Publicación"} guardado correctamente · ${new Date().toLocaleTimeString("es-MX", { hour: "2-digit", minute: "2-digit" })}`;
     setFormMessage(message, savedMessage);
     showToast(savedMessage);
     savedSuccessfully = true;
@@ -8950,9 +9053,10 @@ async function deleteLead(id) {
 async function respondToRequest(requestTable, requestId) {
   const modal = $("#responseModal");
   const form = $("#responseForm");
-  const item =
-    requestTable === "seller_request"
-      ? state.requests.find((request) => request.id === requestId)
+  const item = requestTable === "seller_request"
+    ? state.requests.find((request) => request.id === requestId)
+    : requestTable === "guest_sale_request"
+      ? state.guestSaleRequests.find((request) => request.id === requestId)
       : state.leads.find((lead) => lead.id === requestId);
   if (!modal || !form || !item) return;
   form.reset();
@@ -8963,20 +9067,30 @@ async function respondToRequest(requestTable, requestId) {
   form.priority.value = item.priority || "medium";
   ensureSelectOption(form.assignedTo, item.assignedTo || "");
   form.assignedTo.value = item.assignedTo || "";
-  $("#responseModalSubtitle").textContent =
-    requestTable === "seller_request"
-      ? `${item.sellerName} · ${item.title}`
+  const guestRequest = requestTable === "guest_sale_request";
+  form.notifyUser.checked = !guestRequest;
+  form.notifyUser.disabled = guestRequest;
+  form.notifyUser.closest("label").hidden = guestRequest;
+  $("#responseModalSubtitle").textContent = requestTable === "seller_request"
+    ? `${item.sellerName} · ${item.title}`
+    : guestRequest
+      ? `Venta sin registro · ${item.title}`
       : `${item.name} · ${leadTypeLabel(item.leadType)}`;
-  $("#responseRequestContext").innerHTML =
-    requestTable === "seller_request"
+  $("#responseRequestContext").innerHTML = requestTable === "seller_request"
       ? `
         <span class="status ${escapeHtml(item.status)}">${escapeHtml(item.status)}</span>
         <h3>${escapeHtml(item.title)}</h3>
         <p><strong>${escapeHtml(item.sellerName)}</strong><br>${escapeHtml(item.email)}<br>${escapeHtml(item.phone)}</p>
         <p>${escapeHtml(displayLocation(item))}<br>${escapeHtml(item.type)} · ${escapeHtml(item.area)} m² · ${escapeHtml(item.beds)} recámaras</p>
         <p>${escapeHtml(item.description || "")}</p>
-      `
-      : `
+      ` : guestRequest
+      ? `
+        <span class="status ${escapeHtml(item.status)}">${escapeHtml(guestSaleStatusLabel(item.status))}</span>
+        <h3>${escapeHtml(item.title)}</h3>
+        <p>${escapeHtml(item.location || "")}</p>
+        <p><strong>${escapeHtml(item.preferredContact === "whatsapp" ? "WhatsApp" : "Correo")}</strong><br>${escapeHtml(item.email || item.phone || "")}</p>
+        <p>Esta respuesta queda en el historial interno. Usa el botón de correo o WhatsApp de la solicitud para entregarla al propietario.</p>
+      ` : `
         <span class="status ${escapeHtml(item.status)}">${escapeHtml(leadStatusLabel(item.status))}</span>
         <h3>${escapeHtml(item.name)}</h3>
         <p>${escapeHtml(item.email || "")}<br>${escapeHtml(item.phone || "")}</p>
@@ -9023,7 +9137,7 @@ async function responseFormSubmit(event) {
   setFormMessage($("#responseFormMessage"), "");
   try {
     const attachment = form.attachmentId.value;
-    await api("/api/admin/messages", {
+    const data = await api("/api/admin/messages", {
       method: "POST",
       body: {
         requestTable: form.requestTable.value,
@@ -9042,7 +9156,11 @@ async function responseFormSubmit(event) {
     });
     closeResponseModal();
     await renderPanel();
-    showToast("Respuesta guardada y registrada en el historial.");
+    showToast(data.delivery?.emailSent
+      ? "Respuesta guardada y enviada por correo."
+      : form.requestTable.value === "guest_sale_request"
+        ? "Seguimiento guardado. No se afirmó un envío externo; contacta por el medio elegido por el propietario."
+        : "Respuesta guardada y registrada en el historial.");
   } catch (error) {
     setFormMessage($("#responseFormMessage"), error.message, true);
     showToast(error.message, "error");
@@ -10294,6 +10412,9 @@ function bindEvents() {
     const respondRequest = event.target.closest("[data-respond-request]");
     if (respondRequest) void respondToRequest("seller_request", respondRequest.dataset.respondRequest);
 
+    const respondGuest = event.target.closest("[data-respond-guest]");
+    if (respondGuest) void respondToRequest("guest_sale_request", respondGuest.dataset.respondGuest);
+
     const taskStatus = event.target.closest("[data-task-status]");
     if (taskStatus) void updateTaskStatus(taskStatus.dataset.taskStatus, taskStatus.dataset.taskStatusValue);
 
@@ -10320,6 +10441,9 @@ function bindEvents() {
 
     const guestRequestStatus = event.target.closest("[data-guest-request-status]");
     if (guestRequestStatus) void updateGuestSaleRequestStatus(guestRequestStatus.dataset.guestRequestStatus, guestRequestStatus.dataset.statusValue, guestRequestStatus);
+
+    const approveGuestRequest = event.target.closest("[data-approve-guest-request]");
+    if (approveGuestRequest) void approveGuestSaleRequest(approveGuestRequest.dataset.approveGuestRequest, approveGuestRequest);
 
     const deleteMediaButton = event.target.closest("[data-delete-media]");
     if (deleteMediaButton) void deleteMedia(deleteMediaButton.dataset.deleteMedia);

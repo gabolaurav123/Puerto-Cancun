@@ -9553,6 +9553,14 @@ body[data-page="home"] .hero h1 {
   align-items: start;
 }
 
+.admin-mailing-card .module-split > *,
+.admin-mailing-card input,
+.admin-mailing-card textarea,
+.admin-mailing-card select {
+  min-width: 0;
+  max-width: 100%;
+}
+
 .admin-mailing-card .module-help {
   margin: 6px 0 18px;
   color: var(--muted);
@@ -10715,6 +10723,10 @@ body[data-page="home"] .hero h1 {
 }
 
 @media (max-width: 1050px) {
+  .admin-mailing-card .module-split {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
   .property-summary-heading {
     grid-template-columns: 1fr;
   }
@@ -10745,6 +10757,43 @@ body[data-page="home"] .hero h1 {
 }
 
 @media (max-width: 760px) {
+  .guest-sale-modal,
+  .seller-options-modal,
+  .pdf-share-modal {
+    width: 100vw;
+    max-height: 100dvh;
+    min-height: 100dvh;
+    padding: 20px 16px 28px;
+  }
+
+  .guest-map-picker {
+    padding: 12px;
+  }
+
+  .guest-map-picker iframe,
+  .guest-map-picker .google-map-canvas,
+  .guest-map-picker .interactive-map-canvas {
+    height: 220px;
+    min-height: 220px;
+  }
+
+  .admin-mailing-card .module-split > form,
+  .admin-mailing-card .module-split > section,
+  .mailing-live-preview,
+  .mailing-recipient-fieldset {
+    padding: 14px;
+  }
+
+  .response-form .form-actions {
+    position: sticky;
+    z-index: 4;
+    bottom: 0;
+    margin: 0 -24px -24px;
+    padding: 14px 24px calc(14px + env(safe-area-inset-bottom));
+    border-top: 1px solid var(--line);
+    background: rgba(255, 255, 255, 0.98);
+  }
+
   .mailing-recipient-modes,
   .mailing-contact-list {
     grid-template-columns: 1fr;

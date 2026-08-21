@@ -64,6 +64,7 @@ const {
 const app = express();
 const port = Number(process.env.PORT || 3000);
 const siteUrl = process.env.PUBLIC_SITE_URL || process.env.SITE_URL || DEFAULT_SITE_URL;
+const publicShareDomain = String(process.env.PUBLIC_SHARE_DOMAIN || "").trim().replace(/\/+$/, "");
 const databaseUrl = String(process.env.DATABASE_URL || "").trim();
 const databaseSslMode = String(process.env.DATABASE_SSL || "require").trim().toLowerCase();
 const databasePoolMax = Math.max(1, Math.min(20, Number(process.env.DATABASE_POOL_MAX || 5)));
@@ -191,17 +192,30 @@ async function geocodeAddress(address) {
     const payload = await response.json();
     const result = payload.results?.[0];
     if (payload.status === "OK" && result?.geometry?.location) {
+      const components = Object.fromEntries(
+        (result.address_components || []).flatMap((component) =>
+          (component.types || []).map((type) => [type, component.long_name])
+        )
+      );
       value = {
         latitude: Number(result.geometry.location.lat),
         longitude: Number(result.geometry.location.lng),
         formattedAddress: String(result.formatted_address || queryText),
         provider: "google",
+        components: {
+          state: components.administrative_area_level_1 || "",
+          city: components.locality || components.administrative_area_level_2 || "",
+          zone: components.sublocality_level_1 || components.sublocality || "",
+          neighborhood: components.neighborhood || components.sublocality_level_2 || "",
+          postalCode: components.postal_code || "",
+        },
       };
     }
   } else {
     const url = new URL("https://nominatim.openstreetmap.org/search");
     url.searchParams.set("format", "jsonv2");
     url.searchParams.set("limit", "1");
+    url.searchParams.set("addressdetails", "1");
     url.searchParams.set("countrycodes", "mx");
     url.searchParams.set("q", queryText);
     const response = await fetch(url, {
@@ -220,6 +234,13 @@ async function geocodeAddress(address) {
         longitude: Number(result.lon),
         formattedAddress: String(result.display_name || queryText),
         provider: "openstreetmap",
+        components: {
+          state: String(result.address?.state || ""),
+          city: String(result.address?.city || result.address?.town || result.address?.municipality || result.address?.county || ""),
+          zone: String(result.address?.suburb || result.address?.city_district || ""),
+          neighborhood: String(result.address?.neighbourhood || result.address?.quarter || ""),
+          postalCode: String(result.address?.postcode || ""),
+        },
       };
     }
   }
@@ -1375,21 +1396,25 @@ function validDocumentShareSignature(id, expiresAt, token) {
 function propertyWhatsappSheetText(property, shareUrl, { neutral = false } = {}) {
   const amount = property.price ?? (property.currency === "MXN" ? property.priceMxn : property.priceUsd);
   const unit = property.priceUnit === "sqm" ? " por m²" : "";
-  const reference = [property.type, property.zone, property.city, property.mls ? `MLS# ${property.mls}` : ""]
-    .filter(Boolean)
-    .join(" · ");
+  const location = [property.neighborhood, property.zone, property.city, property.state].filter(Boolean)
+    .filter((value, index, values) => values.indexOf(value) === index)
+    .join(", ");
+  const areaFormat = new Intl.NumberFormat("es-MX", { maximumFractionDigits: 2 });
   return [
     neutral
-      ? `Ficha de propiedad ${property.operation === "rent" ? "en renta" : "en venta"}:`
-      : `Puerto Cancún Center te ofrece ${property.operation === "rent" ? "en renta" : "en venta"}:`,
-    property.titleEs,
-    reference ? `Referencia: ${reference}` : "",
-    Number.isFinite(Number(amount)) && Number(amount) > 0 ? `Precio: ${formatPdfMoney(amount, property.currency)}${unit}` : "Precio: a consultar",
-    property.lot ? `Terreno: ${new Intl.NumberFormat("es-MX", { maximumFractionDigits: 2 }).format(property.lot)} m²` : "",
-    property.beds ? `Recámaras: ${property.beds}` : "",
-    property.baths ? `Baños: ${property.baths}` : "",
+      ? `🏡 Ficha de propiedad ${property.operation === "rent" ? "en renta" : "en venta"}`
+      : `🏡 Puerto Cancún Center te presenta esta propiedad ${property.operation === "rent" ? "en renta" : "en venta"}`,
+    `*${property.titleEs}*`,
+    location ? `📍 ${location}` : "",
+    property.mls ? `🔖 MLS# ${property.mls}` : "",
+    Number.isFinite(Number(amount)) && Number(amount) > 0 ? `💰 ${formatPdfMoney(amount, property.currency)}${unit}` : "💰 Precio a consultar",
+    property.beds ? `🛏️ ${property.beds} recámara${Number(property.beds) === 1 ? "" : "s"}` : "",
+    property.baths ? `🚿 ${property.baths} baño${Number(property.baths) === 1 ? "" : "s"}` : "",
+    property.parking ? `🚗 ${property.parking} estacionamiento${Number(property.parking) === 1 ? "" : "s"}` : "",
+    property.area ? `📐 Construcción: ${areaFormat.format(property.area)} m²` : "",
+    property.lot ? `🌿 Terreno: ${areaFormat.format(property.lot)} m²` : "",
     "",
-    `Consulta la ficha completa: ${shareUrl}`,
+    `🔗 Consulta la ficha completa: ${shareUrl}`,
   ].filter((line) => line !== "").join("\n");
 }
 
@@ -1428,6 +1453,16 @@ function toGuestSaleRequest(row) {
     title: row.title,
     type: row.type,
     location: row.location,
+    state: row.state || "",
+    city: row.city || "",
+    zone: row.zone || "",
+    neighborhood: row.neighborhood || "",
+    address: row.address || row.location || "",
+    latitude: row.latitude == null ? null : Number(row.latitude),
+    longitude: row.longitude == null ? null : Number(row.longitude),
+    mapPlace: row.map_place || "",
+    locationPrecision: row.location_precision || "approximate",
+    googleMapsUrl: row.google_maps_url || "",
     description: row.description || "",
     image: images[0] || null,
     images,
@@ -1501,7 +1536,9 @@ const SELLER_REQUEST_SUMMARY_COLUMNS = `
 
 const GUEST_SALE_REQUEST_SUMMARY_COLUMNS = `
   g.id, g.title, g.type, g.location, g.description, g.preferred_contact, g.email, g.country_code,
-  g.phone, g.contact_id, g.status, g.priority, g.internal_notes, g.created_at, g.updated_at, g.reviewed_at,
+  g.phone, g.contact_id, g.state, g.city, g.zone, g.neighborhood, g.address, g.latitude, g.longitude,
+  g.map_place, g.location_precision, g.google_maps_url, g.status, g.priority, g.internal_notes,
+  g.created_at, g.updated_at, g.reviewed_at,
   GREATEST(COALESCE(jsonb_array_length(g.images), 0), CASE WHEN g.image IS NULL THEN 0 ELSE 1 END)::int AS image_count
 `;
 
@@ -2473,6 +2510,16 @@ async function initDatabase() {
         title TEXT NOT NULL,
         type TEXT NOT NULL,
         location TEXT NOT NULL,
+        state TEXT,
+        city TEXT,
+        zone TEXT,
+        neighborhood TEXT,
+        address TEXT,
+        latitude NUMERIC,
+        longitude NUMERIC,
+        map_place TEXT,
+        location_precision TEXT NOT NULL DEFAULT 'approximate',
+        google_maps_url TEXT,
         description TEXT NOT NULL DEFAULT '',
         image TEXT,
         images JSONB NOT NULL DEFAULT '[]'::jsonb,
@@ -2490,6 +2537,36 @@ async function initDatabase() {
         reviewed_at TIMESTAMPTZ
       );
     `);
+    await runMigration(client, {
+      id: "0007-stabilize-requests-maps-and-share-links",
+      description: "Ubicación persistente para venta sin registro y enlaces públicos cortos auditables",
+      up: async (migrationClient) => {
+        await migrationClient.query("ALTER TABLE guest_sale_requests ADD COLUMN IF NOT EXISTS state TEXT");
+        await migrationClient.query("ALTER TABLE guest_sale_requests ADD COLUMN IF NOT EXISTS city TEXT");
+        await migrationClient.query("ALTER TABLE guest_sale_requests ADD COLUMN IF NOT EXISTS zone TEXT");
+        await migrationClient.query("ALTER TABLE guest_sale_requests ADD COLUMN IF NOT EXISTS neighborhood TEXT");
+        await migrationClient.query("ALTER TABLE guest_sale_requests ADD COLUMN IF NOT EXISTS address TEXT");
+        await migrationClient.query("ALTER TABLE guest_sale_requests ADD COLUMN IF NOT EXISTS latitude NUMERIC");
+        await migrationClient.query("ALTER TABLE guest_sale_requests ADD COLUMN IF NOT EXISTS longitude NUMERIC");
+        await migrationClient.query("ALTER TABLE guest_sale_requests ADD COLUMN IF NOT EXISTS map_place TEXT");
+        await migrationClient.query("ALTER TABLE guest_sale_requests ADD COLUMN IF NOT EXISTS location_precision TEXT NOT NULL DEFAULT 'approximate'");
+        await migrationClient.query("ALTER TABLE guest_sale_requests ADD COLUMN IF NOT EXISTS google_maps_url TEXT");
+        await migrationClient.query(`
+          CREATE TABLE IF NOT EXISTS document_share_links (
+            code TEXT PRIMARY KEY,
+            document_id TEXT NOT NULL REFERENCES generated_documents(id) ON DELETE CASCADE,
+            expires_at TIMESTAMPTZ NOT NULL,
+            is_active BOOLEAN NOT NULL DEFAULT TRUE,
+            open_count INTEGER NOT NULL DEFAULT 0,
+            last_opened_at TIMESTAMPTZ,
+            created_by TEXT,
+            created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+          )
+        `);
+        await migrationClient.query("CREATE INDEX IF NOT EXISTS idx_document_share_links_document ON document_share_links (document_id, is_active, expires_at DESC)");
+        await migrationClient.query("CREATE INDEX IF NOT EXISTS idx_document_share_links_expires ON document_share_links (expires_at) WHERE is_active = TRUE");
+      },
+    });
     await client.query("CREATE INDEX IF NOT EXISTS idx_guest_sale_requests_status_created ON guest_sale_requests (status, created_at DESC)");
     await client.query("CREATE INDEX IF NOT EXISTS idx_guest_sale_requests_contact ON guest_sale_requests (email, phone)");
     await client.query("ALTER TABLE tasks ADD COLUMN IF NOT EXISTS reminder_at TIMESTAMPTZ");
@@ -2884,6 +2961,7 @@ app.use("/api", (req, res, next) => {
 });
 app.use("/api/auth", createRateLimiter({ windowMs: 15 * 60 * 1000, max: 12, message: "Demasiados intentos de acceso. Espera 15 minutos antes de volver a intentar." }));
 app.use("/api/geocode", createRateLimiter({ windowMs: 10 * 60 * 1000, max: 80, message: "Se alcanzó el límite temporal de búsquedas de dirección." }));
+app.use("/api/reverse-geocode", createRateLimiter({ windowMs: 10 * 60 * 1000, max: 120, message: "Se alcanzó el límite temporal de consultas del mapa." }));
 app.use("/api/search/intelligent", createRateLimiter({ windowMs: 10 * 60 * 1000, max: 30, message: "Se alcanzó el límite temporal de búsquedas inteligentes." }));
 app.use("/api/leads", createRateLimiter({ windowMs: 10 * 60 * 1000, max: 12, message: "Se recibieron demasiadas solicitudes desde esta conexión." }));
 app.use("/api/guest-sale-requests", createRateLimiter({ windowMs: 15 * 60 * 1000, max: 6, message: "Se recibieron demasiadas solicitudes de venta desde esta conexión. Espera unos minutos antes de volver a intentar." }));
@@ -3131,6 +3209,25 @@ app.get("/media/requests/:id/:index", async (req, res, next) => {
 app.get("/api/session", (req, res) => {
   res.set("Cache-Control", "private, no-store");
   res.json({ user: publicUser(req.session.user), csrfToken: req.session.csrfToken || "" });
+});
+
+app.get("/api/reverse-geocode", async (req, res, next) => {
+  try {
+    const latitude = Number(req.query.latitude);
+    const longitude = Number(req.query.longitude);
+    if (!Number.isFinite(latitude) || latitude < -90 || latitude > 90 || !Number.isFinite(longitude) || longitude < -180 || longitude > 180) {
+      res.status(400).json({ error: "Selecciona coordenadas válidas dentro del mapa." });
+      return;
+    }
+    const result = await reverseGeocodeCoordinates(latitude, longitude);
+    if (!result) {
+      res.status(404).json({ error: "No fue posible identificar una dirección para ese punto." });
+      return;
+    }
+    res.json(result);
+  } catch (error) {
+    next(Object.assign(new Error("No fue posible identificar la ubicación seleccionada."), { status: 502, cause: error }));
+  }
 });
 
 app.get("/media/guest-requests/:id/:index", requireRole("admin"), async (req, res, next) => {
@@ -3779,6 +3876,16 @@ app.post("/api/guest-sale-requests", async (req, res, next) => {
     const title = String(body.title || "").trim().slice(0, 180);
     const type = String(body.type || "").trim().slice(0, 80);
     const location = String(body.location || "").trim().slice(0, 260);
+    const state = String(body.state || "").trim().slice(0, 120);
+    const city = String(body.city || "").trim().slice(0, 120);
+    const zone = String(body.zone || "").trim().slice(0, 160);
+    const neighborhood = String(body.neighborhood || "").trim().slice(0, 160);
+    const address = String(body.address || location).trim().slice(0, 320);
+    const latitude = body.latitude === "" || body.latitude == null ? null : Number(body.latitude);
+    const longitude = body.longitude === "" || body.longitude == null ? null : Number(body.longitude);
+    const validCoordinates = Number.isFinite(latitude) && latitude >= -90 && latitude <= 90 && Number.isFinite(longitude) && longitude >= -180 && longitude <= 180;
+    const mapPlace = String(body.mapPlace || "").trim().slice(0, 400);
+    const googleMapsUrl = validCoordinates ? `https://www.google.com/maps/search/?api=1&query=${latitude},${longitude}` : "";
     const description = String(body.description || "").trim().slice(0, 4000);
     const preferredContact = body.preferredContact === "whatsapp" ? "whatsapp" : "email";
     const email = String(body.email || "").trim().toLowerCase();
@@ -3786,8 +3893,8 @@ app.post("/api/guest-sale-requests", async (req, res, next) => {
     const nationalPhone = String(body.phone || "").trim();
     const phone = preferredContact === "whatsapp" ? normalizePhone(`${countryCode}${nationalPhone}`) : "";
     const images = parseUploadedImages(body, []);
-    if (!title || !type || !location || !images.length) {
-      res.status(400).json({ error: "Agrega título, tipo, ubicación y al menos una imagen de la propiedad." });
+    if (!title || !type || !location) {
+      res.status(400).json({ error: "Agrega título, tipo y ubicación de la propiedad." });
       return;
     }
     if ((preferredContact === "email" && !isValidEmail(email)) || (preferredContact === "whatsapp" && !phone)) {
@@ -3821,14 +3928,20 @@ app.post("/api/guest-sale-requests", async (req, res, next) => {
     const id = uuid("guest-sale");
     const result = await client.query(
       `INSERT INTO guest_sale_requests
-        (id, title, type, location, description, image, images, preferred_contact, email, country_code, phone, contact_id, priority, idempotency_key)
-       VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb, $8, $9, $10, $11, $12, $13, $14)
+        (id, title, type, location, description, image, images, preferred_contact, email, country_code, phone, contact_id,
+         state, city, zone, neighborhood, address, latitude, longitude, map_place, location_precision, google_maps_url,
+         priority, idempotency_key)
+       VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb, $8, $9, $10, $11, $12,
+               $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24)
        RETURNING id`,
       [
         id, title, type, location, description, images[0] || null, JSON.stringify(images), preferredContact,
         preferredContact === "email" ? email : null, preferredContact === "whatsapp" ? countryCode : null,
-        preferredContact === "whatsapp" ? phone : null, contact?.id || null, images.length >= 5 ? "high" : "medium",
-        idempotencyKey || null,
+        preferredContact === "whatsapp" ? phone : null, contact?.id || null,
+        state || null, city || null, zone || null, neighborhood || null, address || null,
+        validCoordinates ? latitude : null, validCoordinates ? longitude : null, mapPlace || null,
+        validCoordinates ? "exact" : "approximate", googleMapsUrl || null,
+        images.length >= 5 ? "high" : "medium", idempotencyKey || null,
       ]
     );
     await client.query(
@@ -4432,7 +4545,27 @@ app.get("/api/seller/notifications", requireRole("seller"), async (req, res, nex
 
 app.patch("/api/seller/notifications/:id/read", requireRole("seller"), async (req, res, next) => {
   try {
-    await query("UPDATE notifications SET is_read = TRUE, read_at = NOW() WHERE id = $1", [req.params.id]);
+    const result = await query(
+      `UPDATE notifications n
+       SET is_read = TRUE, read_at = NOW()
+       WHERE n.id = $1
+         AND (
+           n.user_id = $2
+           OR (
+             n.related_entity_type = 'seller_request'
+             AND EXISTS (
+               SELECT 1 FROM seller_requests r
+               WHERE r.id = n.related_entity_id AND r.seller_id = $2
+             )
+           )
+         )
+       RETURNING n.id`,
+      [req.params.id, req.session.user.id]
+    );
+    if (!result.rows[0]) {
+      res.status(404).json({ error: "Notificación no encontrada." });
+      return;
+    }
     res.json({ ok: true });
   } catch (error) {
     next(error);
@@ -4784,6 +4917,86 @@ async function getCopilotOperationalResult(question, context = {}) {
     return { tool: "getRequestSummary", title: result.rows[0] ? "Resumen de solicitud" : "Solicitud no encontrada", facts: result.rows[0] || {}, section: context.entityType === "lead" ? "leads" : "requests" };
   }
   return null;
+}
+
+async function reverseGeocodeCoordinates(latitude, longitude) {
+  const lat = Number(latitude);
+  const lng = Number(longitude);
+  if (!Number.isFinite(lat) || lat < -90 || lat > 90 || !Number.isFinite(lng) || lng < -180 || lng > 180) return null;
+  const cacheKey = `reverse:${lat.toFixed(5)},${lng.toFixed(5)}`;
+  const cached = geocodeCache.get(cacheKey);
+  if (cached && cached.expiresAt > Date.now()) return cached.value;
+
+  let value = null;
+  if (googleMapsApiKey) {
+    const url = new URL("https://maps.googleapis.com/maps/api/geocode/json");
+    url.searchParams.set("latlng", `${lat},${lng}`);
+    url.searchParams.set("language", "es");
+    url.searchParams.set("key", googleMapsApiKey);
+    const response = await fetch(url, { signal: AbortSignal.timeout(10000) });
+    if (!response.ok) throw new Error("Google reverse geocoding is unavailable");
+    const payload = await response.json();
+    const result = payload.results?.[0];
+    if (payload.status === "OK" && result) {
+      const components = Object.fromEntries(
+        (result.address_components || []).flatMap((component) =>
+          (component.types || []).map((type) => [type, component.long_name])
+        )
+      );
+      value = {
+        latitude: lat,
+        longitude: lng,
+        formattedAddress: String(result.formatted_address || `${lat}, ${lng}`),
+        provider: "google",
+        components: {
+          state: components.administrative_area_level_1 || "",
+          city: components.locality || components.administrative_area_level_2 || "",
+          zone: components.sublocality_level_1 || components.sublocality || "",
+          neighborhood: components.neighborhood || components.sublocality_level_2 || "",
+          postalCode: components.postal_code || "",
+        },
+      };
+    }
+  } else {
+    const url = new URL("https://nominatim.openstreetmap.org/reverse");
+    url.searchParams.set("format", "jsonv2");
+    url.searchParams.set("lat", String(lat));
+    url.searchParams.set("lon", String(lng));
+    url.searchParams.set("zoom", "18");
+    url.searchParams.set("addressdetails", "1");
+    const response = await fetch(url, {
+      headers: {
+        Accept: "application/json",
+        "Accept-Language": "es-MX,es;q=0.9",
+        "User-Agent": `PuertoCancunCenter/1.0 (${siteUrl})`,
+      },
+      signal: AbortSignal.timeout(10000),
+    });
+    if (!response.ok) throw new Error("OpenStreetMap reverse geocoding is unavailable");
+    const result = await response.json();
+    if (result?.display_name) {
+      const address = result.address || {};
+      value = {
+        latitude: lat,
+        longitude: lng,
+        formattedAddress: String(result.display_name),
+        provider: "openstreetmap",
+        components: {
+          state: String(address.state || ""),
+          city: String(address.city || address.town || address.municipality || address.county || ""),
+          zone: String(address.suburb || address.city_district || ""),
+          neighborhood: String(address.neighbourhood || address.quarter || ""),
+          postalCode: String(address.postcode || ""),
+        },
+      };
+    }
+  }
+
+  if (value) {
+    geocodeCache.set(cacheKey, { value, expiresAt: Date.now() + 1000 * 60 * 60 * 12 });
+    if (geocodeCache.size > 500) geocodeCache.delete(geocodeCache.keys().next().value);
+  }
+  return value;
 }
 
 function isGenericCopilotOnboardingQuestion(question) {
@@ -6326,7 +6539,18 @@ app.delete("/api/admin/leads/:id", requireRole("admin"), async (req, res, next) 
 
 app.get("/api/admin/messages/:requestTable/:requestId", requireRole("admin"), async (req, res, next) => {
   try {
-    const table = req.params.requestTable === "seller_request" ? "seller_request" : "lead_request";
+    const allowedTables = new Set(["seller_request", "lead_request", "guest_sale_request"]);
+    const table = allowedTables.has(req.params.requestTable) ? req.params.requestTable : "";
+    const sourceTable = table === "seller_request" ? "seller_requests" : table === "lead_request" ? "lead_requests" : table === "guest_sale_request" ? "guest_sale_requests" : "";
+    if (!sourceTable) {
+      res.status(400).json({ error: "Tipo de solicitud no válido." });
+      return;
+    }
+    const existing = await query(`SELECT id FROM ${sourceTable} WHERE id = $1`, [req.params.requestId]);
+    if (!existing.rows[0]) {
+      res.status(404).json({ error: "Solicitud no encontrada." });
+      return;
+    }
     const result = await query(
       "SELECT * FROM request_messages WHERE request_table = $1 AND request_id = $2 ORDER BY created_at ASC",
       [table, req.params.requestId]
@@ -6341,7 +6565,8 @@ app.post("/api/admin/messages", requireRole("admin"), async (req, res, next) => 
   const client = await pool.connect();
   try {
     await client.query("BEGIN");
-    const table = req.body.requestTable === "seller_request" ? "seller_request" : "lead_request";
+    const allowedTables = new Set(["seller_request", "lead_request", "guest_sale_request"]);
+    const table = allowedTables.has(req.body.requestTable) ? req.body.requestTable : "";
     const requestId = String(req.body.requestId || "").trim();
     const message = String(req.body.message || "").trim();
     const attachments = Array.isArray(req.body.attachments) ? req.body.attachments : [];
@@ -6349,10 +6574,37 @@ app.post("/api/admin/messages", requireRole("admin"), async (req, res, next) => 
     const priority = normalizePriority(req.body.priority);
     const assignedTo = String(req.body.assignedTo || "").trim() || null;
     const notifyUser = req.body.notifyUser !== false;
-    if (!requestId || !message) {
+    if (!table || !requestId || !message) {
       await client.query("ROLLBACK");
-      res.status(400).json({ error: "Message is required" });
+      res.status(400).json({ error: "Selecciona una solicitud y escribe la respuesta." });
       return;
+    }
+    let sellerId = null;
+    let guestContact = null;
+    if (table === "seller_request") {
+      const ownerResult = await client.query("SELECT seller_id FROM seller_requests WHERE id = $1", [requestId]);
+      sellerId = ownerResult.rows[0]?.seller_id || null;
+      if (!ownerResult.rows[0]) {
+        await client.query("ROLLBACK");
+        res.status(404).json({ error: "Solicitud de vendedor no encontrada." });
+        return;
+      }
+    } else if (table === "lead_request") {
+      const ownerResult = await client.query("SELECT payload->>'sellerAccountId' AS seller_id FROM lead_requests WHERE id = $1", [requestId]);
+      sellerId = ownerResult.rows[0]?.seller_id || null;
+      if (!ownerResult.rows[0]) {
+        await client.query("ROLLBACK");
+        res.status(404).json({ error: "Asesoría no encontrada." });
+        return;
+      }
+    } else {
+      const guestResult = await client.query("SELECT preferred_contact, email, phone FROM guest_sale_requests WHERE id = $1", [requestId]);
+      guestContact = guestResult.rows[0] || null;
+      if (!guestContact) {
+        await client.query("ROLLBACK");
+        res.status(404).json({ error: "Solicitud sin registro no encontrada." });
+        return;
+      }
     }
     const result = await client.query(
       `INSERT INTO request_messages (id, request_table, request_id, sender_type, sender_name, message, attachments)
@@ -6360,7 +6612,6 @@ app.post("/api/admin/messages", requireRole("admin"), async (req, res, next) => 
        RETURNING *`,
       [uuid("msg"), table, requestId, req.session.user.name || "Admin", message, JSON.stringify(attachments)]
     );
-    let sellerId = null;
     if (table === "seller_request") {
       const requestResult = await client.query(
         `UPDATE seller_requests
@@ -6370,19 +6621,24 @@ app.post("/api/admin/messages", requireRole("admin"), async (req, res, next) => 
          RETURNING seller_id`,
         [requestId, message, JSON.stringify(attachments), status, priority, assignedTo, String(req.body.nextAction || "").trim()]
       );
-      sellerId = requestResult.rows[0]?.seller_id || null;
-    } else {
-      const leadResult = await client.query(
+      sellerId = requestResult.rows[0]?.seller_id || sellerId;
+    } else if (table === "lead_request") {
+      await client.query(
         `UPDATE lead_requests
          SET last_response = $2, status = $3, priority = $4,
              assigned_to = COALESCE($5, assigned_to), updated_at = NOW()
          WHERE id = $1`,
         [requestId, message, status, priority, assignedTo]
       );
-      const ownerResult = await client.query("SELECT payload->>'sellerAccountId' AS seller_id FROM lead_requests WHERE id = $1", [
-        requestId,
-      ]);
-      sellerId = ownerResult.rows[0]?.seller_id || null;
+    } else {
+      await client.query(
+        `UPDATE guest_sale_requests
+         SET status = CASE WHEN $2 = 'archived' THEN 'archived' ELSE 'contacted' END,
+             priority = $3,
+             reviewed_at = NOW(), updated_at = NOW()
+         WHERE id = $1`,
+        [requestId, status, priority]
+      );
     }
     if (req.body.createTask) {
       await client.query(
@@ -6415,7 +6671,18 @@ app.post("/api/admin/messages", requireRole("admin"), async (req, res, next) => 
       [uuid("activity"), req.session.user.id, table, requestId, JSON.stringify({ status, priority, assignedTo, attachments })]
     );
     await client.query("COMMIT");
-    res.status(201).json({ message: result.rows[0] });
+    res.status(201).json({
+      message: result.rows[0],
+      delivery: table === "guest_sale_request"
+        ? {
+            internal: true,
+            emailSent: false,
+            emailConfigured: Boolean(process.env.RESEND_API_KEY),
+            preferredContact: guestContact?.preferred_contact || "",
+            contact: guestContact?.preferred_contact === "email" ? guestContact?.email || "" : guestContact?.phone || "",
+          }
+        : { internal: true, notificationCreated: Boolean(notifyUser && sellerId) },
+    });
   } catch (error) {
     await client.query("ROLLBACK");
     next(error);
@@ -6438,11 +6705,8 @@ app.post("/api/admin/requests/:id/approve", requireRole("admin"), async (req, re
       res.status(404).json({ error: "Request not found" });
       return;
     }
-    if (!mergeLegacyImages(request.images, request.image).length) {
-      await client.query("ROLLBACK");
-      res.status(400).json({ error: "Solicita al vendedor al menos una imagen antes de aprobar y publicar." });
-      return;
-    }
+    const requestImages = mergeLegacyImages(request.images, request.image);
+    const publishReady = requestImages.length > 0;
 
     const existing = await client.query("SELECT * FROM properties WHERE source_request_id = $1", [request.id]);
     let property = existing.rows[0];
@@ -6451,9 +6715,9 @@ app.post("/api/admin/requests/:id/approve", requireRole("admin"), async (req, re
       const priceMxn = request.currency === "MXN" ? Number(request.price) : null;
       const propertyResult = await client.query(
         `INSERT INTO properties
-          (id, title_es, title_en, type, state, city, zone, neighborhood, address, latitude, longitude, map_place, operation, price_usd, price_mxn, beds, baths, area, lot, mls, image, images, featured, badges, description_es, description_en, source_request_id)
+          (id, title_es, title_en, type, state, city, zone, neighborhood, address, latitude, longitude, map_place, operation, price_usd, price_mxn, beds, baths, area, lot, mls, image, images, featured, status, is_public, badges, description_es, description_en, source_request_id)
          VALUES
-          ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, 'sale', $13, $14, $15, $16, $17, 0, $18, $19, $20::jsonb, false, $21::jsonb, $22, $23, $24)
+          ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, 'sale', $13, $14, $15, $16, $17, 0, $18, $19, $20::jsonb, false, $21, $22, $23::jsonb, $24, $25, $26)
          RETURNING *`,
         [
           uuid("prop"),
@@ -6474,8 +6738,10 @@ app.post("/api/admin/requests/:id/approve", requireRole("admin"), async (req, re
           request.baths,
           request.area,
           String(Math.floor(2000 + Math.random() * 8000)),
-          request.image || null,
-          JSON.stringify(mergeLegacyImages(request.images, request.image)),
+          requestImages[0] || null,
+          JSON.stringify(requestImages),
+          publishReady ? "active" : "draft",
+          publishReady,
           JSON.stringify(["new"]),
           request.description,
           request.description,
@@ -6501,6 +6767,20 @@ app.post("/api/admin/requests/:id/approve", requireRole("admin"), async (req, re
       await syncDevelopmentEntity(toProperty(property), client);
     }
 
+    await client.query(
+      `INSERT INTO notifications
+        (id, user_id, type, title, message, related_entity_type, related_entity_id)
+       VALUES ($1, $2, 'request_approved', 'Tu solicitud fue aprobada', $3, 'seller_request', $4)`,
+      [
+        uuid("notif"),
+        request.seller_id,
+        publishReady
+          ? "La propiedad fue convertida en una publicación activa. Puedes revisar el avance desde tu panel."
+          : "La solicitud fue aprobada y se creó un borrador privado. El equipo solicitará fotografías antes de publicarlo en el sitio.",
+        request.id,
+      ]
+    );
+
     await client.query("COMMIT");
     invalidatePublicPropertyCache();
     const approvedProperty = toProperty(property);
@@ -6515,18 +6795,36 @@ app.post("/api/admin/requests/:id/approve", requireRole("admin"), async (req, re
 });
 
 app.post("/api/admin/requests/:id/reject", requireRole("admin"), async (req, res, next) => {
+  const client = await pool.connect();
   try {
-    const result = await query(
-      "UPDATE seller_requests SET status = 'rejected', reviewed_at = NOW() WHERE id = $1 RETURNING *",
+    await client.query("BEGIN");
+    const result = await client.query(
+      "UPDATE seller_requests SET status = 'rejected', reviewed_at = NOW(), updated_at = NOW() WHERE id = $1 RETURNING *",
       [req.params.id]
     );
     if (!result.rows[0]) {
+      await client.query("ROLLBACK");
       res.status(404).json({ error: "Request not found" });
       return;
     }
+    await client.query(
+      `INSERT INTO notifications
+        (id, user_id, type, title, message, related_entity_type, related_entity_id)
+       VALUES ($1, $2, 'request_rejected', 'Actualización de tu solicitud', $3, 'seller_request', $4)`,
+      [
+        uuid("notif"),
+        result.rows[0].seller_id,
+        String(req.body?.message || "La solicitud requiere ajustes antes de continuar. Revisa los mensajes de tu asesor.").trim().slice(0, 240),
+        result.rows[0].id,
+      ]
+    );
+    await client.query("COMMIT");
     res.json({ request: toRequest(result.rows[0]) });
   } catch (error) {
+    await client.query("ROLLBACK").catch(() => null);
     next(error);
+  } finally {
+    client.release();
   }
 });
 
@@ -6636,7 +6934,7 @@ app.get("/api/admin/guest-sale-requests", requireRole("admin"), async (_req, res
 
 app.patch("/api/admin/guest-sale-requests/:id", requireRole("admin"), async (req, res, next) => {
   try {
-    const status = normalizeStatus(req.body?.status, new Set(["pending", "contacted", "archived"]), "pending");
+    const status = normalizeStatus(req.body?.status, new Set(["pending", "contacted", "approved", "archived"]), "pending");
     const internalNotes = req.body?.internalNotes === undefined ? null : String(req.body.internalNotes || "").trim().slice(0, 4000);
     const result = await query(
       `UPDATE guest_sale_requests
@@ -6656,6 +6954,71 @@ app.patch("/api/admin/guest-sale-requests/:id", requireRole("admin"), async (req
     res.json({ request: toGuestSaleRequest(withGuestRequestMediaPlaceholders(updated.rows[0])) });
   } catch (error) {
     next(error);
+  }
+});
+
+app.post("/api/admin/guest-sale-requests/:id/approve", requireRole("admin"), async (req, res, next) => {
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+    const requestResult = await client.query(
+      "UPDATE guest_sale_requests SET status = 'approved', reviewed_at = NOW(), updated_at = NOW() WHERE id = $1 RETURNING *",
+      [req.params.id]
+    );
+    const request = requestResult.rows[0];
+    if (!request) {
+      await client.query("ROLLBACK");
+      res.status(404).json({ error: "Solicitud sin registro no encontrada." });
+      return;
+    }
+    let propertyResult = await client.query("SELECT * FROM properties WHERE source_request_id = $1", [request.id]);
+    if (!propertyResult.rows[0]) {
+      const images = mergeLegacyImages(request.images, request.image);
+      const propertyId = uuid("prop");
+      propertyResult = await client.query(
+        `INSERT INTO properties
+          (id, title_es, title_en, type, publication_section, state, city, zone, neighborhood, address,
+           latitude, longitude, map_place, location_precision, google_maps_url, operation, image, images,
+           status, is_public, featured, badges, description_es, description_en, source_request_id, slug)
+         VALUES
+          ($1, $2, $2, $3, 'properties', $4, $5, $6, $7, $8,
+           $9, $10, $11, $12, $13, 'sale', $14, $15::jsonb,
+           'draft', FALSE, FALSE, '["new"]'::jsonb, $16, $16, $17, $18)
+         RETURNING *`,
+        [
+          propertyId,
+          request.title,
+          request.type,
+          request.state || "Quintana Roo",
+          request.city || "Cancun",
+          request.zone || request.location,
+          request.neighborhood || "",
+          request.address || request.location,
+          request.latitude,
+          request.longitude,
+          request.map_place || "",
+          request.location_precision || "approximate",
+          request.google_maps_url || "",
+          images[0] || null,
+          JSON.stringify(images),
+          request.description || "Solicitud de venta sin registro; requiere revisión administrativa.",
+          request.id,
+          propertySlug({ titleEs: request.title, zone: request.zone || request.location, id: propertyId }),
+        ]
+      );
+    }
+    await client.query(
+      `INSERT INTO activity_logs (id, user_id, action, entity_type, entity_id, new_value)
+       VALUES ($1, $2, 'guest_request_approved', 'guest_sale_request', $3, $4::jsonb)`,
+      [uuid("activity"), req.session.user.id, request.id, JSON.stringify({ propertyId: propertyResult.rows[0].id, status: "draft", isPublic: false })]
+    );
+    await client.query("COMMIT");
+    res.json({ request: toGuestSaleRequest(request), property: toProperty(propertyResult.rows[0]) });
+  } catch (error) {
+    await client.query("ROLLBACK").catch(() => null);
+    next(error);
+  } finally {
+    client.release();
   }
 });
 
@@ -7556,19 +7919,71 @@ app.post("/api/admin/documents/:id/share", requireRole("admin"), async (req, res
       res.status(404).json({ error: "Ficha de propiedad no encontrada." });
       return;
     }
-    const expiresAt = Math.floor(Date.now() / 1000) + 7 * 24 * 60 * 60;
-    const token = documentShareSignature(row.document_id, expiresAt);
-    const sharePath = `/fichas/${encodeURIComponent(row.document_id)}?expires=${expiresAt}&token=${encodeURIComponent(token)}`;
+    let shareLink = await query(
+      `SELECT code, expires_at
+       FROM document_share_links
+       WHERE document_id = $1 AND is_active = TRUE AND expires_at > NOW() + INTERVAL '1 day'
+       ORDER BY expires_at DESC LIMIT 1`,
+      [row.document_id]
+    );
+    if (!shareLink.rows[0]) {
+      for (let attempt = 0; attempt < 4 && !shareLink.rows[0]; attempt += 1) {
+        const code = crypto.randomBytes(9).toString("base64url");
+        shareLink = await query(
+          `INSERT INTO document_share_links (code, document_id, expires_at, created_by)
+           VALUES ($1, $2, NOW() + INTERVAL '7 days', $3)
+           ON CONFLICT (code) DO NOTHING
+           RETURNING code, expires_at`,
+          [code, row.document_id, req.session.user.id]
+        );
+      }
+    }
+    if (!shareLink.rows[0]) throw new Error("No fue posible crear el enlace temporal de la ficha.");
+    const sharePath = `/f/${encodeURIComponent(shareLink.rows[0].code)}`;
     const requestOrigin = `${String(req.get("x-forwarded-proto") || req.protocol || "https").split(",")[0].trim()}://${String(req.get("x-forwarded-host") || req.get("host") || "").split(",")[0].trim()}`;
-    const shareUrl = absoluteUrl(sharePath, requestOrigin || siteUrl);
+    const configuredShareOrigin = publicShareDomain && !/^https?:\/\//i.test(publicShareDomain) ? `https://${publicShareDomain}` : publicShareDomain;
+    const shareUrl = absoluteUrl(sharePath, configuredShareOrigin || requestOrigin || siteUrl);
     const property = toProperty(withPropertyMediaPlaceholders(row));
     const message = propertyWhatsappSheetText(property, shareUrl, { neutral: row.document_options?.brandMode === "neutral" });
     res.json({
       shareUrl,
-      expiresAt: new Date(expiresAt * 1000).toISOString(),
+      expiresAt: shareLink.rows[0].expires_at,
       message,
       whatsappUrl: `https://wa.me/?text=${encodeURIComponent(message)}`,
+      facebookUrl: `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareUrl)}`,
     });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.get("/f/:code", async (req, res, next) => {
+  try {
+    const linkResult = await query(
+      `UPDATE document_share_links
+       SET open_count = open_count + 1, last_opened_at = NOW()
+       WHERE code = $1 AND is_active = TRUE AND expires_at > NOW()
+       RETURNING document_id`,
+      [String(req.params.code || "").slice(0, 80)]
+    );
+    if (!linkResult.rows[0]) {
+      res.status(410).type("text/plain").send("Este enlace de ficha es inválido o ya venció.");
+      return;
+    }
+    const result = await query(
+      "SELECT file_name, content_base64 FROM generated_documents WHERE id = $1 AND document_type = 'property'",
+      [linkResult.rows[0].document_id]
+    );
+    const document = result.rows[0];
+    if (!document) {
+      res.status(404).type("text/plain").send("La ficha solicitada no existe.");
+      return;
+    }
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader("Content-Disposition", `inline; filename="${String(document.file_name).replace(/"/g, "")}"`);
+    res.setHeader("Cache-Control", "private, no-store, max-age=0");
+    res.setHeader("Referrer-Policy", "no-referrer");
+    res.send(Buffer.from(document.content_base64, "base64"));
   } catch (error) {
     next(error);
   }
@@ -9762,6 +10177,8 @@ module.exports = {
   normalizeGeocodeQuery,
   parseNonNegativeNumber,
   parseUploadedImages,
+  propertyWhatsappSheetText,
+  reverseGeocodeCoordinates,
   sanitizeUploadedFile,
   startServer,
 };

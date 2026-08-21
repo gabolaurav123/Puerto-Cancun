@@ -879,21 +879,21 @@
               <div class="form-row">
                 <label>
                   <span data-i18n="stateField">Estado</span>
-                  <select name="state" data-location-select="state" required></select>
+                  <input name="state" data-location-select="state" autocomplete="address-level1" required />
                 </label>
                 <label>
                   <span data-i18n="cityField">Ciudad / municipio</span>
-                  <select name="city" data-location-select="city" required></select>
+                  <input name="city" data-location-select="city" autocomplete="address-level2" required />
                 </label>
               </div>
               <div class="form-row">
                 <label>
                   <span data-i18n="zone">Zona</span>
-                  <select name="zone" data-location-select="zone" required></select>
+                  <input name="zone" data-location-select="zone" autocomplete="address-level3" required />
                 </label>
                 <label>
                   <span data-i18n="neighborhoodField">Colonia / desarrollo</span>
-                  <select name="neighborhood" data-location-select="neighborhood"></select>
+                  <input name="neighborhood" data-location-select="neighborhood" autocomplete="address-line2" />
                 </label>
                 <label>
                   <span data-i18n="price">Precio</span>
@@ -2262,21 +2262,21 @@
               <div class="form-row">
                 <label>
                   <span data-i18n="stateField">Estado</span>
-                  <select name="state" data-location-select="state" required></select>
+                  <input name="state" data-location-select="state" autocomplete="address-level1" required />
                 </label>
                 <label>
                   <span data-i18n="cityField">Ciudad / municipio</span>
-                  <select name="city" data-location-select="city" required></select>
+                  <input name="city" data-location-select="city" autocomplete="address-level2" required />
                 </label>
               </div>
               <div class="form-row">
                 <label>
                   <span data-i18n="zone">Zona</span>
-                  <select name="zone" data-location-select="zone" required></select>
+                  <input name="zone" data-location-select="zone" autocomplete="address-level3" required />
                 </label>
                 <label>
                   <span data-i18n="neighborhoodField">Colonia / desarrollo</span>
-                  <select name="neighborhood" data-location-select="neighborhood"></select>
+                  <input name="neighborhood" data-location-select="neighborhood" autocomplete="address-line2" />
                 </label>
                 <label data-property-only>
                   <span data-i18n="operation">Operacion</span>
@@ -2696,7 +2696,30 @@
               <label><span data-i18n="propertyType">Tipo de propiedad</span><select name="type" required><option>Casa</option><option>Departamento</option><option>Terreno</option><option>Comercial</option><option>Preventa</option></select></label>
             </div>
             <label><span data-i18n="guestLocation">Ubicación</span><input name="location" maxlength="260" placeholder="Zona, colonia o dirección aproximada" required /></label>
-            <label class="file-field"><span data-i18n="guestImages">Imágenes de la propiedad</span><input name="imageFile" type="file" accept="image/jpeg,image/jpg,image/png,image/webp" multiple required /><small data-i18n="guestImagesHelp">Puedes seleccionar varias fotos JPG, PNG o WEBP.</small></label>
+            <input name="state" type="hidden" />
+            <input name="city" type="hidden" />
+            <input name="zone" type="hidden" />
+            <input name="neighborhood" type="hidden" />
+            <input name="address" type="hidden" />
+            <div class="map-picker guest-map-picker" data-map-picker>
+              <div class="map-picker-copy">
+                <div><h3 data-i18n="mapPickerTitle">Ubicación en mapa</h3><p data-i18n="mapPickerCopy">Busca una dirección o mueve el pin para confirmar la ubicación.</p></div>
+                <div class="map-actions">
+                  <button class="ghost-button" type="button" data-geocode-address><i data-lucide="search"></i><span data-i18n="locateAddress">Ubicar dirección</span></button>
+                  <button class="ghost-button" type="button" data-use-current-location><i data-lucide="crosshair"></i><span data-i18n="useCurrentLocation">Usar mi ubicación</span></button>
+                  <a class="ghost-button" href="https://www.google.com/maps/search/?api=1&query=Cancun%2C%20Quintana%20Roo" target="_blank" rel="noopener" data-open-map><i data-lucide="map"></i><span data-i18n="openGoogleMaps">Abrir Google Maps</span></a>
+                </div>
+              </div>
+              <iframe title="Google Maps" loading="lazy" referrerpolicy="no-referrer-when-downgrade" data-map-frame src="https://www.google.com/maps?q=Cancun%2C%20Quintana%20Roo&output=embed"></iframe>
+              <div class="interactive-map-canvas" data-map-canvas hidden aria-label="Selector interactivo de ubicación"></div>
+              <div class="form-row coordinate-row">
+                <label><span data-i18n="latitudeField">Latitud</span><input name="latitude" type="number" step="any" min="-90" max="90" data-map-lat /></label>
+                <label><span data-i18n="longitudeField">Longitud</span><input name="longitude" type="number" step="any" min="-180" max="180" data-map-lng /></label>
+              </div>
+              <input name="mapPlace" type="hidden" data-map-place />
+              <p class="map-help" data-i18n="mapPickerHelp">La dirección y el punto del mapa se mantendrán sincronizados.</p>
+            </div>
+            <label class="file-field"><span data-i18n="guestImages">Imágenes de la propiedad (opcionales)</span><input name="imageFile" type="file" accept="image/jpeg,image/jpg,image/png,image/webp" multiple /><small data-i18n="guestImagesHelp">Puedes enviarla sin fotos y agregarlas después con ayuda de un asesor.</small></label>
             <div class="image-preview" id="guestSaleImagePreview" hidden><div class="image-preview-header"><span data-i18n="selectedImage">Imágenes seleccionadas</span><button class="text-button danger" type="button" id="clearGuestSaleImages" data-i18n="removeImage">Quitar imágenes</button></div><div class="image-preview-grid"></div></div>
             <label><span data-i18n="optionalDescription">Descripción opcional</span><textarea name="description" rows="4" maxlength="4000" placeholder="Agrega solo la información que ya tengas disponible"></textarea></label>
             <div class="form-actions"><button class="primary-button" type="button" id="continueGuestSale"><span data-i18n="continueContact">Continuar al contacto</span><i data-lucide="arrow-right"></i></button><button class="ghost-button" type="button" data-close-guest-sale data-i18n="cancel">Cancelar</button></div>
@@ -2731,8 +2754,8 @@
           <label class="share-mode-toggle"><span><b>Sin datos de contacto</b><small>Actívalo para compartir la ficha neutra.</small></span><input name="neutral" type="checkbox" /></label>
           <div class="share-channel-grid">
             <button type="button" data-pdf-share-channel="whatsapp"><i data-lucide="message-circle"></i><span>WhatsApp</span></button>
-            <button type="button" data-pdf-share-channel="facebook"><i data-lucide="facebook"></i><span>Facebook</span></button>
-            <button type="button" data-pdf-share-channel="instagram"><i data-lucide="instagram"></i><span>Instagram</span></button>
+            <button type="button" data-pdf-share-channel="facebook"><i data-lucide="share-2"></i><span>Facebook</span></button>
+            <button type="button" data-pdf-share-channel="instagram"><i data-lucide="image"></i><span>Instagram</span></button>
           </div>
           <p class="form-message" id="pdfShareMessage" aria-live="polite"></p>
         </form>

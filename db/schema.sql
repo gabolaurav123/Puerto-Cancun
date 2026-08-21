@@ -61,6 +61,16 @@ CREATE TABLE IF NOT EXISTS guest_sale_requests (
   title TEXT NOT NULL,
   type TEXT NOT NULL,
   location TEXT NOT NULL,
+  state TEXT,
+  city TEXT,
+  zone TEXT,
+  neighborhood TEXT,
+  address TEXT,
+  latitude NUMERIC,
+  longitude NUMERIC,
+  map_place TEXT,
+  location_precision TEXT NOT NULL DEFAULT 'approximate',
+  google_maps_url TEXT,
   description TEXT NOT NULL DEFAULT '',
   image TEXT,
   images JSONB NOT NULL DEFAULT '[]'::jsonb,
@@ -507,6 +517,20 @@ CREATE TABLE IF NOT EXISTS copilot_responses (
   metadata JSONB NOT NULL DEFAULT '{}'::jsonb,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+
+CREATE TABLE IF NOT EXISTS document_share_links (
+  code TEXT PRIMARY KEY,
+  document_id TEXT NOT NULL REFERENCES generated_documents(id) ON DELETE CASCADE,
+  expires_at TIMESTAMPTZ NOT NULL,
+  is_active BOOLEAN NOT NULL DEFAULT TRUE,
+  open_count INTEGER NOT NULL DEFAULT 0,
+  last_opened_at TIMESTAMPTZ,
+  created_by TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_document_share_links_document ON document_share_links (document_id, is_active, expires_at DESC);
+CREATE INDEX IF NOT EXISTS idx_document_share_links_expires ON document_share_links (expires_at) WHERE is_active = TRUE;
 
 CREATE TABLE IF NOT EXISTS copilot_feedback (
   id TEXT PRIMARY KEY,
