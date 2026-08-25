@@ -786,6 +786,8 @@ function propertyEnglishFallback(row) {
   const titleEn = String(row.title_en || "").trim();
   const descriptionEs = String(row.description_es || "").trim();
   const descriptionEn = String(row.description_en || "").trim();
+  const hasManualTitle = hasDistinctEnglishTranslation(titleEn, titleEs);
+  const hasManualDescription = hasDistinctEnglishTranslation(descriptionEn, descriptionEs);
   const type = {
     Casa: "Home",
     Departamento: "Condo",
@@ -810,9 +812,23 @@ function propertyEnglishFallback(row) {
   ].filter(Boolean).join(" ");
   const fallbackDescription = fallbackOverview;
   return {
-    title: titleEn || fallbackTitle,
-    description: descriptionEn || fallbackDescription,
+    title: hasManualTitle ? titleEn : fallbackTitle,
+    description: hasManualDescription ? descriptionEn : fallbackDescription,
   };
+}
+
+function comparableTranslationText(value) {
+  return String(value || "")
+    .normalize("NFKC")
+    .replace(/\s+/g, " ")
+    .trim()
+    .toLocaleLowerCase("es-MX");
+}
+
+function hasDistinctEnglishTranslation(englishValue, spanishValue) {
+  const english = comparableTranslationText(englishValue);
+  if (!english) return false;
+  return english !== comparableTranslationText(spanishValue);
 }
 
 function blogSlug(value, fallback = "") {
@@ -3720,6 +3736,15 @@ app.get("/api/properties", async (req, res, next) => {
       res.json({ properties: await getPublicProperties() });
       return;
     }
+    const result = await query(`SELECT ${PROPERTY_SUMMARY_COLUMNS} FROM properties p ORDER BY p.created_at DESC`);
+    res.json({ properties: result.rows.map(withPropertyMediaPlaceholders).map(toProperty) });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.get("/api/admin/properties", requireRole("admin"), async (_req, res, next) => {
+  try {
     const result = await query(`SELECT ${PROPERTY_SUMMARY_COLUMNS} FROM properties p ORDER BY p.created_at DESC`);
     res.json({ properties: result.rows.map(withPropertyMediaPlaceholders).map(toProperty) });
   } catch (error) {
@@ -7054,9 +7079,7 @@ app.post("/api/admin/properties", requireRole("admin"), async (req, res, next) =
     const createdProperty = toProperty(createdRow);
     if (createdProperty.isPublic && PUBLIC_PROPERTY_STATUSES.has(createdProperty.status)) void notifyIndexNow(propertyIndexPaths(createdProperty));
     void createSavedSearchAlertsForProperty(createdProperty).catch((error) => console.warn("Saved-search alert failed:", error.message));
-    if (!property.titleEn || !property.descriptionEn) {
-      void automaticallyTranslateProperty(createdProperty.id).catch((error) => console.warn("Automatic translation failed:", error.message));
-    }
+    void automaticallyTranslateProperty(createdProperty.id).catch((error) => console.warn("Automatic translation failed:", error.message));
     res.status(201).json({ property: createdProperty });
   } catch (error) {
     if (client && inTransaction) await client.query("ROLLBACK").catch(() => null);
@@ -7303,9 +7326,7 @@ app.put("/api/admin/properties/:id", requireRole("admin"), async (req, res, next
     invalidatePublicPropertyCache();
     if (updatedProperty.isPublic && PUBLIC_PROPERTY_STATUSES.has(updatedProperty.status)) void notifyIndexNow(propertyIndexPaths(updatedProperty));
     void createSavedSearchAlertsForProperty(updatedProperty).catch((error) => console.warn("Saved-search alert failed:", error.message));
-    if (!property.titleEn || !property.descriptionEn) {
-      void automaticallyTranslateProperty(updatedProperty.id).catch((error) => console.warn("Automatic translation failed:", error.message));
-    }
+    void automaticallyTranslateProperty(updatedProperty.id).catch((error) => console.warn("Automatic translation failed:", error.message));
     res.json({ property: updatedProperty });
   } catch (error) {
     if (client && inTransaction) await client.query("ROLLBACK").catch(() => null);
@@ -8977,15 +8998,21 @@ async function automaticallyTranslateProperty(propertyId) {
   );
   const row = result.rows[0];
   if (!row) return;
-  const missingTitle = !String(row.title_en || "").trim();
-  const missingDescription = !String(row.description_en || "").trim();
-  if (!missingTitle && !missingDescription) return;
+  const needsTitle = !hasDistinctEnglishTranslation(row.title_en, row.title_es);
+  const needsDescription = !hasDistinctEnglishTranslation(row.description_en, row.description_es);
+  if (!needsTitle && !needsDescription) return;
   const translated = await requestAutomaticPropertyTranslation(row.title_es, row.description_es);
   if (!translated) return;
   await query(
     `UPDATE properties
-     SET title_en = CASE WHEN NULLIF(BTRIM(title_en), '') IS NULL THEN $2 ELSE title_en END,
-         description_en = CASE WHEN NULLIF(BTRIM(description_en), '') IS NULL THEN $3 ELSE description_en END
+     SET title_en = CASE
+           WHEN NULLIF(BTRIM(title_en), '') IS NULL OR LOWER(BTRIM(title_en)) = LOWER(BTRIM(title_es)) THEN $2
+           ELSE title_en
+         END,
+         description_en = CASE
+           WHEN NULLIF(BTRIM(description_en), '') IS NULL OR LOWER(BTRIM(description_en)) = LOWER(BTRIM(description_es)) THEN $3
+           ELSE description_en
+         END
      WHERE id = $1`,
     [propertyId, translated.titleEn, translated.descriptionEn]
   );
@@ -9000,6 +9027,45 @@ async function automaticallyTranslateProperty(propertyId) {
     status: "success",
     metadata: { promptVersion: PROMPT_VERSION, automatic: true },
   });
+}
+
+let automaticTranslationBackfillStarted = false;
+
+async function backfillAutomaticPropertyTranslations() {
+  if (automaticTranslationBackfillStarted || !process.env.OPENAI_API_KEY) return;
+  automaticTranslationBackfillStarted = true;
+  const lockKey = "puerto-cancun:property-translation-backfill:v2";
+  let client;
+  let acquired = false;
+  try {
+    client = await pool.connect();
+    const lock = await client.query("SELECT pg_try_advisory_lock(hashtext($1)) AS acquired", [lockKey]);
+    acquired = lock.rows[0]?.acquired === true;
+    if (!acquired) return;
+    const pending = await client.query(
+      `SELECT id
+       FROM properties
+       WHERE NULLIF(BTRIM(title_en), '') IS NULL
+          OR NULLIF(BTRIM(description_en), '') IS NULL
+          OR LOWER(BTRIM(title_en)) = LOWER(BTRIM(title_es))
+          OR LOWER(BTRIM(description_en)) = LOWER(BTRIM(description_es))
+       ORDER BY updated_at DESC
+       LIMIT 100`
+    );
+    for (const row of pending.rows) {
+      try {
+        await automaticallyTranslateProperty(row.id);
+      } catch (error) {
+        console.warn(`Automatic translation backfill failed for ${row.id}:`, error.message);
+      }
+      await new Promise((resolve) => setTimeout(resolve, 250));
+    }
+  } finally {
+    if (client && acquired) {
+      await client.query("SELECT pg_advisory_unlock(hashtext($1))", [lockKey]).catch(() => null);
+    }
+    client?.release();
+  }
 }
 
 function openAIUserMessage(error) {
@@ -10232,6 +10298,7 @@ async function initializeDatabaseWithRetry() {
     databaseRuntimeState.lastErrorCode = "";
     databaseRuntimeState.lastReadyAt = new Date().toISOString();
     console.log("PostgreSQL schema and seed data are ready.");
+    void backfillAutomaticPropertyTranslations().catch((error) => console.warn("Automatic translation backfill failed:", error.message));
     void whatsappService.resume().catch((error) => console.warn("WhatsApp resume failed:", error.message));
   } catch (error) {
     databaseRuntimeState.ready = false;
@@ -10321,6 +10388,7 @@ module.exports = {
   normalizeGeocodeQuery,
   parseNonNegativeNumber,
   parseUploadedImages,
+  propertyEnglishFallback,
   propertyWhatsappSheetText,
   reverseGeocodeCoordinates,
   sanitizeUploadedFile,

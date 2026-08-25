@@ -27,12 +27,56 @@ test("el idioma se guarda antes de navegar y tambien se controla desde los panel
   assert.match(seoSource, /class="seo-property-description">\$\{escapeHtml\(descriptionSummary\)\}/);
 });
 
+test("las traducciones manuales se conservan y las copias del espanol usan un fallback ingles", () => {
+  process.env.SESSION_SECRET ||= "test-session-secret-1234567890";
+  process.env.ADMIN_PASSWORD ||= "test-admin-password-123";
+  process.env.ADMIN_USERNAME ||= "admin-prueba";
+  const { propertyEnglishFallback } = require("../server");
+  const base = {
+    title_es: "Casa frente al mar",
+    description_es: "Casa amplia frente al mar con terraza y alberca.",
+    type: "Casa",
+    operation: "sale",
+    zone: "Puerto Cancun",
+    city: "Cancun",
+    state: "Quintana Roo",
+    beds: 3,
+    baths: 3,
+    area: 280,
+    lot: 0,
+    mls: "9001",
+  };
+  const manual = propertyEnglishFallback({
+    ...base,
+    title_en: "Oceanfront home",
+    description_en: "Spacious oceanfront home with a terrace and pool.",
+  });
+  assert.equal(manual.title, "Oceanfront home");
+  assert.equal(manual.description, "Spacious oceanfront home with a terrace and pool.");
+
+  const copied = propertyEnglishFallback({
+    ...base,
+    title_en: base.title_es,
+    description_en: base.description_es,
+  });
+  assert.notEqual(copied.title, base.title_es);
+  assert.notEqual(copied.description, base.description_es);
+  assert.match(copied.title, /Home for sale in Puerto Cancun/);
+});
+
 test("desarrollos usa un formulario reducido sin datos propios de una unidad", () => {
   assert.doesNotMatch(indexSource, /data-development-fields/);
   assert.match(indexSource, /data-property-only/);
   assert.match(appSource, /container\.hidden = developmentMode/);
   assert.match(appSource, /developmentMode \? 0 : Number\(field\("beds"\)/);
   assert.match(serverSource, /developmentMode \? 0 : parseNonNegativeInteger\(body\.beds/);
+  assert.match(indexSource, /id="listingSubmitButton"/);
+  assert.match(appSource, /publishDevelopment: "Publicar desarrollo"/);
+  assert.match(appSource, /resetButton\.hidden = developmentMode/);
+  assert.match(appSource, /panelApi\("\/api\/admin\/properties"\)/);
+  assert.match(serverSource, /app\.get\("\/api\/admin\/properties", requireRole\("admin"\)/);
+  assert.match(serverSource, /backfillAutomaticPropertyTranslations/);
+  assert.match(serverSource, /LOWER\(BTRIM\(description_en\)\) = LOWER\(BTRIM\(description_es\)\)/);
 });
 
 test("cada imagen conserva descripciones bilingues y la ficha PDF se comparte por WhatsApp", () => {

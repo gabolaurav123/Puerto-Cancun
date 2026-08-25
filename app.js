@@ -284,6 +284,25 @@ const translations = {
     markFeatured: "Marcar como destacada",
     saveListing: "Guardar publicación",
     newListing: "Nueva publicación",
+    publishDevelopment: "Publicar desarrollo",
+    saveDevelopmentChanges: "Guardar cambios del desarrollo",
+    inventoryOf: "de",
+    developmentEntity: "Desarrollo",
+    unverifiedInventory: "Sin verificar",
+    verifiedDayAgo: "Verificada hace 1 día",
+    verifiedDaysAgo: "Verificada hace {days} días",
+    reviewAvailabilityDays: "Revisar disponibilidad · {days} días",
+    noListingMatches: "No se encontraron publicaciones con esa búsqueda.",
+    removeFeatured: "Quitar destacada",
+    featureListing: "Destacar",
+    duplicateListing: "Duplicar",
+    institutionalPdf: "PDF institucional",
+    neutralPdf: "PDF neutro",
+    configurePdf: "Configurar PDF",
+    publicDetail: "Ver detalle público",
+    reviewQuality: "Revisar calidad",
+    confirmAvailability: "Confirmar vigencia",
+    listingHistory: "Historial",
     authTitle: "Acceso Puerto Cancún Center",
     authIntro: "Regístrate y anuncia con nosotros. Podrás enviar tu propiedad, agregar fotografías y seguir el proceso con un asesor.",
     createAccount: "Crear cuenta",
@@ -788,6 +807,25 @@ const translations = {
     markFeatured: "Mark as featured",
     saveListing: "Save listing",
     newListing: "New listing",
+    publishDevelopment: "Publish development",
+    saveDevelopmentChanges: "Save development changes",
+    inventoryOf: "of",
+    developmentEntity: "Development",
+    unverifiedInventory: "Not verified",
+    verifiedDayAgo: "Verified 1 day ago",
+    verifiedDaysAgo: "Verified {days} days ago",
+    reviewAvailabilityDays: "Review availability · {days} days",
+    noListingMatches: "No listings match this search.",
+    removeFeatured: "Remove featured status",
+    featureListing: "Feature",
+    duplicateListing: "Duplicate",
+    institutionalPdf: "Institutional PDF",
+    neutralPdf: "Neutral PDF",
+    configurePdf: "Configure PDF",
+    publicDetail: "View public page",
+    reviewQuality: "Review quality",
+    confirmAvailability: "Confirm availability",
+    listingHistory: "History",
     authTitle: "Puerto Cancun Center access",
     authIntro: "Register and list with us. You can submit your property, add photos, and follow the process with an advisor.",
     createAccount: "Create account",
@@ -4597,13 +4635,15 @@ function renderAdminListingFilters() {
 function renderAdminListings() {
   const list = $("#adminListings");
   if (!list) return;
-  const allProperties = sortedProperties(state.properties);
+  const developmentInventory = state.adminSection === "developments";
+  const inventory = sortedProperties(state.properties).filter((property) =>
+    developmentInventory
+      ? property.publicationSection === "developments"
+      : property.publicationSection !== "developments"
+  );
   const filters = state.adminListingFilters;
   const search = normalizeSearchText(filters.search);
-  const properties = allProperties.filter((property) => {
-    const developmentInventory = state.adminSection === "developments";
-    if (developmentInventory && property.publicationSection !== "developments") return false;
-    if (!developmentInventory && property.publicationSection === "developments") return false;
+  const properties = inventory.filter((property) => {
     if (filters.type && property.type !== filters.type) return false;
     if (filters.zone && property.zone !== filters.zone) return false;
     if (filters.operation && property.operation !== filters.operation) return false;
@@ -4623,12 +4663,12 @@ function renderAdminListings() {
   });
   const summary = $("#adminListingSummary");
   if (summary) {
-    const featured = allProperties.filter((property) => property.featured).length;
-    summary.textContent = `${properties.length} de ${allProperties.length} ${t("adminListingSummary")} · ${featured} ${t("navFeatured")}`;
+    const featured = inventory.filter((property) => property.featured).length;
+    summary.textContent = `${properties.length} ${t("inventoryOf")} ${inventory.length} ${t("adminListingSummary")} · ${featured} ${t("navFeatured")}`;
   }
   if (!properties.length) {
     const filtered = search || filters.type || filters.zone || filters.operation || filters.status || filters.quality || filters.missingCover;
-    list.innerHTML = `<p class="empty-state">${escapeHtml(filtered ? "No se encontraron publicaciones con esa búsqueda." : t("listingsEmpty"))}</p>`;
+    list.innerHTML = `<p class="empty-state">${escapeHtml(filtered ? t("noListingMatches") : t("listingsEmpty"))}</p>`;
     return;
   }
   list.innerHTML = properties
@@ -4641,10 +4681,10 @@ function renderAdminListings() {
         ? Math.floor((Date.now() - new Date(property.lastVerifiedAt).getTime()) / 86400000)
         : null;
       const freshnessLabel = freshnessDays === null
-        ? "Sin verificar"
+        ? t("unverifiedInventory")
         : freshnessDays <= 30
-          ? `Verificada hace ${freshnessDays} día${freshnessDays === 1 ? "" : "s"}`
-          : `Revisar disponibilidad · ${freshnessDays} días`;
+          ? freshnessDays === 1 ? t("verifiedDayAgo") : t("verifiedDaysAgo").replace("{days}", freshnessDays)
+          : t("reviewAvailabilityDays").replace("{days}", freshnessDays);
       return `
         <div class="listing-item detailed-listing">
           <img src="${escapeHtml(primaryImage(property))}" alt="${escapeHtml(localizedTitle(property))}" loading="lazy" onerror="this.onerror=null;this.src='${escapeHtml(fallbackImage)}';" />
@@ -4655,7 +4695,7 @@ function renderAdminListings() {
                 <span class="status status-${escapeHtml(property.status || "active")}">${escapeHtml(propertyStatusLabel(property.status))}</span>
                 <h3>${escapeHtml(localizedTitle(property))}</h3>
               </div>
-              <strong>${escapeHtml(developmentMode ? "Desarrollo" : formatPriceSummary(property))}</strong>
+              <strong>${escapeHtml(developmentMode ? t("developmentEntity") : formatPriceSummary(property))}</strong>
             </div>
             <p>${escapeHtml([displayLocation(property), displayType(property.type), property.mls ? `${t("mls")} ${property.mls}` : ""].filter(Boolean).join(" · "))}</p>
             ${
@@ -4687,16 +4727,16 @@ function renderAdminListings() {
               <button class="mini-button" type="button" data-status-listing="${escapeHtml(property.id)}" data-status-value="active">${escapeHtml(t("markActive"))}</button>
               <button class="mini-button" type="button" data-status-listing="${escapeHtml(property.id)}" data-status-value="disabled">${escapeHtml(t("markDisabled"))}</button>
               <button class="mini-button" type="button" data-status-listing="${escapeHtml(property.id)}" data-status-value="sold">${escapeHtml(t("markSold"))}</button>
-              <button class="mini-button" type="button" data-feature-listing="${escapeHtml(property.id)}" data-feature-value="${property.featured ? "false" : "true"}">${property.featured ? "Quitar destacada" : "Destacar"}</button>
-              <button class="mini-button" type="button" data-duplicate-listing="${escapeHtml(property.id)}">Duplicar</button>
-              <button class="mini-button pdf-institutional-button" type="button" data-generate-property-pdf="${escapeHtml(property.id)}" data-pdf-mode="branded">PDF institucional</button>
-              <button class="mini-button pdf-neutral-button" type="button" data-generate-property-pdf="${escapeHtml(property.id)}" data-pdf-mode="neutral">PDF neutro</button>
+              <button class="mini-button" type="button" data-feature-listing="${escapeHtml(property.id)}" data-feature-value="${property.featured ? "false" : "true"}">${escapeHtml(property.featured ? t("removeFeatured") : t("featureListing"))}</button>
+              <button class="mini-button" type="button" data-duplicate-listing="${escapeHtml(property.id)}">${escapeHtml(t("duplicateListing"))}</button>
+              <button class="mini-button pdf-institutional-button" type="button" data-generate-property-pdf="${escapeHtml(property.id)}" data-pdf-mode="branded">${escapeHtml(t("institutionalPdf"))}</button>
+              <button class="mini-button pdf-neutral-button" type="button" data-generate-property-pdf="${escapeHtml(property.id)}" data-pdf-mode="neutral">${escapeHtml(t("neutralPdf"))}</button>
               <button class="pdf-share-trigger mini" type="button" data-open-pdf-share="property" data-share-property="${escapeHtml(property.id)}" aria-label="Compartir ficha PDF de ${escapeHtml(localizedTitle(property))}" title="Compartir ficha PDF"><i data-lucide="share-2"></i></button>
-              <button class="mini-button" type="button" data-pdf-property="${escapeHtml(property.id)}">Configurar PDF</button>
-              <button class="mini-button" type="button" data-detail="${escapeHtml(property.id)}">Ver detalle público</button>
-              <button class="mini-button" type="button" data-review-property-quality="${escapeHtml(property.id)}">Revisar calidad</button>
-              <button class="mini-button" type="button" data-verify-property="${escapeHtml(property.id)}">Confirmar vigencia</button>
-              <button class="mini-button" type="button" data-property-history="${escapeHtml(property.id)}">Historial</button>
+              <button class="mini-button" type="button" data-pdf-property="${escapeHtml(property.id)}">${escapeHtml(t("configurePdf"))}</button>
+              <button class="mini-button" type="button" data-detail="${escapeHtml(property.id)}">${escapeHtml(t("publicDetail"))}</button>
+              <button class="mini-button" type="button" data-review-property-quality="${escapeHtml(property.id)}">${escapeHtml(t("reviewQuality"))}</button>
+              <button class="mini-button" type="button" data-verify-property="${escapeHtml(property.id)}">${escapeHtml(t("confirmAvailability"))}</button>
+              <button class="mini-button" type="button" data-property-history="${escapeHtml(property.id)}">${escapeHtml(t("listingHistory"))}</button>
               <button class="mini-button danger" type="button" data-delete-listing="${escapeHtml(property.id)}">${escapeHtml(t("archiveListing"))}</button>
             </div>
           </div>
@@ -7098,7 +7138,7 @@ async function loadPanelData() {
     const adminResults = await Promise.allSettled([
       panelApi("/api/admin/stats"),
       panelApi("/api/admin/requests"),
-      panelApi("/api/properties"),
+      panelApi("/api/admin/properties"),
       panelApi("/api/admin/prompts"),
       panelApi("/api/admin/leads"),
       panelApi("/api/admin/contacts"),
@@ -7438,6 +7478,22 @@ function configureListingFormMode(section = state.adminSection) {
   }
   const imageLabel = formField(form, "imageFile")?.closest("label")?.querySelector("span");
   if (imageLabel) imageLabel.textContent = developmentMode ? "Imágenes generales del desarrollo" : "Imágenes propias de la unidad";
+  const submitButton = $("#listingSubmitButton");
+  const resetButton = $("#resetListingForm");
+  const editing = Boolean(formField(form, "id")?.value);
+  if (submitButton) {
+    const translationKey = developmentMode
+      ? editing ? "saveDevelopmentChanges" : "publishDevelopment"
+      : "saveListing";
+    submitButton.dataset.i18n = translationKey;
+    submitButton.textContent = t(translationKey);
+  }
+  if (resetButton) {
+    resetButton.hidden = developmentMode;
+    resetButton.disabled = developmentMode;
+    resetButton.dataset.i18n = "newListing";
+    resetButton.textContent = t("newListing");
+  }
   if (developmentMode && !formField(form, "id")?.value) {
     formField(form, "status").value = "draft";
     formField(form, "isPublic").checked = false;
