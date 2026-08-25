@@ -1167,6 +1167,8 @@ let draftDbPromise = null;
 let draftWriteQueue = Promise.resolve();
 const mapGeocodeTimers = new WeakMap();
 const mapGeocodeControllers = new WeakMap();
+const mapSuggestionTimers = new WeakMap();
+const mapSuggestionControllers = new WeakMap();
 const DEFAULT_MAP_CENTER = { lat: 21.1619, lng: -86.8515 };
 
 function safeParseStoredIds(key) {
@@ -1495,6 +1497,85 @@ async function geocodeMapAddress(picker, explicitQuery = "") {
   }
 }
 
+function hideMapAddressSuggestions(picker) {
+  const suggestions = picker?.querySelector("[data-map-search-suggestions]");
+  if (!suggestions) return;
+  suggestions.hidden = true;
+  suggestions.innerHTML = "";
+  picker.querySelector("[data-map-search]")?.setAttribute("aria-expanded", "false");
+}
+
+function selectMapAddressSuggestion(picker, suggestion) {
+  const form = picker?.closest("form");
+  if (!form || !suggestion) return;
+  const searchInput = picker.querySelector("[data-map-search]");
+  if (searchInput) searchInput.value = suggestion.formattedAddress || "";
+  setMapCoordinates(picker, suggestion.latitude, suggestion.longitude);
+  applyGeocodedLocation(form, suggestion);
+  updateMapPicker(picker);
+  hideMapAddressSuggestions(picker);
+  setMapStatus(picker, t("mapAddressFound"));
+}
+
+function renderMapAddressSuggestions(picker, items = []) {
+  const container = picker?.querySelector("[data-map-search-suggestions]");
+  if (!container) return;
+  container.innerHTML = "";
+  if (!items.length) {
+    hideMapAddressSuggestions(picker);
+    return;
+  }
+  items.forEach((suggestion) => {
+    const option = document.createElement("button");
+    option.type = "button";
+    option.className = "map-address-suggestion";
+    option.setAttribute("role", "option");
+    option.innerHTML = `
+      <i data-lucide="map-pin"></i>
+      <span>
+        <strong>${escapeHtml(suggestion.formattedAddress || "")}</strong>
+        <small>${escapeHtml([suggestion.components?.city, suggestion.components?.state].filter(Boolean).join(", "))}</small>
+      </span>`;
+    option.addEventListener("mousedown", (event) => event.preventDefault());
+    option.addEventListener("click", () => selectMapAddressSuggestion(picker, suggestion));
+    container.append(option);
+  });
+  container.hidden = false;
+  picker.querySelector("[data-map-search]")?.setAttribute("aria-expanded", "true");
+  refreshIcons();
+}
+
+async function loadMapAddressSuggestions(picker) {
+  const searchInput = picker?.querySelector("[data-map-search]");
+  const query = String(searchInput?.value || "").trim();
+  if (query.length < 3) {
+    mapSuggestionControllers.get(picker)?.abort();
+    hideMapAddressSuggestions(picker);
+    return;
+  }
+  mapSuggestionControllers.get(picker)?.abort();
+  const controller = new AbortController();
+  mapSuggestionControllers.set(picker, controller);
+  try {
+    const response = await fetch(`/api/geocode/suggestions?query=${encodeURIComponent(query)}`, {
+      credentials: "same-origin",
+      headers: { Accept: "application/json" },
+      signal: controller.signal,
+    });
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(result.error || "No fue posible buscar ubicaciones");
+    if (controller.signal.aborted || String(searchInput?.value || "").trim() !== query) return;
+    renderMapAddressSuggestions(picker, result.suggestions || []);
+  } catch (error) {
+    if (error.name !== "AbortError") hideMapAddressSuggestions(picker);
+  }
+}
+
+function scheduleMapAddressSuggestions(picker) {
+  window.clearTimeout(mapSuggestionTimers.get(picker));
+  mapSuggestionTimers.set(picker, window.setTimeout(() => void loadMapAddressSuggestions(picker), 280));
+}
+
 function scheduleMapAddressGeocode(picker) {
   window.clearTimeout(mapGeocodeTimers.get(picker));
   const form = picker?.closest("form");
@@ -1578,6 +1659,11 @@ function resetMapPickerForForm(form) {
   mapGeocodeControllers.get(picker)?.abort();
   mapGeocodeTimers.delete(picker);
   mapGeocodeControllers.delete(picker);
+  window.clearTimeout(mapSuggestionTimers.get(picker));
+  mapSuggestionControllers.get(picker)?.abort();
+  mapSuggestionTimers.delete(picker);
+  mapSuggestionControllers.delete(picker);
+  hideMapAddressSuggestions(picker);
   if (formField(form, "latitude")) formField(form, "latitude").value = "";
   if (formField(form, "longitude")) formField(form, "longitude").value = "";
   if (formField(form, "mapPlace")) formField(form, "mapPlace").value = "";
@@ -1753,11 +1839,12 @@ function bindMapPickers() {
       const search = document.createElement("div");
       search.className = "map-location-search";
       search.innerHTML = `
-        <label>
+        <label class="map-search-field">
           <span data-i18n="mapSearchLabel">${escapeHtml(t("mapSearchLabel"))}</span>
           <div class="search-input-with-icon">
             <i data-lucide="search"></i>
-            <input data-map-search type="search" placeholder="${escapeHtml(t("mapSearchPlaceholder"))}" />
+            <input data-map-search type="search" role="combobox" aria-autocomplete="list" aria-expanded="false" autocomplete="off" placeholder="${escapeHtml(t("mapSearchPlaceholder"))}" />
+            <div class="map-address-suggestions" data-map-search-suggestions role="listbox" hidden></div>
           </div>
         </label>
         <button class="ghost-button" type="button" data-map-search-submit>
@@ -1804,15 +1891,49 @@ function bindMapPickers() {
       void geocodeMapAddress(picker);
     });
     const mapSearch = picker.querySelector("[data-map-search]");
+    const suggestionContainer = picker.querySelector("[data-map-search-suggestions]");
     const submitMapSearch = () => {
       const query = String(mapSearch?.value || "").trim();
-      if (query) void geocodeMapAddress(picker, query);
+      if (query) {
+        hideMapAddressSuggestions(picker);
+        void geocodeMapAddress(picker, query);
+      }
     };
     picker.querySelector("[data-map-search-submit]")?.addEventListener("click", submitMapSearch);
+    mapSearch?.addEventListener("input", () => scheduleMapAddressSuggestions(picker));
+    mapSearch?.addEventListener("focus", () => {
+      if (String(mapSearch.value || "").trim().length >= 3 && !suggestionContainer?.children.length) {
+        scheduleMapAddressSuggestions(picker);
+      } else if (suggestionContainer?.children.length) {
+        suggestionContainer.hidden = false;
+        mapSearch.setAttribute("aria-expanded", "true");
+      }
+    });
+    mapSearch?.addEventListener("blur", () => {
+      window.setTimeout(() => hideMapAddressSuggestions(picker), 140);
+    });
     mapSearch?.addEventListener("keydown", (event) => {
+      const options = [...(suggestionContainer?.querySelectorAll(".map-address-suggestion") || [])];
+      const activeIndex = options.findIndex((option) => option.classList.contains("is-active"));
+      if (["ArrowDown", "ArrowUp"].includes(event.key) && options.length) {
+        event.preventDefault();
+        options.forEach((option) => option.classList.remove("is-active"));
+        const nextIndex = event.key === "ArrowDown"
+          ? (activeIndex + 1) % options.length
+          : (activeIndex <= 0 ? options.length - 1 : activeIndex - 1);
+        options[nextIndex].classList.add("is-active");
+        options[nextIndex].scrollIntoView({ block: "nearest" });
+        return;
+      }
+      if (event.key === "Escape") {
+        hideMapAddressSuggestions(picker);
+        return;
+      }
       if (event.key !== "Enter") return;
       event.preventDefault();
-      submitMapSearch();
+      if (activeIndex >= 0) options[activeIndex].click();
+      else if (options.length === 1) options[0].click();
+      else submitMapSearch();
     });
     updateMapPicker(picker);
     void enhanceMapPicker(picker).catch(() => {
@@ -9068,9 +9189,13 @@ async function respondToRequest(requestTable, requestId) {
   ensureSelectOption(form.assignedTo, item.assignedTo || "");
   form.assignedTo.value = item.assignedTo || "";
   const guestRequest = requestTable === "guest_sale_request";
-  form.notifyUser.checked = !guestRequest;
-  form.notifyUser.disabled = guestRequest;
-  form.notifyUser.closest("label").hidden = guestRequest;
+  const guestCanReceiveEmail = guestRequest && Boolean(String(item.email || "").trim());
+  const notifyLabel = form.notifyUser.closest("label");
+  form.notifyUser.checked = !guestRequest || guestCanReceiveEmail;
+  form.notifyUser.disabled = guestRequest && !guestCanReceiveEmail;
+  notifyLabel.hidden = guestRequest && !guestCanReceiveEmail;
+  const notifyCopy = notifyLabel.querySelector("span");
+  if (notifyCopy) notifyCopy.textContent = guestCanReceiveEmail ? "Enviar aviso por correo al propietario" : "Notificar al propietario";
   $("#responseModalSubtitle").textContent = requestTable === "seller_request"
     ? `${item.sellerName} · ${item.title}`
     : guestRequest
@@ -9089,7 +9214,9 @@ async function respondToRequest(requestTable, requestId) {
         <h3>${escapeHtml(item.title)}</h3>
         <p>${escapeHtml(item.location || "")}</p>
         <p><strong>${escapeHtml(item.preferredContact === "whatsapp" ? "WhatsApp" : "Correo")}</strong><br>${escapeHtml(item.email || item.phone || "")}</p>
-        <p>Esta respuesta queda en el historial interno. Usa el botón de correo o WhatsApp de la solicitud para entregarla al propietario.</p>
+        <p>${item.email
+          ? "Puedes guardar la respuesta y enviarla al correo indicado en la misma acción."
+          : "Esta persona eligió WhatsApp. La respuesta quedará en el historial y debe enviarse desde el botón de WhatsApp de la solicitud."}</p>
       ` : `
         <span class="status ${escapeHtml(item.status)}">${escapeHtml(leadStatusLabel(item.status))}</span>
         <h3>${escapeHtml(item.name)}</h3>
@@ -9120,12 +9247,15 @@ async function respondToRequest(requestTable, requestId) {
   }
   modal.hidden = false;
   document.body.classList.add("modal-open");
+  modal.querySelector(".request-context-panel")?.scrollTo({ top: 0 });
+  modal.querySelector(".response-form")?.scrollTo({ top: 0 });
+  window.requestAnimationFrame(() => form.message.focus({ preventScroll: true }));
   refreshIcons();
 }
 
 function closeResponseModal() {
   $("#responseModal").hidden = true;
-  document.body.classList.remove("modal-open");
+  if ($$(".modal-backdrop:not([hidden])").length === 0) document.body.classList.remove("modal-open");
   setFormMessage($("#responseFormMessage"), "");
 }
 
@@ -9158,9 +9288,11 @@ async function responseFormSubmit(event) {
     await renderPanel();
     showToast(data.delivery?.emailSent
       ? "Respuesta guardada y enviada por correo."
-      : form.requestTable.value === "guest_sale_request"
-        ? "Seguimiento guardado. No se afirmó un envío externo; contacta por el medio elegido por el propietario."
-        : "Respuesta guardada y registrada en el historial.");
+      : data.delivery?.emailStatus === "configuration_required"
+        ? "Respuesta guardada y aviso interno creado. Configura el correo para enviar avisos externos."
+        : form.requestTable.value === "guest_sale_request"
+          ? "Seguimiento guardado. No se afirmó un envío externo; contacta por el medio elegido cuando no exista correo disponible."
+          : "Respuesta guardada, notificada en el panel y registrada en el historial.");
   } catch (error) {
     setFormMessage($("#responseFormMessage"), error.message, true);
     showToast(error.message, "error");

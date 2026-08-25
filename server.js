@@ -3117,6 +3117,19 @@ app.get("/api/public/buyer-requirements", async (_req, res, next) => {
   }
 });
 
+app.get("/api/geocode/suggestions", async (req, res, next) => {
+  try {
+    const queryText = normalizeGeocodeQuery(req.query.query || req.query.address);
+    if (queryText.length < 3) {
+      res.json({ suggestions: [] });
+      return;
+    }
+    res.json({ suggestions: await geocodeAddressSuggestions(queryText) });
+  } catch (error) {
+    next(Object.assign(new Error("No fue posible consultar sugerencias de ubicación."), { status: 502, cause: error }));
+  }
+});
+
 app.get("/api/geocode", async (req, res, next) => {
   try {
     const address = normalizeGeocodeQuery(req.query.address);
@@ -4919,6 +4932,91 @@ async function getCopilotOperationalResult(question, context = {}) {
   return null;
 }
 
+function googleGeocodeSuggestion(result, fallback = "") {
+  if (!result?.geometry?.location) return null;
+  const components = Object.fromEntries(
+    (result.address_components || []).flatMap((component) =>
+      (component.types || []).map((type) => [type, component.long_name])
+    )
+  );
+  return {
+    latitude: Number(result.geometry.location.lat),
+    longitude: Number(result.geometry.location.lng),
+    formattedAddress: String(result.formatted_address || fallback),
+    provider: "google",
+    components: {
+      state: components.administrative_area_level_1 || "",
+      city: components.locality || components.administrative_area_level_2 || "",
+      zone: components.sublocality_level_1 || components.sublocality || "",
+      neighborhood: components.neighborhood || components.sublocality_level_2 || "",
+      postalCode: components.postal_code || "",
+    },
+  };
+}
+
+function openStreetMapGeocodeSuggestion(result, fallback = "") {
+  if (!result) return null;
+  const address = result.address || {};
+  return {
+    latitude: Number(result.lat),
+    longitude: Number(result.lon),
+    formattedAddress: String(result.display_name || fallback),
+    provider: "openstreetmap",
+    components: {
+      state: String(address.state || ""),
+      city: String(address.city || address.town || address.municipality || address.county || ""),
+      zone: String(address.suburb || address.city_district || ""),
+      neighborhood: String(address.neighbourhood || address.quarter || ""),
+      postalCode: String(address.postcode || ""),
+    },
+  };
+}
+
+async function geocodeAddressSuggestions(address) {
+  const queryText = normalizeGeocodeQuery(address);
+  if (queryText.length < 3) return [];
+  const cacheKey = `suggestions:${queryText.toLocaleLowerCase("es-MX")}`;
+  const cached = geocodeCache.get(cacheKey);
+  if (cached && cached.expiresAt > Date.now()) return cached.value;
+
+  let suggestions = [];
+  if (googleMapsApiKey) {
+    const url = new URL("https://maps.googleapis.com/maps/api/geocode/json");
+    url.searchParams.set("address", queryText);
+    url.searchParams.set("region", "mx");
+    url.searchParams.set("language", "es");
+    url.searchParams.set("key", googleMapsApiKey);
+    const response = await fetch(url, { signal: AbortSignal.timeout(10000) });
+    if (!response.ok) throw new Error("Google Geocoding is unavailable");
+    const payload = await response.json();
+    if (payload.status === "OK") suggestions = (payload.results || []).map((result) => googleGeocodeSuggestion(result, queryText));
+  } else {
+    const url = new URL("https://nominatim.openstreetmap.org/search");
+    url.searchParams.set("format", "jsonv2");
+    url.searchParams.set("limit", "6");
+    url.searchParams.set("addressdetails", "1");
+    url.searchParams.set("q", queryText);
+    const response = await fetch(url, {
+      headers: {
+        Accept: "application/json",
+        "Accept-Language": "es-MX,es;q=0.9",
+        "User-Agent": `PuertoCancunCenter/1.0 (${siteUrl})`,
+      },
+      signal: AbortSignal.timeout(10000),
+    });
+    if (!response.ok) throw new Error("OpenStreetMap geocoding is unavailable");
+    suggestions = (await response.json()).map((result) => openStreetMapGeocodeSuggestion(result, queryText));
+  }
+
+  suggestions = suggestions
+    .filter((item) => item && Number.isFinite(item.latitude) && Number.isFinite(item.longitude) && item.formattedAddress)
+    .filter((item, index, all) => all.findIndex((other) => other.formattedAddress === item.formattedAddress) === index)
+    .slice(0, 6);
+  geocodeCache.set(cacheKey, { value: suggestions, expiresAt: Date.now() + 1000 * 60 * 30 });
+  if (geocodeCache.size > 500) geocodeCache.delete(geocodeCache.keys().next().value);
+  return suggestions;
+}
+
 async function reverseGeocodeCoordinates(latitude, longitude) {
   const lat = Number(latitude);
   const lng = Number(longitude);
@@ -6581,17 +6679,37 @@ app.post("/api/admin/messages", requireRole("admin"), async (req, res, next) => 
     }
     let sellerId = null;
     let guestContact = null;
+    let externalRecipient = null;
     if (table === "seller_request") {
-      const ownerResult = await client.query("SELECT seller_id FROM seller_requests WHERE id = $1", [requestId]);
+      const ownerResult = await client.query(
+        `SELECT r.seller_id, COALESCE(NULLIF(r.email, ''), s.email) AS email,
+                COALESCE(NULLIF(r.seller_name, ''), CONCAT_WS(' ', s.first_name, s.last_name)) AS name,
+                r.title
+         FROM seller_requests r
+         LEFT JOIN seller_accounts s ON s.id = r.seller_id
+         WHERE r.id = $1`,
+        [requestId]
+      );
       sellerId = ownerResult.rows[0]?.seller_id || null;
+      externalRecipient = ownerResult.rows[0] || null;
       if (!ownerResult.rows[0]) {
         await client.query("ROLLBACK");
         res.status(404).json({ error: "Solicitud de vendedor no encontrada." });
         return;
       }
     } else if (table === "lead_request") {
-      const ownerResult = await client.query("SELECT payload->>'sellerAccountId' AS seller_id FROM lead_requests WHERE id = $1", [requestId]);
+      const ownerResult = await client.query(
+        `SELECT l.payload->>'sellerAccountId' AS seller_id,
+                COALESCE(NULLIF(l.email, ''), s.email) AS email,
+                COALESCE(NULLIF(l.name, ''), CONCAT_WS(' ', s.first_name, s.last_name)) AS name,
+                l.lead_type AS title
+         FROM lead_requests l
+         LEFT JOIN seller_accounts s ON s.id = l.payload->>'sellerAccountId'
+         WHERE l.id = $1`,
+        [requestId]
+      );
       sellerId = ownerResult.rows[0]?.seller_id || null;
+      externalRecipient = ownerResult.rows[0] || null;
       if (!ownerResult.rows[0]) {
         await client.query("ROLLBACK");
         res.status(404).json({ error: "Asesoría no encontrada." });
@@ -6600,6 +6718,7 @@ app.post("/api/admin/messages", requireRole("admin"), async (req, res, next) => 
     } else {
       const guestResult = await client.query("SELECT preferred_contact, email, phone FROM guest_sale_requests WHERE id = $1", [requestId]);
       guestContact = guestResult.rows[0] || null;
+      externalRecipient = guestContact ? { ...guestContact, name: "Propietario", title: "Solicitud de venta" } : null;
       if (!guestContact) {
         await client.query("ROLLBACK");
         res.status(404).json({ error: "Solicitud sin registro no encontrada." });
@@ -6671,20 +6790,44 @@ app.post("/api/admin/messages", requireRole("admin"), async (req, res, next) => 
       [uuid("activity"), req.session.user.id, table, requestId, JSON.stringify({ status, priority, assignedTo, attachments })]
     );
     await client.query("COMMIT");
+    const delivery = {
+      internal: true,
+      notificationCreated: Boolean(notifyUser && sellerId),
+      emailConfigured: transactionalEmailConfigured(),
+      emailSent: false,
+      emailStatus: notifyUser ? "pending" : "not_requested",
+    };
+    if (notifyUser && isValidEmail(externalRecipient?.email || "")) {
+      if (!transactionalEmailConfigured()) {
+        delivery.emailStatus = "configuration_required";
+      } else {
+        try {
+          const panelUrl = absoluteUrl("/panel", siteUrl);
+          await sendTransactionalEmail({
+            to: externalRecipient.email,
+            subject: `Respuesta sobre ${externalRecipient.title || "tu solicitud inmobiliaria"}`,
+            html: `<h1>Nueva respuesta de Puerto Cancún Center</h1><p>Hola ${escapeHtml(externalRecipient.name || "")}, el equipo respondió tu solicitud.</p><blockquote>${escapeHtml(message)}</blockquote>${sellerId ? `<p><a href="${escapeHtml(panelUrl)}">Abrir mi panel y consultar el historial</a></p>` : ""}<p>Si necesitas ampliar la información, responde por el canal indicado por tu asesor.</p>`,
+          });
+          delivery.emailSent = true;
+          delivery.emailStatus = "sent";
+        } catch (emailError) {
+          delivery.emailStatus = "failed";
+          console.warn("Advisor response email failed:", emailError.code || emailError.message);
+        }
+      }
+    } else if (notifyUser) {
+      delivery.emailStatus = "missing_recipient";
+    }
     res.status(201).json({
       message: result.rows[0],
-      delivery: table === "guest_sale_request"
-        ? {
-            internal: true,
-            emailSent: false,
-            emailConfigured: Boolean(process.env.RESEND_API_KEY),
-            preferredContact: guestContact?.preferred_contact || "",
-            contact: guestContact?.preferred_contact === "email" ? guestContact?.email || "" : guestContact?.phone || "",
-          }
-        : { internal: true, notificationCreated: Boolean(notifyUser && sellerId) },
+      delivery: {
+        ...delivery,
+        preferredContact: guestContact?.preferred_contact || "",
+        contact: guestContact?.preferred_contact === "email" ? guestContact?.email || "" : guestContact?.phone || "",
+      },
     });
   } catch (error) {
-    await client.query("ROLLBACK");
+    await client.query("ROLLBACK").catch(() => null);
     next(error);
   } finally {
     client.release();
@@ -9654,8 +9797,8 @@ async function syncDevelopmentEntity(property, client = pool) {
        available_units, payment_plan_es, payment_plan_en, amenities, construction_progress,
        progress_updated_at, investment_highlights_es, investment_highlights_en)
      VALUES
-      ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13::jsonb, $14,
-       COALESCE($15::timestamptz, CASE WHEN $14 > 0 THEN NOW() ELSE NULL END), $16, $17)
+      ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13::jsonb, $14::numeric,
+       COALESCE($15::timestamptz, CASE WHEN $14::numeric > 0 THEN NOW() ELSE NULL END), $16, $17)
      ON CONFLICT (property_id) DO UPDATE SET
        slug = EXCLUDED.slug,
        name_es = EXCLUDED.name_es,
@@ -10171,6 +10314,7 @@ module.exports = {
   databaseRuntimeState,
   ensureNumericColumn,
   geocodeAddress,
+  geocodeAddressSuggestions,
   initDatabase,
   initializeDatabaseWithRetry,
   installShutdownHandlers,

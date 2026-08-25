@@ -6347,13 +6347,20 @@ button[aria-busy="true"]::before {
 
 .response-modal-backdrop {
   z-index: 1800;
+  display: grid;
+  place-items: center;
   padding: 22px;
   overflow: auto;
+  overscroll-behavior: contain;
 }
 
 .response-modal {
+  display: flex;
+  flex-direction: column;
   width: min(1160px, 96vw);
-  max-height: 92dvh;
+  height: min(880px, calc(100dvh - 44px));
+  max-height: calc(100dvh - 44px);
+  min-height: 0;
   overflow: hidden;
   background: #fff;
   box-shadow: 0 24px 70px rgba(0, 31, 47, 0.32);
@@ -6361,6 +6368,7 @@ button[aria-busy="true"]::before {
 
 .response-modal-header {
   position: relative;
+  flex: 0 0 auto;
   padding: 24px 64px 20px 28px;
   color: #fff;
   background: #00788a;
@@ -6378,14 +6386,24 @@ button[aria-busy="true"]::before {
 
 .response-modal-body {
   display: grid;
+  flex: 1 1 auto;
   grid-template-columns: minmax(300px, 0.85fr) minmax(420px, 1.15fr);
-  max-height: calc(92dvh - 108px);
+  min-height: 0;
+  overflow: hidden;
+}
+
+.response-modal-body > * {
+  min-width: 0;
 }
 
 .request-context-panel,
 .response-form {
+  min-height: 0;
   padding: 24px;
-  overflow: auto;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
 }
 
 .request-context-panel {
@@ -6401,6 +6419,16 @@ button[aria-busy="true"]::before {
   display: grid;
   gap: 15px;
   align-content: start;
+}
+
+.response-form .form-actions {
+  position: sticky;
+  z-index: 3;
+  bottom: 0;
+  margin: 0 -4px;
+  padding: 14px 4px 4px;
+  border-top: 1px solid var(--line);
+  background: #fff;
 }
 
 .response-form > label,
@@ -7369,7 +7397,9 @@ button[aria-busy="true"]::before {
   }
 
   .response-modal-body {
-    overflow: auto;
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior: contain;
   }
 
   .request-context-panel,
@@ -7443,12 +7473,22 @@ button[aria-busy="true"]::before {
 
   .response-modal {
     width: 100vw;
+    height: 100dvh;
     max-height: 100dvh;
     min-height: 100dvh;
   }
 
   .response-modal-body {
-    max-height: calc(100dvh - 108px);
+    max-height: none;
+  }
+
+  .response-modal-header {
+    padding: 18px 56px 16px 18px;
+  }
+
+  .request-context-panel,
+  .response-form {
+    padding: 18px;
   }
 }
 
@@ -8681,6 +8721,79 @@ body[data-page="home"] .hero h1 {
 .map-location-search label {
   display: grid;
   gap: 7px;
+}
+
+.map-search-field,
+.map-search-field .search-input-with-icon {
+  position: relative;
+  min-width: 0;
+}
+
+.map-address-suggestions {
+  position: absolute;
+  z-index: 1200;
+  top: calc(100% + 5px);
+  right: 0;
+  left: 0;
+  max-height: 280px;
+  overflow-x: hidden;
+  overflow-y: auto;
+  border: 1px solid #9bbab8;
+  background: #fff;
+  box-shadow: 0 16px 34px rgba(0, 41, 49, 0.2);
+  overscroll-behavior: contain;
+}
+
+.map-address-suggestion {
+  display: grid;
+  grid-template-columns: 20px minmax(0, 1fr);
+  gap: 10px;
+  width: 100%;
+  min-height: 58px;
+  align-items: start;
+  padding: 11px 13px;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  background: #fff;
+  color: var(--ink);
+  text-align: left;
+}
+
+.map-address-suggestion:last-child {
+  border-bottom: 0;
+}
+
+.map-address-suggestion:hover,
+.map-address-suggestion:focus-visible,
+.map-address-suggestion.is-active {
+  outline: 0;
+  background: #e9f5f3;
+}
+
+.map-address-suggestion svg {
+  width: 18px;
+  height: 18px;
+  margin-top: 2px;
+  color: var(--blue-700);
+}
+
+.map-address-suggestion span,
+.map-address-suggestion strong,
+.map-address-suggestion small {
+  display: block;
+  min-width: 0;
+}
+
+.map-address-suggestion strong {
+  overflow-wrap: anywhere;
+  font-size: 0.84rem;
+  line-height: 1.35;
+}
+
+.map-address-suggestion small {
+  margin-top: 3px;
+  color: var(--muted);
+  font-size: 0.72rem;
 }
 
 .property-card {

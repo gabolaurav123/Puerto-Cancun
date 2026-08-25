@@ -39,7 +39,7 @@ test("aprobar solicitudes con o sin fotos crea un borrador privado de forma tran
   assert.match(app, /data-approve-guest-request/);
 });
 
-test("el catálogo sugiere ubicaciones sin impedir texto libre y el mapa sincroniza ambas direcciones", () => {
+test("el catálogo sugiere ubicaciones en tiempo real sin impedir texto libre y sincroniza el mapa", () => {
   const listingForm = html.match(/<form id="listingForm"[\s\S]+?<\/form>/)?.[0] || "";
   for (const field of ["state", "city", "zone", "neighborhood"]) {
     assert.match(listingForm, new RegExp(`<input name="${field}"[^>]+data-location-select`));
@@ -49,15 +49,23 @@ test("el catálogo sugiere ubicaciones sin impedir texto libre y el mapa sincron
   assert.match(app, /applyGeocodedLocation/);
   assert.match(server, /app\.get\("\/api\/reverse-geocode"/);
   assert.match(server, /async function reverseGeocodeCoordinates/);
+  assert.match(server, /app\.get\("\/api\/geocode\/suggestions"/);
+  assert.match(server, /async function geocodeAddressSuggestions/);
+  assert.match(app, /data-map-search-suggestions/);
+  assert.match(app, /scheduleMapAddressSuggestions/);
+  assert.match(app, /selectMapAddressSuggestion/);
 });
 
-test("las respuestas internas verifican pertenencia y los invitados no reciben éxito falso de email", () => {
+test("las respuestas verifican pertenencia, conservan el aviso interno y reportan el correo real", () => {
   assert.match(server, /allowedTables = new Set\(\["seller_request", "lead_request", "guest_sale_request"\]\)/);
   assert.match(server, /emailSent: false/);
   assert.match(server, /internal: true/);
+  assert.match(server, /sendTransactionalEmail/);
+  assert.match(server, /emailStatus/);
   assert.match(server, /WHERE n\.id = \$1[\s\S]+n\.user_id = \$2/);
   assert.match(app, /Seguimiento guardado\. No se afirmó un envío externo/);
-  assert.match(app, /form\.notifyUser\.disabled = guestRequest/);
+  assert.match(app, /guestCanReceiveEmail/);
+  assert.match(app, /form\.notifyUser\.disabled = guestRequest && !guestCanReceiveEmail/);
 });
 
 test("las fichas usan códigos cortos auditables y mantienen la ruta firmada histórica", () => {
@@ -77,5 +85,8 @@ test("desarrollos empiezan como borrador y las superficies modificadas caben en 
   assert.match(app, /formField\(form, "isPublic"\)\.checked = false/);
   assert.match(styles, /\.admin-mailing-card \.module-split[\s\S]+grid-template-columns: minmax\(0, 1fr\)/);
   assert.match(styles, /\.response-form \.form-actions[\s\S]+position: sticky/);
+  assert.match(styles, /\.response-modal[\s\S]+height: min\(880px, calc\(100dvh - 44px\)\)/);
+  assert.match(styles, /\.request-context-panel,[\s\S]+overscroll-behavior: contain/);
+  assert.match(server, /\$14::numeric,[\s\S]+CASE WHEN \$14::numeric > 0/);
   assert.match(styles, /\.guest-sale-modal,[\s\S]+width: 100vw/);
 });
