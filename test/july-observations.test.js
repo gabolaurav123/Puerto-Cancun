@@ -16,6 +16,8 @@ test("propiedades y desarrollos tienen inventarios y altas independientes", () =
   assert.match(indexSource, /data-admin-section="developments"/);
   assert.match(indexSource, /data-admin-section-link="new-development"/);
   assert.match(appSource, /property\.publicationSection === "developments"/);
+  assert.match(indexSource, /id="adminListings" data-admin-listing-view="properties developments"/);
+  assert.match(indexSource, /class="panel-card-subhead listings-subhead" data-admin-listing-view="properties developments"/);
   assert.match(serverSource, /development_data JSONB NOT NULL DEFAULT '\{\}'::jsonb/);
 });
 
