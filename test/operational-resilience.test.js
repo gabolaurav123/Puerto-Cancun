@@ -36,12 +36,25 @@ test("un borrador local tardío no reemplaza una edición ya abierta", () => {
   const app = read("app.js");
   const restore = app.match(/async function restoreListingDraft\(\)[\s\S]*?\n\}/)?.[0] || "";
   const persistentRead = restore.indexOf("await readPersistentDraft");
-  const editGuard = restore.indexOf('formField(form, "id")?.value');
+  const editGuard = restore.indexOf("listingFormRecordId(form)");
   const dirtyGuard = restore.indexOf('form.dataset.dirty === "true"');
 
   assert.ok(persistentRead > -1, "debe mantenerse la recuperación persistente");
   assert.ok(editGuard > persistentRead, "la recuperación tardía debe respetar una edición abierta");
   assert.ok(dirtyGuard > persistentRead, "la recuperación tardía debe respetar cambios recién escritos");
+});
+
+test("la edición conserva una identidad estable aunque el campo oculto se reinicie", () => {
+  const app = read("app.js");
+  const submit = app.match(/async function listingSubmit\(event\)[\s\S]*?\n\}/)?.[0] || "";
+  const edit = app.match(/function editListing\(id\)[\s\S]*?\n\}/)?.[0] || "";
+  const reset = app.match(/function resetListingForm\(clearDraft = true\)[\s\S]*?\n\}/)?.[0] || "";
+
+  assert.match(app, /function listingFormRecordId\(form = \$\("#listingForm"\)\)/);
+  assert.match(app, /form\.dataset\.editingId/);
+  assert.match(edit, /setListingFormRecordId\(form, property\.id\)/);
+  assert.match(submit, /const id = listingFormRecordId\(form\)/);
+  assert.match(reset, /setListingFormRecordId\(form, ""\)/);
 });
 
 test("el API público nunca expone inventario privado aunque exista una sesión administrativa", () => {

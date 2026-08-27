@@ -80,7 +80,7 @@ test("las fichas usan códigos cortos auditables y mantienen la ruta firmada his
 });
 
 test("desarrollos empiezan como borrador y las superficies modificadas caben en móvil", () => {
-  assert.match(app, /developmentMode && !formField\(form, "id"\)\?\.value/);
+  assert.match(app, /developmentMode && !recordId/);
   assert.match(app, /formField\(form, "status"\)\.value = "draft"/);
   assert.match(app, /formField\(form, "isPublic"\)\.checked = false/);
   assert.match(styles, /\.admin-mailing-card \.module-split[\s\S]+grid-template-columns: minmax\(0, 1fr\)/);

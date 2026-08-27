@@ -1223,6 +1223,21 @@ const state = {
 const $ = (selector) => document.querySelector(selector);
 const $$ = (selector) => Array.from(document.querySelectorAll(selector));
 const formField = (form, name) => form?.elements?.namedItem(name) || form?.querySelector?.(`[name="${name}"]`) || null;
+
+function listingFormRecordId(form = $("#listingForm")) {
+  return String(form?.dataset.editingId || formField(form, "id")?.value || "");
+}
+
+function setListingFormRecordId(form, id = "") {
+  if (!form) return "";
+  const value = String(id || "");
+  const idField = formField(form, "id");
+  if (idField) idField.value = value;
+  if (value) form.dataset.editingId = value;
+  else delete form.dataset.editingId;
+  return value;
+}
+
 const googleMapInstances = new WeakMap();
 let lastScrollY = 0;
 let adminListingSearchTimer = 0;
@@ -7523,7 +7538,8 @@ function configureListingFormMode(section = state.adminSection) {
   const submitButton = $("#listingSubmitButton");
   const resetButton = $("#resetListingForm");
   const deleteButton = $("#deleteListingFromForm");
-  const editing = Boolean(formField(form, "id")?.value);
+  const recordId = listingFormRecordId(form);
+  const editing = Boolean(recordId);
   if (submitButton) {
     const translationKey = developmentMode
       ? editing ? "saveDevelopmentChanges" : "publishDevelopment"
@@ -7539,7 +7555,7 @@ function configureListingFormMode(section = state.adminSection) {
   }
   if (deleteButton) {
     deleteButton.hidden = !editing;
-    deleteButton.dataset.deleteListing = editing ? formField(form, "id").value : "";
+    deleteButton.dataset.deleteListing = editing ? recordId : "";
     const label = deleteButton.querySelector("span");
     if (label) {
       label.textContent = developmentMode
@@ -7547,7 +7563,7 @@ function configureListingFormMode(section = state.adminSection) {
         : state.lang === "en" ? "Delete property" : "Eliminar propiedad";
     }
   }
-  if (developmentMode && !formField(form, "id")?.value) {
+  if (developmentMode && !recordId) {
     formField(form, "status").value = "draft";
     formField(form, "isPublic").checked = false;
   }
@@ -8394,7 +8410,7 @@ async function analyzeBrochure() {
   setFormMessage(message, "Validando el PDF y extrayendo únicamente datos explícitos…");
   try {
     const content = await blobToDataUrl(file);
-    const developmentPropertyId = formField($("#listingForm"), "id")?.value || "";
+    const developmentPropertyId = listingFormRecordId();
     const data = await api("/api/admin/developments/brochures/analyze", {
       method: "POST",
       body: { fileName: file.name, content, developmentPropertyId },
@@ -8489,7 +8505,7 @@ function renderListingImageAnalysis(data) {
 
 async function analyzeListingImages() {
   const form = $("#listingForm");
-  const id = formField(form, "id")?.value;
+  const id = listingFormRecordId(form);
   const button = $("#analyzeListingImages");
   if (!id) {
     setFormMessage($("#listingFormMessage"), "Guarda primero la publicación y su galería antes de analizar fotografías.", true);
@@ -8580,6 +8596,7 @@ function listingDraftSnapshot(form) {
     }
     fields[field.name] = field.type === "checkbox" ? field.checked : field.value;
   });
+  fields.id = listingFormRecordId(form);
   return {
     fields,
     images: safeParseImages(form.dataset.currentImages),
@@ -8619,7 +8636,7 @@ async function restoreListingDraft() {
     // IndexedDB can resolve after the administrator has already opened an
     // existing record or started a fresh form. Never let a late draft replace
     // the entity id or the work now visible on screen.
-    if (formField(form, "id")?.value || form.dataset.dirty === "true") return;
+    if (listingFormRecordId(form) || form.dataset.dirty === "true") return;
     const draft = localDraft || richDraft;
     const sameEntity = richDraft && (!localDraft || (richDraft.fields?.id || "") === (localDraft.fields?.id || ""));
     const sameNewDraft = richDraft && (!localDraft || richDraft.idempotencyKey === localDraft.idempotencyKey);
@@ -8643,6 +8660,7 @@ async function restoreListingDraft() {
       }
       else field.value = value ?? "";
     });
+    setListingFormRecordId(form, source.id || "");
     const sourceProperty = state.properties.find((property) => property.id === source.id);
     const restoredImages = draft.mediaDirty ? (Array.isArray(draft.images) ? draft.images : []) : sourceProperty ? storedImages(sourceProperty) : (draft.images || []);
     form.dataset.currentImages = JSON.stringify(restoredImages);
@@ -8663,7 +8681,7 @@ async function restoreListingDraft() {
 function resetListingForm(clearDraft = true) {
   const form = $("#listingForm");
   form.reset();
-  formField(form, "id").value = "";
+  setListingFormRecordId(form, "");
   form.dataset.currentImages = "[]";
   form.dataset.imageMetadata = "[]";
   form.dataset.removeImage = "false";
@@ -8750,7 +8768,7 @@ function updateListingImagePreview(images) {
   const form = $("#listingForm");
   renderImagePreview($("#listingImagePreview"), images, true, safeParseImageMetadata(form?.dataset.imageMetadata));
   const analyze = $("#analyzeListingImages");
-  if (analyze) analyze.hidden = !formField($("#listingForm"), "id")?.value || !Array.isArray(images) || images.length === 0;
+  if (analyze) analyze.hidden = !listingFormRecordId() || !Array.isArray(images) || images.length === 0;
 }
 
 function setListingImages(images, metadata = null) {
@@ -8762,7 +8780,7 @@ function setListingImages(images, metadata = null) {
   form.dataset.mediaDirty = "true";
   form.dataset.persistentMediaDirty = "true";
   const saveButton = $("#saveListingImages");
-  if (saveButton) saveButton.hidden = !formField(form, "id")?.value;
+  if (saveButton) saveButton.hidden = !listingFormRecordId(form);
   updateListingImagePreview(list);
   saveListingDraft();
 }
@@ -8844,7 +8862,7 @@ function moveListingImage(fromIndex, toIndex) {
 
 async function saveListingImagesOnly() {
   const form = $("#listingForm");
-  const id = formField(form, "id")?.value;
+  const id = listingFormRecordId(form);
   if (!id) {
     setFormMessage($("#listingFormMessage"), "Guarda primero la propiedad para crear su galería.", true);
     return;
@@ -8981,7 +8999,7 @@ async function getFormImagePayload(form) {
 
 async function getListingImagePayload(form) {
   const images = safeParseImages(form.dataset.currentImages);
-  if (formField(form, "id")?.value && form.dataset.mediaDirty !== "true") return { preserveImages: true };
+  if (listingFormRecordId(form) && form.dataset.mediaDirty !== "true") return { preserveImages: true };
   return images.length
     ? { images, imageMetadata: normalizedImageMetadata(form.dataset.imageMetadata, images.length) }
     : { removeImage: true, imageMetadata: [] };
@@ -8993,7 +9011,7 @@ async function listingSubmit(event) {
   const field = (name) => formField(form, name);
   if (form.dataset.saving === "true") return;
   const submit = form.querySelector('[type="submit"]');
-  const id = field("id").value;
+  const id = listingFormRecordId(form);
   const developmentMode = field("publicationSection").value === "developments";
   const message = $("#listingFormMessage");
   setFormMessage(message, "");
@@ -9125,7 +9143,7 @@ async function translateListingToEnglish() {
   try {
     const result = await api("/api/admin/ai/translate-property", {
       method: "POST",
-      body: { title, description, entityType: form.dataset.listingMode === "development" ? "development" : "property", entityId: formField(form, "id")?.value || "" },
+      body: { title, description, entityType: form.dataset.listingMode === "development" ? "development" : "property", entityId: listingFormRecordId(form) },
       timeoutMs: 60000,
     });
     formField(form, "titleEn").value = result.titleEn;
@@ -9147,7 +9165,7 @@ function editListing(id) {
   if (state.adminSection !== editSection) setAdminSection(editSection);
   const form = $("#listingForm");
   const field = (name) => formField(form, name);
-  field("id").value = property.id;
+  setListingFormRecordId(form, property.id);
   field("title").value = property.titleEs || property.title || "";
   field("titleEn").value = property.titleEnStored ?? property.titleEn ?? "";
   field("publicationSection").value = publicationSection;
@@ -9190,6 +9208,7 @@ function editListing(id) {
   field("featured").checked = Boolean(property.featured);
   field("description").value = property.descriptionEs || property.description || "";
   field("descriptionEn").value = property.descriptionEnStored ?? property.descriptionEn ?? "";
+  setListingFormRecordId(form, property.id);
   form.dataset.dirty = "false";
   renderListingKeywordChips();
   updateListingDescriptionCounter();
@@ -9206,7 +9225,7 @@ async function deleteListing(id) {
   if (!(await confirmAction(t("confirmDelete"), title))) return;
   try {
     await api(`/api/admin/properties/${encodeURIComponent(id)}`, { method: "DELETE" });
-    const editingCurrent = formField($("#listingForm"), "id")?.value === id;
+    const editingCurrent = listingFormRecordId() === id;
     if (editingCurrent) {
       resetListingForm(true);
       setAdminSection(developmentMode ? "developments" : "properties");
@@ -10504,7 +10523,7 @@ function bindEvents() {
     form.dataset.mediaDirty = "true";
     form.dataset.persistentMediaDirty = "true";
     const saveButton = $("#saveListingImages");
-    if (saveButton) saveButton.hidden = !formField(form, "id")?.value;
+    if (saveButton) saveButton.hidden = !listingFormRecordId(form);
     saveListingDraft();
   });
 
