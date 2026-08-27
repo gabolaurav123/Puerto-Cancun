@@ -32,6 +32,18 @@ test("las publicaciones se archivan y pueden reactivarse sin pérdida destructiv
   assert.match(html, /id="deleteListingFromForm"/);
 });
 
+test("un borrador local tardío no reemplaza una edición ya abierta", () => {
+  const app = read("app.js");
+  const restore = app.match(/async function restoreListingDraft\(\)[\s\S]*?\n\}/)?.[0] || "";
+  const persistentRead = restore.indexOf("await readPersistentDraft");
+  const editGuard = restore.indexOf('formField(form, "id")?.value');
+  const dirtyGuard = restore.indexOf('form.dataset.dirty === "true"');
+
+  assert.ok(persistentRead > -1, "debe mantenerse la recuperación persistente");
+  assert.ok(editGuard > persistentRead, "la recuperación tardía debe respetar una edición abierta");
+  assert.ok(dirtyGuard > persistentRead, "la recuperación tardía debe respetar cambios recién escritos");
+});
+
 test("el API público nunca expone inventario privado aunque exista una sesión administrativa", () => {
   const source = read("server.js");
   const route = source.match(/app\.get\("\/api\/properties"[\s\S]*?\n\}\);/)?.[0] || "";

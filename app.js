@@ -8616,6 +8616,10 @@ async function restoreListingDraft() {
   try {
     const localDraft = JSON.parse(localStorage.getItem(LISTING_DRAFT_KEY) || "null");
     const richDraft = await readPersistentDraft(LISTING_DRAFT_KEY);
+    // IndexedDB can resolve after the administrator has already opened an
+    // existing record or started a fresh form. Never let a late draft replace
+    // the entity id or the work now visible on screen.
+    if (formField(form, "id")?.value || form.dataset.dirty === "true") return;
     const draft = localDraft || richDraft;
     const sameEntity = richDraft && (!localDraft || (richDraft.fields?.id || "") === (localDraft.fields?.id || ""));
     const sameNewDraft = richDraft && (!localDraft || richDraft.idempotencyKey === localDraft.idempotencyKey);
