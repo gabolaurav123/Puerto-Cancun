@@ -3731,13 +3731,9 @@ app.get("/api/properties", async (req, res, next) => {
       req.session.visited = true;
       await query("UPDATE app_metrics SET visits = visits + 1 WHERE id = 1");
     }
-    const isAdmin = req.session.user?.role === "admin";
-    if (!isAdmin) {
-      res.json({ properties: await getPublicProperties() });
-      return;
-    }
-    const result = await query(`SELECT ${PROPERTY_SUMMARY_COLUMNS} FROM properties p ORDER BY p.created_at DESC`);
-    res.json({ properties: result.rows.map(withPropertyMediaPlaceholders).map(toProperty) });
+    // Public pages must never receive drafts, disabled records or archived inventory,
+    // including when the current browser also has an administrator session.
+    res.json({ properties: await getPublicProperties() });
   } catch (error) {
     next(error);
   }

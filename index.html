@@ -553,21 +553,21 @@
               <p data-i18n="teamCopy">Un solo equipo para revisar inventario, preparar publicaciones, dar seguimiento a solicitudes y coordinar el contacto entre compradores y propietarios.</p>
               <a class="outline-dark-button" href="/contacto" data-i18n="teamCta">Contactar al equipo</a>
             </div>
-            <div class="trust-signal-grid" aria-label="Señales de confianza">
+            <div class="trust-signal-grid" aria-label="Señales de confianza" data-i18n-aria-label="trustSignalsLabel">
               <article>
                 <i data-lucide="badge-check" aria-hidden="true"></i>
-                <h3>Inventario revisado</h3>
-                <p>Precio, moneda, ubicación y disponibilidad se presentan sujetos a verificación documental.</p>
+                <h3 data-i18n="trustInventoryTitle">Inventario revisado</h3>
+                <p data-i18n="trustInventoryCopy">Precio, moneda, ubicación y disponibilidad se presentan sujetos a verificación documental.</p>
               </article>
               <article>
                 <i data-lucide="shield-check" aria-hidden="true"></i>
-                <h3>Datos protegidos</h3>
-                <p>Los formularios explican su finalidad y permiten ejercer derechos de privacidad.</p>
+                <h3 data-i18n="trustPrivacyTitle">Datos protegidos</h3>
+                <p data-i18n="trustPrivacyCopy">Los formularios explican su finalidad y permiten ejercer derechos de privacidad.</p>
               </article>
               <article>
                 <i data-lucide="messages-square" aria-hidden="true"></i>
-                <h3>Atención identificable</h3>
-                <p>Cada solicitud queda registrada para que el equipo pueda dar seguimiento por el canal elegido.</p>
+                <h3 data-i18n="trustTrackingTitle">Atención identificable</h3>
+                <p data-i18n="trustTrackingCopy">Cada solicitud queda registrada para que el equipo pueda dar seguimiento por el canal elegido.</p>
               </article>
             </div>
           </div>
@@ -2464,6 +2464,10 @@
               <div class="form-actions">
                 <button class="primary-button" type="submit" id="listingSubmitButton" data-i18n="saveListing">Guardar publicacion</button>
                 <button class="ghost-button" type="button" id="resetListingForm" data-i18n="newListing">Nueva publicacion</button>
+                <button class="danger-button" type="button" id="deleteListingFromForm" hidden>
+                  <i data-lucide="trash-2"></i>
+                  <span>Eliminar del inventario</span>
+                </button>
               </div>
             </form>
             <aside class="listing-side-panel">
@@ -2817,7 +2821,7 @@
             <legend data-i18n="phone">Telefono</legend>
             <div class="phone-registration-grid">
               <label>
-                <span>Prefijo</span>
+                <span data-i18n="countryPrefix">Prefijo</span>
                 <select name="countryCode" aria-label="Prefijo internacional" required>
                   <option value="+52" selected>Mexico +52</option>
                   <option value="+1">EE. UU. / Canada +1</option>
@@ -2832,7 +2836,7 @@
                 </select>
               </label>
               <label>
-                <span>Numero nacional</span>
+                <span data-i18n="nationalNumber">Número nacional</span>
                 <input name="phone" type="tel" inputmode="tel" autocomplete="tel-national" placeholder="998 216 6563" required />
               </label>
             </div>

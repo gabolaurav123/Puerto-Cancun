@@ -19,11 +19,60 @@ test("el panel conserva los módulos disponibles cuando una API falla", () => {
 
 test("las publicaciones se archivan y pueden reactivarse sin pérdida destructiva", () => {
   const source = read("server.js");
+  const app = read("app.js");
+  const html = read("index.html");
   const archiveRoute = source.match(/app\.delete\("\/api\/admin\/properties\/:id"[\s\S]*?\n\}\);/);
   assert.ok(archiveRoute, "debe existir la ruta administrativa de archivado");
   assert.match(archiveRoute[0], /SET status = 'archived', is_public = FALSE/);
   assert.doesNotMatch(archiveRoute[0], /DELETE FROM properties/);
   assert.match(source, /app\.patch\("\/api\/admin\/properties\/:id\/status"/);
+  assert.match(app, /property\.status === "archived"/);
+  assert.match(app, /Eliminar desarrollo/);
+  assert.match(app, /Eliminar propiedad/);
+  assert.match(html, /id="deleteListingFromForm"/);
+});
+
+test("el API público nunca expone inventario privado aunque exista una sesión administrativa", () => {
+  const source = read("server.js");
+  const route = source.match(/app\.get\("\/api\/properties"[\s\S]*?\n\}\);/)?.[0] || "";
+  assert.match(route, /getPublicProperties\(\)/);
+  assert.doesNotMatch(route, /req\.session\.user/);
+  assert.doesNotMatch(route, /SELECT \$\{PROPERTY_SUMMARY_COLUMNS\} FROM properties p ORDER BY/);
+});
+
+test("el idioma elegido se aplica antes de que terminen las solicitudes públicas", () => {
+  const source = read("app.js");
+  const initStart = source.indexOf("async function init()");
+  const initEnd = source.indexOf("\n}\n\ninit();", initStart);
+  const initSource = source.slice(initStart, initEnd);
+  const immediateTranslation = initSource.indexOf("applyTranslations({ renderPanelContent: false });");
+  const publicLoad = initSource.indexOf("await loadPublicData()");
+
+  assert.ok(immediateTranslation > -1, "la interfaz estática debe traducirse inmediatamente");
+  assert.ok(publicLoad > -1, "la carga de datos públicos debe mantenerse");
+  assert.ok(immediateTranslation < publicLoad, "la traducción no debe esperar a la API pública");
+});
+
+test("la experiencia pública en inglés traduce confianza, legales y controles de catálogo", () => {
+  const app = read("app.js");
+  const html = read("index.html");
+  for (const key of [
+    "trustSignalsLabel",
+    "trustInventoryTitle",
+    "trustPrivacyTitle",
+    "trustTrackingTitle",
+    "privacyNotice",
+    "termsConditions",
+    "cookiePolicy",
+    "saveFavorite",
+    "addComparison",
+  ]) {
+    assert.match(app, new RegExp(`${key}:`), `falta la traducción ${key}`);
+  }
+  assert.match(app, /data-i18n-aria-label/);
+  assert.match(html, /data-i18n-aria-label="trustSignalsLabel"/);
+  assert.match(html, /data-i18n="countryPrefix"/);
+  assert.match(html, /data-i18n="nationalNumber"/);
 });
 
 test("el despliegue expone versión, readiness y recursos con huella", () => {

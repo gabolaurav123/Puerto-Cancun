@@ -193,6 +193,13 @@ const translations = {
     teamKicker: "Asesoría local",
     teamCopy: "Un solo equipo para revisar inventario, preparar publicaciones, dar seguimiento a solicitudes y coordinar el contacto entre compradores y propietarios.",
     teamCta: "Contactar al equipo",
+    trustSignalsLabel: "Señales de confianza",
+    trustInventoryTitle: "Inventario revisado",
+    trustInventoryCopy: "Precio, moneda, ubicación y disponibilidad se presentan sujetos a verificación documental.",
+    trustPrivacyTitle: "Datos protegidos",
+    trustPrivacyCopy: "Los formularios explican su finalidad y permiten ejercer derechos de privacidad.",
+    trustTrackingTitle: "Atención identificable",
+    trustTrackingCopy: "Cada solicitud queda registrada para que el equipo pueda dar seguimiento por el canal elegido.",
     teamRoleSales: "Asesor inmobiliario senior",
     teamRoleListings: "Coordinadora de propiedades",
     teamRoleInvestment: "Consultor de inversión",
@@ -210,6 +217,13 @@ const translations = {
     legalCopy:
       "Cada inmueble conserva la moneda original definida en su publicación, USD o MXN. Cualquier conversión se entrega únicamente como referencia vigente y puede solicitarse a un asesor.",
     rights: "Todos los derechos reservados.",
+    privacyNotice: "Aviso de privacidad",
+    termsConditions: "Términos y condiciones",
+    cookiePolicy: "Política de cookies",
+    saveFavorite: "Guardar favorito",
+    removeFavorite: "Quitar favorito",
+    addComparison: "Agregar a comparación",
+    removeComparison: "Quitar de comparación",
     backToSite: "Volver al sitio",
     logout: "Cerrar sesión",
     sellerRequestTitle: "Enviar solicitud de venta",
@@ -522,7 +536,7 @@ const translations = {
     accountExists: "Ya existe una cuenta con ese correo.",
     accountCreated: "Cuenta creada. Bienvenido al panel de vendedor.",
     listingSaved: "Publicación guardada.",
-    listingDeleted: "Publicación enviada al archivo. Puedes restaurarla marcándola como activa.",
+    listingDeleted: "Registro eliminado del inventario activo. Puedes restaurarlo desde el filtro Archivada.",
     requestApproved: "Solicitud aprobada y publicada.",
     requestRejected: "Solicitud rechazada.",
     leadUpdated: "Solicitud de asesoria actualizada.",
@@ -553,7 +567,8 @@ const translations = {
     priority: "Prioridad",
     edit: "Editar",
     delete: "Borrar",
-    archiveListing: "Archivar",
+    archiveListing: "Eliminar",
+    restoreListing: "Restaurar",
     approve: "Aprobar",
     reject: "Rechazar",
     requestBy: "Solicitud de",
@@ -567,7 +582,7 @@ const translations = {
     mls: "MLS#",
     sellerPanelShort: "Panel vendedor",
     adminPanelShort: "Panel admin",
-    confirmDelete: "Archivar esta publicación? Dejará de ser pública, pero podrás restaurarla.",
+    confirmDelete: "¿Eliminar este registro del inventario activo? Dejará de ser público, pero podrás restaurarlo desde el filtro Archivada.",
     apiError: "No se pudo conectar con la base de datos. Revisa DATABASE_URL y el servidor.",
     partialLoadError: "Algunos datos tardaron en responder. El portal continúa disponible y puedes reintentar.",
   },
@@ -718,6 +733,13 @@ const translations = {
     teamKicker: "Local advisory",
     teamCopy: "One team to review inventory, prepare listings, follow up on requests, and coordinate contact between buyers and property owners.",
     teamCta: "Contact the team",
+    trustSignalsLabel: "Trust signals",
+    trustInventoryTitle: "Reviewed inventory",
+    trustInventoryCopy: "Price, currency, location and availability are presented subject to documentary verification.",
+    trustPrivacyTitle: "Protected data",
+    trustPrivacyCopy: "Forms explain their purpose and provide a way to exercise privacy rights.",
+    trustTrackingTitle: "Traceable service",
+    trustTrackingCopy: "Every request is recorded so the team can follow up through the selected channel.",
     teamRoleSales: "Senior real estate advisor",
     teamRoleListings: "Property coordinator",
     teamRoleInvestment: "Investment consultant",
@@ -734,6 +756,13 @@ const translations = {
     legalCopy:
       "Each property keeps the original currency defined in its listing, USD or MXN. Any conversion is provided only as a current reference and may be requested from an advisor.",
     rights: "All rights reserved.",
+    privacyNotice: "Privacy notice",
+    termsConditions: "Terms and conditions",
+    cookiePolicy: "Cookie policy",
+    saveFavorite: "Save favorite",
+    removeFavorite: "Remove favorite",
+    addComparison: "Add to comparison",
+    removeComparison: "Remove from comparison",
     backToSite: "Back to site",
     logout: "Log out",
     sellerRequestTitle: "Submit sale request",
@@ -1045,7 +1074,7 @@ const translations = {
     accountExists: "An account already exists with that email.",
     accountCreated: "Account created. Welcome to the seller panel.",
     listingSaved: "Listing saved.",
-    listingDeleted: "Listing archived. You can restore it by marking it active.",
+    listingDeleted: "Record removed from active inventory. You can restore it from the Archived filter.",
     requestApproved: "Request approved and published.",
     requestRejected: "Request rejected.",
     leadUpdated: "Advisor request updated.",
@@ -1076,7 +1105,8 @@ const translations = {
     priority: "Priority",
     edit: "Edit",
     delete: "Delete",
-    archiveListing: "Archive",
+    archiveListing: "Delete",
+    restoreListing: "Restore",
     approve: "Approve",
     reject: "Reject",
     requestBy: "Request from",
@@ -1090,7 +1120,7 @@ const translations = {
     mls: "MLS#",
     sellerPanelShort: "Seller panel",
     adminPanelShort: "Admin panel",
-    confirmDelete: "Archive this listing? It will no longer be public, but you can restore it.",
+    confirmDelete: "Remove this record from active inventory? It will no longer be public, but you can restore it from the Archived filter.",
     apiError: "Could not connect to the database. Check DATABASE_URL and the server.",
     partialLoadError: "Some data took too long to respond. The portal remains available and you can retry.",
   },
@@ -2584,6 +2614,10 @@ function renderProperties() {
       ].filter(Boolean);
       const propertyUrl = state.lang === "en" ? property.urlEn : property.urlEs;
       const descriptionSummary = truncateText(localizedDescription(property), 190);
+      const isFavorite = state.favorites.includes(property.id);
+      const isCompared = state.compare.includes(property.id);
+      const favoriteLabel = isFavorite ? t("removeFavorite") : t("saveFavorite");
+      const compareLabel = isCompared ? t("removeComparison") : t("addComparison");
 
       return `
         <article class="property-card" id="property-${escapeHtml(property.id)}">
@@ -2591,8 +2625,8 @@ function renderProperties() {
             <a href="${escapeHtml(propertyUrl || `/propiedades/${property.slug || property.id}`)}" aria-label="${escapeHtml(localizedTitle(property))}"><img src="${escapeHtml(optimizedMediaUrl(primaryImage(property), 640))}" alt="${escapeHtml(localizedTitle(property))}" width="640" height="420" loading="lazy" decoding="async" onerror="this.onerror=null;this.src='${escapeHtml(fallbackImage)}';" /></a>
             <div class="badge-row">${badgeHtml}</div>
             <div class="property-save-actions">
-              <button class="${state.favorites.includes(property.id) ? "active" : ""}" type="button" data-favorite="${escapeHtml(property.id)}" title="Guardar favorito" aria-label="Guardar favorito"><i data-lucide="heart"></i></button>
-              <button class="${state.compare.includes(property.id) ? "active" : ""}" type="button" data-compare="${escapeHtml(property.id)}" title="Comparar" aria-label="Comparar"><i data-lucide="git-compare-arrows"></i></button>
+              <button class="${isFavorite ? "active" : ""}" type="button" data-favorite="${escapeHtml(property.id)}" title="${escapeHtml(favoriteLabel)}" aria-label="${escapeHtml(favoriteLabel)}"><i data-lucide="heart"></i></button>
+              <button class="${isCompared ? "active" : ""}" type="button" data-compare="${escapeHtml(property.id)}" title="${escapeHtml(compareLabel)}" aria-label="${escapeHtml(compareLabel)}"><i data-lucide="git-compare-arrows"></i></button>
             </div>
           </div>
           <div class="property-body">
@@ -4644,6 +4678,7 @@ function renderAdminListings() {
   const filters = state.adminListingFilters;
   const search = normalizeSearchText(filters.search);
   const properties = inventory.filter((property) => {
+    if (!filters.status && property.status === "archived") return false;
     if (filters.type && property.type !== filters.type) return false;
     if (filters.zone && property.zone !== filters.zone) return false;
     if (filters.operation && property.operation !== filters.operation) return false;
@@ -4664,7 +4699,14 @@ function renderAdminListings() {
   const summary = $("#adminListingSummary");
   if (summary) {
     const featured = inventory.filter((property) => property.featured).length;
-    summary.textContent = `${properties.length} ${t("inventoryOf")} ${inventory.length} ${t("adminListingSummary")} · ${featured} ${t("navFeatured")}`;
+    const archived = inventory.filter((property) => property.status === "archived").length;
+    const current = inventory.length - archived;
+    const noun = developmentInventory
+      ? state.lang === "en" ? "developments" : "desarrollos"
+      : state.lang === "en" ? "properties" : "propiedades";
+    summary.textContent = state.lang === "en"
+      ? `${properties.length} shown · ${current} active ${noun} · ${archived} removed · ${featured} featured`
+      : `${properties.length} mostrados · ${current} ${noun} activos · ${archived} eliminados · ${featured} destacados`;
   }
   if (!properties.length) {
     const filtered = search || filters.type || filters.zone || filters.operation || filters.status || filters.quality || filters.missingCover;
@@ -4724,7 +4766,7 @@ function renderAdminListings() {
             }
             <div class="item-actions">
               <button class="mini-button primary" type="button" data-edit-listing="${escapeHtml(property.id)}">${escapeHtml(t("edit"))}</button>
-              <button class="mini-button" type="button" data-status-listing="${escapeHtml(property.id)}" data-status-value="active">${escapeHtml(t("markActive"))}</button>
+              <button class="mini-button" type="button" data-status-listing="${escapeHtml(property.id)}" data-status-value="active">${escapeHtml(property.status === "archived" ? t("restoreListing") : t("markActive"))}</button>
               <button class="mini-button" type="button" data-status-listing="${escapeHtml(property.id)}" data-status-value="disabled">${escapeHtml(t("markDisabled"))}</button>
               <button class="mini-button" type="button" data-status-listing="${escapeHtml(property.id)}" data-status-value="sold">${escapeHtml(t("markSold"))}</button>
               <button class="mini-button" type="button" data-feature-listing="${escapeHtml(property.id)}" data-feature-value="${property.featured ? "false" : "true"}">${escapeHtml(property.featured ? t("removeFeatured") : t("featureListing"))}</button>
@@ -4737,7 +4779,7 @@ function renderAdminListings() {
               <button class="mini-button" type="button" data-review-property-quality="${escapeHtml(property.id)}">${escapeHtml(t("reviewQuality"))}</button>
               <button class="mini-button" type="button" data-verify-property="${escapeHtml(property.id)}">${escapeHtml(t("confirmAvailability"))}</button>
               <button class="mini-button" type="button" data-property-history="${escapeHtml(property.id)}">${escapeHtml(t("listingHistory"))}</button>
-              <button class="mini-button danger" type="button" data-delete-listing="${escapeHtml(property.id)}">${escapeHtml(t("archiveListing"))}</button>
+              ${property.status === "archived" ? "" : `<button class="mini-button danger" type="button" data-delete-listing="${escapeHtml(property.id)}">${escapeHtml(developmentMode ? state.lang === "en" ? "Delete development" : "Eliminar desarrollo" : state.lang === "en" ? "Delete property" : "Eliminar propiedad")}</button>`}
             </div>
           </div>
         </div>
@@ -7480,6 +7522,7 @@ function configureListingFormMode(section = state.adminSection) {
   if (imageLabel) imageLabel.textContent = developmentMode ? "Imágenes generales del desarrollo" : "Imágenes propias de la unidad";
   const submitButton = $("#listingSubmitButton");
   const resetButton = $("#resetListingForm");
+  const deleteButton = $("#deleteListingFromForm");
   const editing = Boolean(formField(form, "id")?.value);
   if (submitButton) {
     const translationKey = developmentMode
@@ -7493,6 +7536,16 @@ function configureListingFormMode(section = state.adminSection) {
     resetButton.disabled = developmentMode;
     resetButton.dataset.i18n = "newListing";
     resetButton.textContent = t("newListing");
+  }
+  if (deleteButton) {
+    deleteButton.hidden = !editing;
+    deleteButton.dataset.deleteListing = editing ? formField(form, "id").value : "";
+    const label = deleteButton.querySelector("span");
+    if (label) {
+      label.textContent = developmentMode
+        ? state.lang === "en" ? "Delete development" : "Eliminar desarrollo"
+        : state.lang === "en" ? "Delete property" : "Eliminar propiedad";
+    }
   }
   if (developmentMode && !formField(form, "id")?.value) {
     formField(form, "status").value = "draft";
@@ -7754,6 +7807,9 @@ function applyTranslations({ renderPanelContent = true } = {}) {
   });
   $$("[data-i18n-placeholder]").forEach((element) => {
     element.setAttribute("placeholder", t(element.dataset.i18nPlaceholder));
+  });
+  $$("[data-i18n-aria-label]").forEach((element) => {
+    element.setAttribute("aria-label", t(element.dataset.i18nAriaLabel));
   });
   $("#languageToggle").textContent = state.lang === "es" ? "English" : "Español";
   const panelLanguageLabel = $("#panelLanguageToggle span");
@@ -8611,6 +8667,11 @@ function resetListingForm(clearDraft = true) {
   form.dataset.contentDirty = "false";
   form.dataset.persistentMediaDirty = "false";
   delete form.dataset.idempotencyKey;
+  const deleteButton = $("#deleteListingFromForm");
+  if (deleteButton) {
+    deleteButton.hidden = true;
+    deleteButton.dataset.deleteListing = "";
+  }
   if (formField(form, "status")) formField(form, "status").value = "active";
   if (formField(form, "isPublic")) formField(form, "isPublic").checked = true;
   if (formField(form, "priceUnit")) formField(form, "priceUnit").value = "total";
@@ -9133,11 +9194,20 @@ function editListing(id) {
 }
 
 async function deleteListing(id) {
-  if (!(await confirmAction(t("confirmDelete"), "Archivar publicación"))) return;
+  const property = state.properties.find((item) => item.id === id);
+  const developmentMode = property?.publicationSection === "developments";
+  const title = state.lang === "en"
+    ? developmentMode ? "Delete development" : "Delete property"
+    : developmentMode ? "Eliminar desarrollo" : "Eliminar propiedad";
+  if (!(await confirmAction(t("confirmDelete"), title))) return;
   try {
     await api(`/api/admin/properties/${encodeURIComponent(id)}`, { method: "DELETE" });
+    const editingCurrent = formField($("#listingForm"), "id")?.value === id;
+    if (editingCurrent) {
+      resetListingForm(true);
+      setAdminSection(developmentMode ? "developments" : "properties");
+    }
     await renderPanel();
-    renderProperties();
     showToast(t("listingDeleted"));
   } catch (error) {
     showToast(error.message, "error");
@@ -10310,6 +10380,10 @@ function bindEvents() {
   });
   $("#resetCatalogForm")?.addEventListener("click", resetCatalogForm);
   $("#resetListingForm").addEventListener("click", () => resetListingForm(true));
+  $("#deleteListingFromForm")?.addEventListener("click", (event) => {
+    const id = event.currentTarget.dataset.deleteListing;
+    if (id) void deleteListing(id);
+  });
   $("#saveListingImages")?.addEventListener("click", saveListingImagesOnly);
   $("#clearListingImage").addEventListener("click", () => {
     const form = $("#listingForm");
@@ -10839,6 +10913,7 @@ async function init() {
   preparePersonalDataForms();
   initializeCookiePreferences();
   bindEvents();
+  applyTranslations({ renderPanelContent: false });
   initializePropertyGallery();
   updateNetworkStatus(navigator.onLine);
   try {
