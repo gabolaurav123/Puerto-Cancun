@@ -57,6 +57,19 @@ test("la edición conserva una identidad estable aunque el campo oculto se reini
   assert.match(reset, /setListingFormRecordId\(form, ""\)/);
 });
 
+test("el modo de desarrollo no depende de un campo oculto que pueda reiniciarse", () => {
+  const app = read("app.js");
+  const submit = app.match(/async function listingSubmit\(event\)[\s\S]*?\n\}/)?.[0] || "";
+  const snapshot = app.match(/function listingDraftSnapshot\(form\)[\s\S]*?\n\}/)?.[0] || "";
+
+  assert.match(app, /function listingFormIsDevelopment\(form = \$\("#listingForm"\)\)/);
+  assert.match(app, /form\?\.dataset\.listingMode/);
+  assert.match(submit, /const developmentMode = listingFormIsDevelopment\(form\)/);
+  assert.match(submit, /field\("publicationSection"\)\.value = developmentMode \? "developments" : "properties"/);
+  assert.match(submit, /publicationSection: developmentMode \? "developments" : "properties"/);
+  assert.match(snapshot, /fields\.publicationSection = listingFormIsDevelopment\(form\) \? "developments" : "properties"/);
+});
+
 test("el API público nunca expone inventario privado aunque exista una sesión administrativa", () => {
   const source = read("server.js");
   const route = source.match(/app\.get\("\/api\/properties"[\s\S]*?\n\}\);/)?.[0] || "";

@@ -1228,6 +1228,12 @@ function listingFormRecordId(form = $("#listingForm")) {
   return String(form?.dataset.editingId || formField(form, "id")?.value || "");
 }
 
+function listingFormIsDevelopment(form = $("#listingForm")) {
+  const mode = form?.dataset.listingMode;
+  if (mode === "development" || mode === "property") return mode === "development";
+  return formField(form, "publicationSection")?.value === "developments";
+}
+
 function setListingFormRecordId(form, id = "") {
   if (!form) return "";
   const value = String(id || "");
@@ -8597,6 +8603,7 @@ function listingDraftSnapshot(form) {
     fields[field.name] = field.type === "checkbox" ? field.checked : field.value;
   });
   fields.id = listingFormRecordId(form);
+  fields.publicationSection = listingFormIsDevelopment(form) ? "developments" : "properties";
   return {
     fields,
     images: safeParseImages(form.dataset.currentImages),
@@ -9012,7 +9019,8 @@ async function listingSubmit(event) {
   if (form.dataset.saving === "true") return;
   const submit = form.querySelector('[type="submit"]');
   const id = listingFormRecordId(form);
-  const developmentMode = field("publicationSection").value === "developments";
+  const developmentMode = listingFormIsDevelopment(form);
+  field("publicationSection").value = developmentMode ? "developments" : "properties";
   const message = $("#listingFormMessage");
   setFormMessage(message, "");
   if (!form.reportValidity()) return;
@@ -9041,7 +9049,7 @@ async function listingSubmit(event) {
   const payload = {
     title: field("title").value.trim(),
     titleEn: field("titleEn").value.trim(),
-    publicationSection: field("publicationSection").value === "developments" ? "developments" : "properties",
+    publicationSection: developmentMode ? "developments" : "properties",
     developmentId: field("developmentId")?.value || "",
     type: field("type").value,
     state: field("state").value,
