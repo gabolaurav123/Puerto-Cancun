@@ -155,6 +155,8 @@ const translations = {
     presaleCopy:
       "Conozca de la mano de nuestros expertos opciones en preventa, con información clara de entrega, plusvalía y esquema de pago.",
     allProperties: "Todas las propiedades",
+    keywordSearchLabel: "Buscar propiedades por palabra clave",
+    keywordSearchPlaceholder: "Título, MLS, zona o palabra clave",
     guidedKicker: "Búsqueda guiada",
     guidedTitle: "Encuentra tu propiedad ideal",
     guidedOperation: "Comprar o rentar",
@@ -695,6 +697,8 @@ const translations = {
     presaleCopy:
       "Review presale opportunities with expert guidance, clear delivery information, appreciation potential, and payment structures.",
     allProperties: "All properties",
+    keywordSearchLabel: "Search properties by keyword",
+    keywordSearchPlaceholder: "Title, MLS, area or keyword",
     guidedKicker: "Guided search",
     guidedTitle: "Find your ideal property",
     guidedOperation: "Buy or rent",
@@ -2412,6 +2416,8 @@ function resetFilters() {
   if (intelligentStatus) intelligentStatus.hidden = true;
   const searchInput = $("#searchInput");
   if (searchInput) searchInput.value = "";
+  const keywordSearch = $("#propertyKeywordSearch");
+  if (keywordSearch) keywordSearch.value = "";
   syncFilterControls();
 }
 
@@ -2422,6 +2428,33 @@ function syncFilterControls() {
   if (type) type.value = state.filters.type || "";
   if (zone) zone.value = state.filters.zone || "";
   if (operation) operation.value = state.filters.operation || "";
+  const keywordSearch = $("#propertyKeywordSearch");
+  if (keywordSearch && keywordSearch.value !== (state.filters.text || "")) keywordSearch.value = state.filters.text || "";
+}
+
+function applyKeywordFilter(value) {
+  state.filters.text = String(value || "").trim();
+  state.intelligentSearch = { active: false, ids: [], interpreted: null, exactMatch: true, message: "" };
+  const intelligentStatus = $("#intelligentSearchStatus");
+  if (intelligentStatus) intelligentStatus.hidden = true;
+  renderProperties();
+}
+
+function filterServerRenderedCategory() {
+  const input = $("#categoryKeywordSearch");
+  if (!input) return;
+  const query = normalizeSearchText(input.value);
+  const cards = $$("[data-category-property]");
+  let count = 0;
+  cards.forEach((card) => {
+    const matches = !query || normalizeSearchText(card.dataset.categorySearch || "").includes(query);
+    card.hidden = !matches;
+    if (matches) count += 1;
+  });
+  const status = $("#categorySearchStatus");
+  if (status) status.textContent = state.lang === "en" ? `${count} available listings` : `${count} propiedades disponibles`;
+  const empty = $("#categorySearchEmpty");
+  if (empty) empty.hidden = count > 0;
 }
 
 function activeFilterLabels() {
@@ -6042,7 +6075,7 @@ async function preparePdfShareDocument() {
 
 async function sharePdfThroughChannel(channel, button) {
   if (button?.dataset.loading === "true") return;
-  const popup = window.open("about:blank", "_blank");
+  const popup = window.open("/compartiendo-ficha", "_blank");
   if (popup) popup.opener = null;
   setButtonLoading(button, true, "Preparando...");
   setFormMessage($("#pdfShareMessage"), "Generando el enlace temporal y preparando la ficha...");
@@ -7787,7 +7820,7 @@ const localizedRoutes = {
   "/propiedades/puerto-cancun": "/en/properties/puerto-cancun",
   "/propiedades/puerto-cancun/casas": "/en/properties/puerto-cancun/homes",
   "/propiedades/puerto-cancun/departamentos": "/en/properties/puerto-cancun/condos",
-  "/propiedades/puerto-cancun/terrenos": "/en/properties/puerto-cancun/land",
+  "/propiedades/terrenos-cancun": "/en/properties/land-cancun",
   "/propiedades/zona-hotelera": "/en/properties/hotel-zone",
   "/propiedades/cancun-centro": "/en/properties/downtown-cancun",
   "/propiedades/playa-mujeres": "/en/properties/playa-mujeres",
@@ -9534,6 +9567,7 @@ function applyElementFilter(element) {
 }
 
 function applyToolbarFilters() {
+  state.filters.text = $("#propertyKeywordSearch")?.value.trim() || "";
   state.filters.type = $("#filterType")?.value || "";
   state.filters.zone = $("#filterZone")?.value || "";
   state.filters.operation = $("#filterOperation")?.value || "";
@@ -9870,6 +9904,9 @@ function bindEvents() {
     form.addEventListener("submit", leadFormSubmit);
   });
   $("#sortSelect").addEventListener("change", renderProperties);
+  $("#propertyKeywordSearch")?.addEventListener("input", (event) => applyKeywordFilter(event.currentTarget.value));
+  $("#categoryKeywordSearch")?.addEventListener("input", filterServerRenderedCategory);
+  filterServerRenderedCategory();
   ["#filterType", "#filterZone", "#filterOperation"].forEach((selector) => {
     $(selector).addEventListener("change", applyToolbarFilters);
   });

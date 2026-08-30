@@ -7,8 +7,11 @@
 - Node: 20
 - Liveness: `/health`
 - Readiness: `/ready`
+- Dominio principal: `PUBLIC_SITE_URL=https://www.puertocancun.center`
+- Dominio exclusivo de fichas: `PUBLIC_SHARE_DOMAIN=https://pic.estate`
 
 `/health` confirma que el proceso responde. `/ready` devuelve `200` solamente cuando PostgreSQL y la inicialización están listos.
+`pic.estate` debe apuntar al mismo servicio, pero el servidor solo permite allí rutas temporales `/f/:code`; cualquier otra ruta responde `404` y queda excluida de indexación.
 
 ## Automatización desde GitHub
 

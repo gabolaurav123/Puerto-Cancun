@@ -22,6 +22,7 @@ NODE_ENV=production
 APP_VERSION=1.0.0
 RELEASE_SHA=commit-del-despliegue
 PUBLIC_SITE_URL=https://www.puertocancun.center
+PUBLIC_SHARE_DOMAIN=https://pic.estate
 SESSION_SECRET=un-secreto-largo-y-aleatorio
 ADMIN_USER=adminprueba
 ADMIN_PASSWORD=tu-password-admin
@@ -40,6 +41,7 @@ PORT=3000
 
 No subas `.env` al repositorio. La conexión PostgreSQL, las claves y la contraseña del administrador deben existir únicamente como variables de entorno.
 `GOOGLE_CLIENT_ID` activa el inicio con Google. `GOOGLE_MAPS_API_KEY` activa Google Maps y su geocodificación; sin esa clave el sistema utiliza el mapa interactivo de OpenStreetMap y geocodificación desde el servidor.
+`PUBLIC_SHARE_DOMAIN` se reserva exclusivamente para enlaces temporales de fichas PDF. La aplicación responde con `404` en la raíz de ese dominio y no muestra ni redirige al portal principal.
 
 ### Despliegue en Seenode
 

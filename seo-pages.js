@@ -797,7 +797,7 @@ const CATEGORY_DEFINITIONS = [
   { path: "/propiedades/puerto-cancun", enPath: "/en/properties/puerto-cancun", h1: "Propiedades en Puerto Cancun", enH1: "Properties in Puerto Cancun", intro: "Inventario activo en Puerto Cancun con opciones residenciales, marina, canales y desarrollos contemporaneos.", enIntro: "Active Puerto Cancun inventory with residential, marina, canal and contemporary development options.", filter: { zone: "Puerto Cancun" } },
   { path: "/propiedades/puerto-cancun/casas", enPath: "/en/properties/puerto-cancun/homes", h1: "Casas en Puerto Cancun", enH1: "Homes in Puerto Cancun", intro: "Casas disponibles en Puerto Cancun con informacion de precio, superficie y contacto directo.", enIntro: "Available homes in Puerto Cancun with pricing, floor area and direct advisor contact.", filter: { zone: "Puerto Cancun", type: "Casa" } },
   { path: "/propiedades/puerto-cancun/departamentos", enPath: "/en/properties/puerto-cancun/condos", h1: "Departamentos en Puerto Cancun", enH1: "Condos in Puerto Cancun", intro: "Departamentos disponibles en Puerto Cancun, desde residencias frente a marina hasta torres con amenidades.", enIntro: "Available Puerto Cancun condos, from marina residences to amenity-rich towers.", filter: { zone: "Puerto Cancun", type: "Departamento" } },
-  { path: "/propiedades/puerto-cancun/terrenos", enPath: "/en/properties/puerto-cancun/land", h1: "Terrenos en Puerto Cancun", enH1: "Land in Puerto Cancun", intro: "Terrenos disponibles para proyectos residenciales o patrimoniales dentro de Puerto Cancun.", enIntro: "Available land for residential or legacy projects in Puerto Cancun.", filter: { zone: "Puerto Cancun", type: "Terreno" } },
+  { path: "/propiedades/terrenos-cancun", enPath: "/en/properties/land-cancun", h1: "Terrenos en Cancun", enH1: "Land in Cancun", intro: "Terrenos disponibles en Cancun y Quintana Roo para proyectos residenciales, comerciales o patrimoniales.", enIntro: "Available land in Cancun and Quintana Roo for residential, commercial or long-term investment projects.", filter: { type: "Terreno" } },
   { path: "/propiedades/zona-hotelera", enPath: "/en/properties/hotel-zone", h1: "Propiedades en Zona Hotelera de Cancun", enH1: "Cancun Hotel Zone properties", intro: "Propiedades frente al Caribe y la Laguna Nichupte con ubicaciones consolidadas de Cancun.", enIntro: "Properties facing the Caribbean and Nichupte Lagoon in established Cancun locations.", filter: { zone: "Zona Hotelera" } },
   { path: "/propiedades/playa-mujeres", enPath: "/en/properties/playa-mujeres", h1: "Propiedades en Playa Mujeres", enH1: "Properties in Playa Mujeres", intro: "Residencias y desarrollos al norte de Cancun en un corredor costero de perfil premium.", enIntro: "Homes and developments north of Cancun in a premium coastal corridor.", filter: { zone: "Punta Sam / Playa Mujeres" } },
   { path: "/propiedades/isla-mujeres", enPath: "/en/properties/isla-mujeres", h1: "Propiedades en Isla Mujeres", enH1: "Properties in Isla Mujeres", intro: "Consulta el inventario disponible en Isla Mujeres y solicita informacion al equipo local.", enIntro: "Browse available Isla Mujeres inventory and request information from the local team.", filter: { zone: "Isla Mujeres" } },
@@ -1109,9 +1109,23 @@ function renderInventoryCards(properties, lang = "es") {
     const imageDescription = localizedImageDescription(property, 0, lang);
     const description = localizedPropertyDescription(property, lang);
     const descriptionSummary = excerptText(description);
+    const searchText = [
+      title,
+      description,
+      property.type,
+      localizedPropertyType(property.type, lang),
+      property.state,
+      property.city,
+      property.zone,
+      property.neighborhood,
+      property.address,
+      property.mapPlace,
+      property.mls,
+      ...(Array.isArray(property.keywords) ? property.keywords : []),
+    ].filter(Boolean).join(" ").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
     const url = propertyPath(property, lang);
     const whatsappUrl = `https://wa.me/5219982166563?text=${encodeURIComponent(`${lang === "en" ? "Hello, I would like information about" : "Hola, quisiera información sobre"}: ${title} ${absoluteUrl(url)}`)}`;
-    return `<article class="seo-property-card">
+    return `<article class="seo-property-card" data-category-property data-category-search="${escapeHtml(searchText)}">
       <a class="seo-property-image" href="${escapeHtml(url)}"><img src="${escapeHtml(image)}" width="640" height="420" loading="lazy" alt="${escapeHtml(imageDescription || title)}" /></a>
       <div>${property.publicationSection === "developments" ? "" : `<p class="seo-property-price">${escapeHtml(formatListingPrice(property, lang))}</p>`}<h2><a href="${escapeHtml(url)}">${escapeHtml(title)}</a></h2><p>${escapeHtml([property.zone, localizedPropertyType(property.type, lang), property.mls ? `MLS# ${property.mls}` : ""].filter(Boolean).join(" · "))}</p><div class="seo-property-description">${escapeHtml(descriptionSummary)}</div><div class="seo-property-actions"><a class="text-link" href="${escapeHtml(url)}">${lang === "en" ? "View property" : "Ver propiedad"}</a><a class="seo-whatsapp-button" href="${escapeHtml(whatsappUrl)}" target="_blank" rel="noopener">${lang === "en" ? "WhatsApp" : "Contactar por WhatsApp"}</a></div></div>
     </article>`;
@@ -1123,7 +1137,8 @@ function renderCategoryPage(page, properties) {
   const developmentMap = page.category?.publicationSection === "developments"
     ? `<section class="development-map-section"><div><p class="section-kicker">${page.lang === "en" ? "Development map" : "Mapa de desarrollos"}</p><h2>${page.lang === "en" ? "Explore active projects by location" : "Explora los proyectos activos por ubicación"}</h2></div><iframe title="${page.lang === "en" ? "Cancun developments map" : "Mapa de desarrollos en Cancún"}" loading="lazy" referrerpolicy="no-referrer-when-downgrade" src="https://www.google.com/maps?q=Cancun%2C%20Quintana%20Roo&output=embed"></iframe></section>`
     : "";
-  return pageShell(page, `<section id="category-inventory" class="category-inventory"><div class="section-heading"><p class="section-kicker">${page.lang === "en" ? "Active inventory" : "Inventario activo"}</p><h2>${page.lang === "en" ? `${visible.length} available listings` : `${visible.length} propiedades disponibles`}</h2></div>${renderInventoryCards(visible, page.lang)}</section>${developmentMap}`);
+  const search = visible.length ? `<div class="category-live-search"><label for="categoryKeywordSearch"><span>${page.lang === "en" ? "Search by keyword" : "Buscar por palabra clave"}</span><span class="category-search-control"><i data-lucide="search" aria-hidden="true"></i><input id="categoryKeywordSearch" type="search" autocomplete="off" placeholder="${page.lang === "en" ? "Title, MLS, area or keyword" : "Título, MLS, zona o palabra clave"}" /></span></label><p id="categorySearchStatus" aria-live="polite">${page.lang === "en" ? `${visible.length} available listings` : `${visible.length} propiedades disponibles`}</p></div><p id="categorySearchEmpty" class="inventory-empty" hidden>${page.lang === "en" ? "No listings match that search." : "No hay publicaciones que coincidan con esa búsqueda."}</p>` : "";
+  return pageShell(page, `<section id="category-inventory" class="category-inventory"><div class="section-heading"><p class="section-kicker">${page.lang === "en" ? "Active inventory" : "Inventario activo"}</p><h2>${page.lang === "en" ? `${visible.length} available listings` : `${visible.length} propiedades disponibles`}</h2></div>${search}${renderInventoryCards(visible, page.lang)}</section>${developmentMap}`);
 }
 
 function propertySchema(property, baseUrl = DEFAULT_SITE_URL, lang = "es") {

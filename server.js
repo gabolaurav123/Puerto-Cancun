@@ -64,7 +64,14 @@ const {
 const app = express();
 const port = Number(process.env.PORT || 3000);
 const siteUrl = process.env.PUBLIC_SITE_URL || process.env.SITE_URL || DEFAULT_SITE_URL;
-const publicShareDomain = String(process.env.PUBLIC_SHARE_DOMAIN || "").trim().replace(/\/+$/, "");
+const publicShareDomain = String(process.env.PUBLIC_SHARE_DOMAIN || "https://pic.estate").trim().replace(/\/+$/, "");
+const publicShareHostname = (() => {
+  try {
+    return new URL(/^https?:\/\//i.test(publicShareDomain) ? publicShareDomain : `https://${publicShareDomain}`).hostname.toLowerCase();
+  } catch (_error) {
+    return "";
+  }
+})();
 const databaseUrl = String(process.env.DATABASE_URL || "").trim();
 const databaseSslMode = String(process.env.DATABASE_SSL || "require").trim().toLowerCase();
 const databasePoolMax = Math.max(1, Math.min(20, Number(process.env.DATABASE_POOL_MAX || 5)));
@@ -1418,19 +1425,19 @@ function propertyWhatsappSheetText(property, shareUrl, { neutral = false } = {})
   const areaFormat = new Intl.NumberFormat("es-MX", { maximumFractionDigits: 2 });
   return [
     neutral
-      ? `🏡 Ficha de propiedad ${property.operation === "rent" ? "en renta" : "en venta"}`
-      : `🏡 Puerto Cancún Center te presenta esta propiedad ${property.operation === "rent" ? "en renta" : "en venta"}`,
+      ? `\u{1F3E1} Ficha de propiedad ${property.operation === "rent" ? "en renta" : "en venta"}`
+      : `\u{1F3E1} Puerto Cancún Center te presenta esta propiedad ${property.operation === "rent" ? "en renta" : "en venta"}`,
     `*${property.titleEs}*`,
-    location ? `📍 ${location}` : "",
-    property.mls ? `🔖 MLS# ${property.mls}` : "",
-    Number.isFinite(Number(amount)) && Number(amount) > 0 ? `💰 ${formatPdfMoney(amount, property.currency)}${unit}` : "💰 Precio a consultar",
-    property.beds ? `🛏️ ${property.beds} recámara${Number(property.beds) === 1 ? "" : "s"}` : "",
-    property.baths ? `🚿 ${property.baths} baño${Number(property.baths) === 1 ? "" : "s"}` : "",
-    property.parking ? `🚗 ${property.parking} estacionamiento${Number(property.parking) === 1 ? "" : "s"}` : "",
-    property.area ? `📐 Construcción: ${areaFormat.format(property.area)} m²` : "",
-    property.lot ? `🌿 Terreno: ${areaFormat.format(property.lot)} m²` : "",
+    location ? `\u{1F4CD} ${location}` : "",
+    property.mls ? `\u{1F516} MLS# ${property.mls}` : "",
+    Number.isFinite(Number(amount)) && Number(amount) > 0 ? `\u{1F4B0} ${formatPdfMoney(amount, property.currency)}${unit}` : "\u{1F4B0} Precio a consultar",
+    property.beds ? `\u{1F6CF}\uFE0F ${property.beds} recámara${Number(property.beds) === 1 ? "" : "s"}` : "",
+    property.baths ? `\u{1F6BF} ${property.baths} baño${Number(property.baths) === 1 ? "" : "s"}` : "",
+    property.parking ? `\u{1F697} ${property.parking} estacionamiento${Number(property.parking) === 1 ? "" : "s"}` : "",
+    property.area ? `\u{1F4D0} Construcción: ${areaFormat.format(property.area)} m²` : "",
+    property.lot ? `\u{1F33F} Terreno: ${areaFormat.format(property.lot)} m²` : "",
     "",
-    `🔗 Consulta la ficha completa: ${shareUrl}`,
+    `\u{1F517} Consulta la ficha completa: ${shareUrl}`,
   ].filter((line) => line !== "").join("\n");
 }
 
@@ -2875,6 +2882,23 @@ app.set("trust proxy", 1);
 app.disable("x-powered-by");
 app.use(requestContext(releaseInfo));
 app.use(securityHeaders());
+app.use((req, res, next) => {
+  const forwardedHost = String(req.get("x-forwarded-host") || req.get("host") || "").split(",")[0].trim();
+  const requestHostname = forwardedHost.replace(/:\d+$/, "").toLowerCase();
+  const isShareHost = publicShareHostname && (
+    requestHostname === publicShareHostname || requestHostname === `www.${publicShareHostname}`
+  );
+  if (!isShareHost) {
+    next();
+    return;
+  }
+  res.setHeader("X-Robots-Tag", "noindex, nofollow, noarchive");
+  if (["GET", "HEAD"].includes(req.method) && /^\/f\/[A-Za-z0-9_-]{8,80}$/.test(req.path)) {
+    next();
+    return;
+  }
+  res.status(404).type("text/plain; charset=utf-8").send("No encontrado.");
+});
 app.use(express.json({ limit: "20mb" }));
 app.use("/assets", express.static(path.join(__dirname, "assets"), { immutable: true, maxAge: "1y" }));
 app.get("/health", (_req, res) => {
@@ -2894,6 +2918,11 @@ app.get("/api/version", (_req, res) => {
     assetVersion: staticAssetVersion,
     ...publicDatabaseState(),
   });
+});
+app.get("/compartiendo-ficha", (_req, res) => {
+  res.setHeader("X-Robots-Tag", "noindex, nofollow, noarchive");
+  res.setHeader("Cache-Control", "no-store");
+  res.type("html").send(`<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Preparando ficha</title><style>body{margin:0;min-height:100vh;display:grid;place-items:center;background:#f4f7f6;color:#003a46;font:16px Arial,sans-serif}.status{width:min(420px,calc(100% - 40px));padding:32px;text-align:center;border-top:3px solid #c99b2e;background:#fff;box-shadow:0 14px 38px rgba(0,58,70,.12)}.spinner{width:34px;height:34px;margin:0 auto 18px;border:3px solid #d7e3e1;border-top-color:#006071;border-radius:50%;animation:spin .8s linear infinite}@keyframes spin{to{transform:rotate(360deg)}}h1{margin:0 0 8px;font:700 26px Georgia,serif}p{margin:0;color:#526b70}</style></head><body><main class="status"><div class="spinner" aria-hidden="true"></div><h1>Preparando ficha</h1><p>La opción para compartir se abrirá en unos segundos.</p></main></body></html>`);
 });
 const sessionMiddleware = session({
   store: new PgSession({
@@ -7011,6 +7040,7 @@ app.post("/api/admin/properties", requireRole("admin"), async (req, res, next) =
       }
     }
     const property = normalizePropertyInput(safeBody, uuid("prop"));
+    await validateParentDevelopment(property, client);
     const result = await client.query(
       `INSERT INTO properties
         (id, title_es, title_en, type, state, city, zone, neighborhood, address, latitude, longitude, map_place, location_precision, google_maps_url, operation,
@@ -7235,6 +7265,7 @@ app.put("/api/admin/properties/:id", requireRole("admin"), async (req, res, next
       ? Array.from({ length: Number(existing.rows[0].image_count || 0) }, (_value, index) => `preserved-media-${index}`)
       : mergeLegacyImages(existing.rows[0].images, existing.rows[0].image);
     const property = normalizePropertyInput(safeBody, req.params.id, existingImages);
+    await validateParentDevelopment(property, client);
     const result = await client.query(
       `UPDATE properties
        SET title_es = $2, title_en = $3, type = $4, state = $5, city = $6, zone = $7, neighborhood = $8, address = $9,
@@ -9903,6 +9934,22 @@ async function syncDevelopmentEntity(property, client = pool) {
   );
 }
 
+async function validateParentDevelopment(property, client = pool) {
+  if (!property.developmentId) return;
+  const result = await client.query(
+    `SELECT d.id
+     FROM developments d
+     JOIN properties p ON p.id = d.property_id
+     WHERE d.id = $1 AND p.publication_section = 'developments'
+     LIMIT 1`,
+    [property.developmentId]
+  );
+  if (result.rows[0]) return;
+  const error = new Error("El desarrollo seleccionado ya no existe. Actualiza la lista y vuelve a elegirlo.");
+  error.status = 400;
+  throw error;
+}
+
 function replaceMetaTag(html, pattern, replacement) {
   return html.replace(pattern, replacement);
 }
@@ -10093,6 +10140,8 @@ const legacyRedirects = {
   "/properties": "/propiedades",
   "/rentals": "/propiedades-en-renta-cancun",
   "/Preguntas": "/faq-inmobiliario-cancun",
+  "/propiedades/puerto-cancun/terrenos": "/propiedades/terrenos-cancun",
+  "/en/properties/puerto-cancun/land": "/en/properties/land-cancun",
 };
 Object.entries(legacyRedirects).forEach(([from, to]) => app.get(from, (_req, res) => res.redirect(301, to)));
 
