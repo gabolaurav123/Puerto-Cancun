@@ -2330,6 +2330,22 @@
                 </select>
                 <small>Las áreas comunes y fotografías generales se tomarán de la ficha del desarrollo. Aquí solo debes subir las fotos de esta unidad.</small>
               </label>
+              <section class="development-property-linker" data-development-property-linker hidden>
+                <div class="admin-module-heading">
+                  <div>
+                    <span class="eyebrow">UNIDADES VINCULADAS</span>
+                    <h3>Propiedades dentro de este desarrollo</h3>
+                    <p>Busca por título, MLS o ubicación y selecciona las publicaciones que deben compartir la información general de este desarrollo.</p>
+                  </div>
+                  <strong id="developmentLinkedPropertyCount">0 vinculadas</strong>
+                </div>
+                <label class="development-property-search" for="developmentPropertySearch">
+                  <span>Buscar propiedades</span>
+                  <span class="search-input-with-icon"><i data-lucide="search"></i><input id="developmentPropertySearch" type="search" autocomplete="off" placeholder="Título, MLS o ubicación" /></span>
+                </label>
+                <div class="development-linked-selection" id="developmentLinkedSelection" aria-live="polite"></div>
+                <div class="development-property-results" id="developmentPropertyResults"></div>
+              </section>
               <label>
                 <span data-i18n="address">Direccion</span>
                 <input name="address" />
@@ -2399,6 +2415,26 @@
                 <div class="image-preview-grid"></div>
                 <small data-i18n="imageGalleryHelp">La primera imagen será la portada. Arrastra las fotos o usa las flechas para cambiar su orden.</small>
               </div>
+              <section class="listing-video-manager">
+                <div class="admin-module-heading">
+                  <div>
+                    <span class="eyebrow">VIDEO OPCIONAL</span>
+                    <h3>Recorrido de la propiedad o desarrollo</h3>
+                    <p>Cuando exista, se mostrará antes de la galería dentro de la ficha pública. No se carga en la portada ni en el inventario.</p>
+                  </div>
+                </div>
+                <label class="file-field">
+                  <span>Subir video</span>
+                  <input name="videoFile" type="file" accept="video/mp4,video/webm" />
+                  <small>MP4 o WEBM, máximo 45 MB. Se recomienda formato horizontal 16:9 y resolución 1080p.</small>
+                </label>
+                <div class="listing-video-preview" id="listingVideoPreview" hidden>
+                  <video controls preload="metadata" playsinline></video>
+                  <div><strong id="listingVideoName">Video seleccionado</strong><span id="listingVideoSize"></span></div>
+                  <button class="ghost-button danger" type="button" id="removeListingVideo"><i data-lucide="trash-2"></i><span>Quitar video</span></button>
+                </div>
+                <p class="form-message" id="listingVideoMessage"></p>
+              </section>
               <section class="image-analysis-panel" id="listingImageAnalysis" hidden>
                 <div class="table-heading"><div><span class="eyebrow">RECOMENDACIONES</span><h3>Análisis de fotografías</h3></div><span>La herramienta no altera ni elimina archivos.</span></div>
                 <div id="listingImageAnalysisSummary"></div>

@@ -165,6 +165,18 @@ CREATE TABLE IF NOT EXISTS developments (
 
 CREATE INDEX IF NOT EXISTS idx_developments_delivery ON developments (delivery_date, stage);
 
+CREATE TABLE IF NOT EXISTS property_videos (
+  property_id TEXT PRIMARY KEY REFERENCES properties(id) ON DELETE CASCADE,
+  content_type TEXT NOT NULL CHECK (content_type IN ('video/mp4', 'video/webm')),
+  filename TEXT NOT NULL DEFAULT 'video',
+  data BYTEA NOT NULL,
+  size_bytes INTEGER NOT NULL CHECK (size_bytes > 0),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_property_videos_updated ON property_videos (updated_at DESC);
+
 CREATE TABLE IF NOT EXISTS location_options (
   id TEXT PRIMARY KEY,
   type TEXT NOT NULL CHECK (type IN ('state', 'city', 'zone', 'neighborhood')),

@@ -19,6 +19,7 @@ const {
   computeLeadScore,
   parseIntelligentSearch,
   propertyMatchesFilters,
+  propertyMatchesQuery,
   rankProperties,
   validateSearchFilters,
 } = require("./intelligence-utils");
@@ -125,6 +126,8 @@ function publicDatabaseState() {
 
 const IMAGE_MAX_BYTES = 240 * 1024;
 const IMAGE_MAX_COUNT = 20;
+const VIDEO_MAX_BYTES = 45 * 1024 * 1024;
+const VIDEO_TYPES = new Set(["video/mp4", "video/webm"]);
 const DESCRIPTION_MAX_LENGTH = 50000;
 const KEYWORD_MAX_COUNT = 40;
 const IMAGE_TYPES = new Set(["image/jpeg", "image/jpg", "image/png", "image/webp"]);
@@ -957,6 +960,10 @@ function toProperty(row) {
     developmentId: row.parent_development_id || "",
     parentDevelopment,
     developmentImages,
+    hasVideo: Boolean(row.video_record),
+    videoUrl: row.video_record ? `/media/properties/${encodeURIComponent(row.id)}/video` : "",
+    videoMimeType: row.video_record?.contentType || "",
+    videoSize: Number(row.video_record?.size || 0),
     sourceRequestId: row.source_request_id,
   };
   property.slug = row.slug || propertySlug(property);
@@ -1517,6 +1524,11 @@ const PROPERTY_SUMMARY_COLUMNS = `
   p.mls, p.featured, p.badges, p.status, p.is_public, p.created_at, p.updated_at, p.published_at,
   p.disabled_at, p.sold_at, p.archived_at, p.description_es, p.description_en, p.source_request_id,
   p.idempotency_key, p.development_data, p.parent_development_id, p.last_verified_at, p.verified_by, p.image_metadata,
+  (SELECT jsonb_build_object(
+    'contentType', v.content_type,
+    'size', v.size_bytes,
+    'updatedAt', v.updated_at
+  ) FROM property_videos v WHERE v.property_id = p.id LIMIT 1) AS video_record,
   (SELECT jsonb_build_object(
     'id', d.id,
     'developer', COALESCE(d.developer, ''),
@@ -2206,6 +2218,18 @@ async function initDatabase() {
         updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
       )
     `);
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS property_videos (
+        property_id TEXT PRIMARY KEY REFERENCES properties(id) ON DELETE CASCADE,
+        content_type TEXT NOT NULL CHECK (content_type IN ('video/mp4', 'video/webm')),
+        filename TEXT NOT NULL DEFAULT 'video',
+        data BYTEA NOT NULL,
+        size_bytes INTEGER NOT NULL CHECK (size_bytes > 0),
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      )
+    `);
+    await client.query("CREATE INDEX IF NOT EXISTS idx_property_videos_updated ON property_videos (updated_at DESC)");
     await client.query("CREATE INDEX IF NOT EXISTS idx_developments_delivery ON developments (delivery_date, stage)");
     await client.query(`
       UPDATE properties
@@ -3193,6 +3217,74 @@ app.get("/api/geocode", async (req, res, next) => {
   }
 });
 
+function validatePropertyVideo(buffer, contentType) {
+  if (!Buffer.isBuffer(buffer) || !buffer.length || buffer.length > VIDEO_MAX_BYTES || !VIDEO_TYPES.has(contentType)) {
+    const error = new Error("El video debe ser MP4 o WEBM y no superar 45 MB.");
+    error.status = 400;
+    throw error;
+  }
+  const validMp4 = contentType === "video/mp4" && buffer.length >= 12 && buffer.subarray(4, 8).toString("ascii") === "ftyp";
+  const validWebm = contentType === "video/webm" && buffer.length >= 4 && buffer.subarray(0, 4).equals(Buffer.from([0x1a, 0x45, 0xdf, 0xa3]));
+  if (!validMp4 && !validWebm) {
+    const error = new Error("El archivo no contiene un video MP4 o WEBM válido.");
+    error.status = 400;
+    throw error;
+  }
+  return buffer;
+}
+
+app.get("/media/properties/:id/video", async (req, res, next) => {
+  try {
+    const result = await query(
+      `SELECT p.id, p.is_public, p.status, v.content_type, v.filename, v.data, v.size_bytes, v.updated_at
+       FROM property_videos v
+       JOIN properties p ON p.id = v.property_id
+       WHERE v.property_id = $1`,
+      [req.params.id]
+    );
+    const video = result.rows[0];
+    const canViewPrivate = req.session.user?.role === "admin";
+    if (!video || (!canViewPrivate && (!video.is_public || !PUBLIC_PROPERTY_STATUSES.has(video.status)))) {
+      res.status(404).end();
+      return;
+    }
+    const data = Buffer.isBuffer(video.data) ? video.data : Buffer.from(video.data || []);
+    const size = data.length;
+    const range = String(req.headers.range || "");
+    let start = 0;
+    let end = Math.max(0, size - 1);
+    let status = 200;
+    if (range) {
+      const match = range.match(/^bytes=(\d*)-(\d*)$/);
+      if (!match) {
+        res.status(416).set("Content-Range", `bytes */${size}`).end();
+        return;
+      }
+      if (match[1]) start = Number(match[1]);
+      if (match[2]) end = Number(match[2]);
+      if (!match[1] && match[2]) start = Math.max(0, size - Number(match[2]));
+      if (!Number.isInteger(start) || !Number.isInteger(end) || start < 0 || end < start || start >= size) {
+        res.status(416).set("Content-Range", `bytes */${size}`).end();
+        return;
+      }
+      end = Math.min(end, size - 1);
+      status = 206;
+    }
+    const body = data.subarray(start, end + 1);
+    res.status(status).set({
+      "Accept-Ranges": "bytes",
+      "Content-Type": video.content_type,
+      "Content-Length": String(body.length),
+      "Cache-Control": "public, max-age=86400, stale-while-revalidate=604800",
+      ETag: `W/\"${video.id}-video-${new Date(video.updated_at || 0).getTime()}-${size}\"`,
+      ...(status === 206 ? { "Content-Range": `bytes ${start}-${end}/${size}` } : {}),
+    });
+    res.send(body);
+  } catch (error) {
+    next(error);
+  }
+});
+
 app.get("/media/properties/:id/:index", async (req, res, next) => {
   try {
     const imageIndex = Number(req.params.index);
@@ -3794,10 +3886,27 @@ app.post("/api/search/intelligent", async (req, res, next) => {
       ? await interpretSearchWithOpenAI(queryText, knownLocations, deterministic)
       : { filters: deterministic, provider: "structured-filters", model: null };
     const filters = mergeExplicitSearchFilters(interpretation.filters, explicitFilters, knownLocations);
-    const exact = rankProperties(properties.filter((property) => propertyMatchesFilters(property, filters)), filters, queryText);
+    const filteredProperties = properties.filter((property) => propertyMatchesFilters(property, filters));
+    const lexicalMatches = queryText
+      ? filteredProperties.filter((property) => propertyMatchesQuery(property, queryText))
+      : filteredProperties;
+    const rankedExact = rankProperties(lexicalMatches, filters, queryText);
+    const matchedDevelopmentIds = new Set(
+      rankedExact
+        .filter((property) => property.publicationSection === "developments")
+        .map((property) => property.developmentData?.id || `dev-${property.id}`)
+    );
+    const linkedUnits = matchedDevelopmentIds.size
+      ? properties.filter((property) => property.publicationSection !== "developments" && matchedDevelopmentIds.has(property.developmentId))
+      : [];
+    const exact = [...rankedExact, ...linkedUnits.filter((property) => !rankedExact.some((candidate) => candidate.id === property.id))].slice(0, 40);
     const alternatives = exact.length
       ? []
-      : rankProperties(properties.filter((property) => propertyMatchesFilters(property, filters, { relaxed: true })), filters, queryText).slice(0, 12);
+      : rankProperties(
+          properties.filter((property) => propertyMatchesFilters(property, filters, { relaxed: true }) && propertyMatchesQuery(property, queryText)),
+          filters,
+          queryText
+        ).slice(0, 12);
     const selected = exact.length ? exact : alternatives;
     const message = exact.length
       ? `Encontramos ${exact.length} ${exact.length === 1 ? "propiedad" : "propiedades"} en el inventario real.`
@@ -7098,6 +7207,7 @@ app.post("/api/admin/properties", requireRole("admin"), async (req, res, next) =
       ]
     );
     await syncDevelopmentEntity(property, client);
+    await syncDevelopmentLinks(property, client);
     const createdRow = await getPropertySummary(result.rows[0].id, client);
     await client.query("COMMIT");
     inTransaction = false;
@@ -7339,6 +7449,7 @@ app.put("/api/admin/properties/:id", requireRole("admin"), async (req, res, next
       return;
     }
     await syncDevelopmentEntity(property, client);
+    await syncDevelopmentLinks(property, client);
     const updatedProperty = toProperty(await getPropertySummary(result.rows[0].id, client));
     const versionSnapshot = { ...(versionSource.rows[0] || {}) };
     delete versionSnapshot.image;
@@ -7405,7 +7516,58 @@ app.patch("/api/admin/properties/:id/images", requireRole("admin"), async (req, 
        VALUES ($1, $2, $3, 'gallery_update', $4::jsonb, $5::jsonb)`,
       [uuid("version"), property.id, req.session.user.id, JSON.stringify({ imageCount: property.images.length }), JSON.stringify({ previousImages: mergeLegacyImages(row.images, row.image).length })]
     );
+    void automaticallyTranslateProperty(property.id).catch((error) => console.warn("Automatic image description translation failed:", error.message));
     res.json({ property });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.put(
+  "/api/admin/properties/:id/video",
+  requireRole("admin"),
+  express.raw({ type: ["video/mp4", "video/webm"], limit: VIDEO_MAX_BYTES }),
+  async (req, res, next) => {
+    try {
+      const contentType = String(req.get("content-type") || "").split(";")[0].trim().toLowerCase();
+      const data = validatePropertyVideo(req.body, contentType);
+      const property = await query("SELECT id FROM properties WHERE id = $1", [req.params.id]);
+      if (!property.rows[0]) {
+        res.status(404).json({ error: "Propiedad o desarrollo no encontrado." });
+        return;
+      }
+      let filename = "video";
+      try {
+        filename = decodeURIComponent(String(req.get("x-file-name") || "video")).replace(/[^a-zA-Z0-9._ -]/g, "").trim().slice(0, 180) || "video";
+      } catch (_error) {
+        filename = "video";
+      }
+      await query(
+        `INSERT INTO property_videos (property_id, content_type, filename, data, size_bytes)
+         VALUES ($1, $2, $3, $4, $5)
+         ON CONFLICT (property_id) DO UPDATE SET
+           content_type = EXCLUDED.content_type,
+           filename = EXCLUDED.filename,
+           data = EXCLUDED.data,
+           size_bytes = EXCLUDED.size_bytes,
+           updated_at = NOW()`,
+        [req.params.id, contentType, filename, data, data.length]
+      );
+      await query("UPDATE properties SET updated_at = NOW() WHERE id = $1", [req.params.id]);
+      invalidatePublicPropertyCache();
+      res.json({ property: toProperty(await getPropertySummary(req.params.id)) });
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
+app.delete("/api/admin/properties/:id/video", requireRole("admin"), async (req, res, next) => {
+  try {
+    await query("DELETE FROM property_videos WHERE property_id = $1", [req.params.id]);
+    await query("UPDATE properties SET updated_at = NOW() WHERE id = $1", [req.params.id]);
+    invalidatePublicPropertyCache();
+    res.json({ property: toProperty(await getPropertySummary(req.params.id)) });
   } catch (error) {
     next(error);
   }
@@ -7472,7 +7634,7 @@ app.patch("/api/admin/properties/:id/featured", requireRole("admin"), async (req
       res.status(404).json({ error: "Property not found" });
       return;
     }
-    const featuredProperty = toProperty(result.rows[0]);
+    const featuredProperty = toProperty(await getPropertySummary(result.rows[0].id));
     invalidatePublicPropertyCache();
     void notifyIndexNow(propertyIndexPaths(featuredProperty));
     res.json({ property: featuredProperty });
@@ -7502,7 +7664,7 @@ app.patch("/api/admin/properties/:id/status", requireRole("admin"), async (req, 
       res.status(404).json({ error: "Property not found" });
       return;
     }
-    const statusProperty = toProperty(result.rows[0]);
+    const statusProperty = toProperty(await getPropertySummary(result.rows[0].id));
     invalidatePublicPropertyCache();
     void notifyIndexNow(propertyIndexPaths(statusProperty));
     void createSavedSearchAlertsForProperty(statusProperty).catch((error) => console.warn("Saved-search alert failed:", error.message));
@@ -9016,10 +9178,67 @@ async function requestAutomaticPropertyTranslation(title, description) {
   return { titleEn, descriptionEn, model };
 }
 
+async function requestAutomaticImageMetadataTranslation(items) {
+  const source = (Array.isArray(items) ? items : [])
+    .map((item) => ({ index: Number(item.index), descriptionEs: String(item.descriptionEs || "").trim().slice(0, 500) }))
+    .filter((item) => Number.isInteger(item.index) && item.index >= 0 && item.descriptionEs);
+  if (!process.env.OPENAI_API_KEY || !source.length) return null;
+  const model = process.env.OPENAI_MODEL || "gpt-5-mini";
+  const response = await fetch("https://api.openai.com/v1/responses", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${process.env.OPENAI_API_KEY}`, "Content-Type": "application/json" },
+    body: JSON.stringify({
+      model,
+      reasoning: { effort: "low" },
+      text: {
+        verbosity: "low",
+        format: {
+          type: "json_schema",
+          name: "image_metadata_translation",
+          strict: true,
+          schema: {
+            type: "object",
+            properties: {
+              translations: {
+                type: "array",
+                items: {
+                  type: "object",
+                  properties: { index: { type: "integer" }, descriptionEn: { type: "string" } },
+                  required: ["index", "descriptionEn"],
+                  additionalProperties: false,
+                },
+              },
+            },
+            required: ["translations"],
+            additionalProperties: false,
+          },
+        },
+      },
+      instructions: `${prompts.translation} Translate each Spanish image description into concise, factual English. Preserve the supplied index. Do not invent visible features.`,
+      input: JSON.stringify({ images: source }),
+      max_output_tokens: 3500,
+      store: false,
+    }),
+    signal: AbortSignal.timeout(45000),
+  });
+  if (!response.ok) throw await createOpenAIResponseError(response, "Traducción de imágenes");
+  const payload = await response.json();
+  const raw = String(payload.output_text || payload.output?.flatMap((item) => item.content || []).find((item) => item.type === "output_text")?.text || "").trim();
+  if (!raw) throw new Error("OpenAI no devolvió las traducciones de las imágenes.");
+  const parsed = JSON.parse(raw.replace(/^```json\s*|\s*```$/gi, ""));
+  const translations = Array.isArray(parsed.translations) ? parsed.translations : [];
+  return {
+    model,
+    translations: translations
+      .map((item) => ({ index: Number(item.index), descriptionEn: String(item.descriptionEn || "").trim().slice(0, 500) }))
+      .filter((item) => Number.isInteger(item.index) && item.index >= 0 && item.descriptionEn),
+  };
+}
+
 async function automaticallyTranslateProperty(propertyId) {
   if (!process.env.OPENAI_API_KEY || !propertyId) return;
   const result = await query(
-    `SELECT id, title_es, title_en, description_es, description_en, publication_section
+    `SELECT id, title_es, title_en, description_es, description_en, publication_section, image_metadata
      FROM properties WHERE id = $1`,
     [propertyId]
   );
@@ -9027,22 +9246,47 @@ async function automaticallyTranslateProperty(propertyId) {
   if (!row) return;
   const needsTitle = !hasDistinctEnglishTranslation(row.title_en, row.title_es);
   const needsDescription = !hasDistinctEnglishTranslation(row.description_en, row.description_es);
-  if (!needsTitle && !needsDescription) return;
-  const translated = await requestAutomaticPropertyTranslation(row.title_es, row.description_es);
-  if (!translated) return;
-  await query(
-    `UPDATE properties
-     SET title_en = CASE
-           WHEN NULLIF(BTRIM(title_en), '') IS NULL OR LOWER(BTRIM(title_en)) = LOWER(BTRIM(title_es)) THEN $2
-           ELSE title_en
-         END,
-         description_en = CASE
-           WHEN NULLIF(BTRIM(description_en), '') IS NULL OR LOWER(BTRIM(description_en)) = LOWER(BTRIM(description_es)) THEN $3
-           ELSE description_en
-         END
-     WHERE id = $1`,
-    [propertyId, translated.titleEn, translated.descriptionEn]
-  );
+  const imageMetadata = normalizeImageMetadata(row.image_metadata, safeJsonArray(row.image_metadata).length);
+  const imageTranslationItems = imageMetadata
+    .map((item, index) => ({ ...item, index }))
+    .filter((item) => item.descriptionEs && !hasDistinctEnglishTranslation(item.descriptionEn, item.descriptionEs));
+  if (!needsTitle && !needsDescription && !imageTranslationItems.length) return;
+  const translationResults = await Promise.allSettled([
+    needsTitle || needsDescription ? requestAutomaticPropertyTranslation(row.title_es, row.description_es) : null,
+    imageTranslationItems.length ? requestAutomaticImageMetadataTranslation(imageTranslationItems) : null,
+  ]);
+  const translated = translationResults[0].status === "fulfilled" ? translationResults[0].value : null;
+  const translatedImages = translationResults[1].status === "fulfilled" ? translationResults[1].value : null;
+  translationResults.forEach((translationResult) => {
+    if (translationResult.status === "rejected") console.warn("Partial automatic translation failed:", translationResult.reason?.message || translationResult.reason);
+  });
+  if (!translated && !translatedImages && translationResults.some((translationResult) => translationResult.status === "rejected")) {
+    throw translationResults.find((translationResult) => translationResult.status === "rejected").reason;
+  }
+  if (translated) {
+    await query(
+      `UPDATE properties
+       SET title_en = CASE
+             WHEN NULLIF(BTRIM(title_en), '') IS NULL OR LOWER(BTRIM(title_en)) = LOWER(BTRIM(title_es)) THEN $2
+             ELSE title_en
+           END,
+           description_en = CASE
+             WHEN NULLIF(BTRIM(description_en), '') IS NULL OR LOWER(BTRIM(description_en)) = LOWER(BTRIM(description_es)) THEN $3
+             ELSE description_en
+           END
+       WHERE id = $1`,
+      [propertyId, translated.titleEn, translated.descriptionEn]
+    );
+  }
+  if (translatedImages?.translations?.length) {
+    translatedImages.translations.forEach((item) => {
+      const metadata = imageMetadata[item.index];
+      if (metadata && metadata.descriptionEs && !hasDistinctEnglishTranslation(metadata.descriptionEn, metadata.descriptionEs)) {
+        metadata.descriptionEn = item.descriptionEn;
+      }
+    });
+    await query("UPDATE properties SET image_metadata = $2::jsonb WHERE id = $1", [propertyId, JSON.stringify(imageMetadata)]);
+  }
   invalidatePublicPropertyCache();
   await logAiOperation({
     operation: "automatic_translation",
@@ -9050,9 +9294,9 @@ async function automaticallyTranslateProperty(propertyId) {
     entityType: row.publication_section === "developments" ? "development" : "property",
     entityId: propertyId,
     provider: "openai",
-    model: translated.model,
+    model: translated?.model || translatedImages?.model || process.env.OPENAI_MODEL || "gpt-5-mini",
     status: "success",
-    metadata: { promptVersion: PROMPT_VERSION, automatic: true },
+    metadata: { promptVersion: PROMPT_VERSION, automatic: true, translatedImageDescriptions: translatedImages?.translations?.length || 0 },
   });
 }
 
@@ -9076,6 +9320,15 @@ async function backfillAutomaticPropertyTranslations() {
           OR NULLIF(BTRIM(description_en), '') IS NULL
           OR LOWER(BTRIM(title_en)) = LOWER(BTRIM(title_es))
           OR LOWER(BTRIM(description_en)) = LOWER(BTRIM(description_es))
+          OR EXISTS (
+            SELECT 1
+            FROM jsonb_array_elements(COALESCE(image_metadata, '[]'::jsonb)) AS metadata
+            WHERE NULLIF(BTRIM(metadata->>'descriptionEs'), '') IS NOT NULL
+              AND (
+                NULLIF(BTRIM(metadata->>'descriptionEn'), '') IS NULL
+                OR LOWER(BTRIM(metadata->>'descriptionEn')) = LOWER(BTRIM(metadata->>'descriptionEs'))
+              )
+          )
        ORDER BY updated_at DESC
        LIMIT 100`
     );
@@ -9828,6 +10081,11 @@ function normalizePropertyInput(body, id, existingImages = []) {
   const developmentId = publicationSection === "properties"
     ? String(body.developmentId || "").trim().slice(0, 180) || null
     : null;
+  const linkedPropertyIds = developmentMode
+    ? [...new Set((Array.isArray(body.linkedPropertyIds) ? body.linkedPropertyIds : [])
+        .map((value) => String(value || "").trim().slice(0, 180))
+        .filter(Boolean))].slice(0, 500)
+    : [];
 
   return {
     id,
@@ -9873,6 +10131,7 @@ function normalizePropertyInput(body, id, existingImages = []) {
     descriptionEn,
     developmentData,
     developmentId,
+    linkedPropertyIds,
   };
 }
 
@@ -9932,6 +10191,42 @@ async function syncDevelopmentEntity(property, client = pool) {
       data.investmentHighlightsEn || null,
     ]
   );
+}
+
+async function syncDevelopmentLinks(property, client = pool) {
+  if (property.publicationSection !== "developments") return;
+  const developmentId = `dev-${property.id}`;
+  const linkedIds = Array.isArray(property.linkedPropertyIds) ? property.linkedPropertyIds : [];
+  if (linkedIds.length) {
+    const valid = await client.query(
+      `SELECT id FROM properties
+       WHERE id = ANY($1::text[])
+         AND publication_section = 'properties'
+         AND status <> 'archived'`,
+      [linkedIds]
+    );
+    if (valid.rows.length !== linkedIds.length) {
+      const error = new Error("Una de las propiedades seleccionadas ya no está disponible. Actualiza la lista y vuelve a intentarlo.");
+      error.status = 400;
+      throw error;
+    }
+  }
+  await client.query(
+    `UPDATE properties
+     SET parent_development_id = NULL, updated_at = NOW()
+     WHERE parent_development_id = $1
+       AND NOT (id = ANY($2::text[]))`,
+    [developmentId, linkedIds]
+  );
+  if (linkedIds.length) {
+    await client.query(
+      `UPDATE properties
+       SET parent_development_id = $1, updated_at = NOW()
+       WHERE id = ANY($2::text[])
+         AND publication_section = 'properties'`,
+      [developmentId, linkedIds]
+    );
+  }
 }
 
 async function validateParentDevelopment(property, client = pool) {
@@ -10234,9 +10529,15 @@ app.get(["/propiedades/:slug", "/en/properties/:slug"], async (req, res, next) =
       return;
     }
     const lang = req.path.startsWith("/en/") ? "en" : "es";
-    const similar = publicProperties
-      .filter((item) => item.id !== property.id && (item.zone === property.zone || item.type === property.type))
-      .sort((a, b) => Number(b.zone === property.zone) - Number(a.zone === property.zone));
+    const developmentMode = property.publicationSection === "developments";
+    const developmentId = property.developmentData?.id || `dev-${property.id}`;
+    const similar = developmentMode
+      ? publicProperties
+          .filter((item) => item.publicationSection !== "developments" && item.developmentId === developmentId)
+          .sort((a, b) => Number(b.featured) - Number(a.featured) || String(a.titleEs || "").localeCompare(String(b.titleEs || ""), "es"))
+      : publicProperties
+          .filter((item) => item.id !== property.id && item.publicationSection !== "developments" && (item.zone === property.zone || item.type === property.type))
+          .sort((a, b) => Number(b.zone === property.zone) - Number(a.zone === property.zone));
     const rendered = renderPropertyPage(property, lang, similar);
     const seo = renderPropertyHead(property, siteUrl, lang);
     res.set("Cache-Control", "public, max-age=0, must-revalidate");

@@ -1,4 +1,4 @@
-const PROPERTY_TYPES = Object.freeze(["Casa", "Departamento", "Terreno", "Comercial", "Preventa"]);
+const PROPERTY_TYPES = Object.freeze(["Casa", "Departamento", "Terreno", "Comercial", "Preventa", "Desarrollo"]);
 const OPERATIONS = Object.freeze(["sale", "rent"]);
 const CURRENCIES = Object.freeze(["USD", "MXN"]);
 const AMENITIES = Object.freeze(["alberca", "marina", "gimnasio", "seguridad", "playa", "coworking", "tenis", "spa"]);
@@ -64,6 +64,7 @@ function parseIntelligentSearch(input, options = {}) {
   else if (/\b(terreno|terrenos|lote|land|lot)\b/.test(text)) filters.propertyType = "Terreno";
   else if (/\b(comercial|local|oficina|commercial|retail|office)\b/.test(text)) filters.propertyType = "Comercial";
   else if (/\b(preventa|preventa|presale|pre-sale)\b/.test(text)) filters.propertyType = "Preventa";
+  else if (/\b(desarrollo|desarrollos|proyecto inmobiliario|real estate development|developments?)\b/.test(text)) filters.propertyType = "Desarrollo";
 
   if (/\b(mxn|pesos?|peso mexicano)\b/.test(text)) filters.currency = "MXN";
   else if (/\b(usd|dolares?|dollars?|us\$)\b/.test(text)) filters.currency = "USD";
@@ -124,7 +125,7 @@ function validateSearchFilters(input = {}, options = {}) {
   };
   return {
     operation: normalizeAllowed(input.operation, OPERATIONS, { venta: "sale", compra: "sale", renta: "rent" }),
-    propertyType: normalizeAllowed(input.propertyType, PROPERTY_TYPES, { apartment: "Departamento", condo: "Departamento", house: "Casa", home: "Casa", land: "Terreno", presale: "Preventa", commercial: "Comercial" }),
+    propertyType: normalizeAllowed(input.propertyType, PROPERTY_TYPES, { apartment: "Departamento", condo: "Departamento", house: "Casa", home: "Casa", land: "Terreno", presale: "Preventa", commercial: "Comercial", development: "Desarrollo", desarrollo: "Desarrollo" }),
     location,
     minPrice: optionalNumber(input.minPrice),
     maxPrice: optionalNumber(input.maxPrice),
@@ -142,8 +143,31 @@ function propertySearchText(property) {
   return fold([
     property.titleEs, property.titleEn, property.descriptionEs, property.descriptionEn,
     property.type, property.zone, property.neighborhood, property.city, property.state,
+    property.operation === "rent" ? "renta rent lease" : "venta sale buy compra",
+    property.mls,
+    property.beds ? `${property.beds} recamaras bedrooms beds` : "",
+    property.baths ? `${property.baths} banos bathrooms baths` : "",
+    property.area ? `${property.area} m2 metros cuadrados square meters` : "",
+    property.lot ? `${property.lot} m2 terreno lot land` : "",
+    property.parentDevelopment?.nameEs,
+    property.parentDevelopment?.nameEn,
+    property.parentDevelopment?.developer,
     ...(property.amenities || []), ...(property.keywords || []),
   ].filter(Boolean).join(" "));
+}
+
+function propertyMatchesQuery(property, query = "") {
+  const ignored = new Set([
+    "busco", "buscar", "quiero", "necesito", "mostrar", "muestrame", "propiedad", "propiedades",
+    "para", "con", "una", "uno", "unos", "unas", "del", "las", "los", "que", "por", "and", "the",
+    "show", "find", "looking", "property", "properties", "real", "estate",
+  ]);
+  const terms = fold(query)
+    .split(/\s+/)
+    .filter((term) => term.length > 2 && !ignored.has(term));
+  if (!terms.length) return true;
+  const text = propertySearchText(property);
+  return terms.some((term) => text.includes(term));
 }
 
 function propertyMatchesFilters(property, filters, { relaxed = false } = {}) {
@@ -205,6 +229,7 @@ module.exports = {
   fold,
   parseIntelligentSearch,
   propertyMatchesFilters,
+  propertyMatchesQuery,
   rankProperties,
   validateSearchFilters,
 };

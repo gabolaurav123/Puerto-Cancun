@@ -1,6 +1,7 @@
 const IMAGE_MAX_BYTES = 240 * 1024;
 const IMAGE_ORIGINAL_MAX_BYTES = 12 * 1024 * 1024;
 const IMAGE_MAX_COUNT = 20;
+const VIDEO_MAX_BYTES = 45 * 1024 * 1024;
 const DESCRIPTION_MAX_LENGTH = 50000;
 const LISTING_DRAFT_KEY = "pcc.admin.listingDraft.v2";
 const SELLER_DRAFT_KEY = "pcc.seller.requestDraft.v1";
@@ -1246,6 +1247,70 @@ function setListingFormRecordId(form, id = "") {
   if (value) form.dataset.editingId = value;
   else delete form.dataset.editingId;
   return value;
+}
+
+function selectedDevelopmentPropertyIds(form = $("#listingForm")) {
+  try {
+    const parsed = JSON.parse(form?.dataset.linkedPropertyIds || "[]");
+    return Array.isArray(parsed) ? [...new Set(parsed.map((id) => String(id || "").trim()).filter(Boolean))] : [];
+  } catch (_error) {
+    return [];
+  }
+}
+
+function setSelectedDevelopmentPropertyIds(ids, form = $("#listingForm")) {
+  if (!form) return [];
+  const values = [...new Set((Array.isArray(ids) ? ids : []).map((id) => String(id || "").trim()).filter(Boolean))];
+  form.dataset.linkedPropertyIds = JSON.stringify(values);
+  return values;
+}
+
+function developmentRecordId(property) {
+  return property?.developmentData?.id || (property?.publicationSection === "developments" ? `dev-${property.id}` : "");
+}
+
+function renderDevelopmentPropertyLinker() {
+  const form = $("#listingForm");
+  const results = $("#developmentPropertyResults");
+  const selection = $("#developmentLinkedSelection");
+  const count = $("#developmentLinkedPropertyCount");
+  if (!form || !results || !selection || !count) return;
+  const selected = selectedDevelopmentPropertyIds(form);
+  const selectedSet = new Set(selected);
+  const query = normalizeSearchText($("#developmentPropertySearch")?.value || "");
+  const currentRecordId = listingFormRecordId(form);
+  const currentDevelopmentId = currentRecordId
+    ? developmentRecordId(state.properties.find((property) => property.id === currentRecordId))
+    : "";
+  const available = state.properties
+    .filter((property) => property.publicationSection !== "developments" && property.status !== "archived")
+    .filter((property) => {
+      if (!query) return true;
+      return normalizeSearchText([
+        property.titleEs, property.titleEn, property.mls, property.zone, property.city, property.address,
+        property.parentDevelopment?.nameEs, property.parentDevelopment?.nameEn,
+      ].filter(Boolean).join(" ")).includes(query);
+    })
+    .sort((a, b) => Number(selectedSet.has(b.id)) - Number(selectedSet.has(a.id)) || String(a.titleEs || "").localeCompare(String(b.titleEs || ""), "es"))
+    .slice(0, 80);
+  const selectedProperties = selected
+    .map((id) => state.properties.find((property) => property.id === id))
+    .filter(Boolean);
+  count.textContent = `${selectedProperties.length} vinculada${selectedProperties.length === 1 ? "" : "s"}`;
+  selection.innerHTML = selectedProperties.length
+    ? selectedProperties.map((property) => `<button type="button" data-unlink-development-property="${escapeHtml(property.id)}"><span>${escapeHtml(property.titleEs)}</span><i data-lucide="x"></i></button>`).join("")
+    : '<p class="empty-state compact">Todavía no hay propiedades vinculadas.</p>';
+  results.innerHTML = available.length
+    ? available.map((property) => {
+        const linkedElsewhere = property.developmentId && property.developmentId !== currentDevelopmentId;
+        const parentName = property.parentDevelopment?.nameEs || "";
+        return `<label class="development-property-option ${selectedSet.has(property.id) ? "is-selected" : ""}">
+          <input type="checkbox" data-link-development-property="${escapeHtml(property.id)}" ${selectedSet.has(property.id) ? "checked" : ""} />
+          <span><strong>${escapeHtml(property.titleEs)}</strong><small>${escapeHtml([property.mls ? `MLS# ${property.mls}` : "", displayLocation(property)].filter(Boolean).join(" · "))}</small>${linkedElsewhere ? `<em>Actualmente vinculada a ${escapeHtml(parentName || "otro desarrollo")}; al guardar se moverá a este desarrollo.</em>` : ""}</span>
+        </label>`;
+      }).join("")
+    : '<p class="empty-state">No se encontraron propiedades con esa búsqueda.</p>';
+  refreshIcons();
 }
 
 const googleMapInstances = new WeakMap();
@@ -2537,7 +2602,12 @@ function renderCategoryPage() {
 function propertyMatches(property) {
   if (property.isPublic === false || !["active", "featured", undefined, null, ""].includes(property.status)) return false;
   const filters = state.filters;
-  if (property.publicationSection === "developments" && filters.type !== "Desarrollo") return false;
+  if (
+    property.publicationSection === "developments"
+    && filters.type !== "Desarrollo"
+    && !state.intelligentSearch.active
+    && !filters.text
+  ) return false;
   if (filters.type && property.type !== filters.type) return false;
   if (filters.zone && property.zone !== filters.zone) return false;
   if (filters.operation && property.operation !== filters.operation) return false;
@@ -2557,6 +2627,10 @@ function propertyMatches(property) {
       property.mapPlace,
       property.type,
       property.mls,
+      property.parentDevelopment?.nameEs,
+      property.parentDevelopment?.nameEn,
+      property.parentDevelopment?.developer,
+      ...(Array.isArray(property.keywords) ? property.keywords : []),
     ]
       .join(" ")
       .toLowerCase();
@@ -7532,8 +7606,10 @@ function configureListingFormMode(section = state.adminSection) {
   form.dataset.listingMode = developmentMode ? "development" : "property";
   formField(form, "publicationSection").value = developmentMode ? "developments" : "properties";
   const developmentLink = form.querySelector("[data-property-development-link]");
+  const developmentPropertyLinker = form.querySelector("[data-development-property-linker]");
   const brochureImporter = form.querySelector("[data-development-brochure]");
   if (developmentLink) developmentLink.hidden = developmentMode;
+  if (developmentPropertyLinker) developmentPropertyLinker.hidden = !developmentMode;
   if (brochureImporter) brochureImporter.hidden = true;
   form.querySelectorAll("[data-property-only]").forEach((container) => {
     container.hidden = developmentMode;
@@ -7606,6 +7682,7 @@ function configureListingFormMode(section = state.adminSection) {
     formField(form, "status").value = "draft";
     formField(form, "isPublic").checked = false;
   }
+  if (developmentMode) renderDevelopmentPropertyLinker();
 }
 
 function setAdminSection(section) {
@@ -8637,6 +8714,7 @@ function listingDraftSnapshot(form) {
   });
   fields.id = listingFormRecordId(form);
   fields.publicationSection = listingFormIsDevelopment(form) ? "developments" : "properties";
+  fields.linkedPropertyIds = selectedDevelopmentPropertyIds(form);
   return {
     fields,
     images: safeParseImages(form.dataset.currentImages),
@@ -8701,6 +8779,7 @@ async function restoreListingDraft() {
       else field.value = value ?? "";
     });
     setListingFormRecordId(form, source.id || "");
+    setSelectedDevelopmentPropertyIds(source.linkedPropertyIds || [], form);
     const sourceProperty = state.properties.find((property) => property.id === source.id);
     const restoredImages = draft.mediaDirty ? (Array.isArray(draft.images) ? draft.images : []) : sourceProperty ? storedImages(sourceProperty) : (draft.images || []);
     form.dataset.currentImages = JSON.stringify(restoredImages);
@@ -8708,6 +8787,7 @@ async function restoreListingDraft() {
     form.dataset.removeImage = restoredImages.length ? "false" : draft.mediaDirty ? "true" : "false";
     form.dataset.mediaDirty = draft.mediaDirty ? "true" : "false";
     updateListingImagePreview(restoredImages);
+    configureListingFormMode(source.publicationSection === "developments" ? "new-development" : "new-property");
     form.dataset.dirty = "true";
     renderListingKeywordChips();
     updateListingDescriptionCounter();
@@ -8728,6 +8808,10 @@ function resetListingForm(clearDraft = true) {
   form.dataset.mediaDirty = "false";
   form.dataset.contentDirty = "false";
   form.dataset.persistentMediaDirty = "false";
+  setSelectedDevelopmentPropertyIds([], form);
+  clearListingVideoObjectUrl(form);
+  form.dataset.removeVideo = "false";
+  delete form.dataset.existingVideoUrl;
   delete form.dataset.idempotencyKey;
   const deleteButton = $("#deleteListingFromForm");
   if (deleteButton) {
@@ -8741,6 +8825,10 @@ function resetListingForm(clearDraft = true) {
   refreshLocationSelects();
   resetMapPickerForForm(form);
   updateListingImagePreview([]);
+  renderListingVideoPreview();
+  if ($("#developmentPropertySearch")) $("#developmentPropertySearch").value = "";
+  if (listingFormIsDevelopment(form)) renderDevelopmentPropertyLinker();
+  setFormMessage($("#listingVideoMessage"), "");
   if ($("#saveListingImages")) $("#saveListingImages").hidden = true;
   if ($("#analyzeListingImages")) $("#analyzeListingImages").hidden = true;
   if ($("#listingImageAnalysis")) $("#listingImageAnalysis").hidden = true;
@@ -8823,6 +8911,68 @@ function setListingImages(images, metadata = null) {
   if (saveButton) saveButton.hidden = !listingFormRecordId(form);
   updateListingImagePreview(list);
   saveListingDraft();
+}
+
+function clearListingVideoObjectUrl(form = $("#listingForm")) {
+  if (!form?.dataset.videoObjectUrl) return;
+  URL.revokeObjectURL(form.dataset.videoObjectUrl);
+  delete form.dataset.videoObjectUrl;
+}
+
+function renderListingVideoPreview({ url = "", name = "", size = 0 } = {}) {
+  const form = $("#listingForm");
+  const preview = $("#listingVideoPreview");
+  const video = preview?.querySelector("video");
+  if (!form || !preview || !video) return;
+  if (!url) {
+    video.removeAttribute("src");
+    video.load();
+    preview.hidden = true;
+    return;
+  }
+  video.src = url;
+  video.poster = primaryImage(state.properties.find((property) => property.id === listingFormRecordId(form)) || {}) || fallbackImage;
+  $("#listingVideoName").textContent = name || "Video publicado";
+  $("#listingVideoSize").textContent = size ? `${(Number(size) / 1024 / 1024).toFixed(1)} MB` : "Disponible en la ficha pública";
+  preview.hidden = false;
+  refreshIcons();
+}
+
+async function ensureCsrfToken() {
+  if (state.csrfToken) return state.csrfToken;
+  const response = await fetch("/api/session", { credentials: "same-origin", cache: "no-store" });
+  const payload = await response.json().catch(() => ({}));
+  state.csrfToken = payload.csrfToken || "";
+  if (payload.user !== undefined) state.session = payload.user;
+  return state.csrfToken;
+}
+
+async function persistListingVideo(propertyId, form = $("#listingForm")) {
+  const input = formField(form, "videoFile");
+  const file = input?.files?.[0] || null;
+  const removeVideo = form?.dataset.removeVideo === "true";
+  if (!file && !removeVideo) return null;
+  if (!file) {
+    return api(`/api/admin/properties/${encodeURIComponent(propertyId)}/video`, { method: "DELETE" });
+  }
+  if (!["video/mp4", "video/webm"].includes(file.type) || file.size <= 0 || file.size > VIDEO_MAX_BYTES) {
+    throw new Error("El video debe ser MP4 o WEBM y no superar 45 MB.");
+  }
+  const csrfToken = await ensureCsrfToken();
+  const response = await fetch(`/api/admin/properties/${encodeURIComponent(propertyId)}/video`, {
+    method: "PUT",
+    credentials: "same-origin",
+    cache: "no-store",
+    headers: {
+      "Content-Type": file.type,
+      "X-CSRF-Token": csrfToken,
+      "X-File-Name": encodeURIComponent(file.name),
+    },
+    body: file,
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(data.error || "No fue posible guardar el video.");
+  return data;
 }
 
 async function instagramPostSubmit(event) {
@@ -9084,6 +9234,7 @@ async function listingSubmit(event) {
     titleEn: field("titleEn").value.trim(),
     publicationSection: developmentMode ? "developments" : "properties",
     developmentId: field("developmentId")?.value || "",
+    linkedPropertyIds: developmentMode ? selectedDevelopmentPropertyIds(form) : [],
     type: field("type").value,
     state: field("state").value,
     city: field("city").value,
@@ -9139,7 +9290,17 @@ async function listingSubmit(event) {
       headers: idempotencyKey ? { "Idempotency-Key": idempotencyKey } : {},
       timeoutMs: 60000,
     });
-    const saved = data.property;
+    let saved = data.property;
+    let videoWarning = "";
+    if (field("videoFile")?.files?.length || form.dataset.removeVideo === "true") {
+      updateFormProgress(submit, 78, "Guardando video", "El video se almacena por separado para mantener ligero el catálogo.");
+      try {
+        const videoResult = await persistListingVideo(saved.id, form);
+        if (videoResult?.property) saved = videoResult.property;
+      } catch (videoError) {
+        videoWarning = ` La publicación se guardó, pero el video no pudo actualizarse: ${videoError.message}`;
+      }
+    }
     updateFormProgress(submit, 92, "Actualizando inventario", "La publicación ya fue guardada; estamos actualizando el panel.");
     savedSection = saved.publicationSection || savedSection;
     const existingIndex = state.properties.findIndex((property) => property.id === saved.id);
@@ -9151,7 +9312,7 @@ async function listingSubmit(event) {
     renderAdminListingFilters();
     renderAdminListings();
     renderProperties();
-    const savedMessage = `${developmentMode ? "Desarrollo" : "Publicación"} guardado correctamente · ${new Date().toLocaleTimeString("es-MX", { hour: "2-digit", minute: "2-digit" })}`;
+    const savedMessage = `${developmentMode ? "Desarrollo" : "Publicación"} guardado correctamente · ${new Date().toLocaleTimeString("es-MX", { hour: "2-digit", minute: "2-digit" })}.${videoWarning}`;
     setFormMessage(message, savedMessage);
     showToast(savedMessage);
     savedSuccessfully = true;
@@ -9211,6 +9372,18 @@ function editListing(id) {
   field("titleEn").value = property.titleEnStored ?? property.titleEn ?? "";
   field("publicationSection").value = publicationSection;
   configureListingFormMode(editSection);
+  if (publicationSection === "developments") {
+    const targetDevelopmentId = developmentRecordId(property);
+    setSelectedDevelopmentPropertyIds(
+      state.properties
+        .filter((candidate) => candidate.publicationSection !== "developments" && candidate.developmentId === targetDevelopmentId)
+        .map((candidate) => candidate.id),
+      form
+    );
+    renderDevelopmentPropertyLinker();
+  } else {
+    setSelectedDevelopmentPropertyIds([], form);
+  }
   field("type").value = property.type;
   if (field("developmentId")) field("developmentId").value = property.developmentId || "";
   setLocationFormValues(form, property);
@@ -9237,6 +9410,12 @@ function editListing(id) {
   form.dataset.contentDirty = "false";
   form.dataset.persistentMediaDirty = "true";
   updateListingImagePreview(storedImages(property));
+  clearListingVideoObjectUrl(form);
+  field("videoFile").value = "";
+  form.dataset.removeVideo = "false";
+  form.dataset.existingVideoUrl = property.videoUrl || "";
+  renderListingVideoPreview(property.videoUrl ? { url: property.videoUrl, name: "Video publicado", size: property.videoSize } : {});
+  setFormMessage($("#listingVideoMessage"), property.videoUrl ? "El video está publicado y aparecerá antes de la galería." : "");
   if ($("#saveListingImages")) $("#saveListingImages").hidden = true;
   field("beds").value = property.beds || "";
   field("baths").value = property.baths || "";
@@ -9280,13 +9459,21 @@ async function deleteListing(id) {
 
 async function updateListingStatus(id, status) {
   try {
-    await api(`/api/admin/properties/${encodeURIComponent(id)}/status`, {
+    const data = await api(`/api/admin/properties/${encodeURIComponent(id)}/status`, {
       method: "PATCH",
       body: { status, isPublic: status === "active" },
     });
-    await renderPanel();
+    const index = state.properties.findIndex((property) => property.id === id);
+    if (index >= 0 && data.property) state.properties.splice(index, 1, data.property);
     renderProperties();
-    showToast(t("listingSaved"));
+    renderAdminListingFilters();
+    renderAdminListings();
+    renderDevelopmentPropertyLinker();
+    showToast(status === "active" ? "Publicación activada y visible en el sitio." : t("listingSaved"));
+    void api("/api/admin/stats").then((stats) => {
+      state.stats = stats;
+      renderStats();
+    }).catch(() => null);
   } catch (error) {
     showToast(error.message, "error");
   }
@@ -9650,6 +9837,7 @@ function renderPropertyDetail(property) {
 
   content.innerHTML = `
     <div class="property-detail-layout">
+      ${property.videoUrl ? `<section class="property-detail-video"><span class="eyebrow">${escapeHtml(state.lang === "en" ? "VIDEO TOUR" : "RECORRIDO EN VIDEO")}</span><video controls playsinline preload="metadata" poster="${escapeHtml(primaryImage(property) || fallbackImage)}"><source src="${escapeHtml(property.videoUrl)}" type="${escapeHtml(property.videoMimeType || "video/mp4")}" /></video></section>` : ""}
       <div class="property-detail-image property-detail-gallery">
         <div class="property-detail-track">${gallery}</div>
         ${galleryImages.length > 1 ? `<span class="gallery-count">1 / ${galleryImages.length}</span>` : ""}
@@ -10458,6 +10646,52 @@ function bindEvents() {
     formField(form, "imageFile").value = "";
     setListingImages([]);
     setFormMessage($("#listingFormMessage"), t("imageRemoved"));
+  });
+  $("#developmentPropertySearch")?.addEventListener("input", renderDevelopmentPropertyLinker);
+  $("#developmentPropertyResults")?.addEventListener("change", (event) => {
+    const checkbox = event.target.closest("[data-link-development-property]");
+    if (!checkbox) return;
+    const selected = new Set(selectedDevelopmentPropertyIds());
+    if (checkbox.checked) selected.add(checkbox.dataset.linkDevelopmentProperty);
+    else selected.delete(checkbox.dataset.linkDevelopmentProperty);
+    setSelectedDevelopmentPropertyIds([...selected]);
+    renderDevelopmentPropertyLinker();
+    saveListingDraft();
+  });
+  $("#developmentLinkedSelection")?.addEventListener("click", (event) => {
+    const button = event.target.closest("[data-unlink-development-property]");
+    if (!button) return;
+    setSelectedDevelopmentPropertyIds(selectedDevelopmentPropertyIds().filter((id) => id !== button.dataset.unlinkDevelopmentProperty));
+    renderDevelopmentPropertyLinker();
+    saveListingDraft();
+  });
+  formField($("#listingForm"), "videoFile")?.addEventListener("change", (event) => {
+    const form = $("#listingForm");
+    const file = event.currentTarget.files?.[0];
+    clearListingVideoObjectUrl(form);
+    if (!file) {
+      renderListingVideoPreview(form.dataset.existingVideoUrl ? { url: form.dataset.existingVideoUrl, name: "Video publicado" } : {});
+      return;
+    }
+    if (!["video/mp4", "video/webm"].includes(file.type) || file.size <= 0 || file.size > VIDEO_MAX_BYTES) {
+      event.currentTarget.value = "";
+      renderListingVideoPreview(form.dataset.existingVideoUrl ? { url: form.dataset.existingVideoUrl, name: "Video publicado" } : {});
+      setFormMessage($("#listingVideoMessage"), "El video debe ser MP4 o WEBM y no superar 45 MB.", true);
+      return;
+    }
+    const objectUrl = URL.createObjectURL(file);
+    form.dataset.videoObjectUrl = objectUrl;
+    form.dataset.removeVideo = "false";
+    renderListingVideoPreview({ url: objectUrl, name: file.name, size: file.size });
+    setFormMessage($("#listingVideoMessage"), "Video listo. Se guardará cuando confirmes la publicación.");
+  });
+  $("#removeListingVideo")?.addEventListener("click", () => {
+    const form = $("#listingForm");
+    clearListingVideoObjectUrl(form);
+    formField(form, "videoFile").value = "";
+    form.dataset.removeVideo = "true";
+    renderListingVideoPreview();
+    setFormMessage($("#listingVideoMessage"), "El video se eliminará cuando guardes los cambios.");
   });
   formField($("#listingForm"), "imageFile").addEventListener("change", async (event) => {
     const files = event.target.files;
