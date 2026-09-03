@@ -379,6 +379,16 @@ CREATE TABLE IF NOT EXISTS buyer_profiles (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+CREATE TABLE IF NOT EXISTS media_folders (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  library_scope TEXT NOT NULL CHECK (library_scope IN ('property', 'development')),
+  created_by TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  UNIQUE (library_scope, name)
+);
+
 CREATE TABLE IF NOT EXISTS media_files (
   id TEXT PRIMARY KEY,
   name TEXT NOT NULL,
@@ -388,6 +398,8 @@ CREATE TABLE IF NOT EXISTS media_files (
   category TEXT NOT NULL DEFAULT 'document',
   related_entity_type TEXT,
   related_entity_id TEXT,
+  library_scope TEXT NOT NULL DEFAULT 'general' CHECK (library_scope IN ('general', 'property', 'development')),
+  folder_id TEXT REFERENCES media_folders(id) ON DELETE SET NULL,
   uploaded_by TEXT,
   metadata JSONB NOT NULL DEFAULT '{}'::jsonb,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
@@ -529,6 +541,9 @@ CREATE TABLE IF NOT EXISTS copilot_responses (
   metadata JSONB NOT NULL DEFAULT '{}'::jsonb,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+
+CREATE INDEX IF NOT EXISTS idx_media_files_library ON media_files (library_scope, folder_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_media_folders_scope ON media_folders (library_scope, updated_at DESC);
 
 CREATE TABLE IF NOT EXISTS document_share_links (
   code TEXT PRIMARY KEY,

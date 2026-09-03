@@ -1156,6 +1156,8 @@ const state = {
   tours: [],
   internalUsers: [],
   files: [],
+  fileFolders: [],
+  scopedLibrary: { scope: "property", folderId: "all" },
   documents: [],
   campaigns: [],
   blogPosts: [],
@@ -5553,6 +5555,7 @@ function renderOperationalModules() {
   renderAdminBlogPosts();
   renderDocuments();
   renderMediaLibrary();
+  renderScopedMediaLibrary();
   renderInternalUsers();
   renderAdminNotifications();
   renderSystemHealth();
@@ -6184,6 +6187,7 @@ function renderMediaLibrary() {
   const search = ($("#mediaSearch")?.value || "").toLowerCase();
   const filter = $("#mediaTypeFilter")?.value || "";
   const files = state.files.filter((file) => {
+    if ((file.libraryScope || "general") !== "general") return false;
     const matchesSearch = !search || `${file.name} ${file.category}`.toLowerCase().includes(search);
     const matchesType =
       !filter ||
@@ -6737,6 +6741,121 @@ async function mediaUploadSubmit(event) {
     setFormMessage($("#mediaFormMessage"), error.message, true);
   } finally {
     setButtonLoading(button, false);
+  }
+}
+
+async function scopedMediaUploadSubmit(event) {
+  event.preventDefault();
+  const form = event.currentTarget;
+  const file = form.file.files[0];
+  if (!file) return;
+  const button = form.querySelector('[type="submit"]');
+  setButtonLoading(button, true, "Subiendo...");
+  setFormMessage($("#scopedMediaFormMessage"), "");
+  try {
+    const content = await fileToDataUrl(file);
+    const scope = currentScopedLibraryScope();
+    const data = await api("/api/admin/files", {
+      method: "POST",
+      body: {
+        name: file.name,
+        content,
+        category: file.type.startsWith("image/") ? "reference_image" : "document",
+        libraryScope: scope,
+        folderId: form.folderId.value,
+        relatedEntityId: form.relatedEntityId.value,
+      },
+    });
+    state.files = [data.file, ...state.files.filter((item) => item.id !== data.file.id)];
+    const folder = state.fileFolders.find((item) => item.id === data.file.folderId);
+    if (folder) folder.fileCount += 1;
+    form.file.value = "";
+    renderScopedMediaLibrary();
+    showToast("Archivo guardado en la biblioteca privada.");
+  } catch (error) {
+    setFormMessage($("#scopedMediaFormMessage"), error.message, true);
+  } finally {
+    setButtonLoading(button, false);
+  }
+}
+
+async function scopedFolderSubmit(event) {
+  event.preventDefault();
+  const form = event.currentTarget;
+  const button = form.querySelector('[type="submit"]');
+  setButtonLoading(button, true, "Creando...");
+  try {
+    const data = await api("/api/admin/file-folders", {
+      method: "POST",
+      body: { name: form.name.value.trim(), scope: currentScopedLibraryScope() },
+    });
+    state.fileFolders.push(data.folder);
+    state.scopedLibrary.folderId = data.folder.id;
+    form.reset();
+    renderScopedMediaLibrary();
+    $("#scopedUploadFolder").value = data.folder.id;
+    showToast("Carpeta creada.");
+  } catch (error) {
+    showToast(error.message, "error");
+  } finally {
+    setButtonLoading(button, false);
+  }
+}
+
+function selectScopedFolder(folderId) {
+  state.scopedLibrary.folderId = folderId || "all";
+  renderScopedMediaLibrary();
+  if (folderId && !["all", "root"].includes(folderId) && $("#scopedUploadFolder")) {
+    $("#scopedUploadFolder").value = folderId;
+  }
+}
+
+async function renameScopedFolder(id) {
+  const folder = state.fileFolders.find((item) => item.id === id);
+  if (!folder) return;
+  const name = window.prompt("Nuevo nombre de la carpeta", folder.name)?.trim();
+  if (!name || name === folder.name) return;
+  try {
+    const data = await api(`/api/admin/file-folders/${encodeURIComponent(id)}`, { method: "PATCH", body: { name } });
+    Object.assign(folder, data.folder);
+    renderScopedMediaLibrary();
+    showToast("Carpeta renombrada.");
+  } catch (error) {
+    showToast(error.message, "error");
+  }
+}
+
+async function deleteScopedFolder(id) {
+  const folder = state.fileFolders.find((item) => item.id === id);
+  if (!folder) return;
+  if (!(await confirmAction(`Se eliminará la carpeta “${folder.name}”.`, "Eliminar carpeta"))) return;
+  try {
+    await api(`/api/admin/file-folders/${encodeURIComponent(id)}`, { method: "DELETE" });
+    state.fileFolders = state.fileFolders.filter((item) => item.id !== id);
+    if (state.scopedLibrary.folderId === id) state.scopedLibrary.folderId = "all";
+    renderScopedMediaLibrary();
+    showToast("Carpeta eliminada.");
+  } catch (error) {
+    showToast(error.message, "error");
+  }
+}
+
+async function moveScopedFile(id, folderId) {
+  const file = state.files.find((item) => item.id === id);
+  if (!file || file.folderId === folderId) return;
+  const previousFolderId = file.folderId;
+  try {
+    const data = await api(`/api/admin/files/${encodeURIComponent(id)}`, { method: "PATCH", body: { folderId } });
+    Object.assign(file, data.file);
+    const previousFolder = state.fileFolders.find((item) => item.id === previousFolderId);
+    const nextFolder = state.fileFolders.find((item) => item.id === file.folderId);
+    if (previousFolder) previousFolder.fileCount = Math.max(0, previousFolder.fileCount - 1);
+    if (nextFolder) nextFolder.fileCount += 1;
+    renderScopedMediaLibrary();
+    showToast("Archivo movido.");
+  } catch (error) {
+    renderScopedMediaLibrary();
+    showToast(error.message, "error");
   }
 }
 
@@ -7317,7 +7436,7 @@ async function loadPanelData() {
       panelApi("/api/admin/analytics"),
       panelApi("/api/admin/buyers"),
       panelApi("/api/admin/users"),
-      panelApi("/api/admin/files"),
+      panelApi("/api/admin/files?scope=general"),
       panelApi("/api/admin/documents"),
       panelApi("/api/admin/campaigns"),
       panelApi("/api/admin/instagram/status"),
@@ -7336,6 +7455,10 @@ async function loadPanelData() {
       panelApi("/api/admin/copilot/feedback-summary"),
       panelApi("/api/admin/tours"),
       panelApi("/api/admin/guest-sale-requests"),
+      panelApi("/api/admin/file-folders?scope=property"),
+      panelApi("/api/admin/file-folders?scope=development"),
+      panelApi("/api/admin/files?scope=property"),
+      panelApi("/api/admin/files?scope=development"),
     ]);
     const adminValue = (index, fallback = {}) => adminResults[index].status === "fulfilled" ? adminResults[index].value : fallback;
     const [
@@ -7369,6 +7492,10 @@ async function loadPanelData() {
       copilotFeedbackData,
       toursData,
       guestSaleRequestsData,
+      propertyFoldersData,
+      developmentFoldersData,
+      propertyFilesData,
+      developmentFilesData,
     ] = adminResults.map((result, index) => adminValue(index));
     if (adminResults[0].status === "fulfilled") state.stats = statsData;
     state.requests = requestsData.requests || state.requests;
@@ -7381,7 +7508,11 @@ async function loadPanelData() {
     if (adminResults[8].status === "fulfilled") state.analytics = analyticsData || state.analytics;
     state.buyers = buyersData.buyers || state.buyers;
     state.internalUsers = usersData.users || state.internalUsers;
-    state.files = filesData.files || state.files;
+    state.files = [
+      ...(filesData.files || state.files.filter((file) => (file.libraryScope || "general") === "general")),
+      ...(propertyFilesData.files || state.files.filter((file) => file.libraryScope === "property")),
+      ...(developmentFilesData.files || state.files.filter((file) => file.libraryScope === "development")),
+    ];
     state.documents = documentsData.documents || state.documents;
     state.campaigns = campaignsData.campaigns || state.campaigns;
     if (adminResults[14].status === "fulfilled") state.instagramStatus = instagramStatusData || state.instagramStatus;
@@ -7400,6 +7531,10 @@ async function loadPanelData() {
     state.copilotFeedbackSummary = copilotFeedbackData.rates ? copilotFeedbackData : state.copilotFeedbackSummary;
     state.tours = toursData.tours || state.tours;
     state.guestSaleRequests = guestSaleRequestsData.requests || state.guestSaleRequests;
+    state.fileFolders = [
+      ...(propertyFoldersData.folders || state.fileFolders.filter((folder) => folder.libraryScope === "property")),
+      ...(developmentFoldersData.folders || state.fileFolders.filter((folder) => folder.libraryScope === "development")),
+    ];
     const failedModules = adminResults.filter((result) => result.status === "rejected").length;
     if (failedModules) showToast(`${failedModules} módulo${failedModules === 1 ? "" : "s"} no respondió. El resto del panel continúa disponible.`, "error");
     state.serviceRequests = [];
@@ -7549,7 +7684,9 @@ function updateAdminShell() {
   $$("[data-admin-section]").forEach((button) => {
     const active = button.dataset.adminSection === section
       || (button.dataset.adminSection === "properties" && section === "new-property")
+      || (button.dataset.adminSection === "properties" && section === "property-files")
       || (button.dataset.adminSection === "developments" && section === "new-development")
+      || (button.dataset.adminSection === "developments" && section === "development-files")
       || (button.dataset.adminSection === "requests" && section === "guest-requests")
       || (button.dataset.adminSection === "contacts" && section === "guest-contacts");
     button.classList.toggle("active", active);
@@ -7704,6 +7841,9 @@ function setAdminSection(section) {
   if (opensListingForm && listingForm) {
     configureListingFormMode(section);
   }
+  if (["property-files", "development-files"].includes(state.adminSection)) {
+    configureScopedLibrary(state.adminSection);
+  }
   if (state.adminSection === "whatsapp") startWhatsappPolling();
   else stopWhatsappPolling();
   updateAdminShell();
@@ -7857,6 +7997,105 @@ async function renderPanel() {
   bindMapPickers();
   if (isAdmin) void restoreListingDraft();
   translatePanelStaticCopy();
+  refreshIcons();
+}
+
+function currentScopedLibraryScope() {
+  return state.adminSection === "development-files" ? "development" : "property";
+}
+
+function scopedLibraryEntities(scope = currentScopedLibraryScope()) {
+  const section = scope === "development" ? "developments" : "properties";
+  return state.properties
+    .filter((property) => property.publicationSection === section)
+    .sort((a, b) => String(a.titleEs || "").localeCompare(String(b.titleEs || ""), "es"));
+}
+
+function configureScopedLibrary(section = state.adminSection) {
+  const scope = section === "development-files" ? "development" : "property";
+  if (state.scopedLibrary.scope !== scope) state.scopedLibrary.folderId = "all";
+  state.scopedLibrary.scope = scope;
+  const developmentMode = scope === "development";
+  const english = state.lang === "en";
+  if ($("#scopedLibraryEyebrow")) $("#scopedLibraryEyebrow").textContent = developmentMode ? english ? "DEVELOPMENTS" : "DESARROLLOS" : english ? "LISTINGS" : "PUBLICACIONES";
+  if ($("#scopedLibraryTitle")) $("#scopedLibraryTitle").textContent = developmentMode ? english ? "Development files" : "Archivos de desarrollos" : english ? "Property files" : "Archivos de propiedades";
+  if ($("#scopedEntityLabel")) $("#scopedEntityLabel").textContent = developmentMode ? english ? "Link to development" : "Asociar a desarrollo" : english ? "Link to property" : "Asociar a propiedad";
+  renderScopedMediaLibrary();
+}
+
+function renderScopedMediaLibrary() {
+  const library = $("#adminScopedFiles");
+  const folderList = $("#scopedFolderList");
+  const folderSelect = $("#scopedUploadFolder");
+  const entitySelect = $("#scopedRelatedEntity");
+  if (!library || !folderList || !folderSelect || !entitySelect) return;
+  const scope = currentScopedLibraryScope();
+  state.scopedLibrary.scope = scope;
+  const folders = state.fileFolders.filter((folder) => folder.libraryScope === scope);
+  const scopedFiles = state.files.filter((file) => file.libraryScope === scope);
+  const english = state.lang === "en";
+  const selectedFolder = state.scopedLibrary.folderId || "all";
+  const folderButton = (id, icon, label, count) => `
+    <div class="folder-strip-item ${selectedFolder === id ? "active" : ""}">
+      <button type="button" data-library-folder="${escapeHtml(id)}"><i data-lucide="${icon}"></i><span>${escapeHtml(label)}</span><b>${count}</b></button>
+    </div>`;
+  folderList.innerHTML = [
+    folderButton("all", "folders", english ? "All" : "Todos", scopedFiles.length),
+    folderButton("root", "folder", english ? "Unfiled" : "Sin carpeta", scopedFiles.filter((file) => !file.folderId).length),
+    ...folders.map((folder) => `
+      <div class="folder-strip-item ${selectedFolder === folder.id ? "active" : ""}">
+        <button type="button" data-library-folder="${escapeHtml(folder.id)}"><i data-lucide="folder"></i><span>${escapeHtml(folder.name)}</span><b>${folder.fileCount}</b></button>
+        <div class="folder-actions">
+          <button type="button" data-rename-media-folder="${escapeHtml(folder.id)}" title="Renombrar carpeta" aria-label="Renombrar ${escapeHtml(folder.name)}"><i data-lucide="pencil"></i></button>
+          <button type="button" data-delete-media-folder="${escapeHtml(folder.id)}" title="Eliminar carpeta" aria-label="Eliminar ${escapeHtml(folder.name)}"><i data-lucide="trash-2"></i></button>
+        </div>
+      </div>`),
+  ].join("");
+  const currentUploadFolder = folderSelect.value;
+  folderSelect.innerHTML = `<option value="">${english ? "Unfiled" : "Sin carpeta"}</option>${folders.map((folder) => `<option value="${escapeHtml(folder.id)}">${escapeHtml(folder.name)}</option>`).join("")}`;
+  if (folders.some((folder) => folder.id === currentUploadFolder)) folderSelect.value = currentUploadFolder;
+  const currentEntity = entitySelect.value;
+  const entities = scopedLibraryEntities(scope);
+  entitySelect.innerHTML = `<option value="">${english ? "No link" : "Sin asociación"}</option>${entities.map((property) => `<option value="${escapeHtml(property.id)}">${escapeHtml(property.mls ? `MLS# ${property.mls} · ` : "")}${escapeHtml((english ? property.titleEn : property.titleEs) || property.titleEs || (english ? "Untitled" : "Sin título"))}</option>`).join("")}`;
+  if (entities.some((property) => property.id === currentEntity)) entitySelect.value = currentEntity;
+  const search = String($("#scopedMediaSearch")?.value || "").trim().toLowerCase();
+  const type = $("#scopedMediaTypeFilter")?.value || "";
+  const visibleFiles = scopedFiles.filter((file) => {
+    const entity = state.properties.find((property) => property.id === file.relatedEntityId);
+    const haystack = `${file.name} ${file.category} ${entity?.titleEs || ""} ${entity?.mls || ""}`.toLowerCase();
+    const inFolder = selectedFolder === "all" || (selectedFolder === "root" ? !file.folderId : file.folderId === selectedFolder);
+    const matchesType = !type
+      || (type === "image" && file.mimeType.startsWith("image/"))
+      || (type === "pdf" && file.mimeType === "application/pdf")
+      || (type === "document" && !file.mimeType.startsWith("image/") && file.mimeType !== "application/pdf");
+    return inFolder && matchesType && (!search || haystack.includes(search));
+  });
+  if ($("#scopedLibraryCount")) $("#scopedLibraryCount").textContent = english
+    ? `${scopedFiles.length} file${scopedFiles.length === 1 ? "" : "s"}`
+    : `${scopedFiles.length} archivo${scopedFiles.length === 1 ? "" : "s"}`;
+  library.innerHTML = visibleFiles.length
+    ? visibleFiles.map((file) => {
+        const entity = state.properties.find((property) => property.id === file.relatedEntityId);
+        const icon = file.mimeType === "application/pdf" ? "file-text" : "file";
+        return `
+          <article class="media-card scoped-media-card">
+            <div class="media-card-preview">
+              ${file.mimeType.startsWith("image/") ? `<img src="/api/admin/files/${encodeURIComponent(file.id)}/download?inline=1" alt="${escapeHtml(file.name)}" loading="lazy" />` : `<i data-lucide="${icon}"></i>`}
+            </div>
+            <div class="media-card-body">
+              <strong title="${escapeHtml(file.name)}">${escapeHtml(file.name)}</strong>
+              <span>${escapeHtml(Math.max(1, Math.round(file.sizeBytes / 1024)))} KB · ${escapeHtml(formatDate(file.createdAt))}</span>
+              <span title="${escapeHtml(entity?.titleEs || (english ? "No link" : "Sin asociación"))}">${escapeHtml(entity ? `${entity.mls ? `MLS# ${entity.mls} · ` : ""}${(english ? entity.titleEn : entity.titleEs) || entity.titleEs}` : english ? "No link" : "Sin asociación")}</span>
+              <label class="media-folder-select"><span>${english ? "Folder" : "Carpeta"}</span><select data-move-library-file="${escapeHtml(file.id)}"><option value="">${english ? "Unfiled" : "Sin carpeta"}</option>${folders.map((folder) => `<option value="${escapeHtml(folder.id)}" ${file.folderId === folder.id ? "selected" : ""}>${escapeHtml(folder.name)}</option>`).join("")}</select></label>
+              <div class="item-actions">
+                <a class="mini-button" href="/api/admin/files/${encodeURIComponent(file.id)}/download?inline=1" target="_blank" rel="noopener">${english ? "Open" : "Abrir"}</a>
+                <a class="mini-button" href="/api/admin/files/${encodeURIComponent(file.id)}/download">${english ? "Download" : "Descargar"}</a>
+                <button class="mini-button danger" type="button" data-delete-media="${escapeHtml(file.id)}">${english ? "Delete" : "Eliminar"}</button>
+              </div>
+            </div>
+          </article>`;
+      }).join("")
+    : `<p class="empty-state">${english ? "There are no files in this view." : "No hay archivos en esta vista."}</p>`;
   refreshIcons();
 }
 
@@ -10537,6 +10776,8 @@ function bindEvents() {
   $$('[data-ai-tool]').forEach((button) => button.addEventListener("click", () => selectAiTool(button)));
   $("#pdfForm")?.addEventListener("submit", pdfSubmit);
   $("#mediaUploadForm")?.addEventListener("submit", mediaUploadSubmit);
+  $("#scopedMediaUploadForm")?.addEventListener("submit", scopedMediaUploadSubmit);
+  $("#scopedFolderForm")?.addEventListener("submit", scopedFolderSubmit);
   $("#internalUserForm")?.addEventListener("submit", internalUserSubmit);
   $("#settingsForm")?.addEventListener("submit", settingsSubmit);
   $("#refreshSystemHealth")?.addEventListener("click", (event) => void refreshSystemHealth(event.currentTarget));
@@ -10560,6 +10801,8 @@ function bindEvents() {
   $("#guestContactSearch")?.addEventListener("input", renderAdminGuestContacts);
   $("#mediaSearch")?.addEventListener("input", renderMediaLibrary);
   $("#mediaTypeFilter")?.addEventListener("change", renderMediaLibrary);
+  $("#scopedMediaSearch")?.addEventListener("input", renderScopedMediaLibrary);
+  $("#scopedMediaTypeFilter")?.addEventListener("change", renderScopedMediaLibrary);
   ["#smartMapLayer", "#smartMapZone", "#smartMapStatus", "#smartMapType"].forEach((selector) => {
     $(selector)?.addEventListener("change", renderAdminMap);
   });
@@ -10832,9 +11075,20 @@ function bindEvents() {
     if (select) handleLocationSelectChange(select);
     const tourStatus = event.target.closest("[data-admin-tour-status]");
     if (tourStatus) void updateAdminTourStatus(tourStatus.dataset.adminTourStatus, tourStatus.value);
+    const moveLibraryFile = event.target.closest("[data-move-library-file]");
+    if (moveLibraryFile) void moveScopedFile(moveLibraryFile.dataset.moveLibraryFile, moveLibraryFile.value);
   });
 
   document.addEventListener("click", (event) => {
+    const libraryFolder = event.target.closest("[data-library-folder]");
+    if (libraryFolder) selectScopedFolder(libraryFolder.dataset.libraryFolder);
+
+    const renameMediaFolder = event.target.closest("[data-rename-media-folder]");
+    if (renameMediaFolder) void renameScopedFolder(renameMediaFolder.dataset.renameMediaFolder);
+
+    const deleteMediaFolder = event.target.closest("[data-delete-media-folder]");
+    if (deleteMediaFolder) void deleteScopedFolder(deleteMediaFolder.dataset.deleteMediaFolder);
+
     const adminMetric = event.target.closest("[data-admin-metric]");
     if (adminMetric) openAdminMetric(adminMetric.dataset.adminMetric);
 

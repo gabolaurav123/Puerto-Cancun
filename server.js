@@ -1096,12 +1096,33 @@ function toMediaFile(row, includeContent = false) {
     category: row.category,
     relatedEntityType: row.related_entity_type || "",
     relatedEntityId: row.related_entity_id || "",
+    libraryScope: row.library_scope || "general",
+    folderId: row.folder_id || "",
     uploadedBy: row.uploaded_by || "",
     metadata: row.metadata || {},
     createdAt: row.created_at,
   };
   if (includeContent) item.content = row.content;
   return item;
+}
+
+function toMediaFolder(row) {
+  return {
+    id: row.id,
+    name: row.name,
+    libraryScope: row.library_scope,
+    createdBy: row.created_by || "",
+    fileCount: Number(row.file_count || 0),
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}
+
+const mediaLibraryScopes = new Set(["general", "property", "development"]);
+
+function normalizeMediaLibraryScope(value, fallback = "general") {
+  const scope = String(value || "").trim().toLowerCase();
+  return mediaLibraryScopes.has(scope) ? scope : fallback;
 }
 
 function toDocument(row, includeContent = false) {
@@ -1405,7 +1426,7 @@ function internalRoleAllows(req, user) {
   const internalRole = user.internalRole;
   if (!internalRole || ["super_admin", "admin"].includes(internalRole)) return true;
   const route = String(req.originalUrl || "").split("?")[0];
-  const editorPrefixes = ["/api/admin/properties", "/api/admin/developments", "/api/admin/blog", "/api/admin/files", "/api/admin/documents", "/api/admin/ai", "/api/admin/campaigns", "/api/admin/instagram"];
+  const editorPrefixes = ["/api/admin/properties", "/api/admin/developments", "/api/admin/blog", "/api/admin/files", "/api/admin/file-folders", "/api/admin/documents", "/api/admin/ai", "/api/admin/campaigns", "/api/admin/instagram"];
   const advisorPrefixes = ["/api/admin/requests", "/api/admin/guest-sale-requests", "/api/admin/leads", "/api/admin/contacts", "/api/admin/valuations", "/api/admin/tasks", "/api/admin/matches", "/api/admin/buyers", "/api/admin/messages", "/api/admin/whatsapp", "/api/admin/notifications"];
   const allowed = internalRole === "editor" ? editorPrefixes : internalRole === "advisor" ? advisorPrefixes : [];
   return allowed.some((prefix) => route.startsWith(prefix));
@@ -2501,6 +2522,17 @@ async function initDatabase() {
       );
     `);
     await client.query(`
+      CREATE TABLE IF NOT EXISTS media_folders (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        library_scope TEXT NOT NULL CHECK (library_scope IN ('property', 'development')),
+        created_by TEXT,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        UNIQUE (library_scope, name)
+      );
+    `);
+    await client.query(`
       CREATE TABLE IF NOT EXISTS media_files (
         id TEXT PRIMARY KEY,
         name TEXT NOT NULL,
@@ -2510,6 +2542,8 @@ async function initDatabase() {
         category TEXT NOT NULL DEFAULT 'document',
         related_entity_type TEXT,
         related_entity_id TEXT,
+        library_scope TEXT NOT NULL DEFAULT 'general' CHECK (library_scope IN ('general', 'property', 'development')),
+        folder_id TEXT REFERENCES media_folders(id) ON DELETE SET NULL,
         uploaded_by TEXT,
         metadata JSONB NOT NULL DEFAULT '{}'::jsonb,
         created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
@@ -2551,6 +2585,20 @@ async function initDatabase() {
         updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
       );
     `);
+    await client.query("ALTER TABLE media_files ADD COLUMN IF NOT EXISTS library_scope TEXT NOT NULL DEFAULT 'general'");
+    await client.query("ALTER TABLE media_files ADD COLUMN IF NOT EXISTS folder_id TEXT");
+    await client.query(`
+      DO $$
+      BEGIN
+        IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'media_files_folder_fk') THEN
+          ALTER TABLE media_files
+          ADD CONSTRAINT media_files_folder_fk
+          FOREIGN KEY (folder_id) REFERENCES media_folders(id) ON DELETE SET NULL;
+        END IF;
+      END $$;
+    `);
+    await client.query("CREATE INDEX IF NOT EXISTS idx_media_files_library ON media_files (library_scope, folder_id, created_at DESC)");
+    await client.query("CREATE INDEX IF NOT EXISTS idx_media_folders_scope ON media_folders (library_scope, updated_at DESC)");
     await client.query(`
       CREATE TABLE IF NOT EXISTS guest_sale_requests (
         id TEXT PRIMARY KEY,
@@ -8063,6 +8111,8 @@ app.get("/api/admin/files", requireRole("admin"), async (req, res, next) => {
   try {
     const category = String(req.query.category || "").trim();
     const relatedType = String(req.query.relatedType || "").trim();
+    const requestedScope = String(req.query.scope || "").trim().toLowerCase();
+    const folderId = String(req.query.folderId || "").trim();
     const params = [];
     const where = [];
     if (category) {
@@ -8073,8 +8123,22 @@ app.get("/api/admin/files", requireRole("admin"), async (req, res, next) => {
       params.push(relatedType);
       where.push(`related_entity_type = $${params.length}`);
     }
+    if (requestedScope) {
+      const scope = normalizeMediaLibraryScope(requestedScope, "");
+      if (!scope) {
+        res.status(400).json({ error: "Biblioteca no válida." });
+        return;
+      }
+      params.push(scope);
+      where.push(`library_scope = $${params.length}`);
+    }
+    if (folderId) {
+      params.push(folderId);
+      where.push(`folder_id = $${params.length}`);
+    }
     const result = await query(
-      `SELECT id, name, mime_type, size_bytes, category, related_entity_type, related_entity_id, uploaded_by, metadata, created_at
+      `SELECT id, name, mime_type, size_bytes, category, related_entity_type, related_entity_id,
+              library_scope, folder_id, uploaded_by, metadata, created_at
        FROM media_files ${where.length ? `WHERE ${where.join(" AND ")}` : ""}
        ORDER BY created_at DESC LIMIT 300`,
       params
@@ -8088,15 +8152,36 @@ app.get("/api/admin/files", requireRole("admin"), async (req, res, next) => {
 app.post("/api/admin/files", requireRole("admin"), async (req, res, next) => {
   try {
     const parsed = parseDataUrl(req.body.content);
-    if (!parsed || parsed.buffer.length > 5 * 1024 * 1024) {
-      res.status(400).json({ error: "Archivo inválido o mayor a 5 MB." });
+    if (!parsed || parsed.buffer.length > 12 * 1024 * 1024) {
+      res.status(400).json({ error: "Archivo inválido o mayor a 12 MB." });
       return;
+    }
+    const libraryScope = normalizeMediaLibraryScope(req.body.libraryScope);
+    const folderId = String(req.body.folderId || "").trim() || null;
+    const relatedEntityId = String(req.body.relatedEntityId || "").trim() || null;
+    const expectedEntityType = libraryScope === "property" ? "property" : libraryScope === "development" ? "development" : "";
+    const relatedEntityType = expectedEntityType || String(req.body.relatedEntityType || "").trim() || null;
+    if (folderId) {
+      const folder = await query("SELECT id FROM media_folders WHERE id = $1 AND library_scope = $2", [folderId, libraryScope]);
+      if (!folder.rows[0]) {
+        res.status(400).json({ error: "La carpeta no pertenece a esta biblioteca." });
+        return;
+      }
+    }
+    if (relatedEntityId && expectedEntityType) {
+      const publicationSection = libraryScope === "development" ? "developments" : "properties";
+      const entity = await query("SELECT id FROM properties WHERE id = $1 AND publication_section = $2", [relatedEntityId, publicationSection]);
+      if (!entity.rows[0]) {
+        res.status(400).json({ error: "El registro asociado no pertenece a esta biblioteca." });
+        return;
+      }
     }
     const safeFile = await sanitizeUploadedFile(parsed);
     const result = await query(
       `INSERT INTO media_files
-        (id, name, mime_type, size_bytes, content, category, related_entity_type, related_entity_id, uploaded_by, metadata)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10::jsonb)
+        (id, name, mime_type, size_bytes, content, category, related_entity_type, related_entity_id,
+         library_scope, folder_id, uploaded_by, metadata)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12::jsonb)
        RETURNING *`,
       [
         uuid("file"),
@@ -8105,8 +8190,10 @@ app.post("/api/admin/files", requireRole("admin"), async (req, res, next) => {
         safeFile.buffer.length,
         safeFile.content,
         String(req.body.category || (safeFile.mimeType.startsWith("image/") ? "property_image" : "document")),
-        String(req.body.relatedEntityType || "").trim() || null,
-        String(req.body.relatedEntityId || "").trim() || null,
+        relatedEntityType,
+        relatedEntityId,
+        libraryScope,
+        folderId,
         req.session.user.id,
         JSON.stringify(req.body.metadata || {}),
       ]
@@ -8131,8 +8218,40 @@ app.get("/api/admin/files/:id/download", requireRole("admin"), async (req, res, 
       return;
     }
     res.setHeader("Content-Type", file.mime_type);
-    res.setHeader("Content-Disposition", `attachment; filename="${String(file.name).replace(/"/g, "")}"`);
+    const disposition = req.query.inline === "1" ? "inline" : "attachment";
+    res.setHeader("Content-Disposition", `${disposition}; filename="${String(file.name).replace(/"/g, "")}"`);
     res.send(parsed.buffer);
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.patch("/api/admin/files/:id", requireRole("admin"), async (req, res, next) => {
+  try {
+    const current = await query("SELECT * FROM media_files WHERE id = $1", [req.params.id]);
+    if (!current.rows[0]) {
+      res.status(404).json({ error: "Archivo no encontrado." });
+      return;
+    }
+    const file = current.rows[0];
+    const name = req.body.name === undefined ? file.name : String(req.body.name || "").trim().slice(0, 180);
+    const folderId = req.body.folderId === undefined ? file.folder_id : String(req.body.folderId || "").trim() || null;
+    if (!name) {
+      res.status(400).json({ error: "Escribe un nombre para el archivo." });
+      return;
+    }
+    if (folderId) {
+      const folder = await query("SELECT id FROM media_folders WHERE id = $1 AND library_scope = $2", [folderId, file.library_scope]);
+      if (!folder.rows[0]) {
+        res.status(400).json({ error: "La carpeta no pertenece a esta biblioteca." });
+        return;
+      }
+    }
+    const result = await query(
+      "UPDATE media_files SET name = $2, folder_id = $3 WHERE id = $1 RETURNING *",
+      [req.params.id, name, folderId]
+    );
+    res.json({ file: toMediaFile(result.rows[0]) });
   } catch (error) {
     next(error);
   }
@@ -8141,6 +8260,98 @@ app.get("/api/admin/files/:id/download", requireRole("admin"), async (req, res, 
 app.delete("/api/admin/files/:id", requireRole("admin"), async (req, res, next) => {
   try {
     await query("DELETE FROM media_files WHERE id = $1", [req.params.id]);
+    res.json({ ok: true });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.get("/api/admin/file-folders", requireRole("admin"), async (req, res, next) => {
+  try {
+    const scope = normalizeMediaLibraryScope(req.query.scope, "");
+    if (!scope || scope === "general") {
+      res.status(400).json({ error: "Selecciona la biblioteca de propiedades o desarrollos." });
+      return;
+    }
+    const result = await query(
+      `SELECT folder.*, COUNT(file.id)::int AS file_count
+       FROM media_folders folder
+       LEFT JOIN media_files file ON file.folder_id = folder.id
+       WHERE folder.library_scope = $1
+       GROUP BY folder.id
+       ORDER BY LOWER(folder.name) ASC`,
+      [scope]
+    );
+    res.json({ folders: result.rows.map(toMediaFolder) });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.post("/api/admin/file-folders", requireRole("admin"), async (req, res, next) => {
+  try {
+    const scope = normalizeMediaLibraryScope(req.body.scope, "");
+    const name = String(req.body.name || "").trim().replace(/\s+/g, " ").slice(0, 80);
+    if (!scope || scope === "general" || !name) {
+      res.status(400).json({ error: "Escribe un nombre y selecciona una biblioteca válida." });
+      return;
+    }
+    const duplicate = await query("SELECT id FROM media_folders WHERE library_scope = $1 AND LOWER(name) = LOWER($2)", [scope, name]);
+    if (duplicate.rows[0]) {
+      res.status(409).json({ error: "Ya existe una carpeta con ese nombre." });
+      return;
+    }
+    const result = await query(
+      `INSERT INTO media_folders (id, name, library_scope, created_by)
+       VALUES ($1, $2, $3, $4) RETURNING *`,
+      [uuid("folder"), name, scope, req.session.user.id]
+    );
+    res.status(201).json({ folder: toMediaFolder(result.rows[0]) });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.patch("/api/admin/file-folders/:id", requireRole("admin"), async (req, res, next) => {
+  try {
+    const name = String(req.body.name || "").trim().replace(/\s+/g, " ").slice(0, 80);
+    if (!name) {
+      res.status(400).json({ error: "Escribe un nombre para la carpeta." });
+      return;
+    }
+    const result = await query(
+      `UPDATE media_folders folder SET name = $2, updated_at = NOW()
+       WHERE id = $1
+         AND NOT EXISTS (
+           SELECT 1 FROM media_folders other
+           WHERE other.library_scope = folder.library_scope AND LOWER(other.name) = LOWER($2) AND other.id <> folder.id
+         )
+       RETURNING folder.*`,
+      [req.params.id, name]
+    );
+    if (!result.rows[0]) {
+      res.status(409).json({ error: "No se encontró la carpeta o ya existe otra con ese nombre." });
+      return;
+    }
+    res.json({ folder: toMediaFolder(result.rows[0]) });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.delete("/api/admin/file-folders/:id", requireRole("admin"), async (req, res, next) => {
+  try {
+    const result = await query(
+      `DELETE FROM media_folders folder
+       WHERE folder.id = $1
+         AND NOT EXISTS (SELECT 1 FROM media_files file WHERE file.folder_id = folder.id)
+       RETURNING id`,
+      [req.params.id]
+    );
+    if (!result.rows[0]) {
+      res.status(409).json({ error: "La carpeta contiene archivos. Muévelos o elimínalos antes de borrar la carpeta." });
+      return;
+    }
     res.json({ ok: true });
   } catch (error) {
     next(error);
