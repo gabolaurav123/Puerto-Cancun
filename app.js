@@ -428,6 +428,40 @@ const translations = {
     smartMapHint: "Vista operativa por zonas, inventario y leads registrados.",
     analyticsTitle: "Analítica comercial",
     analyticsHint: "Eventos, busquedas, zonas solicitadas y propiedades con mayor actividad.",
+    visitorLeadsMenu: "Leads",
+    visitorLeadsEyebrow: "AUDIENCIA Y RECORRIDO",
+    visitorLeadsTitle: "Leads y visitantes",
+    visitorLeadsHint: "Distingue personas, sesiones y páginas vistas para analizar procedencia e interés sin duplicar cada visita como un contacto nuevo.",
+    visitorLeadsExport: "Exportar CSV",
+    visitorLeadsRefresh: "Actualizar",
+    visitorLeadsPrivacy: "La medición se registra solo cuando el visitante acepta las cookies de analítica. La ubicación procede de cabeceras del servidor y puede no estar disponible o ser aproximada.",
+    visitorPeriod: "Periodo",
+    visitorPeriodToday: "Hoy",
+    visitorPeriod7: "Últimos 7 días",
+    visitorPeriod30: "Últimos 30 días",
+    visitorPeriod90: "Últimos 90 días",
+    visitorPeriodAll: "Todo el historial",
+    visitorIdentity: "Tipo de visitante",
+    visitorIdentityAll: "Todos",
+    visitorIdentityRegistered: "Registrados",
+    visitorIdentityAnonymous: "Anónimos",
+    visitorIdentityReturning: "Recurrentes",
+    visitorCountry: "País",
+    visitorDevice: "Dispositivo",
+    visitorDeviceAll: "Todos",
+    visitorDeviceDesktop: "Escritorio",
+    visitorDeviceMobile: "Móvil",
+    visitorDeviceTablet: "Tableta",
+    visitorSearch: "Buscar",
+    visitorIncludeBots: "Incluir tráfico automatizado",
+    visitorDirectoryTitle: "Directorio de visitantes",
+    visitorColumnIdentity: "Visitante",
+    visitorColumnLocation: "Ubicación",
+    visitorColumnActivity: "Actividad",
+    visitorColumnFirst: "Primera visita",
+    visitorColumnLast: "Última visita",
+    visitorColumnPage: "Última página",
+    visitorColumnDetail: "Detalle",
     marketingTitle: "Campañas / Marketing",
     marketingHint: "Segmentos listos para contactar compradores, vendedores y propietarios en valoración.",
     pdfTitle: "Fichas PDF",
@@ -968,6 +1002,40 @@ const translations = {
     smartMapHint: "Operational view by zones, inventory and registered leads.",
     analyticsTitle: "Commercial analytics",
     analyticsHint: "Events, searches, requested zones and properties with more activity.",
+    visitorLeadsMenu: "Leads",
+    visitorLeadsEyebrow: "AUDIENCE AND JOURNEY",
+    visitorLeadsTitle: "Leads and visitors",
+    visitorLeadsHint: "Separates people, sessions, and page views to analyze origin and interest without treating every visit as a new contact.",
+    visitorLeadsExport: "Export CSV",
+    visitorLeadsRefresh: "Refresh",
+    visitorLeadsPrivacy: "Measurement is recorded only when the visitor accepts analytics cookies. Location comes from server headers and may be unavailable or approximate.",
+    visitorPeriod: "Period",
+    visitorPeriodToday: "Today",
+    visitorPeriod7: "Last 7 days",
+    visitorPeriod30: "Last 30 days",
+    visitorPeriod90: "Last 90 days",
+    visitorPeriodAll: "All history",
+    visitorIdentity: "Visitor type",
+    visitorIdentityAll: "All",
+    visitorIdentityRegistered: "Registered",
+    visitorIdentityAnonymous: "Anonymous",
+    visitorIdentityReturning: "Returning",
+    visitorCountry: "Country",
+    visitorDevice: "Device",
+    visitorDeviceAll: "All",
+    visitorDeviceDesktop: "Desktop",
+    visitorDeviceMobile: "Mobile",
+    visitorDeviceTablet: "Tablet",
+    visitorSearch: "Search",
+    visitorIncludeBots: "Include automated traffic",
+    visitorDirectoryTitle: "Visitor directory",
+    visitorColumnIdentity: "Visitor",
+    visitorColumnLocation: "Location",
+    visitorColumnActivity: "Activity",
+    visitorColumnFirst: "First visit",
+    visitorColumnLast: "Last visit",
+    visitorColumnPage: "Last page",
+    visitorColumnDetail: "Details",
     marketingTitle: "Campaigns / Marketing",
     marketingHint: "Segments ready to contact buyers, sellers and owners in valuation.",
     pdfTitle: "PDF sheets",
@@ -1179,6 +1247,18 @@ const state = {
     selectedJid: "",
   },
   analytics: { eventsByType: [], propertyEvents: [], searchZones: [], leadSources: [] },
+  visitorLeads: {
+    summary: {},
+    visitors: [],
+    topCountries: [],
+    topPages: [],
+    sources: [],
+    devices: [],
+    daily: [],
+    countryOptions: [],
+    pagination: { total: 0, limit: 50, offset: 0 },
+    retentionDays: 365,
+  },
   intelligence: { priorities: [], metrics: {} },
   integrations: [],
   dataQuality: { summary: {}, incomplete: [], duplicateContacts: [], duplicateProperties: [] },
@@ -1323,6 +1403,7 @@ let sellerDraftTimer = 0;
 let whatsappPollTimer = 0;
 let whatsappSearchTimer = 0;
 let adminGlobalSearchTimer = 0;
+let visitorLeadSearchTimer = 0;
 let draftDbPromise = null;
 let draftWriteQueue = Promise.resolve();
 const mapGeocodeTimers = new WeakMap();
@@ -2194,20 +2275,45 @@ function normalizedImageMetadata(metadata, count) {
   return list;
 }
 
-function analyticsMetadata(extra = {}) {
-  let visitorId = "";
+function analyticsConsentGranted() {
   try {
-    visitorId = sessionStorage.getItem("pcc.analyticsVisitor") || "";
-    if (!visitorId) {
-      visitorId = globalThis.crypto?.randomUUID?.() || `visitor-${Date.now()}-${Math.random().toString(16).slice(2)}`;
-      sessionStorage.setItem("pcc.analyticsVisitor", visitorId);
-    }
+    return localStorage.getItem("pcc-cookie-consent") === "all";
   } catch {
-    visitorId = `visitor-${Date.now()}`;
+    return false;
   }
+}
+
+function newTrackingId(prefix) {
+  return `${prefix}-${globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(16).slice(2)}`}`;
+}
+
+function analyticsIdentity() {
+  let visitorId = "";
+  let sessionId = "";
+  try {
+    visitorId = localStorage.getItem("pcc.analyticsVisitor") || "";
+    if (!visitorId) {
+      visitorId = newTrackingId("visitor");
+      localStorage.setItem("pcc.analyticsVisitor", visitorId);
+    }
+    const now = Date.now();
+    const storedSession = JSON.parse(sessionStorage.getItem("pcc.analyticsSession") || "null");
+    const expired = !storedSession?.id || now - Number(storedSession.lastActivityAt || 0) > 30 * 60 * 1000;
+    sessionId = expired ? newTrackingId("session") : storedSession.id;
+    sessionStorage.setItem("pcc.analyticsSession", JSON.stringify({ id: sessionId, lastActivityAt: now }));
+  } catch {
+    visitorId = newTrackingId("visitor");
+    sessionId = newTrackingId("session");
+  }
+  return { visitorId, sessionId };
+}
+
+function analyticsMetadata(extra = {}) {
+  const { visitorId, sessionId } = analyticsIdentity();
   const params = new URLSearchParams(window.location.search);
   return {
     visitorId,
+    sessionId,
     path: window.location.pathname,
     lang: state.lang,
     referrer: document.referrer || "",
@@ -2219,9 +2325,11 @@ function analyticsMetadata(extra = {}) {
 }
 
 function trackAnalyticsEvent(eventType, property = null, extra = {}) {
+  if (!analyticsConsentGranted() || state.session?.role === "admin") return Promise.resolve(null);
   return api("/api/analytics/events", {
     method: "POST",
     body: {
+      analyticsConsent: true,
       eventType,
       propertyId: property?.id || "",
       metadata: analyticsMetadata({
@@ -2231,6 +2339,45 @@ function trackAnalyticsEvent(eventType, property = null, extra = {}) {
       }),
     },
   }).catch(() => null);
+}
+
+let pageVisitTracked = false;
+
+function trackPageVisit() {
+  if (pageVisitTracked || !analyticsConsentGranted() || state.session?.role === "admin") return Promise.resolve(null);
+  if (document.body.dataset.page === "panel" && !state.session) return Promise.resolve(null);
+  pageVisitTracked = true;
+  const metadata = analyticsMetadata();
+  let timezone = "";
+  try {
+    timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || "";
+  } catch {
+    timezone = "";
+  }
+  return api("/api/analytics/visit", {
+    method: "POST",
+    timeoutMs: 12000,
+    retry: false,
+    body: {
+      analyticsConsent: true,
+      visitorId: metadata.visitorId,
+      sessionId: metadata.sessionId,
+      pageViewId: newTrackingId("page"),
+      path: metadata.path,
+      title: document.title,
+      referrer: metadata.referrer,
+      language: navigator.language || state.lang,
+      timezone,
+      utmSource: metadata.utmSource,
+      utmMedium: metadata.utmMedium,
+      utmCampaign: metadata.utmCampaign,
+      viewportWidth: window.innerWidth,
+      viewportHeight: window.innerHeight,
+    },
+  }).catch(() => {
+    pageVisitTracked = false;
+    return null;
+  });
 }
 
 function downloadFileName(response, fallbackName) {
@@ -2460,6 +2607,18 @@ function formatDate(dateString) {
     year: "numeric",
     month: "short",
     day: "2-digit",
+  }).format(date);
+}
+
+function formatDateTime(dateString) {
+  const date = new Date(dateString);
+  if (Number.isNaN(date.getTime())) return "";
+  return new Intl.DateTimeFormat(state.lang === "en" ? "en-US" : "es-MX", {
+    year: "numeric",
+    month: "short",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
   }).format(date);
 }
 
@@ -5143,6 +5302,263 @@ function renderAdminMatches() {
     .join("");
 }
 
+function visitorLeadCopy(spanish, english) {
+  return state.lang === "en" ? english : spanish;
+}
+
+function visitorLeadSourceLabel(visitor) {
+  if (visitor.utmSource) return visitor.utmSource;
+  if (!visitor.referrer) return visitorLeadCopy("Acceso directo", "Direct access");
+  try {
+    return new URL(visitor.referrer).hostname.replace(/^www\./i, "") || visitor.referrer;
+  } catch {
+    return truncateText(visitor.referrer, 55);
+  }
+}
+
+function visitorLeadLocationLabel(visitor) {
+  const parts = [visitor.city, visitor.region, visitor.countryName || visitor.countryCode].filter(Boolean);
+  return parts.join(", ") || visitorLeadCopy("Sin ubicación fiable", "No reliable location");
+}
+
+function visitorLeadFilterParams({ offset = 0, limit = null } = {}) {
+  const params = new URLSearchParams({
+    period: $("#visitorLeadPeriod")?.value || "30",
+    identity: $("#visitorLeadIdentity")?.value || "all",
+    country: $("#visitorLeadCountry")?.value || "",
+    device: $("#visitorLeadDevice")?.value || "",
+    search: $("#visitorLeadSearch")?.value.trim() || "",
+    includeBots: String(Boolean($("#visitorLeadBots")?.checked)),
+    offset: String(Math.max(0, Number(offset) || 0)),
+  });
+  params.set("limit", String(limit || state.visitorLeads.pagination?.limit || 50));
+  return params;
+}
+
+function renderVisitorLeadRank(title, rows, valueKey, emptyText) {
+  const safeRows = Array.isArray(rows) ? rows : [];
+  const maximum = Math.max(1, ...safeRows.map((row) => Number(row[valueKey] || 0)));
+  return `
+    <section class="visitor-insight-section">
+      <h3>${escapeHtml(title)}</h3>
+      <div class="visitor-rank-list">
+        ${safeRows.length ? safeRows.slice(0, 8).map((row) => {
+          const value = Number(row[valueKey] || 0);
+          const label = row.title || row.label || row.path || visitorLeadCopy("Sin identificar", "Unidentified");
+          return `<div class="visitor-rank-row" title="${escapeHtml(label)}">
+            <span>${escapeHtml(truncateText(label, 58))}</span>
+            <i aria-hidden="true"><b style="width:${Math.max(4, (value / maximum) * 100)}%"></b></i>
+            <strong>${escapeHtml(value)}</strong>
+          </div>`;
+        }).join("") : `<p class="empty-state">${escapeHtml(emptyText)}</p>`}
+      </div>
+    </section>`;
+}
+
+function syncVisitorLeadControls() {
+  const data = state.visitorLeads || {};
+  const filters = data.filters || {};
+  const period = $("#visitorLeadPeriod");
+  const identity = $("#visitorLeadIdentity");
+  const country = $("#visitorLeadCountry");
+  const device = $("#visitorLeadDevice");
+  const search = $("#visitorLeadSearch");
+  const bots = $("#visitorLeadBots");
+  if (period) {
+    period.options[0].textContent = visitorLeadCopy("Hoy", "Today");
+    period.options[1].textContent = visitorLeadCopy("Últimos 7 días", "Last 7 days");
+    period.options[2].textContent = visitorLeadCopy("Últimos 30 días", "Last 30 days");
+    period.options[3].textContent = visitorLeadCopy("Últimos 90 días", "Last 90 days");
+    period.options[4].textContent = visitorLeadCopy("Todo el historial", "All history");
+    period.value = filters.period || period.value || "30";
+  }
+  if (identity) {
+    identity.options[0].textContent = visitorLeadCopy("Todos", "All");
+    identity.options[1].textContent = visitorLeadCopy("Registrados", "Registered");
+    identity.options[2].textContent = visitorLeadCopy("Anónimos", "Anonymous");
+    identity.options[3].textContent = visitorLeadCopy("Recurrentes", "Returning");
+    identity.value = filters.identity || identity.value || "all";
+  }
+  if (device) {
+    device.options[0].textContent = visitorLeadCopy("Todos", "All");
+    device.options[1].textContent = visitorLeadCopy("Escritorio", "Desktop");
+    device.options[2].textContent = visitorLeadCopy("Móvil", "Mobile");
+    device.options[3].textContent = visitorLeadCopy("Tableta", "Tablet");
+    device.value = filters.device ?? device.value;
+  }
+  if (country) {
+    const selected = filters.country ?? country.value;
+    country.innerHTML = `<option value="">${escapeHtml(visitorLeadCopy("Todos los países", "All countries"))}</option>${(data.countryOptions || []).map((item) => {
+      const value = item.country_code || item.country_name || "";
+      const label = item.country_name || item.country_code || visitorLeadCopy("Sin identificar", "Unidentified");
+      return `<option value="${escapeHtml(value)}">${escapeHtml(label)} (${escapeHtml(item.visitors || 0)})</option>`;
+    }).join("")}`;
+    country.value = selected || "";
+  }
+  if (search && document.activeElement !== search) search.value = filters.search ?? search.value;
+  if (bots) bots.checked = filters.includeBots ?? bots.checked;
+}
+
+function renderVisitorLeads() {
+  const summaryContainer = $("#visitorLeadSummary");
+  const insightsContainer = $("#visitorLeadInsights");
+  const rowsContainer = $("#visitorLeadRows");
+  const paginationContainer = $("#visitorLeadPagination");
+  if (!summaryContainer || !insightsContainer || !rowsContainer || !paginationContainer) return;
+
+  const data = state.visitorLeads || {};
+  const summary = data.summary || {};
+  const visitors = data.visitors || [];
+  const pagination = data.pagination || { total: visitors.length, limit: 50, offset: 0 };
+  syncVisitorLeadControls();
+
+  const kpis = [
+    [visitorLeadCopy("Visitantes", "Visitors"), summary.visitors || 0, "users"],
+    [visitorLeadCopy("Sesiones", "Sessions"), summary.sessions || 0, "panel-top"],
+    [visitorLeadCopy("Páginas vistas", "Page views"), summary.pageViews || 0, "mouse-pointer-click"],
+    [visitorLeadCopy("Recurrentes", "Returning"), summary.returning || 0, "repeat-2"],
+    [visitorLeadCopy("Registrados", "Registered"), summary.registered || 0, "user-check"],
+    [visitorLeadCopy("Anónimos", "Anonymous"), summary.anonymous || 0, "user-round"],
+    [visitorLeadCopy("Países", "Countries"), summary.countries || 0, "globe-2"],
+    [visitorLeadCopy("Páginas / sesión", "Pages / session"), summary.pagesPerSession || 0, "chart-no-axes-combined"],
+  ];
+  summaryContainer.innerHTML = kpis.map(([label, value, icon]) => `
+    <div class="visitor-kpi">
+      <i data-lucide="${icon}" aria-hidden="true"></i>
+      <span>${escapeHtml(label)}</span>
+      <strong>${escapeHtml(value)}</strong>
+    </div>`).join("");
+
+  const daily = Array.isArray(data.daily) ? data.daily.slice(-14) : [];
+  const dailyMax = Math.max(1, ...daily.map((item) => Number(item.views || 0)));
+  const trend = `<section class="visitor-insight-section visitor-trend-section">
+    <h3>${escapeHtml(visitorLeadCopy("Actividad diaria", "Daily activity"))}</h3>
+    ${daily.length ? `<div class="visitor-trend" role="img" aria-label="${escapeHtml(visitorLeadCopy("Páginas vistas durante el periodo", "Page views during the period"))}">${daily.map((item) => {
+      const views = Number(item.views || 0);
+      const date = formatDate(item.day);
+      return `<div class="visitor-trend-day" title="${escapeHtml(`${date}: ${views}`)}"><i style="height:${Math.max(5, (views / dailyMax) * 100)}%"></i><span>${escapeHtml(date)}</span><strong>${escapeHtml(views)}</strong></div>`;
+    }).join("")}</div>` : `<p class="empty-state">${escapeHtml(visitorLeadCopy("Todavía no hay actividad para este periodo.", "There is no activity for this period yet."))}</p>`}
+  </section>`;
+  insightsContainer.innerHTML = `${trend}${renderVisitorLeadRank(
+    visitorLeadCopy("Países con mayor interés", "Countries with most interest"),
+    data.topCountries,
+    "visitors",
+    visitorLeadCopy("Sin ubicación disponible.", "No location data available.")
+  )}${renderVisitorLeadRank(
+    visitorLeadCopy("Páginas más visitadas", "Most visited pages"),
+    data.topPages,
+    "views",
+    visitorLeadCopy("Todavía no hay páginas registradas.", "No pages have been recorded yet.")
+  )}${renderVisitorLeadRank(
+    visitorLeadCopy("Fuentes de tráfico", "Traffic sources"),
+    data.sources,
+    "sessions",
+    visitorLeadCopy("Todavía no hay fuentes registradas.", "No sources have been recorded yet.")
+  )}`;
+
+  rowsContainer.innerHTML = visitors.length ? visitors.map((visitor) => {
+    const identity = visitor.registered
+      ? `<span class="visitor-identity-badge registered">${escapeHtml(visitorLeadCopy("Registrado", "Registered"))}</span><strong>${escapeHtml(visitor.userName || visitor.userEmail || visitorLeadCopy("Cuenta vinculada", "Linked account"))}</strong>${visitor.userEmail ? `<small>${escapeHtml(visitor.userEmail)}</small>` : ""}`
+      : `<span class="visitor-identity-badge anonymous">${escapeHtml(visitorLeadCopy("Anónimo", "Anonymous"))}</span><strong>${escapeHtml(visitorLeadCopy("Visitante", "Visitor"))} ${escapeHtml(String(visitor.id || "").slice(-8).toUpperCase())}</strong>`;
+    const recentPages = (visitor.recentPages || []).map((page) => `<li><a href="${escapeHtml(page.path || "/")}" target="_blank" rel="noopener noreferrer">${escapeHtml(page.title || page.path || "/")}</a><time>${escapeHtml(formatDateTime(page.visitedAt))}</time></li>`).join("");
+    const recentSessions = (visitor.recentSessions || []).map((session) => `<li><span>${escapeHtml(formatDateTime(session.startedAt))}</span><strong>${escapeHtml(session.pageViews || 0)} ${escapeHtml(visitorLeadCopy("páginas", "pages"))}</strong><small>${escapeHtml(session.entryPath || "/")} → ${escapeHtml(session.exitPath || "/")}</small></li>`).join("");
+    const deviceLabel = [visitor.deviceType, visitor.browserName, visitor.operatingSystem].filter(Boolean).join(" · ");
+    const campaign = [visitor.utmSource, visitor.utmMedium, visitor.utmCampaign].filter(Boolean).join(" / ");
+    return `<tr>
+      <td><div class="visitor-identity">${identity}${visitor.isBot ? `<span class="visitor-identity-badge bot">Bot</span>` : ""}</div></td>
+      <td><strong>${escapeHtml(visitorLeadLocationLabel(visitor))}</strong><small>IP ${escapeHtml(visitor.ipAddress || visitorLeadCopy("no disponible", "unavailable"))}</small></td>
+      <td><strong>${escapeHtml(visitor.visitCount || 0)} ${escapeHtml(visitorLeadCopy("vistas", "views"))}</strong><small>${escapeHtml(visitor.sessionCount || 0)} ${escapeHtml(visitorLeadCopy("sesiones", "sessions"))}${deviceLabel ? ` · ${escapeHtml(deviceLabel)}` : ""}</small></td>
+      <td><time datetime="${escapeHtml(visitor.firstSeenAt || "")}">${escapeHtml(formatDateTime(visitor.firstSeenAt) || "-")}</time></td>
+      <td><time datetime="${escapeHtml(visitor.lastSeenAt || "")}">${escapeHtml(formatDateTime(visitor.lastSeenAt) || "-")}</time></td>
+      <td><a class="visitor-last-page" href="${escapeHtml(visitor.lastPath || "/")}" target="_blank" rel="noopener noreferrer">${escapeHtml(visitor.lastPath || "/")}</a><small>${escapeHtml(visitorLeadSourceLabel(visitor))}</small></td>
+      <td><details class="visitor-detail"><summary>${escapeHtml(visitorLeadCopy("Ver recorrido", "View journey"))}</summary><div class="visitor-detail-content">
+        <dl><div><dt>${escapeHtml(visitorLeadCopy("Idioma", "Language"))}</dt><dd>${escapeHtml(visitor.language || "-")}</dd></div><div><dt>${escapeHtml(visitorLeadCopy("Zona horaria", "Timezone"))}</dt><dd>${escapeHtml(visitor.timezone || "-")}</dd></div><div><dt>${escapeHtml(visitorLeadCopy("Origen", "Source"))}</dt><dd>${escapeHtml(visitorLeadSourceLabel(visitor))}</dd></div><div><dt>${escapeHtml(visitorLeadCopy("Campaña", "Campaign"))}</dt><dd>${escapeHtml(campaign || "-")}</dd></div></dl>
+        <h4>${escapeHtml(visitorLeadCopy("Páginas recientes", "Recent pages"))}</h4><ul class="visitor-page-history">${recentPages || `<li>${escapeHtml(visitorLeadCopy("Sin páginas detalladas", "No detailed pages"))}</li>`}</ul>
+        <h4>${escapeHtml(visitorLeadCopy("Sesiones recientes", "Recent sessions"))}</h4><ul class="visitor-session-history">${recentSessions || `<li>${escapeHtml(visitorLeadCopy("Sin sesiones detalladas", "No detailed sessions"))}</li>`}</ul>
+      </div></details></td>
+    </tr>`;
+  }).join("") : `<tr><td colspan="7" class="empty-state">${escapeHtml(visitorLeadCopy("No hay visitantes que coincidan con los filtros.", "No visitors match these filters."))}</td></tr>`;
+
+  const total = Number(pagination.total || 0);
+  const limit = Number(pagination.limit || 50);
+  const offset = Number(pagination.offset || 0);
+  const currentPage = total ? Math.floor(offset / limit) + 1 : 0;
+  const pageCount = total ? Math.ceil(total / limit) : 0;
+  if ($("#visitorLeadResultCount")) $("#visitorLeadResultCount").textContent = `${total.toLocaleString(state.lang === "en" ? "en-US" : "es-MX")} ${visitorLeadCopy("visitantes agrupados", "grouped visitors")}`;
+  if ($("#visitorLeadRetention")) $("#visitorLeadRetention").textContent = visitorLeadCopy(
+    `El detalle de páginas se conserva ${data.retentionDays || 365} días.`,
+    `Page-level detail is retained for ${data.retentionDays || 365} days.`
+  );
+  paginationContainer.innerHTML = `<button class="ghost-button" type="button" data-visitor-offset="${Math.max(0, offset - limit)}" ${offset <= 0 ? "disabled" : ""}>${escapeHtml(visitorLeadCopy("Anterior", "Previous"))}</button><span>${escapeHtml(visitorLeadCopy("Página", "Page"))} ${currentPage} / ${pageCount}</span><button class="ghost-button" type="button" data-visitor-offset="${offset + limit}" ${offset + limit >= total ? "disabled" : ""}>${escapeHtml(visitorLeadCopy("Siguiente", "Next"))}</button>`;
+}
+
+async function refreshVisitorLeads({ offset = 0, silent = false } = {}) {
+  const button = $("#refreshVisitorLeads");
+  if (!silent) setButtonLoading(button, true, visitorLeadCopy("Actualizando...", "Refreshing..."));
+  try {
+    const data = await api(`/api/admin/visitor-leads?${visitorLeadFilterParams({ offset }).toString()}`, { timeoutMs: 25000, retry: false });
+    state.visitorLeads = data || state.visitorLeads;
+    renderVisitorLeads();
+    refreshIcons();
+  } finally {
+    if (!silent) setButtonLoading(button, false);
+  }
+}
+
+function visitorLeadCsvRows(visitors) {
+  const header = ["Tipo", "Nombre", "Email", "IP", "Pais", "Region", "Ciudad", "Dispositivo", "Navegador", "Sistema", "Vistas", "Sesiones", "Primera visita", "Ultima visita", "Primera pagina", "Ultima pagina", "Origen", "UTM medio", "Campana", "Idioma", "Zona horaria"];
+  return [header, ...visitors.map((visitor) => [
+    visitor.registered ? "Registrado" : "Anonimo",
+    visitor.userName || "",
+    visitor.userEmail || "",
+    visitor.ipAddress || "",
+    visitor.countryName || visitor.countryCode || "",
+    visitor.region || "",
+    visitor.city || "",
+    visitor.deviceType || "",
+    visitor.browserName || "",
+    visitor.operatingSystem || "",
+    visitor.visitCount || 0,
+    visitor.sessionCount || 0,
+    visitor.firstSeenAt || "",
+    visitor.lastSeenAt || "",
+    visitor.firstPath || "",
+    visitor.lastPath || "",
+    visitorLeadSourceLabel(visitor),
+    visitor.utmMedium || "",
+    visitor.utmCampaign || "",
+    visitor.language || "",
+    visitor.timezone || "",
+  ])];
+}
+
+async function exportVisitorLeadsCsv() {
+  const button = $("#exportVisitorLeads");
+  setButtonLoading(button, true, visitorLeadCopy("Preparando...", "Preparing..."));
+  try {
+    const visitors = [];
+    let offset = 0;
+    let total = 0;
+    do {
+      const data = await api(`/api/admin/visitor-leads?${visitorLeadFilterParams({ offset, limit: 100 }).toString()}`, { timeoutMs: 30000, retry: false });
+      visitors.push(...(data.visitors || []));
+      total = Math.min(Number(data.pagination?.total || 0), 5000);
+      offset += Number(data.pagination?.limit || 100);
+    } while (offset < total);
+    const csv = visitorLeadCsvRows(visitors).map((row) => row.map((cell) => `"${String(cell ?? "").replace(/"/g, '""')}"`).join(",")).join("\r\n");
+    const blob = new Blob(["\ufeff", csv], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `puerto-cancun-leads-${new Date().toISOString().slice(0, 10)}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+    showToast(`${visitors.length} ${visitorLeadCopy("visitantes exportados.", "visitors exported.")}`);
+  } finally {
+    setButtonLoading(button, false);
+  }
+}
+
 function renderAdminAnalytics() {
   const container = $("#adminAnalytics");
   if (!container) return;
@@ -7459,6 +7875,7 @@ async function loadPanelData() {
       panelApi("/api/admin/file-folders?scope=development"),
       panelApi("/api/admin/files?scope=property"),
       panelApi("/api/admin/files?scope=development"),
+      panelApi("/api/admin/visitor-leads?period=30"),
     ]);
     const adminValue = (index, fallback = {}) => adminResults[index].status === "fulfilled" ? adminResults[index].value : fallback;
     const [
@@ -7496,6 +7913,7 @@ async function loadPanelData() {
       developmentFoldersData,
       propertyFilesData,
       developmentFilesData,
+      visitorLeadsData,
     ] = adminResults.map((result, index) => adminValue(index));
     if (adminResults[0].status === "fulfilled") state.stats = statsData;
     state.requests = requestsData.requests || state.requests;
@@ -7535,6 +7953,7 @@ async function loadPanelData() {
       ...(propertyFoldersData.folders || state.fileFolders.filter((folder) => folder.libraryScope === "property")),
       ...(developmentFoldersData.folders || state.fileFolders.filter((folder) => folder.libraryScope === "development")),
     ];
+    if (adminResults[34].status === "fulfilled") state.visitorLeads = visitorLeadsData || state.visitorLeads;
     const failedModules = adminResults.filter((result) => result.status === "rejected").length;
     if (failedModules) showToast(`${failedModules} módulo${failedModules === 1 ? "" : "s"} no respondió. El resto del panel continúa disponible.`, "error");
     state.serviceRequests = [];
@@ -7588,6 +8007,10 @@ async function loadPanelData() {
       selectedJid: "",
     };
     state.analytics = { eventsByType: [], propertyEvents: [], searchZones: [], leadSources: [] };
+    state.visitorLeads = {
+      summary: {}, visitors: [], topCountries: [], topPages: [], sources: [], devices: [], daily: [],
+      countryOptions: [], pagination: { total: 0, limit: 50, offset: 0 }, retentionDays: 365,
+    };
   }
 }
 
@@ -7931,6 +8354,7 @@ function translatePanelStaticCopy() {
   if (!$("#panelView")) return;
   $$("#panelView h2, #panelView h3, #panelView label > span, #panelView legend, #panelView option, #panelView button > span, #panelView .admin-sidebar-subnav button, #panelView .admin-sidebar-subnav a, #campaignForm button").forEach((element) => {
     if (element.id === "panelTitle") return;
+    if (element.closest("#panelLanguageToggle, #visitorLeadsCard")) return;
     if (element.dataset.i18n || element.childElementCount) return;
     const original = element.dataset.panelOriginal || element.textContent.trim();
     if (!element.dataset.panelOriginal) element.dataset.panelOriginal = original;
@@ -7978,6 +8402,7 @@ async function renderPanel() {
     renderAdminValuations();
     renderAdminTasks();
     renderAdminAnalytics();
+    renderVisitorLeads();
     renderAdminSegments();
     renderOperationalModules();
     renderSettingsFields();
@@ -7997,6 +8422,8 @@ async function renderPanel() {
   bindMapPickers();
   if (isAdmin) void restoreListingDraft();
   translatePanelStaticCopy();
+  const panelLanguageLabel = $("#panelLanguageToggle span");
+  if (panelLanguageLabel) panelLanguageLabel.textContent = state.lang === "es" ? "English" : "Español";
   refreshIcons();
 }
 
@@ -8705,8 +9132,10 @@ function initializeCookiePreferences() {
   banner.hidden = Boolean(stored);
   banner.querySelectorAll("[data-cookie-choice]").forEach((button) => {
     button.addEventListener("click", () => {
-      localStorage.setItem("pcc-cookie-consent", button.dataset.cookieChoice === "all" ? "all" : "essential");
+      const choice = button.dataset.cookieChoice === "all" ? "all" : "essential";
+      localStorage.setItem("pcc-cookie-consent", choice);
       banner.hidden = true;
+      if (choice === "all") void trackPageVisit();
     });
   });
 }
@@ -10529,6 +10958,20 @@ function bindEvents() {
   $("#refreshIntegrations")?.addEventListener("click", () => void refreshAdminIntegrations().catch((error) => showToast(error.message, "error")));
   $("#refreshAnalytics")?.addEventListener("click", () => void refreshAdminAnalytics().catch((error) => showToast(error.message, "error")));
   ["#analyticsPeriod", "#analyticsZone"].forEach((selector) => $(selector)?.addEventListener("change", () => void refreshAdminAnalytics().catch((error) => showToast(error.message, "error"))));
+  $("#refreshVisitorLeads")?.addEventListener("click", () => void refreshVisitorLeads().catch((error) => showToast(error.message, "error")));
+  ["#visitorLeadPeriod", "#visitorLeadIdentity", "#visitorLeadCountry", "#visitorLeadDevice", "#visitorLeadBots"].forEach((selector) => {
+    $(selector)?.addEventListener("change", () => void refreshVisitorLeads().catch((error) => showToast(error.message, "error")));
+  });
+  $("#visitorLeadSearch")?.addEventListener("input", () => {
+    window.clearTimeout(visitorLeadSearchTimer);
+    visitorLeadSearchTimer = window.setTimeout(() => void refreshVisitorLeads({ silent: true }).catch((error) => showToast(error.message, "error")), 260);
+  });
+  $("#visitorLeadPagination")?.addEventListener("click", (event) => {
+    const button = event.target.closest("[data-visitor-offset]");
+    if (!button || button.disabled) return;
+    void refreshVisitorLeads({ offset: Number(button.dataset.visitorOffset) || 0 }).catch((error) => showToast(error.message, "error"));
+  });
+  $("#exportVisitorLeads")?.addEventListener("click", () => void exportVisitorLeadsCsv().catch((error) => showToast(error.message, "error")));
   $("#refreshDataQuality")?.addEventListener("click", () => void refreshAdminDataQuality().catch((error) => showToast(error.message, "error")));
   $("#adminIntegrations")?.addEventListener("click", (event) => {
     const button = event.target.closest("[data-test-integration]");
@@ -11478,6 +11921,7 @@ async function init() {
     console.error(error);
     showToast(t("apiError"), "error");
   }
+  void trackPageVisit();
   const authParams = new URLSearchParams(window.location.search);
   const requestedAuthTab = authParams.get("auth");
   const verificationToken = authParams.get("verifyToken");

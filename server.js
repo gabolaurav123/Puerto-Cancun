@@ -32,6 +32,13 @@ const {
   hammingDistance,
   publicationReadiness,
 } = require("./completion-utils");
+const {
+  hashTrackingId,
+  locationFromRequest,
+  parseUserAgent,
+  periodToDays,
+  sanitizeVisitorPayload,
+} = require("./visitor-analytics");
 const pdfParse = require("pdf-parse");
 const {
   MUTATING_METHODS,
@@ -76,6 +83,7 @@ const publicShareHostname = (() => {
 const databaseUrl = String(process.env.DATABASE_URL || "").trim();
 const databaseSslMode = String(process.env.DATABASE_SSL || "require").trim().toLowerCase();
 const databasePoolMax = Math.max(1, Math.min(20, Number(process.env.DATABASE_POOL_MAX || 5)));
+const visitorAnalyticsRetentionDays = Math.max(30, Math.min(1095, Number(process.env.VISITOR_ANALYTICS_RETENTION_DAYS || 365)));
 const indexPath = path.join(__dirname, "index.html");
 const staticAssetVersion = crypto
   .createHash("sha256")
@@ -1964,6 +1972,19 @@ async function initDatabase() {
         UNIQUE (type, name, parent_id)
       );
     `);
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS notifications (
+        id TEXT PRIMARY KEY,
+        user_id TEXT,
+        type TEXT NOT NULL,
+        title TEXT NOT NULL,
+        message TEXT NOT NULL,
+        related_entity_type TEXT,
+        related_entity_id TEXT,
+        is_read BOOLEAN NOT NULL DEFAULT FALSE,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      );
+    `);
     await client.query("ALTER TABLE seller_accounts ADD COLUMN IF NOT EXISTS google_sub TEXT UNIQUE");
     await client.query("ALTER TABLE seller_accounts ADD COLUMN IF NOT EXISTS auth_provider TEXT NOT NULL DEFAULT 'password'");
     await client.query("ALTER TABLE seller_accounts ADD COLUMN IF NOT EXISTS email_verified_at TIMESTAMPTZ");
@@ -2308,8 +2329,6 @@ async function initDatabase() {
     await client.query("ALTER TABLE properties ADD COLUMN IF NOT EXISTS keywords JSONB NOT NULL DEFAULT '[]'::jsonb");
     await client.query("ALTER TABLE properties ADD COLUMN IF NOT EXISTS idempotency_key TEXT UNIQUE");
     await client.query("CREATE INDEX IF NOT EXISTS idx_properties_keywords_gin ON properties USING GIN (keywords)");
-    await client.query("CREATE INDEX IF NOT EXISTS idx_properties_public_status_updated ON properties (is_public, status, updated_at DESC)");
-    await client.query("CREATE INDEX IF NOT EXISTS idx_location_options_hierarchy ON location_options (type, parent_id, is_active, sort_order)");
     await client.query("ALTER TABLE properties ALTER COLUMN price_usd DROP NOT NULL");
     await client.query("ALTER TABLE properties ADD COLUMN IF NOT EXISTS state TEXT NOT NULL DEFAULT 'Quintana Roo'");
     await client.query("ALTER TABLE properties ADD COLUMN IF NOT EXISTS city TEXT NOT NULL DEFAULT 'Cancun'");
@@ -2395,19 +2414,6 @@ async function initDatabase() {
       );
     `);
     await client.query(`
-      CREATE TABLE IF NOT EXISTS notifications (
-        id TEXT PRIMARY KEY,
-        user_id TEXT,
-        type TEXT NOT NULL,
-        title TEXT NOT NULL,
-        message TEXT NOT NULL,
-        related_entity_type TEXT,
-        related_entity_id TEXT,
-        is_read BOOLEAN NOT NULL DEFAULT FALSE,
-        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-      );
-    `);
-    await client.query(`
       CREATE TABLE IF NOT EXISTS activity_logs (
         id TEXT PRIMARY KEY,
         user_id TEXT,
@@ -2423,7 +2429,6 @@ async function initDatabase() {
     await client.query("CREATE INDEX IF NOT EXISTS idx_lead_requests_status_created ON lead_requests (status, created_at DESC)");
     await client.query("CREATE INDEX IF NOT EXISTS idx_contacts_type_updated ON contacts (contact_type, updated_at DESC)");
     await client.query("CREATE INDEX IF NOT EXISTS idx_notifications_user_read_created ON notifications (user_id, is_read, created_at DESC)");
-    await client.query("CREATE INDEX IF NOT EXISTS idx_tasks_status_due ON tasks (status, due_date)");
     await client.query(`
       CREATE TABLE IF NOT EXISTS analytics_events (
         id TEXT PRIMARY KEY,
@@ -2475,6 +2480,7 @@ async function initDatabase() {
         updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
       );
     `);
+    await client.query("CREATE INDEX IF NOT EXISTS idx_tasks_status_due ON tasks (status, due_date)");
     await client.query(`
       CREATE TABLE IF NOT EXISTS property_matches (
         id TEXT PRIMARY KEY,
@@ -2662,6 +2668,101 @@ async function initDatabase() {
         await migrationClient.query("CREATE INDEX IF NOT EXISTS idx_document_share_links_expires ON document_share_links (expires_at) WHERE is_active = TRUE");
       },
     });
+    await runMigration(client, {
+      id: "0008-visitor-lead-analytics",
+      description: "Visitantes, sesiones y paginas vistas agrupadas para analitica comercial con consentimiento",
+      up: async (migrationClient) => {
+        await migrationClient.query(`
+          CREATE TABLE IF NOT EXISTS visitor_profiles (
+            id TEXT PRIMARY KEY,
+            visitor_key_hash CHAR(64) NOT NULL UNIQUE,
+            linked_user_id TEXT,
+            linked_user_role TEXT,
+            first_seen_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+            last_seen_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+            visit_count INTEGER NOT NULL DEFAULT 0,
+            session_count INTEGER NOT NULL DEFAULT 0,
+            first_path TEXT NOT NULL DEFAULT '/',
+            last_path TEXT NOT NULL DEFAULT '/',
+            ip_address TEXT,
+            country_code TEXT,
+            country_name TEXT,
+            region TEXT,
+            city TEXT,
+            timezone TEXT,
+            device_type TEXT,
+            browser_name TEXT,
+            operating_system TEXT,
+            user_agent TEXT,
+            language TEXT,
+            referrer TEXT,
+            utm_source TEXT,
+            utm_medium TEXT,
+            utm_campaign TEXT,
+            is_bot BOOLEAN NOT NULL DEFAULT FALSE
+          )
+        `);
+        await migrationClient.query(`
+          CREATE TABLE IF NOT EXISTS visitor_sessions (
+            id TEXT PRIMARY KEY,
+            session_key_hash CHAR(64) NOT NULL UNIQUE,
+            visitor_id TEXT NOT NULL REFERENCES visitor_profiles(id) ON DELETE CASCADE,
+            user_id TEXT,
+            user_role TEXT,
+            started_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+            last_seen_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+            page_view_count INTEGER NOT NULL DEFAULT 0,
+            entry_path TEXT NOT NULL DEFAULT '/',
+            exit_path TEXT NOT NULL DEFAULT '/',
+            ip_address TEXT,
+            country_code TEXT,
+            country_name TEXT,
+            region TEXT,
+            city TEXT,
+            timezone TEXT,
+            device_type TEXT,
+            browser_name TEXT,
+            operating_system TEXT,
+            referrer TEXT,
+            utm_source TEXT,
+            utm_medium TEXT,
+            utm_campaign TEXT
+          )
+        `);
+        await migrationClient.query(`
+          CREATE TABLE IF NOT EXISTS visitor_page_views (
+            id TEXT PRIMARY KEY,
+            client_event_hash CHAR(64) NOT NULL UNIQUE,
+            visitor_id TEXT NOT NULL REFERENCES visitor_profiles(id) ON DELETE CASCADE,
+            session_id TEXT NOT NULL REFERENCES visitor_sessions(id) ON DELETE CASCADE,
+            user_id TEXT,
+            user_role TEXT,
+            path TEXT NOT NULL,
+            title TEXT,
+            referrer TEXT,
+            language TEXT,
+            utm_source TEXT,
+            utm_medium TEXT,
+            utm_campaign TEXT,
+            viewport_width INTEGER,
+            viewport_height INTEGER,
+            created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+          )
+        `);
+        await migrationClient.query("CREATE INDEX IF NOT EXISTS idx_visitor_profiles_last_seen ON visitor_profiles (last_seen_at DESC)");
+        await migrationClient.query("CREATE INDEX IF NOT EXISTS idx_visitor_profiles_location ON visitor_profiles (country_code, city, last_seen_at DESC)");
+        await migrationClient.query("CREATE INDEX IF NOT EXISTS idx_visitor_profiles_user ON visitor_profiles (linked_user_id, last_seen_at DESC)");
+        await migrationClient.query("CREATE INDEX IF NOT EXISTS idx_visitor_sessions_visitor ON visitor_sessions (visitor_id, last_seen_at DESC)");
+        await migrationClient.query("CREATE INDEX IF NOT EXISTS idx_visitor_sessions_started ON visitor_sessions (started_at DESC)");
+        await migrationClient.query("CREATE INDEX IF NOT EXISTS idx_visitor_page_views_visitor ON visitor_page_views (visitor_id, created_at DESC)");
+        await migrationClient.query("CREATE INDEX IF NOT EXISTS idx_visitor_page_views_path ON visitor_page_views (path, created_at DESC)");
+        await migrationClient.query("CREATE INDEX IF NOT EXISTS idx_visitor_page_views_created ON visitor_page_views (created_at DESC)");
+      },
+    });
+    await client.query(
+      "DELETE FROM visitor_page_views WHERE created_at < NOW() - make_interval(days => $1)",
+      [visitorAnalyticsRetentionDays]
+    );
     await client.query("CREATE INDEX IF NOT EXISTS idx_guest_sale_requests_status_created ON guest_sale_requests (status, created_at DESC)");
     await client.query("CREATE INDEX IF NOT EXISTS idx_guest_sale_requests_contact ON guest_sale_requests (email, phone)");
     await client.query("ALTER TABLE tasks ADD COLUMN IF NOT EXISTS reminder_at TIMESTAMPTZ");
@@ -2782,6 +2883,7 @@ async function initDatabase() {
     await client.query("ALTER TABLE properties ADD COLUMN IF NOT EXISTS sold_at TIMESTAMPTZ");
     await client.query("ALTER TABLE properties ADD COLUMN IF NOT EXISTS archived_at TIMESTAMPTZ");
     await client.query("ALTER TABLE properties ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()");
+    await client.query("CREATE INDEX IF NOT EXISTS idx_properties_public_status_updated ON properties (is_public, status, updated_at DESC)");
     await client.query("CREATE INDEX IF NOT EXISTS idx_properties_publication_section ON properties (publication_section, status, updated_at DESC)");
     await client.query("CREATE INDEX IF NOT EXISTS idx_blog_posts_publication ON blog_posts (status, published_at DESC, updated_at DESC)");
     await client.query("CREATE INDEX IF NOT EXISTS idx_properties_updated_at ON properties (updated_at DESC)");
@@ -2800,6 +2902,7 @@ async function initDatabase() {
     await client.query("ALTER TABLE location_options ADD COLUMN IF NOT EXISTS is_active BOOLEAN NOT NULL DEFAULT TRUE");
     await client.query("ALTER TABLE location_options ADD COLUMN IF NOT EXISTS sort_order INTEGER NOT NULL DEFAULT 0");
     await client.query("ALTER TABLE location_options ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()");
+    await client.query("CREATE INDEX IF NOT EXISTS idx_location_options_hierarchy ON location_options (type, parent_id, is_active, sort_order)");
     await client.query("ALTER TABLE valuations ADD COLUMN IF NOT EXISTS contact_id TEXT");
     await client.query("ALTER TABLE valuations ADD COLUMN IF NOT EXISTS property_id TEXT");
     await client.query("ALTER TABLE valuations ADD COLUMN IF NOT EXISTS confidence_level TEXT NOT NULL DEFAULT 'manual'");
@@ -4028,14 +4131,25 @@ const PUBLIC_ANALYTICS_EVENTS = new Set([
 
 app.post("/api/analytics/events", async (req, res, next) => {
   try {
+    if (req.body?.analyticsConsent !== true) {
+      res.status(204).end();
+      return;
+    }
+    if (req.session.user?.role === "admin") {
+      res.json({ ok: true, ignored: true });
+      return;
+    }
     const eventType = String(req.body.eventType || "").trim().slice(0, 80);
     if (!PUBLIC_ANALYTICS_EVENTS.has(eventType)) {
       res.status(400).json({ error: "Tipo de evento no permitido." });
       return;
     }
     const rawMetadata = req.body.metadata && typeof req.body.metadata === "object" ? req.body.metadata : {};
+    const visitorHash = hashTrackingId(rawMetadata.visitorId, sessionSecret);
+    const sessionHash = hashTrackingId(`${rawMetadata.visitorId || ""}:${rawMetadata.sessionId || ""}`, sessionSecret);
     const metadata = {
-      visitorId: String(rawMetadata.visitorId || "").trim().slice(0, 80),
+      visitorId: visitorHash ? `visitor-${visitorHash.slice(0, 32)}` : "",
+      sessionId: sessionHash ? `visit-${sessionHash.slice(0, 32)}` : "",
       path: String(rawMetadata.path || "").trim().slice(0, 220),
       lang: String(rawMetadata.lang || "").trim().slice(0, 8),
       title: String(rawMetadata.title || "").trim().slice(0, 220),
@@ -4059,6 +4173,184 @@ app.post("/api/analytics/events", async (req, res, next) => {
     res.json({ ok: true });
   } catch (error) {
     next(error);
+  }
+});
+
+app.post("/api/analytics/visit", async (req, res, next) => {
+  if (req.body?.analyticsConsent !== true) {
+    res.status(204).end();
+    return;
+  }
+  if (req.session.user?.role === "admin") {
+    res.json({ ok: true, ignored: true });
+    return;
+  }
+  const payload = sanitizeVisitorPayload(req.body);
+  if (!payload.visitorId || !payload.sessionId || !payload.pageViewId) {
+    res.status(400).json({ error: "Identificadores de medición no válidos." });
+    return;
+  }
+  const visitorHash = hashTrackingId(payload.visitorId, sessionSecret);
+  const sessionHash = hashTrackingId(`${payload.visitorId}:${payload.sessionId}`, sessionSecret);
+  const eventHash = hashTrackingId(`${payload.visitorId}:${payload.pageViewId}`, sessionSecret);
+  const visitorId = `visitor-${visitorHash.slice(0, 32)}`;
+  const visitSessionId = `visit-${sessionHash.slice(0, 32)}`;
+  const geo = locationFromRequest(req);
+  const agent = parseUserAgent(req.get("user-agent"));
+  const linkedUserId = req.session.user?.role === "seller" ? req.session.user.id : null;
+  const linkedUserRole = linkedUserId ? "seller" : null;
+  const optional = (value) => value || null;
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+    const visitorResult = await client.query(
+      `INSERT INTO visitor_profiles
+        (id, visitor_key_hash, linked_user_id, linked_user_role, first_path, last_path,
+         ip_address, country_code, country_name, region, city, timezone, device_type,
+         browser_name, operating_system, user_agent, language, referrer, utm_source,
+         utm_medium, utm_campaign, is_bot)
+       VALUES
+        ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16,
+         $17, $18, $19, $20, $21, $22)
+       ON CONFLICT (visitor_key_hash) DO UPDATE SET
+         linked_user_id = COALESCE(EXCLUDED.linked_user_id, visitor_profiles.linked_user_id),
+         linked_user_role = COALESCE(EXCLUDED.linked_user_role, visitor_profiles.linked_user_role),
+         last_seen_at = NOW(),
+         last_path = EXCLUDED.last_path,
+         ip_address = COALESCE(EXCLUDED.ip_address, visitor_profiles.ip_address),
+         country_code = COALESCE(EXCLUDED.country_code, visitor_profiles.country_code),
+         country_name = COALESCE(EXCLUDED.country_name, visitor_profiles.country_name),
+         region = COALESCE(EXCLUDED.region, visitor_profiles.region),
+         city = COALESCE(EXCLUDED.city, visitor_profiles.city),
+         timezone = COALESCE(EXCLUDED.timezone, visitor_profiles.timezone),
+         device_type = COALESCE(EXCLUDED.device_type, visitor_profiles.device_type),
+         browser_name = COALESCE(EXCLUDED.browser_name, visitor_profiles.browser_name),
+         operating_system = COALESCE(EXCLUDED.operating_system, visitor_profiles.operating_system),
+         user_agent = COALESCE(EXCLUDED.user_agent, visitor_profiles.user_agent),
+         language = COALESCE(EXCLUDED.language, visitor_profiles.language),
+         referrer = COALESCE(NULLIF(visitor_profiles.referrer, ''), EXCLUDED.referrer),
+         utm_source = COALESCE(NULLIF(visitor_profiles.utm_source, ''), EXCLUDED.utm_source),
+         utm_medium = COALESCE(NULLIF(visitor_profiles.utm_medium, ''), EXCLUDED.utm_medium),
+         utm_campaign = COALESCE(NULLIF(visitor_profiles.utm_campaign, ''), EXCLUDED.utm_campaign),
+         is_bot = visitor_profiles.is_bot OR EXCLUDED.is_bot
+       RETURNING id`,
+      [
+        visitorId,
+        visitorHash,
+        linkedUserId,
+        linkedUserRole,
+        payload.path,
+        payload.path,
+        optional(geo.ipAddress),
+        optional(geo.countryCode),
+        optional(geo.countryName),
+        optional(geo.region),
+        optional(geo.city),
+        optional(payload.timezone),
+        optional(agent.deviceType),
+        optional(agent.browserName),
+        optional(agent.operatingSystem),
+        optional(agent.userAgent),
+        optional(payload.language || req.get("accept-language")),
+        optional(payload.referrer),
+        optional(payload.utmSource),
+        optional(payload.utmMedium),
+        optional(payload.utmCampaign),
+        agent.isBot,
+      ]
+    );
+    const storedVisitorId = visitorResult.rows[0].id;
+    const insertedSession = await client.query(
+      `INSERT INTO visitor_sessions
+        (id, session_key_hash, visitor_id, user_id, user_role, entry_path, exit_path,
+         ip_address, country_code, country_name, region, city, timezone, device_type,
+         browser_name, operating_system, referrer, utm_source, utm_medium, utm_campaign)
+       VALUES
+        ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15,
+         $16, $17, $18, $19, $20)
+       ON CONFLICT (session_key_hash) DO NOTHING
+       RETURNING id`,
+      [
+        visitSessionId,
+        sessionHash,
+        storedVisitorId,
+        linkedUserId,
+        linkedUserRole,
+        payload.path,
+        payload.path,
+        optional(geo.ipAddress),
+        optional(geo.countryCode),
+        optional(geo.countryName),
+        optional(geo.region),
+        optional(geo.city),
+        optional(payload.timezone),
+        optional(agent.deviceType),
+        optional(agent.browserName),
+        optional(agent.operatingSystem),
+        optional(payload.referrer),
+        optional(payload.utmSource),
+        optional(payload.utmMedium),
+        optional(payload.utmCampaign),
+      ]
+    );
+    const sessionCreated = Boolean(insertedSession.rows[0]);
+    const storedSessionId = insertedSession.rows[0]?.id || (await client.query(
+      "SELECT id FROM visitor_sessions WHERE session_key_hash = $1",
+      [sessionHash]
+    )).rows[0]?.id;
+    if (!storedSessionId) throw new Error("No fue posible relacionar la sesión de medición.");
+    const pageViewResult = await client.query(
+      `INSERT INTO visitor_page_views
+        (id, client_event_hash, visitor_id, session_id, user_id, user_role, path, title,
+         referrer, language, utm_source, utm_medium, utm_campaign, viewport_width, viewport_height)
+       VALUES
+        ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+       ON CONFLICT (client_event_hash) DO NOTHING
+       RETURNING id`,
+      [
+        uuid("view"),
+        eventHash,
+        storedVisitorId,
+        storedSessionId,
+        linkedUserId,
+        linkedUserRole,
+        payload.path,
+        optional(payload.title),
+        optional(payload.referrer),
+        optional(payload.language),
+        optional(payload.utmSource),
+        optional(payload.utmMedium),
+        optional(payload.utmCampaign),
+        payload.viewportWidth || null,
+        payload.viewportHeight || null,
+      ]
+    );
+    const created = Boolean(pageViewResult.rows[0]);
+    if (created) {
+      await client.query(
+        `UPDATE visitor_sessions SET
+           user_id = COALESCE($2, user_id), user_role = COALESCE($3, user_role),
+           last_seen_at = NOW(), page_view_count = page_view_count + 1, exit_path = $4
+         WHERE id = $1`,
+        [storedSessionId, linkedUserId, linkedUserRole, payload.path]
+      );
+      await client.query(
+        `UPDATE visitor_profiles SET
+           last_seen_at = NOW(), visit_count = visit_count + 1,
+           session_count = session_count + $2, last_path = $3
+         WHERE id = $1`,
+        [storedVisitorId, sessionCreated ? 1 : 0, payload.path]
+      );
+    } else if (sessionCreated) {
+      await client.query("DELETE FROM visitor_sessions WHERE id = $1 AND page_view_count = 0", [storedSessionId]);
+    }
+    await client.query("COMMIT");
+    res.status(created ? 201 : 200).json({ ok: true, created });
+  } catch (error) {
+    await client.query("ROLLBACK");
+    next(error);
+  } finally {
+    client.release();
   }
 });
 
@@ -6801,6 +7093,216 @@ app.get("/api/admin/leads", requireRole("admin"), async (_req, res, next) => {
   try {
     const result = await query("SELECT * FROM lead_requests ORDER BY created_at DESC LIMIT 120");
     res.json({ leads: result.rows.map(toLead) });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.get("/api/admin/visitor-leads", requireRole("admin"), async (req, res, next) => {
+  try {
+    const days = periodToDays(req.query.period);
+    const identity = ["all", "registered", "anonymous", "returning"].includes(String(req.query.identity))
+      ? String(req.query.identity)
+      : "all";
+    const device = ["", "desktop", "mobile", "tablet"].includes(String(req.query.device || ""))
+      ? String(req.query.device || "")
+      : "";
+    const country = String(req.query.country || "").trim().slice(0, 100);
+    const search = String(req.query.search || "").trim().slice(0, 160);
+    const includeBots = String(req.query.includeBots || "") === "true";
+    const limit = Math.max(20, Math.min(100, Number(req.query.limit) || 50));
+    const offset = Math.max(0, Math.min(100000, Number(req.query.offset) || 0));
+    const params = [days, identity, country, device, search ? `%${search}%` : "", includeBots];
+    const commonFilter = `
+      ($2 = 'all'
+        OR ($2 = 'registered' AND v.linked_user_id IS NOT NULL)
+        OR ($2 = 'anonymous' AND v.linked_user_id IS NULL)
+        OR ($2 = 'returning' AND v.session_count > 1))
+      AND ($3 = '' OR UPPER(COALESCE(v.country_code, '')) = UPPER($3) OR LOWER(COALESCE(v.country_name, '')) = LOWER($3))
+      AND ($4 = '' OR v.device_type = $4)
+      AND ($5 = '' OR v.ip_address ILIKE $5 OR v.city ILIKE $5 OR v.country_name ILIKE $5
+        OR v.first_path ILIKE $5 OR v.last_path ILIKE $5 OR v.utm_campaign ILIKE $5
+        OR a.email ILIKE $5 OR CONCAT_WS(' ', a.first_name, a.last_name) ILIKE $5)
+      AND ($6::boolean = TRUE OR v.is_bot = FALSE)`;
+    const [visitorsResult, summaryResult, sessionsResult, pageViewsResult, countriesResult, pagesResult, sourcesResult, devicesResult, dailyResult, countryOptionsResult] = await Promise.all([
+      query(
+        `SELECT v.*,
+           NULLIF(TRIM(CONCAT_WS(' ', a.first_name, a.last_name)), '') AS registered_name,
+           a.email AS registered_email,
+           COUNT(*) OVER()::int AS filtered_count,
+           COALESCE((
+             SELECT jsonb_agg(jsonb_build_object(
+               'path', recent.path, 'title', recent.title, 'visitedAt', recent.created_at
+             ) ORDER BY recent.created_at DESC)
+             FROM (
+               SELECT path, title, created_at FROM visitor_page_views
+               WHERE visitor_id = v.id ORDER BY created_at DESC LIMIT 6
+             ) recent
+           ), '[]'::jsonb) AS recent_pages,
+           COALESCE((
+             SELECT jsonb_agg(jsonb_build_object(
+               'startedAt', recent_session.started_at,
+               'lastSeenAt', recent_session.last_seen_at,
+               'pageViews', recent_session.page_view_count,
+               'entryPath', recent_session.entry_path,
+               'exitPath', recent_session.exit_path
+             ) ORDER BY recent_session.started_at DESC)
+             FROM (
+               SELECT started_at, last_seen_at, page_view_count, entry_path, exit_path
+               FROM visitor_sessions WHERE visitor_id = v.id ORDER BY started_at DESC LIMIT 4
+             ) recent_session
+           ), '[]'::jsonb) AS recent_sessions
+         FROM visitor_profiles v
+         LEFT JOIN seller_accounts a ON a.id = v.linked_user_id
+         WHERE ($1::int IS NULL OR v.last_seen_at >= NOW() - make_interval(days => $1))
+           AND ${commonFilter}
+         ORDER BY v.last_seen_at DESC
+         LIMIT $7 OFFSET $8`,
+        [...params, limit, offset]
+      ),
+      query(
+        `SELECT
+           COUNT(*)::int AS visitors,
+           COUNT(*) FILTER (WHERE v.linked_user_id IS NOT NULL)::int AS registered,
+           COUNT(*) FILTER (WHERE v.linked_user_id IS NULL)::int AS anonymous,
+           COUNT(*) FILTER (WHERE v.session_count > 1)::int AS returning,
+           COUNT(*) FILTER (WHERE v.first_seen_at >= CURRENT_DATE)::int AS today,
+           COUNT(DISTINCT NULLIF(v.country_code, ''))::int AS countries
+         FROM visitor_profiles v
+         LEFT JOIN seller_accounts a ON a.id = v.linked_user_id
+         WHERE ($1::int IS NULL OR v.last_seen_at >= NOW() - make_interval(days => $1))
+           AND ${commonFilter}`,
+        params
+      ),
+      query(
+        `SELECT COUNT(*)::int AS count
+         FROM visitor_sessions session_data
+         JOIN visitor_profiles v ON v.id = session_data.visitor_id
+         LEFT JOIN seller_accounts a ON a.id = v.linked_user_id
+         WHERE ($1::int IS NULL OR session_data.started_at >= NOW() - make_interval(days => $1))
+           AND ${commonFilter}`,
+        params
+      ),
+      query(
+        `SELECT COUNT(*)::int AS count
+         FROM visitor_page_views page_data
+         JOIN visitor_profiles v ON v.id = page_data.visitor_id
+         LEFT JOIN seller_accounts a ON a.id = v.linked_user_id
+         WHERE ($1::int IS NULL OR page_data.created_at >= NOW() - make_interval(days => $1))
+           AND ${commonFilter}`,
+        params
+      ),
+      query(
+        `SELECT COALESCE(NULLIF(v.country_name, ''), NULLIF(v.country_code, ''), 'Sin ubicación') AS label,
+           COUNT(*)::int AS visitors, SUM(v.visit_count)::int AS views
+         FROM visitor_profiles v LEFT JOIN seller_accounts a ON a.id = v.linked_user_id
+         WHERE ($1::int IS NULL OR v.last_seen_at >= NOW() - make_interval(days => $1)) AND ${commonFilter}
+         GROUP BY COALESCE(NULLIF(v.country_name, ''), NULLIF(v.country_code, ''), 'Sin ubicación')
+         ORDER BY visitors DESC, views DESC LIMIT 12`,
+        params
+      ),
+      query(
+        `SELECT page_data.path, MAX(NULLIF(page_data.title, '')) AS title,
+           COUNT(*)::int AS views, COUNT(DISTINCT page_data.visitor_id)::int AS visitors
+         FROM visitor_page_views page_data
+         JOIN visitor_profiles v ON v.id = page_data.visitor_id
+         LEFT JOIN seller_accounts a ON a.id = v.linked_user_id
+         WHERE ($1::int IS NULL OR page_data.created_at >= NOW() - make_interval(days => $1)) AND ${commonFilter}
+         GROUP BY page_data.path ORDER BY views DESC LIMIT 15`,
+        params
+      ),
+      query(
+        `SELECT COALESCE(NULLIF(session_data.utm_source, ''), NULLIF(session_data.referrer, ''), 'Directo') AS label,
+           COUNT(*)::int AS sessions
+         FROM visitor_sessions session_data
+         JOIN visitor_profiles v ON v.id = session_data.visitor_id
+         LEFT JOIN seller_accounts a ON a.id = v.linked_user_id
+         WHERE ($1::int IS NULL OR session_data.started_at >= NOW() - make_interval(days => $1)) AND ${commonFilter}
+         GROUP BY COALESCE(NULLIF(session_data.utm_source, ''), NULLIF(session_data.referrer, ''), 'Directo')
+         ORDER BY sessions DESC LIMIT 10`,
+        params
+      ),
+      query(
+        `SELECT COALESCE(NULLIF(v.device_type, ''), 'Sin identificar') AS label, COUNT(*)::int AS visitors
+         FROM visitor_profiles v LEFT JOIN seller_accounts a ON a.id = v.linked_user_id
+         WHERE ($1::int IS NULL OR v.last_seen_at >= NOW() - make_interval(days => $1)) AND ${commonFilter}
+         GROUP BY COALESCE(NULLIF(v.device_type, ''), 'Sin identificar') ORDER BY visitors DESC`,
+        params
+      ),
+      query(
+        `SELECT DATE(page_data.created_at) AS day, COUNT(*)::int AS views,
+           COUNT(DISTINCT page_data.visitor_id)::int AS visitors
+         FROM visitor_page_views page_data
+         JOIN visitor_profiles v ON v.id = page_data.visitor_id
+         LEFT JOIN seller_accounts a ON a.id = v.linked_user_id
+         WHERE ($1::int IS NULL OR page_data.created_at >= NOW() - make_interval(days => $1)) AND ${commonFilter}
+         GROUP BY DATE(page_data.created_at) ORDER BY day ASC`,
+        params
+      ),
+      query(
+        `SELECT country_code, country_name, COUNT(*)::int AS visitors
+         FROM visitor_profiles
+         WHERE is_bot = FALSE AND (country_code IS NOT NULL OR country_name IS NOT NULL)
+         GROUP BY country_code, country_name ORDER BY visitors DESC, country_name ASC`
+      ),
+    ]);
+    const totals = summaryResult.rows[0] || {};
+    const sessionCount = Number(sessionsResult.rows[0]?.count || 0);
+    const pageViewCount = Number(pageViewsResult.rows[0]?.count || 0);
+    const visitors = visitorsResult.rows.map((row) => ({
+      id: row.id,
+      registered: Boolean(row.linked_user_id),
+      userId: row.linked_user_id || "",
+      userName: row.registered_name || "",
+      userEmail: row.registered_email || "",
+      firstSeenAt: row.first_seen_at,
+      lastSeenAt: row.last_seen_at,
+      visitCount: Number(row.visit_count || 0),
+      sessionCount: Number(row.session_count || 0),
+      firstPath: row.first_path || "/",
+      lastPath: row.last_path || "/",
+      ipAddress: row.ip_address || "",
+      countryCode: row.country_code || "",
+      countryName: row.country_name || "",
+      region: row.region || "",
+      city: row.city || "",
+      timezone: row.timezone || "",
+      deviceType: row.device_type || "",
+      browserName: row.browser_name || "",
+      operatingSystem: row.operating_system || "",
+      language: row.language || "",
+      referrer: row.referrer || "",
+      utmSource: row.utm_source || "",
+      utmMedium: row.utm_medium || "",
+      utmCampaign: row.utm_campaign || "",
+      isBot: Boolean(row.is_bot),
+      recentPages: row.recent_pages || [],
+      recentSessions: row.recent_sessions || [],
+    }));
+    res.setHeader("Cache-Control", "no-store");
+    res.json({
+      filters: { period: days === null ? "all" : String(days), identity, country, device, search, includeBots },
+      pagination: { total: Number(visitorsResult.rows[0]?.filtered_count || totals.visitors || 0), limit, offset },
+      retentionDays: visitorAnalyticsRetentionDays,
+      summary: {
+        visitors: Number(totals.visitors || 0),
+        registered: Number(totals.registered || 0),
+        anonymous: Number(totals.anonymous || 0),
+        returning: Number(totals.returning || 0),
+        today: Number(totals.today || 0),
+        countries: Number(totals.countries || 0),
+        sessions: sessionCount,
+        pageViews: pageViewCount,
+        pagesPerSession: sessionCount ? Number((pageViewCount / sessionCount).toFixed(1)) : 0,
+      },
+      visitors,
+      topCountries: countriesResult.rows,
+      topPages: pagesResult.rows,
+      sources: sourcesResult.rows,
+      devices: devicesResult.rows,
+      daily: dailyResult.rows,
+      countryOptions: countryOptionsResult.rows,
+    });
   } catch (error) {
     next(error);
   }

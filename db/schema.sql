@@ -636,3 +636,86 @@ CREATE TABLE IF NOT EXISTS integration_diagnostics (
 
 CREATE INDEX IF NOT EXISTS idx_integration_diagnostics_latest
   ON integration_diagnostics (integration_id, created_at DESC);
+
+CREATE TABLE IF NOT EXISTS visitor_profiles (
+  id TEXT PRIMARY KEY,
+  visitor_key_hash CHAR(64) NOT NULL UNIQUE,
+  linked_user_id TEXT,
+  linked_user_role TEXT,
+  first_seen_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  last_seen_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  visit_count INTEGER NOT NULL DEFAULT 0,
+  session_count INTEGER NOT NULL DEFAULT 0,
+  first_path TEXT NOT NULL DEFAULT '/',
+  last_path TEXT NOT NULL DEFAULT '/',
+  ip_address TEXT,
+  country_code TEXT,
+  country_name TEXT,
+  region TEXT,
+  city TEXT,
+  timezone TEXT,
+  device_type TEXT,
+  browser_name TEXT,
+  operating_system TEXT,
+  user_agent TEXT,
+  language TEXT,
+  referrer TEXT,
+  utm_source TEXT,
+  utm_medium TEXT,
+  utm_campaign TEXT,
+  is_bot BOOLEAN NOT NULL DEFAULT FALSE
+);
+
+CREATE TABLE IF NOT EXISTS visitor_sessions (
+  id TEXT PRIMARY KEY,
+  session_key_hash CHAR(64) NOT NULL UNIQUE,
+  visitor_id TEXT NOT NULL REFERENCES visitor_profiles(id) ON DELETE CASCADE,
+  user_id TEXT,
+  user_role TEXT,
+  started_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  last_seen_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  page_view_count INTEGER NOT NULL DEFAULT 0,
+  entry_path TEXT NOT NULL DEFAULT '/',
+  exit_path TEXT NOT NULL DEFAULT '/',
+  ip_address TEXT,
+  country_code TEXT,
+  country_name TEXT,
+  region TEXT,
+  city TEXT,
+  timezone TEXT,
+  device_type TEXT,
+  browser_name TEXT,
+  operating_system TEXT,
+  referrer TEXT,
+  utm_source TEXT,
+  utm_medium TEXT,
+  utm_campaign TEXT
+);
+
+CREATE TABLE IF NOT EXISTS visitor_page_views (
+  id TEXT PRIMARY KEY,
+  client_event_hash CHAR(64) NOT NULL UNIQUE,
+  visitor_id TEXT NOT NULL REFERENCES visitor_profiles(id) ON DELETE CASCADE,
+  session_id TEXT NOT NULL REFERENCES visitor_sessions(id) ON DELETE CASCADE,
+  user_id TEXT,
+  user_role TEXT,
+  path TEXT NOT NULL,
+  title TEXT,
+  referrer TEXT,
+  language TEXT,
+  utm_source TEXT,
+  utm_medium TEXT,
+  utm_campaign TEXT,
+  viewport_width INTEGER,
+  viewport_height INTEGER,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_visitor_profiles_last_seen ON visitor_profiles (last_seen_at DESC);
+CREATE INDEX IF NOT EXISTS idx_visitor_profiles_location ON visitor_profiles (country_code, city, last_seen_at DESC);
+CREATE INDEX IF NOT EXISTS idx_visitor_profiles_user ON visitor_profiles (linked_user_id, last_seen_at DESC);
+CREATE INDEX IF NOT EXISTS idx_visitor_sessions_visitor ON visitor_sessions (visitor_id, last_seen_at DESC);
+CREATE INDEX IF NOT EXISTS idx_visitor_sessions_started ON visitor_sessions (started_at DESC);
+CREATE INDEX IF NOT EXISTS idx_visitor_page_views_visitor ON visitor_page_views (visitor_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_visitor_page_views_path ON visitor_page_views (path, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_visitor_page_views_created ON visitor_page_views (created_at DESC);

@@ -36,7 +36,7 @@
       href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&family=Playfair+Display:wght@500;600;700&display=swap"
       rel="stylesheet"
     />
-    <link rel="stylesheet" href="/styles.css?v=20260814.1" />
+    <link rel="stylesheet" href="/styles.css?v=20260905.1" />
     <!-- SEO_JSON_LD -->
   </head>
   <body data-page="home">
@@ -1049,6 +1049,10 @@
                 <span data-i18n="adminJumpLeads">Asesorias</span>
                 <b id="sidebarLeadBadge">0</b>
               </button>
+              <button type="button" data-admin-section="visitor-leads">
+                <i data-lucide="user-search"></i>
+                <span data-i18n="visitorLeadsMenu">Leads</span>
+              </button>
               <button type="button" data-admin-section="requests">
                 <i data-lucide="message-circle"></i>
                 <span data-i18n="adminJumpRequests">Solicitudes</span>
@@ -1313,6 +1317,44 @@
             <div class="table-heading"><div><span class="eyebrow">AGENDA COMERCIAL</span><h3>Solicitudes de visita</h3></div><span>Actualiza el estado después de contactar al interesado.</span></div>
             <div class="admin-tour-list" id="adminTours"></div>
           </section>
+        </article>
+        <article class="panel-card visitor-leads-panel" id="visitorLeadsCard" data-admin-section-panel="visitor-leads">
+          <div class="admin-module-heading visitor-leads-heading">
+            <div>
+              <span class="eyebrow" data-i18n="visitorLeadsEyebrow">AUDIENCIA Y RECORRIDO</span>
+              <h2 data-i18n="visitorLeadsTitle">Leads y visitantes</h2>
+              <p data-i18n="visitorLeadsHint">Distingue personas, sesiones y páginas vistas para analizar procedencia e interés sin duplicar cada visita como un contacto nuevo.</p>
+            </div>
+            <div class="inline-actions visitor-leads-actions">
+              <button class="ghost-button" type="button" id="exportVisitorLeads"><i data-lucide="download"></i><span data-i18n="visitorLeadsExport">Exportar CSV</span></button>
+              <button class="primary-button" type="button" id="refreshVisitorLeads"><i data-lucide="refresh-cw"></i><span data-i18n="visitorLeadsRefresh">Actualizar</span></button>
+            </div>
+          </div>
+          <div class="visitor-leads-notice">
+            <i data-lucide="shield-check"></i>
+            <p data-i18n="visitorLeadsPrivacy">La medición se registra solo cuando el visitante acepta las cookies de analítica. La ubicación procede de cabeceras del servidor y puede no estar disponible o ser aproximada.</p>
+          </div>
+          <div class="visitor-leads-filters" aria-label="Filtros de leads">
+            <label><span data-i18n="visitorPeriod">Periodo</span><select id="visitorLeadPeriod"><option value="1" data-i18n="visitorPeriodToday">Hoy</option><option value="7" data-i18n="visitorPeriod7">Últimos 7 días</option><option value="30" data-i18n="visitorPeriod30" selected>Últimos 30 días</option><option value="90" data-i18n="visitorPeriod90">Últimos 90 días</option><option value="all" data-i18n="visitorPeriodAll">Todo el historial</option></select></label>
+            <label><span data-i18n="visitorIdentity">Tipo de visitante</span><select id="visitorLeadIdentity"><option value="all" data-i18n="visitorIdentityAll">Todos</option><option value="registered" data-i18n="visitorIdentityRegistered">Registrados</option><option value="anonymous" data-i18n="visitorIdentityAnonymous">Anónimos</option><option value="returning" data-i18n="visitorIdentityReturning">Recurrentes</option></select></label>
+            <label><span data-i18n="visitorCountry">País</span><select id="visitorLeadCountry"><option value="">Todos los países</option></select></label>
+            <label><span data-i18n="visitorDevice">Dispositivo</span><select id="visitorLeadDevice"><option value="" data-i18n="visitorDeviceAll">Todos</option><option value="desktop" data-i18n="visitorDeviceDesktop">Escritorio</option><option value="mobile" data-i18n="visitorDeviceMobile">Móvil</option><option value="tablet" data-i18n="visitorDeviceTablet">Tableta</option></select></label>
+            <label class="visitor-lead-search"><span data-i18n="visitorSearch">Buscar</span><input id="visitorLeadSearch" type="search" placeholder="IP, ciudad, cuenta, campaña o página" autocomplete="off" /></label>
+            <label class="visitor-bot-toggle"><input id="visitorLeadBots" type="checkbox" /><span data-i18n="visitorIncludeBots">Incluir tráfico automatizado</span></label>
+          </div>
+          <div class="visitor-kpi-grid" id="visitorLeadSummary"></div>
+          <div class="visitor-insight-grid" id="visitorLeadInsights"></div>
+          <div class="visitor-table-heading">
+            <div><h3 data-i18n="visitorDirectoryTitle">Directorio de visitantes</h3><p id="visitorLeadResultCount"></p></div>
+            <p id="visitorLeadRetention"></p>
+          </div>
+          <div class="visitor-table-wrap">
+            <table class="data-table visitor-leads-table">
+              <thead><tr><th data-i18n="visitorColumnIdentity">Visitante</th><th data-i18n="visitorColumnLocation">Ubicación</th><th data-i18n="visitorColumnActivity">Actividad</th><th data-i18n="visitorColumnFirst">Primera visita</th><th data-i18n="visitorColumnLast">Última visita</th><th data-i18n="visitorColumnPage">Última página</th><th data-i18n="visitorColumnDetail">Detalle</th></tr></thead>
+              <tbody id="visitorLeadRows"></tbody>
+            </table>
+          </div>
+          <div class="visitor-pagination" id="visitorLeadPagination"></div>
         </article>
         <article class="panel-card admin-contacts-card" id="adminContactsCard" data-admin-section-panel="contacts">
           <div class="admin-module-heading">
@@ -3068,6 +3110,6 @@
     </a>
 
     <script src="https://unpkg.com/lucide@latest"></script>
-    <script src="/app.js?v=20260814.1"></script>
+    <script src="/app.js?v=20260905.1"></script>
   </body>
 </html>
