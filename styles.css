@@ -2959,6 +2959,11 @@ textarea:focus {
   color: var(--muted);
 }
 
+.pdf-share-fallback {
+  width: fit-content;
+  margin-top: 4px;
+}
+
 .seller-option-grid,
 .seller-entry-choice-grid {
   display: grid;

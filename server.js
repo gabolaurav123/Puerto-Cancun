@@ -3097,7 +3097,158 @@ app.get("/api/version", (_req, res) => {
 app.get("/compartiendo-ficha", (_req, res) => {
   res.setHeader("X-Robots-Tag", "noindex, nofollow, noarchive");
   res.setHeader("Cache-Control", "no-store");
-  res.type("html").send(`<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Preparando ficha</title><style>body{margin:0;min-height:100vh;display:grid;place-items:center;background:#f4f7f6;color:#003a46;font:16px Arial,sans-serif}.status{width:min(420px,calc(100% - 40px));padding:32px;text-align:center;border-top:3px solid #c99b2e;background:#fff;box-shadow:0 14px 38px rgba(0,58,70,.12)}.spinner{width:34px;height:34px;margin:0 auto 18px;border:3px solid #d7e3e1;border-top-color:#006071;border-radius:50%;animation:spin .8s linear infinite}@keyframes spin{to{transform:rotate(360deg)}}h1{margin:0 0 8px;font:700 26px Georgia,serif}p{margin:0;color:#526b70}</style></head><body><main class="status"><div class="spinner" aria-hidden="true"></div><h1>Preparando ficha</h1><p>La opción para compartir se abrirá en unos segundos.</p></main></body></html>`);
+  res.type("html").send(`<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Compartir ficha</title>
+  <style>
+    *{box-sizing:border-box}body{margin:0;min-height:100vh;display:grid;place-items:center;padding:20px;background:#f4f7f6;color:#003a46;font:16px/1.55 Arial,sans-serif}.status{width:min(480px,100%);padding:clamp(26px,7vw,42px);text-align:center;border:1px solid #d7e3e1;border-top:4px solid #c99b2e;background:#fff;box-shadow:0 18px 48px rgba(0,58,70,.14)}[hidden]{display:none!important}.spinner{width:36px;height:36px;margin:0 auto 18px;border:3px solid #d7e3e1;border-top-color:#006071;border-radius:50%;animation:spin .8s linear infinite}@keyframes spin{to{transform:rotate(360deg)}}.eyebrow{display:block;margin-bottom:8px;color:#9b6c19;font-size:.74rem;font-weight:800;text-transform:uppercase}h1{margin:0 0 12px;font:700 clamp(1.8rem,8vw,2.35rem)/1.08 Georgia,serif}p{margin:0;color:#526b70}.actions{display:grid;gap:10px;margin-top:24px}.primary,.secondary{min-height:48px;display:flex;align-items:center;justify-content:center;padding:12px 18px;border:1px solid #006071;border-radius:3px;font:700 .92rem Arial,sans-serif;text-decoration:none;cursor:pointer}.primary{background:#006071;color:#fff}.secondary{background:#fff;color:#003a46}.feedback{min-height:24px;margin-top:14px;font-size:.85rem}.copy-source{position:fixed;left:-10000px;width:1px;height:1px;opacity:0}
+  </style>
+</head>
+<body>
+  <main class="status">
+    <section id="loading" aria-live="polite">
+      <div class="spinner" aria-hidden="true"></div>
+      <h1>Preparando ficha</h1>
+      <p>La opción para compartir se abrirá en unos segundos.</p>
+    </section>
+    <section id="ready" hidden>
+      <span class="eyebrow" id="channelLabel">FICHA LISTA</span>
+      <h1 id="shareTitle">Ficha lista para compartir</h1>
+      <p id="shareDescription"></p>
+      <div class="actions">
+        <a class="primary" id="openChannel" href="#" rel="noopener noreferrer">Abrir canal</a>
+        <button class="secondary" id="copyShareText" type="button">Copiar texto y enlace</button>
+        <button class="secondary" id="nativeShare" type="button" hidden>Compartir con otra aplicación</button>
+      </div>
+      <p class="feedback" id="feedback" role="status" aria-live="polite"></p>
+      <textarea class="copy-source" id="shareText" tabindex="-1" aria-hidden="true" readonly></textarea>
+    </section>
+  </main>
+  <script>
+    (() => {
+      const allowedShareHost = ${JSON.stringify(publicShareHostname)};
+      const loading = document.getElementById('loading');
+      const ready = document.getElementById('ready');
+      const title = document.getElementById('shareTitle');
+      const description = document.getElementById('shareDescription');
+      const channelLabel = document.getElementById('channelLabel');
+      const openChannel = document.getElementById('openChannel');
+      const copyButton = document.getElementById('copyShareText');
+      const nativeButton = document.getElementById('nativeShare');
+      const feedback = document.getElementById('feedback');
+      const shareText = document.getElementById('shareText');
+      let message = '';
+      let shareUrl = '';
+
+      async function copyPreparedText() {
+        const text = message || shareUrl;
+        try {
+          if (!navigator.clipboard || !window.isSecureContext) throw new Error('clipboard-unavailable');
+          await navigator.clipboard.writeText(text);
+        } catch (_error) {
+          shareText.value = text;
+          shareText.focus();
+          shareText.select();
+          document.execCommand('copy');
+        }
+        feedback.textContent = 'Texto y enlace copiados.';
+      }
+
+      function showInvalidPayload() {
+        loading.hidden = true;
+        ready.hidden = false;
+        channelLabel.textContent = 'NO SE PUDO PREPARAR';
+        title.textContent = 'Vuelve al panel e inténtalo de nuevo';
+        description.textContent = 'El enlace de la ficha no es válido o está incompleto.';
+        document.querySelector('.actions').hidden = true;
+      }
+
+      function configureShare() {
+        const parameters = new URLSearchParams(window.location.hash.slice(1));
+        const channel = parameters.get('channel') || '';
+        shareUrl = String(parameters.get('shareUrl') || '').slice(0, 2048);
+        message = String(parameters.get('message') || shareUrl).slice(0, 4000);
+        let parsedShareUrl;
+        try {
+          parsedShareUrl = new URL(shareUrl);
+        } catch (_error) {
+          showInvalidPayload();
+          return;
+        }
+        const validHost = parsedShareUrl.hostname === allowedShareHost || parsedShareUrl.hostname === 'www.' + allowedShareHost;
+        if (!['whatsapp', 'facebook', 'instagram'].includes(channel) || parsedShareUrl.protocol !== 'https:' || !validHost || !/^\\/f\\/[A-Za-z0-9_-]{8,80}$/.test(parsedShareUrl.pathname)) {
+          showInvalidPayload();
+          return;
+        }
+
+        const labels = {
+          whatsapp: {
+            name: 'WHATSAPP',
+            title: 'Compartir por WhatsApp',
+            description: 'WhatsApp debe mostrar tu lista de contactos con el mensaje y el enlace ya preparados.',
+            action: 'Abrir WhatsApp',
+            target: 'https://api.whatsapp.com/send/?text=' + encodeURIComponent(message) + '&type=custom_url&app_absent=0',
+          },
+          facebook: {
+            name: 'FACEBOOK',
+            title: 'Compartir por Facebook',
+            description: 'Facebook abrirá el selector para publicar o enviar el enlace de la ficha.',
+            action: 'Abrir Facebook',
+            target: 'https://www.facebook.com/sharer/sharer.php?u=' + encodeURIComponent(shareUrl),
+          },
+          instagram: {
+            name: 'INSTAGRAM',
+            title: 'Compartir por Instagram',
+            description: 'Instagram no permite precargar publicaciones desde una web. El botón copiará el texto y abrirá Instagram para pegarlo.',
+            action: 'Copiar y abrir Instagram',
+            target: 'https://www.instagram.com/',
+          },
+        };
+        const selected = labels[channel];
+        channelLabel.textContent = selected.name;
+        title.textContent = selected.title;
+        description.textContent = selected.description;
+        openChannel.textContent = selected.action;
+        openChannel.href = selected.target;
+        openChannel.onclick = channel === 'instagram'
+          ? async (event) => {
+              event.preventDefault();
+              await copyPreparedText();
+              window.location.assign(selected.target);
+            }
+          : null;
+        copyButton.onclick = copyPreparedText;
+        if (typeof navigator.share === 'function') {
+          nativeButton.hidden = false;
+          nativeButton.onclick = async () => {
+            try {
+              await navigator.share({ title: 'Ficha de propiedad', text: message || shareUrl });
+            } catch (error) {
+              if (error?.name !== 'AbortError') feedback.textContent = 'No se pudo abrir el menú del dispositivo. Usa el botón principal.';
+            }
+          };
+        }
+        loading.hidden = true;
+        ready.hidden = false;
+
+        if (channel !== 'instagram') {
+          const automaticKey = 'pcc.pdf-share.' + channel + '.' + shareUrl;
+          if (!window.sessionStorage.getItem(automaticKey)) {
+            window.sessionStorage.setItem(automaticKey, '1');
+            window.setTimeout(() => window.location.assign(selected.target), 250);
+          }
+        }
+      }
+
+      window.addEventListener('hashchange', configureShare);
+      if (window.location.hash.length > 1) configureShare();
+    })();
+  </script>
+</body>
+</html>`);
 });
 const sessionMiddleware = session({
   store: new PgSession({
@@ -9015,7 +9166,7 @@ app.post("/api/admin/documents/:id/share", requireRole("admin"), async (req, res
       shareUrl,
       expiresAt: shareLink.rows[0].expires_at,
       message,
-      whatsappUrl: `https://wa.me/?text=${encodeURIComponent(message)}`,
+      whatsappUrl: `https://api.whatsapp.com/send/?text=${encodeURIComponent(message)}&type=custom_url&app_absent=0`,
       facebookUrl: `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareUrl)}`,
     });
   } catch (error) {

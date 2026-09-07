@@ -18,6 +18,11 @@ test("pic.estate queda reservado para fichas y los mensajes de WhatsApp conserva
   assert.match(server, /\^\\\/f\\\//);
   assert.doesNotMatch(app, /window\.open\("about:blank"/);
   assert.match(app, /window\.open\("\/compartiendo-ficha"/);
+  assert.match(app, /new URLSearchParams\(\{[\s\S]*channel,[\s\S]*shareUrl: data\.shareUrl,[\s\S]*message: data\.message/);
+  assert.match(server, /parsedShareUrl\.hostname === allowedShareHost/);
+  assert.match(server, /\^\\\/f\\\/\[A-Za-z0-9_-\]\{8,80\}\$/);
+  assert.match(server, /window\.sessionStorage\.getItem\(automaticKey\)/);
+  assert.match(server, /api\.whatsapp\.com\/send\/\?text=/);
 
   const message = propertyWhatsappSheetText({
     titleEs: "Terreno frente al mar",

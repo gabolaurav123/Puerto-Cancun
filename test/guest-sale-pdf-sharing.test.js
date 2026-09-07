@@ -74,8 +74,14 @@ test("las fichas se comparten desde un modal común por tres canales", () => {
   assert.match(app, /data-open-pdf-share="history"/);
   assert.match(app, /async function preparePdfShareDocument/);
   assert.match(app, /async function sharePdfThroughChannel/);
+  assert.match(app, /function pdfShareHandoffUrl/);
+  assert.match(app, /showPdfShareFallback\(channel, handoffUrl\)/);
   assert.match(app, /pdfSharePropertySearch"\)\?\.addEventListener\("input"/);
   assert.match(app, /renderPdfSharePropertyMatches\(event\.currentTarget\.value\)/);
+  assert.match(html, /id="pdfShareFallback"/);
   assert.match(server, /d\.options AS document_options/);
   assert.match(server, /neutral: row\.document_options\?\.brandMode === "neutral"/);
+  assert.match(server, /https:\/\/api\.whatsapp\.com\/send\/\?text=/);
+  assert.match(server, /WhatsApp debe mostrar tu lista de contactos/);
+  assert.match(server, /window\.addEventListener\('hashchange', configureShare\)/);
 });

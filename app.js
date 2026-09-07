@@ -6487,6 +6487,7 @@ function selectPdfShareProperty(propertyId) {
   select.value = property.id;
   if (search) search.value = propertySearchLabel(property);
   if (matches) matches.hidden = true;
+  resetPdfShareFallback();
   setFormMessage($("#pdfShareMessage"), "");
 }
 
@@ -6506,11 +6507,42 @@ function closePdfShareModal() {
   if ($$(".modal-backdrop:not([hidden])").length === 0) document.body.classList.remove("modal-open");
 }
 
+function resetPdfShareFallback() {
+  const fallback = $("#pdfShareFallback");
+  if (!fallback) return;
+  fallback.hidden = true;
+  fallback.removeAttribute("href");
+  fallback.textContent = "Abrir canal de nuevo";
+}
+
+function pdfShareHandoffUrl(channel, data) {
+  const parameters = new URLSearchParams({
+    channel,
+    shareUrl: data.shareUrl,
+    message: data.message || data.shareUrl,
+  });
+  return `/compartiendo-ficha#${parameters.toString()}`;
+}
+
+function showPdfShareFallback(channel, url) {
+  const fallback = $("#pdfShareFallback");
+  if (!fallback) return;
+  const labels = {
+    whatsapp: "Abrir WhatsApp de nuevo",
+    facebook: "Abrir Facebook de nuevo",
+    instagram: "Copiar y abrir Instagram",
+  };
+  fallback.href = url;
+  fallback.textContent = labels[channel] || "Abrir canal de nuevo";
+  fallback.hidden = false;
+}
+
 function openPdfShareModal(trigger) {
   const modal = $("#pdfShareModal");
   const form = $("#pdfShareForm");
   if (!modal || !form) return;
   form.reset();
+  resetPdfShareFallback();
   setFormMessage($("#pdfShareMessage"), "");
   const source = trigger?.dataset.openPdfShare || "selected";
   const documentId = trigger?.dataset.shareDocument || "";
@@ -6568,27 +6600,20 @@ async function preparePdfShareDocument() {
 
 async function sharePdfThroughChannel(channel, button) {
   if (button?.dataset.loading === "true") return;
+  if (!["whatsapp", "facebook", "instagram"].includes(channel)) return;
   const popup = window.open("/compartiendo-ficha", "_blank");
   if (popup) popup.opener = null;
+  resetPdfShareFallback();
   setButtonLoading(button, true, "Preparando...");
   setFormMessage($("#pdfShareMessage"), "Generando el enlace temporal y preparando la ficha...");
   try {
     const document = await preparePdfShareDocument();
     const data = await api(`/api/admin/documents/${encodeURIComponent(document.id)}/share`, { method: "POST" });
-    let targetUrl = data.whatsappUrl;
-    if (channel === "facebook") {
-      targetUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(data.shareUrl)}&quote=${encodeURIComponent(data.message || "")}`;
-    } else if (channel === "instagram") {
-      await navigator.clipboard?.writeText(data.message || data.shareUrl);
-      targetUrl = "https://www.instagram.com/";
-      showToast("Texto y enlace copiados. Pégalos en la publicación o mensaje de Instagram.");
-    }
-    if (popup) popup.location.replace(targetUrl);
-    else {
-      await navigator.clipboard?.writeText(data.message || data.shareUrl);
-      showToast("El navegador bloqueó la ventana. El texto y el enlace quedaron copiados.");
-    }
-    setFormMessage($("#pdfShareMessage"), "Ficha preparada. El enlace permanecerá disponible durante 7 días.");
+    const handoffUrl = pdfShareHandoffUrl(channel, data);
+    showPdfShareFallback(channel, handoffUrl);
+    if (popup && !popup.closed) popup.location.replace(handoffUrl);
+    else showToast("El navegador bloqueó la ventana. Pulsa el botón para abrir el canal de nuevo.");
+    setFormMessage($("#pdfShareMessage"), "Ficha preparada. El enlace estará disponible durante 7 días. Si el canal no se abrió correctamente, usa el botón inferior.");
   } catch (error) {
     popup?.close();
     setFormMessage($("#pdfShareMessage"), error.message, true);
@@ -10885,9 +10910,14 @@ function bindEvents() {
   });
   $("#pdfSharePropertySearch")?.addEventListener("input", (event) => {
     formField($("#pdfShareForm"), "propertyId").value = "";
+    resetPdfShareFallback();
     renderPdfSharePropertyMatches(event.currentTarget.value);
   });
   $("#pdfSharePropertySearch")?.addEventListener("focus", (event) => renderPdfSharePropertyMatches(event.currentTarget.value));
+  formField($("#pdfShareForm"), "neutral")?.addEventListener("change", () => {
+    resetPdfShareFallback();
+    setFormMessage($("#pdfShareMessage"), "");
+  });
 
   if (!$("#panelView")) {
     document.addEventListener("click", (event) => {
