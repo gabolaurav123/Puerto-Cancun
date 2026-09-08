@@ -1208,6 +1208,10 @@ const state = {
   csrfToken: "",
   session: null,
   properties: [],
+  externalProperties: [],
+  externalPropertyFacets: { types: [], zones: [], total: 0, archived: 0 },
+  externalPropertyPagination: { total: 0, limit: 60, offset: 0 },
+  externalPropertyFilters: { search: "", type: "", zone: "", operation: "", status: "", minPrice: "", maxPrice: "", sort: "updated_desc" },
   requests: [],
   guestSaleRequests: [],
   leads: [],
@@ -1398,6 +1402,7 @@ function renderDevelopmentPropertyLinker() {
 const googleMapInstances = new WeakMap();
 let lastScrollY = 0;
 let adminListingSearchTimer = 0;
+let externalPropertySearchTimer = 0;
 let listingDraftTimer = 0;
 let sellerDraftTimer = 0;
 let whatsappPollTimer = 0;
@@ -5077,6 +5082,398 @@ function renderAdminListings() {
     .join("");
 }
 
+function externalPropertyStatusLabel(status) {
+  return ({
+    draft: "Borrador",
+    available: "Disponible",
+    reserved: "Reservada",
+    unavailable: "No disponible",
+    sold: "Vendida",
+    rented: "Rentada",
+    archived: "Archivada",
+  })[status] || "Borrador";
+}
+
+function formatExternalPropertyPrice(property) {
+  const amount = Number(property?.price);
+  if (!Number.isFinite(amount) || amount <= 0) return "Precio a consultar";
+  return `${property.currency || "USD"} $${new Intl.NumberFormat("es-MX", { maximumFractionDigits: 0 }).format(amount)}${property.priceUnit === "sqm" ? " / m²" : ""}`;
+}
+
+function renderExternalPropertyFilters() {
+  const filters = state.externalPropertyFilters;
+  const facets = state.externalPropertyFacets || {};
+  populateAdminListingFilter($("#externalPropertyTypeFilter"), facets.types || [], filters.type, "Todos");
+  populateAdminListingFilter($("#externalPropertyZoneFilter"), facets.zones || [], filters.zone, "Todas");
+  const values = {
+    externalPropertySearch: filters.search,
+    externalPropertyOperationFilter: filters.operation,
+    externalPropertyStatusFilter: filters.status,
+    externalPropertyMinPrice: filters.minPrice,
+    externalPropertyMaxPrice: filters.maxPrice,
+    externalPropertySort: filters.sort,
+  };
+  Object.entries(values).forEach(([id, value]) => {
+    const field = $(`#${id}`);
+    if (field && field.value !== String(value ?? "")) field.value = value ?? "";
+  });
+}
+
+function externalPropertySearchParams() {
+  const filters = state.externalPropertyFilters;
+  const pagination = state.externalPropertyPagination;
+  const params = new URLSearchParams({
+    limit: String(pagination.limit || 60),
+    offset: String(pagination.offset || 0),
+    sort: filters.sort || "updated_desc",
+  });
+  ["search", "type", "zone", "operation", "status", "minPrice", "maxPrice"].forEach((key) => {
+    if (filters[key] !== "" && filters[key] !== null && filters[key] !== undefined) params.set(key, String(filters[key]));
+  });
+  return params;
+}
+
+async function refreshExternalPropertyInventory({ resetPage = false } = {}) {
+  if (resetPage) state.externalPropertyPagination.offset = 0;
+  const list = $("#externalPropertyList");
+  if (list) list.innerHTML = '<div class="loading-inline"><span class="loading-spinner"></span><span>Actualizando inventario externo...</span></div>';
+  try {
+    const data = await api(`/api/admin/external-properties?${externalPropertySearchParams().toString()}`, { timeoutMs: 30000, retry: false });
+    state.externalProperties = data.externalProperties || [];
+    state.externalPropertyFacets = data.facets || state.externalPropertyFacets;
+    state.externalPropertyPagination = data.pagination || state.externalPropertyPagination;
+    renderExternalPropertyFilters();
+    renderExternalProperties();
+  } catch (error) {
+    if (list) list.innerHTML = `<p class="form-message error">${escapeHtml(error.message)}</p>`;
+  }
+}
+
+function renderExternalProperties() {
+  const list = $("#externalPropertyList");
+  if (!list) return;
+  const pagination = state.externalPropertyPagination || { total: 0, limit: 60, offset: 0 };
+  const facets = state.externalPropertyFacets || { total: 0, archived: 0 };
+  const properties = state.externalProperties || [];
+  const summary = $("#externalPropertySummary");
+  if (summary) summary.textContent = `${pagination.total || 0} resultados · ${facets.total || 0} registros · ${facets.archived || 0} archivados`;
+  list.innerHTML = properties.length
+    ? properties.map((property) => {
+        const contact = property.externalContact || {};
+        const location = [property.neighborhood, property.zone, property.city, property.state].filter(Boolean).filter((value, index, values) => values.indexOf(value) === index).join(", ");
+        const details = [
+          property.beds ? `${property.beds} rec.` : "",
+          property.baths ? `${property.baths} baños` : "",
+          property.area ? `${property.area} m² construcción` : "",
+          property.lot ? `${property.lot} m² terreno` : "",
+        ].filter(Boolean);
+        return `<article class="listing-item detailed-listing external-property-item">
+          <div class="external-property-media"><span class="external-badge">EXT</span>${property.image ? `<img src="${escapeHtml(property.image)}?w=640" alt="${escapeHtml(property.titleEs)}" loading="lazy" onerror="this.onerror=null;this.src='${escapeHtml(fallbackImage)}';" />` : `<div class="external-image-placeholder"><i data-lucide="image-off"></i><span>Sin fotografías</span></div>`}</div>
+          <div class="listing-content">
+            <div class="listing-heading"><div><span class="status status-${escapeHtml(property.status)}">${escapeHtml(externalPropertyStatusLabel(property.status))}</span><span class="external-reference">${escapeHtml(property.referenceCode)}</span><h3>${escapeHtml(property.titleEs)}</h3></div><strong>${escapeHtml(formatExternalPropertyPrice(property))}</strong></div>
+            <p>${escapeHtml([property.type, property.operation === "rent" ? "Renta" : "Venta", location].filter(Boolean).join(" · "))}</p>
+            ${details.length ? `<div class="listing-facts">${details.map((detail) => `<span>${escapeHtml(detail)}</span>`).join("")}</div>` : ""}
+            ${property.features?.length || property.amenities?.length ? `<div class="listing-keywords">${[...(property.features || []), ...(property.amenities || [])].slice(0, 10).map((item) => `<span>${escapeHtml(item)}</span>`).join("")}</div>` : ""}
+            <div class="external-contact-summary"><i data-lucide="lock-keyhole"></i><div><span>Origen privado</span><strong>${escapeHtml([contact.name, contact.company].filter(Boolean).join(" · ") || "Sin identificar")}</strong><small>${escapeHtml([contact.whatsapp || contact.phone, contact.email].filter(Boolean).join(" · ") || "Sin contacto registrado")}</small></div></div>
+            <p class="listing-excerpt">${escapeHtml(truncateText(property.descriptionEs || property.additionalInformation || "Sin descripción.", 190))}</p>
+            <div class="item-actions external-property-actions">
+              <button class="mini-button primary" type="button" data-edit-external-property="${escapeHtml(property.id)}"><i data-lucide="pencil"></i><span>Editar</span></button>
+              <button class="mini-button" type="button" data-preview-external-property="${escapeHtml(property.id)}"><i data-lucide="eye"></i><span>Vista previa</span></button>
+              <button class="mini-button external-share-action" type="button" data-share-external-property="${escapeHtml(property.id)}"><i data-lucide="message-circle"></i><span>Compartir por WhatsApp</span></button>
+              <button class="mini-button" type="button" data-duplicate-external-property="${escapeHtml(property.id)}"><i data-lucide="copy"></i><span>Duplicar</span></button>
+              <label class="external-inline-status"><span>Estado</span><select data-external-property-status="${escapeHtml(property.id)}">${["available", "draft", "reserved", "unavailable", "sold", "rented", "archived"].map((status) => `<option value="${status}" ${property.status === status ? "selected" : ""}>${escapeHtml(externalPropertyStatusLabel(status))}</option>`).join("")}</select></label>
+              ${property.status === "archived" ? "" : `<button class="mini-button danger" type="button" data-delete-external-property="${escapeHtml(property.id)}"><i data-lucide="trash-2"></i><span>Eliminar</span></button>`}
+            </div>
+          </div>
+        </article>`;
+      }).join("")
+    : '<p class="empty-state">No hay publicaciones externas que coincidan con estos filtros.</p>';
+  const paginationNode = $("#externalPropertyPagination");
+  const pageLabel = $("#externalPropertyPageLabel");
+  const total = Number(pagination.total || 0);
+  const limit = Number(pagination.limit || 60);
+  const offset = Number(pagination.offset || 0);
+  if (paginationNode) {
+    paginationNode.hidden = total <= limit;
+    const previous = paginationNode.querySelector('[data-external-page="previous"]');
+    const next = paginationNode.querySelector('[data-external-page="next"]');
+    if (previous) previous.disabled = offset <= 0;
+    if (next) next.disabled = offset + limit >= total;
+  }
+  if (pageLabel) pageLabel.textContent = total ? `${offset + 1}-${Math.min(total, offset + limit)} de ${total}` : "0 resultados";
+  refreshIcons();
+}
+
+function renderExternalPropertyImagePreview() {
+  const form = $("#externalPropertyForm");
+  const preview = $("#externalPropertyImagePreview");
+  if (!form || !preview) return;
+  const images = safeParseImages(form.dataset.currentImages);
+  const metadata = normalizedImageMetadata(form.dataset.imageMetadata, images.length);
+  const grid = preview.querySelector(".image-preview-grid");
+  grid.innerHTML = images.map((src, index) => `<article class="image-preview-item" data-external-image-index="${index}">
+    <span class="image-order">${index === 0 ? "PORTADA" : index + 1}</span>
+    <img src="${escapeHtml(src)}" alt="Vista previa ${index + 1}" loading="lazy" />
+    <label class="image-caption-field"><span>Descripción en español</span><textarea rows="2" maxlength="500" data-external-image-description="es" data-image-index="${index}">${escapeHtml(metadata[index].descriptionEs)}</textarea></label>
+    <label class="image-caption-field"><span>Description in English</span><textarea rows="2" maxlength="500" data-external-image-description="en" data-image-index="${index}">${escapeHtml(metadata[index].descriptionEn)}</textarea></label>
+    <div class="image-preview-actions"><button type="button" data-move-external-image="up" data-image-index="${index}" aria-label="Mover a la izquierda" ${index === 0 ? "disabled" : ""}><i data-lucide="arrow-left"></i></button><button type="button" data-move-external-image="down" data-image-index="${index}" aria-label="Mover a la derecha" ${index === images.length - 1 ? "disabled" : ""}><i data-lucide="arrow-right"></i></button><button type="button" class="danger" data-remove-external-image="${index}" aria-label="Eliminar imagen"><i data-lucide="trash-2"></i></button></div>
+  </article>`).join("");
+  preview.hidden = images.length === 0;
+  refreshIcons();
+}
+
+function setExternalPropertyImages(images, metadata = null) {
+  const form = $("#externalPropertyForm");
+  if (!form) return;
+  const list = (Array.isArray(images) ? images : []).filter(Boolean).slice(0, IMAGE_MAX_COUNT);
+  form.dataset.currentImages = JSON.stringify(list);
+  form.dataset.imageMetadata = JSON.stringify(normalizedImageMetadata(metadata ?? form.dataset.imageMetadata, list.length));
+  form.dataset.mediaDirty = "true";
+  renderExternalPropertyImagePreview();
+}
+
+function moveExternalPropertyImage(from, to) {
+  const form = $("#externalPropertyForm");
+  const images = safeParseImages(form?.dataset.currentImages);
+  const metadata = normalizedImageMetadata(form?.dataset.imageMetadata, images.length);
+  if (!Number.isInteger(from) || !Number.isInteger(to) || from < 0 || to < 0 || from >= images.length || to >= images.length || from === to) return;
+  const [image] = images.splice(from, 1);
+  const [caption] = metadata.splice(from, 1);
+  images.splice(to, 0, image);
+  metadata.splice(to, 0, caption);
+  setExternalPropertyImages(images, metadata);
+}
+
+function resetExternalPropertyForm() {
+  const form = $("#externalPropertyForm");
+  if (!form) return;
+  form.reset();
+  formField(form, "id").value = "";
+  formField(form, "state").value = "Quintana Roo";
+  formField(form, "city").value = "Cancun";
+  formField(form, "status").value = "available";
+  form.dataset.currentImages = "[]";
+  form.dataset.imageMetadata = "[]";
+  form.dataset.mediaDirty = "false";
+  form.dataset.dirty = "false";
+  delete form.dataset.idempotencyKey;
+  $("#externalPropertyFormTitle").textContent = "Nueva publicación externa";
+  $("#externalPropertySubmit")?.querySelector("span") && ($("#externalPropertySubmit").querySelector("span").textContent = "Guardar publicación externa");
+  const deleteButton = $("#deleteExternalPropertyFromForm");
+  if (deleteButton) {
+    deleteButton.hidden = true;
+    deleteButton.dataset.externalPropertyId = "";
+  }
+  formField(form, "imageFile").value = "";
+  refreshLocationSelects();
+  resetMapPickerForForm(form);
+  renderExternalPropertyImagePreview();
+  setFormMessage($("#externalPropertyFormMessage"), "");
+}
+
+function editExternalProperty(id) {
+  const property = state.externalProperties.find((item) => item.id === id);
+  if (!property) return;
+  setAdminSection("new-external-property");
+  const form = $("#externalPropertyForm");
+  const contact = property.externalContact || {};
+  const values = {
+    id: property.id, title: property.titleEs, titleEn: property.titleEn, type: property.type,
+    operation: property.operation, status: property.status, currency: property.currency, price: property.price ?? "",
+    priceUnit: property.priceUnit, state: property.state, city: property.city, zone: property.zone,
+    neighborhood: property.neighborhood, address: property.address, latitude: property.latitude ?? "",
+    longitude: property.longitude ?? "", mapPlace: property.mapPlace, beds: property.beds || "",
+    baths: property.baths || "", parking: property.parking || "", area: property.area || "", lot: property.lot || "",
+    features: (property.features || []).join(", "), amenities: (property.amenities || []).join(", "),
+    keywords: (property.keywords || []).join(", "), description: property.descriptionEs,
+    descriptionEn: property.descriptionEn, additionalInformation: property.additionalInformation,
+    externalContactName: contact.name, externalCompany: contact.company, referenceCode: property.referenceCode,
+    externalPhone: contact.phone, externalWhatsapp: contact.whatsapp, externalEmail: contact.email,
+    internalNotes: contact.internalNotes, externalAdditionalInfo: contact.additionalInfo,
+  };
+  Object.entries(values).forEach(([name, value]) => {
+    const field = formField(form, name);
+    if (field) field.value = value ?? "";
+  });
+  form.dataset.currentImages = JSON.stringify(property.images || []);
+  form.dataset.imageMetadata = JSON.stringify(normalizedImageMetadata(property.imageMetadata, property.images?.length || 0));
+  form.dataset.mediaDirty = "false";
+  form.dataset.dirty = "false";
+  formField(form, "imageFile").value = "";
+  $("#externalPropertyFormTitle").textContent = `Editar ${property.referenceCode}`;
+  const submitLabel = $("#externalPropertySubmit")?.querySelector("span");
+  if (submitLabel) submitLabel.textContent = "Guardar cambios";
+  const deleteButton = $("#deleteExternalPropertyFromForm");
+  if (deleteButton) {
+    deleteButton.hidden = property.status === "archived";
+    deleteButton.dataset.externalPropertyId = property.id;
+  }
+  refreshLocationSelects();
+  updateMapPickerForForm(form);
+  renderExternalPropertyImagePreview();
+  form.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+async function externalPropertySubmit(event) {
+  event.preventDefault();
+  const form = event.currentTarget;
+  if (form.dataset.saving === "true" || !form.reportValidity()) return;
+  const field = (name) => formField(form, name);
+  const id = field("id").value;
+  const images = safeParseImages(form.dataset.currentImages);
+  const payload = {
+    title: field("title").value.trim(), titleEn: field("titleEn").value.trim(), type: field("type").value,
+    operation: field("operation").value, status: field("status").value, currency: field("currency").value,
+    price: field("price").value, priceUnit: field("priceUnit").value, state: field("state").value,
+    city: field("city").value, zone: field("zone").value, neighborhood: field("neighborhood").value,
+    address: field("address").value.trim(), latitude: field("latitude").value, longitude: field("longitude").value,
+    mapPlace: field("mapPlace").value, locationPrecision: field("latitude").value && field("longitude").value ? "exact" : "approximate",
+    googleMapsUrl: form.querySelector("[data-open-map]")?.href || "", beds: field("beds").value,
+    baths: field("baths").value, parking: field("parking").value, area: field("area").value, lot: field("lot").value,
+    features: field("features").value, amenities: field("amenities").value, keywords: field("keywords").value,
+    description: field("description").value, descriptionEn: field("descriptionEn").value,
+    additionalInformation: field("additionalInformation").value, externalContactName: field("externalContactName").value,
+    externalCompany: field("externalCompany").value, referenceCode: field("referenceCode").value,
+    externalPhone: field("externalPhone").value, externalWhatsapp: field("externalWhatsapp").value,
+    externalEmail: field("externalEmail").value, internalNotes: field("internalNotes").value,
+    externalAdditionalInfo: field("externalAdditionalInfo").value,
+    imageMetadata: normalizedImageMetadata(form.dataset.imageMetadata, images.length),
+    expectedUpdatedAt: id ? state.externalProperties.find((property) => property.id === id)?.updatedAt || null : null,
+  };
+  if (id && form.dataset.mediaDirty !== "true") payload.preserveImages = true;
+  else if (images.length) payload.images = images;
+  else payload.removeImage = true;
+  const idempotencyKey = id ? "" : form.dataset.idempotencyKey || globalThis.crypto?.randomUUID?.() || `external-${Date.now()}`;
+  if (!id) form.dataset.idempotencyKey = idempotencyKey;
+  const button = $("#externalPropertySubmit");
+  form.dataset.saving = "true";
+  setButtonLoading(button, true, "Guardando...");
+  setFormMessage($("#externalPropertyFormMessage"), "Guardando la publicación externa y su galería privada...");
+  try {
+    await api(id ? `/api/admin/external-properties/${encodeURIComponent(id)}` : "/api/admin/external-properties", {
+      method: id ? "PUT" : "POST",
+      body: payload,
+      headers: idempotencyKey ? { "Idempotency-Key": idempotencyKey } : {},
+      timeoutMs: 60000,
+    });
+    resetExternalPropertyForm();
+    await refreshExternalPropertyInventory({ resetPage: true });
+    setAdminSection("external-properties");
+    showToast(id ? "Publicación externa actualizada." : "Publicación externa creada en el inventario privado.");
+  } catch (error) {
+    setFormMessage($("#externalPropertyFormMessage"), error.message, true);
+    showToast(error.message, "error");
+  } finally {
+    form.dataset.saving = "false";
+    setButtonLoading(button, false);
+    if (!formField(form, "id")?.value) {
+      const label = button?.querySelector("span");
+      if (label) label.textContent = "Guardar publicación externa";
+    }
+  }
+}
+
+async function deleteExternalProperty(id) {
+  if (!(await confirmAction("La publicación dejará de estar disponible y sus enlaces privados se desactivarán. Podrás verla con el filtro Archivada.", "Eliminar publicación externa"))) return;
+  try {
+    await api(`/api/admin/external-properties/${encodeURIComponent(id)}`, { method: "DELETE" });
+    if (formField($("#externalPropertyForm"), "id")?.value === id) resetExternalPropertyForm();
+    await refreshExternalPropertyInventory({ resetPage: true });
+    setAdminSection("external-properties");
+    showToast("Publicación externa eliminada del inventario activo.");
+  } catch (error) {
+    showToast(error.message, "error");
+  }
+}
+
+async function updateExternalPropertyStatus(id, status) {
+  try {
+    await api(`/api/admin/external-properties/${encodeURIComponent(id)}/status`, { method: "PATCH", body: { status } });
+    await refreshExternalPropertyInventory();
+    showToast("Estado de la publicación externa actualizado.");
+  } catch (error) {
+    showToast(error.message, "error");
+    await refreshExternalPropertyInventory();
+  }
+}
+
+async function duplicateExternalProperty(id) {
+  try {
+    await api(`/api/admin/external-properties/${encodeURIComponent(id)}/duplicate`, { method: "POST" });
+    await refreshExternalPropertyInventory({ resetPage: true });
+    showToast("Se creó una copia privada en estado borrador.");
+  } catch (error) {
+    showToast(error.message, "error");
+  }
+}
+
+function closeExternalShareModal() {
+  const modal = $("#externalShareModal");
+  if (modal) modal.hidden = true;
+  if ($$(".modal-backdrop:not([hidden])").length === 0) document.body.classList.remove("modal-open");
+}
+
+function openExternalShareModal(id) {
+  const property = state.externalProperties.find((item) => item.id === id);
+  const modal = $("#externalShareModal");
+  const form = $("#externalShareForm");
+  if (!property || !modal || !form) return;
+  form.reset();
+  formField(form, "propertyId").value = property.id;
+  $("#externalSharePropertyTitle").textContent = `${property.referenceCode} · ${property.titleEs}`;
+  setFormMessage($("#externalShareMessage"), "");
+  const fallback = $("#externalShareFallback");
+  if (fallback) {
+    fallback.hidden = true;
+    fallback.removeAttribute("href");
+  }
+  modal.hidden = false;
+  document.body.classList.add("modal-open");
+  refreshIcons();
+}
+
+async function previewExternalProperty(id) {
+  const popup = window.open("/compartiendo-ficha", "_blank");
+  if (popup) popup.opener = null;
+  try {
+    const data = await api(`/api/admin/external-properties/${encodeURIComponent(id)}/share`, { method: "POST", body: { includeContact: false } });
+    if (popup && !popup.closed) popup.location.replace(data.shareUrl);
+    else window.open(data.shareUrl, "_blank", "noopener");
+  } catch (error) {
+    popup?.close();
+    showToast(error.message, "error");
+  }
+}
+
+async function externalShareSubmit(event) {
+  event.preventDefault();
+  const form = event.currentTarget;
+  const button = form.querySelector('[type="submit"]');
+  const id = formField(form, "propertyId").value;
+  const includeContact = form.querySelector('[name="includeContact"]:checked')?.value === "true";
+  const popup = window.open("/compartiendo-ficha", "_blank");
+  if (popup) popup.opener = null;
+  setButtonLoading(button, true, "Preparando...");
+  setFormMessage($("#externalShareMessage"), "Creando el enlace privado de Pick.State...");
+  try {
+    const data = await api(`/api/admin/external-properties/${encodeURIComponent(id)}/share`, { method: "POST", body: { includeContact } });
+    const handoffUrl = pdfShareHandoffUrl("whatsapp", data);
+    const fallback = $("#externalShareFallback");
+    if (fallback) {
+      fallback.href = handoffUrl;
+      fallback.hidden = false;
+    }
+    if (popup && !popup.closed) popup.location.replace(handoffUrl);
+    else showToast("El navegador bloqueó la ventana. Usa “Abrir WhatsApp de nuevo”.");
+    setFormMessage($("#externalShareMessage"), `Enlace preparado sin indexación y con vigencia de 7 días${includeContact ? ", con contacto autorizado" : ", sin datos de contacto"}.`);
+  } catch (error) {
+    popup?.close();
+    setFormMessage($("#externalShareMessage"), error.message, true);
+  } finally {
+    setButtonLoading(button, false);
+  }
+}
+
 function qualityLevelLabel(level) {
   if (level === "premium") return t("qualityPremium");
   if (level === "ready") return t("qualityReady");
@@ -7901,6 +8298,7 @@ async function loadPanelData() {
       panelApi("/api/admin/files?scope=property"),
       panelApi("/api/admin/files?scope=development"),
       panelApi("/api/admin/visitor-leads?period=30"),
+      panelApi("/api/admin/external-properties?limit=60&offset=0&sort=updated_desc"),
     ]);
     const adminValue = (index, fallback = {}) => adminResults[index].status === "fulfilled" ? adminResults[index].value : fallback;
     const [
@@ -7939,6 +8337,7 @@ async function loadPanelData() {
       propertyFilesData,
       developmentFilesData,
       visitorLeadsData,
+      externalPropertiesData,
     ] = adminResults.map((result, index) => adminValue(index));
     if (adminResults[0].status === "fulfilled") state.stats = statsData;
     state.requests = requestsData.requests || state.requests;
@@ -7979,6 +8378,11 @@ async function loadPanelData() {
       ...(developmentFoldersData.folders || state.fileFolders.filter((folder) => folder.libraryScope === "development")),
     ];
     if (adminResults[34].status === "fulfilled") state.visitorLeads = visitorLeadsData || state.visitorLeads;
+    if (adminResults[35].status === "fulfilled") {
+      state.externalProperties = externalPropertiesData.externalProperties || [];
+      state.externalPropertyFacets = externalPropertiesData.facets || state.externalPropertyFacets;
+      state.externalPropertyPagination = externalPropertiesData.pagination || state.externalPropertyPagination;
+    }
     const failedModules = adminResults.filter((result) => result.status === "rejected").length;
     if (failedModules) showToast(`${failedModules} módulo${failedModules === 1 ? "" : "s"} no respondió. El resto del panel continúa disponible.`, "error");
     state.serviceRequests = [];
@@ -8135,6 +8539,7 @@ function updateAdminShell() {
       || (button.dataset.adminSection === "properties" && section === "property-files")
       || (button.dataset.adminSection === "developments" && section === "new-development")
       || (button.dataset.adminSection === "developments" && section === "development-files")
+      || (button.dataset.adminSection === "external-properties" && section === "new-external-property")
       || (button.dataset.adminSection === "requests" && section === "guest-requests")
       || (button.dataset.adminSection === "contacts" && section === "guest-contacts");
     button.classList.toggle("active", active);
@@ -8144,6 +8549,9 @@ function updateAdminShell() {
   });
   $$("[data-admin-listing-view]").forEach((view) => {
     view.hidden = !String(view.dataset.adminListingView || "").split(/\s+/).includes(section);
+  });
+  $$("[data-external-view]").forEach((view) => {
+    view.hidden = !String(view.dataset.externalView || "").split(/\s+/).includes(section);
   });
   const listingsTitle = $("#adminListingsTitle");
   if (listingsTitle) {
@@ -8155,6 +8563,8 @@ function updateAdminShell() {
     };
     listingsTitle.textContent = labels[section] || (state.lang === "en" ? "Listing inventory" : "Inventario de publicaciones");
   }
+  const externalTitle = $("#externalPropertiesTitle");
+  if (externalTitle) externalTitle.textContent = section === "new-external-property" ? "Nueva publicación externa" : "Inventario de publicaciones externas";
   const operationsGrid = $("#adminOperationsGrid");
   if (operationsGrid) operationsGrid.hidden = !["requests", "guest-requests", "properties", "new-property", "developments", "new-development"].includes(section);
   $$(".admin-sidebar-subnav").forEach((subnav) => {
@@ -8276,8 +8686,11 @@ function setAdminSection(section) {
   section = available ? requestedSection : "dashboard";
   const previousSection = state.adminSection;
   const listingForm = $("#listingForm");
+  const externalForm = $("#externalPropertyForm");
   const wasListingForm = ["new-property", "new-development"].includes(previousSection);
   const opensListingForm = ["new-property", "new-development"].includes(section);
+  const wasExternalForm = previousSection === "new-external-property";
+  const opensExternalForm = section === "new-external-property";
   if (wasListingForm && !opensListingForm && listingForm?.dataset.saving === "true") {
     showToast("Espera a que termine de guardarse la publicación.");
     return;
@@ -8285,10 +8698,16 @@ function setAdminSection(section) {
   if (wasListingForm && !opensListingForm) {
     resetListingForm(true);
   }
+  if (wasExternalForm && !opensExternalForm && externalForm?.dataset.saving === "true") {
+    showToast("Espera a que termine de guardarse la publicación externa.");
+    return;
+  }
+  if (wasExternalForm && !opensExternalForm) resetExternalPropertyForm();
   state.adminSection = section || "dashboard";
   if (opensListingForm && listingForm) {
     configureListingFormMode(section);
   }
+  if (opensExternalForm && !wasExternalForm) resetExternalPropertyForm();
   if (["property-files", "development-files"].includes(state.adminSection)) {
     configureScopedLibrary(state.adminSection);
   }
@@ -8300,6 +8719,10 @@ function setAdminSection(section) {
     state.adminListingFilters = { search: "", type: "", zone: "", operation: "", status: "", quality: "", missingCover: false };
     renderAdminListingFilters();
     renderAdminListings();
+  }
+  if (state.adminSection === "external-properties") {
+    renderExternalPropertyFilters();
+    renderExternalProperties();
   }
   $("#adminPanel")?.scrollIntoView({ behavior: "smooth", block: "start" });
 }
@@ -8424,6 +8847,8 @@ async function renderPanel() {
     renderAdminGuestContacts();
     renderAdminListingFilters();
     renderAdminListings();
+    renderExternalPropertyFilters();
+    renderExternalProperties();
     renderAdminValuations();
     renderAdminTasks();
     renderAdminAnalytics();
@@ -10774,7 +11199,8 @@ function bindEvents() {
   window.addEventListener("beforeunload", (event) => {
     const hasUnsavedAdminDraft = $("#listingForm")?.dataset.dirty === "true";
     const hasUnsavedSellerDraft = $("#sellerRequestForm")?.dataset.dirty === "true";
-    if (!hasUnsavedAdminDraft && !hasUnsavedSellerDraft) return;
+    const hasUnsavedExternalDraft = $("#externalPropertyForm")?.dataset.dirty === "true";
+    if (!hasUnsavedAdminDraft && !hasUnsavedSellerDraft && !hasUnsavedExternalDraft) return;
     event.preventDefault();
     event.returnValue = "Tienes cambios sin guardar.";
   });
@@ -11126,6 +11552,128 @@ function bindEvents() {
     state.adminListingFilters = { search: "", type: "", zone: "", operation: "", status: "", quality: "", missingCover: false };
     renderAdminListingFilters();
     renderAdminListings();
+  });
+  $("#externalPropertyForm")?.addEventListener("submit", externalPropertySubmit);
+  $("#externalPropertyForm")?.addEventListener("input", (event) => {
+    if (event.target?.name !== "imageFile") event.currentTarget.dataset.dirty = "true";
+  });
+  $("#externalPropertyForm")?.addEventListener("change", (event) => {
+    if (event.target?.name !== "imageFile") event.currentTarget.dataset.dirty = "true";
+  });
+  $("#resetExternalPropertyForm")?.addEventListener("click", resetExternalPropertyForm);
+  $("#deleteExternalPropertyFromForm")?.addEventListener("click", (event) => {
+    const id = event.currentTarget.dataset.externalPropertyId;
+    if (id) void deleteExternalProperty(id);
+  });
+  formField($("#externalPropertyForm"), "imageFile")?.addEventListener("change", async (event) => {
+    const form = event.currentTarget.form;
+    const currentImages = safeParseImages(form.dataset.currentImages);
+    const currentMetadata = normalizedImageMetadata(form.dataset.imageMetadata, currentImages.length);
+    const files = event.currentTarget.files;
+    setFormMessage($("#externalPropertyFormMessage"), "");
+    if (!files?.length) return;
+    try {
+      const payload = await readImageFiles(files);
+      const added = payload.images.map((image) => image.imageDataUrl);
+      if (currentImages.length + added.length > IMAGE_MAX_COUNT) throw new Error(`Solo puedes cargar hasta ${IMAGE_MAX_COUNT} imágenes.`);
+      setExternalPropertyImages(
+        [...currentImages, ...added],
+        [...currentMetadata, ...normalizedImageMetadata([], added.length)]
+      );
+      form.dataset.dirty = "true";
+      event.currentTarget.value = "";
+      setFormMessage($("#externalPropertyFormMessage"), `${added.length} fotografía${added.length === 1 ? "" : "s"} agregada${added.length === 1 ? "" : "s"}. Guarda para confirmar los cambios.`);
+    } catch (error) {
+      event.currentTarget.value = "";
+      renderExternalPropertyImagePreview();
+      setFormMessage($("#externalPropertyFormMessage"), error.message, true);
+    }
+  });
+  $("#clearExternalPropertyImages")?.addEventListener("click", () => {
+    const form = $("#externalPropertyForm");
+    formField(form, "imageFile").value = "";
+    setExternalPropertyImages([]);
+    form.dataset.dirty = "true";
+    setFormMessage($("#externalPropertyFormMessage"), "La galería se eliminará cuando guardes los cambios.");
+  });
+  $("#externalPropertyImagePreview")?.addEventListener("click", (event) => {
+    const remove = event.target.closest("[data-remove-external-image]");
+    if (remove) {
+      const form = $("#externalPropertyForm");
+      const images = safeParseImages(form.dataset.currentImages);
+      const metadata = normalizedImageMetadata(form.dataset.imageMetadata, images.length);
+      const index = Number(remove.dataset.removeExternalImage);
+      images.splice(index, 1);
+      metadata.splice(index, 1);
+      setExternalPropertyImages(images, metadata);
+      form.dataset.dirty = "true";
+      return;
+    }
+    const move = event.target.closest("[data-move-external-image]");
+    if (move) {
+      const index = Number(move.dataset.imageIndex);
+      moveExternalPropertyImage(index, move.dataset.moveExternalImage === "up" ? index - 1 : index + 1);
+      const form = $("#externalPropertyForm");
+      if (form) form.dataset.dirty = "true";
+    }
+  });
+  $("#externalPropertyImagePreview")?.addEventListener("input", (event) => {
+    const input = event.target.closest("[data-external-image-description]");
+    if (!input) return;
+    const form = $("#externalPropertyForm");
+    const images = safeParseImages(form.dataset.currentImages);
+    const metadata = normalizedImageMetadata(form.dataset.imageMetadata, images.length);
+    const item = metadata[Number(input.dataset.imageIndex)];
+    if (!item) return;
+    if (input.dataset.externalImageDescription === "en") item.descriptionEn = input.value.slice(0, 500);
+    else item.descriptionEs = input.value.slice(0, 500);
+    form.dataset.imageMetadata = JSON.stringify(metadata);
+    form.dataset.mediaDirty = "true";
+    form.dataset.dirty = "true";
+  });
+  $("#externalPropertySearch")?.addEventListener("input", (event) => {
+    state.externalPropertyFilters.search = event.currentTarget.value;
+    window.clearTimeout(externalPropertySearchTimer);
+    externalPropertySearchTimer = window.setTimeout(() => void refreshExternalPropertyInventory({ resetPage: true }), 260);
+  });
+  [
+    ["#externalPropertyTypeFilter", "type"],
+    ["#externalPropertyZoneFilter", "zone"],
+    ["#externalPropertyOperationFilter", "operation"],
+    ["#externalPropertyStatusFilter", "status"],
+    ["#externalPropertySort", "sort"],
+  ].forEach(([selector, key]) => {
+    $(selector)?.addEventListener("change", (event) => {
+      state.externalPropertyFilters[key] = event.currentTarget.value;
+      void refreshExternalPropertyInventory({ resetPage: true });
+    });
+  });
+  [
+    ["#externalPropertyMinPrice", "minPrice"],
+    ["#externalPropertyMaxPrice", "maxPrice"],
+  ].forEach(([selector, key]) => {
+    $(selector)?.addEventListener("input", (event) => {
+      state.externalPropertyFilters[key] = event.currentTarget.value;
+      window.clearTimeout(externalPropertySearchTimer);
+      externalPropertySearchTimer = window.setTimeout(() => void refreshExternalPropertyInventory({ resetPage: true }), 320);
+    });
+  });
+  $("#clearExternalPropertyFilters")?.addEventListener("click", () => {
+    state.externalPropertyFilters = { search: "", type: "", zone: "", operation: "", status: "", minPrice: "", maxPrice: "", sort: "updated_desc" };
+    void refreshExternalPropertyInventory({ resetPage: true });
+  });
+  $("#externalPropertyPagination")?.addEventListener("click", (event) => {
+    const button = event.target.closest("[data-external-page]");
+    if (!button || button.disabled) return;
+    const pagination = state.externalPropertyPagination;
+    const direction = button.dataset.externalPage === "previous" ? -1 : 1;
+    pagination.offset = Math.max(0, Number(pagination.offset || 0) + direction * Number(pagination.limit || 60));
+    void refreshExternalPropertyInventory();
+  });
+  $("#externalShareForm")?.addEventListener("submit", externalShareSubmit);
+  $$('[data-close-external-share]').forEach((button) => button.addEventListener("click", closeExternalShareModal));
+  $("#externalShareModal")?.addEventListener("click", (event) => {
+    if (event.target.id === "externalShareModal") closeExternalShareModal();
   });
   $("#adminInsights")?.addEventListener("click", (event) => {
     if (!event.target.closest("[data-show-incomplete-listings]")) return;
@@ -11546,6 +12094,8 @@ function bindEvents() {
   document.addEventListener("change", (event) => {
     const select = event.target.closest("[data-location-select]");
     if (select) handleLocationSelectChange(select);
+    const externalStatus = event.target.closest("[data-external-property-status]");
+    if (externalStatus) void updateExternalPropertyStatus(externalStatus.dataset.externalPropertyStatus, externalStatus.value);
     const tourStatus = event.target.closest("[data-admin-tour-status]");
     if (tourStatus) void updateAdminTourStatus(tourStatus.dataset.adminTourStatus, tourStatus.value);
     const moveLibraryFile = event.target.closest("[data-move-library-file]");
@@ -11624,6 +12174,21 @@ function bindEvents() {
 
     const edit = event.target.closest("[data-edit-listing]");
     if (edit) editListing(edit.dataset.editListing);
+
+    const editExternal = event.target.closest("[data-edit-external-property]");
+    if (editExternal) editExternalProperty(editExternal.dataset.editExternalProperty);
+
+    const previewExternal = event.target.closest("[data-preview-external-property]");
+    if (previewExternal) void previewExternalProperty(previewExternal.dataset.previewExternalProperty);
+
+    const shareExternal = event.target.closest("[data-share-external-property]");
+    if (shareExternal) openExternalShareModal(shareExternal.dataset.shareExternalProperty);
+
+    const duplicateExternal = event.target.closest("[data-duplicate-external-property]");
+    if (duplicateExternal) void duplicateExternalProperty(duplicateExternal.dataset.duplicateExternalProperty);
+
+    const deleteExternal = event.target.closest("[data-delete-external-property]");
+    if (deleteExternal) void deleteExternalProperty(deleteExternal.dataset.deleteExternalProperty);
 
     const reviewQuality = event.target.closest("[data-review-property-quality]");
     if (reviewQuality) void reviewPropertyQuality(reviewQuality.dataset.reviewPropertyQuality);

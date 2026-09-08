@@ -559,6 +559,74 @@ CREATE TABLE IF NOT EXISTS document_share_links (
 CREATE INDEX IF NOT EXISTS idx_document_share_links_document ON document_share_links (document_id, is_active, expires_at DESC);
 CREATE INDEX IF NOT EXISTS idx_document_share_links_expires ON document_share_links (expires_at) WHERE is_active = TRUE;
 
+CREATE TABLE IF NOT EXISTS external_properties (
+  id TEXT PRIMARY KEY,
+  reference_code TEXT NOT NULL UNIQUE,
+  title_es TEXT NOT NULL,
+  title_en TEXT NOT NULL DEFAULT '',
+  type TEXT NOT NULL,
+  operation TEXT NOT NULL CHECK (operation IN ('sale', 'rent')),
+  state TEXT NOT NULL DEFAULT 'Quintana Roo',
+  city TEXT NOT NULL DEFAULT 'Cancun',
+  zone TEXT NOT NULL,
+  neighborhood TEXT,
+  address TEXT,
+  latitude NUMERIC,
+  longitude NUMERIC,
+  map_place TEXT,
+  location_precision TEXT NOT NULL DEFAULT 'approximate',
+  google_maps_url TEXT,
+  price_currency TEXT NOT NULL DEFAULT 'USD' CHECK (price_currency IN ('USD', 'MXN')),
+  price_amount NUMERIC,
+  price_unit TEXT NOT NULL DEFAULT 'total' CHECK (price_unit IN ('total', 'sqm')),
+  beds INTEGER NOT NULL DEFAULT 0,
+  baths NUMERIC NOT NULL DEFAULT 0,
+  parking INTEGER NOT NULL DEFAULT 0,
+  area NUMERIC NOT NULL DEFAULT 0,
+  lot NUMERIC NOT NULL DEFAULT 0,
+  features JSONB NOT NULL DEFAULT '[]'::jsonb,
+  amenities JSONB NOT NULL DEFAULT '[]'::jsonb,
+  keywords JSONB NOT NULL DEFAULT '[]'::jsonb,
+  image TEXT,
+  images JSONB NOT NULL DEFAULT '[]'::jsonb,
+  image_metadata JSONB NOT NULL DEFAULT '[]'::jsonb,
+  description_es TEXT NOT NULL DEFAULT '',
+  description_en TEXT NOT NULL DEFAULT '',
+  additional_information TEXT NOT NULL DEFAULT '',
+  status TEXT NOT NULL DEFAULT 'available' CHECK (status IN ('draft','available','reserved','unavailable','sold','rented','archived')),
+  external_contact_name TEXT NOT NULL DEFAULT '',
+  external_company TEXT NOT NULL DEFAULT '',
+  external_phone TEXT NOT NULL DEFAULT '',
+  external_whatsapp TEXT NOT NULL DEFAULT '',
+  external_email TEXT,
+  internal_notes TEXT NOT NULL DEFAULT '',
+  external_additional_info TEXT NOT NULL DEFAULT '',
+  created_by TEXT,
+  updated_by TEXT,
+  idempotency_key TEXT UNIQUE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  archived_at TIMESTAMPTZ
+);
+
+CREATE TABLE IF NOT EXISTS external_property_share_links (
+  code TEXT PRIMARY KEY,
+  external_property_id TEXT NOT NULL REFERENCES external_properties(id) ON DELETE CASCADE,
+  include_contact BOOLEAN NOT NULL DEFAULT FALSE,
+  expires_at TIMESTAMPTZ NOT NULL,
+  is_active BOOLEAN NOT NULL DEFAULT TRUE,
+  open_count INTEGER NOT NULL DEFAULT 0,
+  last_opened_at TIMESTAMPTZ,
+  created_by TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_external_properties_status_updated ON external_properties (status, updated_at DESC);
+CREATE INDEX IF NOT EXISTS idx_external_properties_filters ON external_properties (type, operation, zone, price_amount);
+CREATE INDEX IF NOT EXISTS idx_external_properties_reference ON external_properties (reference_code);
+CREATE INDEX IF NOT EXISTS idx_external_share_property ON external_property_share_links (external_property_id, include_contact, is_active, expires_at DESC);
+CREATE INDEX IF NOT EXISTS idx_external_share_expires ON external_property_share_links (expires_at) WHERE is_active = TRUE;
+
 CREATE TABLE IF NOT EXISTS copilot_feedback (
   id TEXT PRIMARY KEY,
   response_id TEXT NOT NULL REFERENCES copilot_responses(id) ON DELETE CASCADE,

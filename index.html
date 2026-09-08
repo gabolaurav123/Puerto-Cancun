@@ -1081,6 +1081,14 @@
                 <button type="button" data-admin-section-link="development-files">Archivos de desarrollos</button>
                 <a href="/propiedades/desarrollos-cancun" target="_blank" rel="noopener">Ver página pública</a>
               </div>
+              <button type="button" data-admin-section="external-properties">
+                <i data-lucide="handshake"></i>
+                <span>Publicaciones externas</span>
+              </button>
+              <div class="admin-sidebar-subnav">
+                <button type="button" data-admin-section-link="external-properties">Inventario externo</button>
+                <button type="button" data-admin-section-link="new-external-property">Nueva publicación externa</button>
+              </div>
               <button type="button" data-admin-section="contacts">
                 <i data-lucide="users"></i>
                 <span data-i18n="adminJumpContacts">CRM / Contactos</span>
@@ -2288,6 +2296,110 @@
           <p class="form-message" id="internalUserFormMessage"></p>
           <div class="wide-data-list" id="adminRoles"></div>
         </article>
+        <article class="panel-card admin-external-properties-card" id="adminExternalPropertiesCard" data-admin-section-panel="external-properties new-external-property">
+          <div class="admin-module-heading external-module-heading">
+            <div>
+              <span class="eyebrow">COLABORACIONES PRIVADAS</span>
+              <h2 id="externalPropertiesTitle">Publicaciones externas</h2>
+              <p>Opciones de colegas y otras inmobiliarias. Permanecen fuera del catálogo público y solo se muestran mediante enlaces privados de Pick.State.</p>
+            </div>
+            <button class="primary-button" type="button" data-admin-section-link="new-external-property" data-external-view="external-properties">
+              <i data-lucide="plus"></i><span>Nueva publicación externa</span>
+            </button>
+          </div>
+
+          <section class="external-property-editor" data-external-view="new-external-property">
+            <form id="externalPropertyForm" class="stacked-form external-property-form">
+              <input name="id" type="hidden" />
+              <section class="listing-mode-intro external-mode-intro">
+                <span class="external-badge">EXT</span>
+                <div><h3 id="externalPropertyFormTitle">Nueva publicación externa</h3><p>Registra la propiedad y su origen. Los datos del colaborador son privados y nunca se incluyen salvo autorización al compartir.</p></div>
+              </section>
+              <fieldset class="external-form-section">
+                <legend>Información de la propiedad</legend>
+                <div class="form-row">
+                  <label><span>Título en español</span><input name="title" maxlength="240" required /></label>
+                  <label><span>Título en inglés</span><input name="titleEn" maxlength="240" /></label>
+                </div>
+                <div class="form-row">
+                  <label><span>Tipo de inmueble</span><select name="type" required><option>Casa</option><option>Departamento</option><option>Terreno</option><option>Comercial</option><option>Preventa</option><option>Otro</option></select></label>
+                  <label><span>Operación</span><select name="operation"><option value="sale">Venta</option><option value="rent">Renta</option></select></label>
+                  <label><span>Disponibilidad</span><select name="status"><option value="available">Disponible</option><option value="draft">Borrador</option><option value="reserved">Reservada</option><option value="unavailable">No disponible</option><option value="sold">Vendida</option><option value="rented">Rentada</option><option value="archived">Archivada</option></select></label>
+                </div>
+                <div class="form-row">
+                  <label><span>Moneda</span><select name="currency"><option value="USD">USD</option><option value="MXN">MXN</option></select></label>
+                  <label><span>Precio</span><input name="price" type="number" min="0" step="0.01" placeholder="Dejar vacío para consultar" /></label>
+                  <label><span>Forma de mostrar</span><select name="priceUnit"><option value="total">Precio total</option><option value="sqm">Precio por m²</option></select></label>
+                </div>
+                <div class="form-row">
+                  <label><span>Estado</span><input name="state" data-location-select="state" autocomplete="address-level1" required /></label>
+                  <label><span>Ciudad / municipio</span><input name="city" data-location-select="city" autocomplete="address-level2" required /></label>
+                  <label><span>Zona</span><input name="zone" data-location-select="zone" autocomplete="address-level3" required /></label>
+                  <label><span>Colonia / desarrollo</span><input name="neighborhood" data-location-select="neighborhood" autocomplete="address-line2" /></label>
+                </div>
+                <label><span>Dirección</span><input name="address" maxlength="300" autocomplete="street-address" /></label>
+                <div class="map-picker" data-map-picker>
+                  <div class="map-picker-copy">
+                    <div><h3>Ubicación en mapa</h3><p>Busca una dirección o ajusta el punto para conservar una referencia precisa.</p></div>
+                    <div class="map-actions"><button class="ghost-button" type="button" data-geocode-address><i data-lucide="search"></i><span>Ubicar dirección</span></button><button class="ghost-button" type="button" data-use-current-location><i data-lucide="crosshair"></i><span>Usar mi ubicación</span></button><a class="ghost-button" href="https://www.google.com/maps/search/?api=1&query=Cancun%2C%20Quintana%20Roo" target="_blank" rel="noopener" data-open-map><i data-lucide="map"></i><span>Abrir Google Maps</span></a></div>
+                  </div>
+                  <iframe title="Google Maps" loading="lazy" referrerpolicy="no-referrer-when-downgrade" data-map-frame src="https://www.google.com/maps?q=Cancun%2C%20Quintana%20Roo&output=embed"></iframe>
+                  <div class="interactive-map-canvas" data-map-canvas hidden aria-label="Selector interactivo de ubicación"></div>
+                  <div class="form-row coordinate-row"><label><span>Latitud</span><input name="latitude" type="number" step="any" min="-90" max="90" data-map-lat /></label><label><span>Longitud</span><input name="longitude" type="number" step="any" min="-180" max="180" data-map-lng /></label></div>
+                  <input name="mapPlace" type="hidden" data-map-place />
+                  <p class="map-help">La ubicación se usa únicamente dentro de la presentación privada.</p>
+                </div>
+                <div class="form-row external-metrics-row">
+                  <label><span>Recámaras</span><input name="beds" type="number" min="0" /></label>
+                  <label><span>Baños</span><input name="baths" type="number" min="0" step="0.5" /></label>
+                  <label><span>Estacionamientos</span><input name="parking" type="number" min="0" /></label>
+                  <label><span>M² construcción</span><input name="area" type="number" min="0" step="0.01" /></label>
+                  <label><span>M² terreno</span><input name="lot" type="number" min="0" step="0.01" /></label>
+                </div>
+                <div class="form-row"><label><span>Características</span><input name="features" placeholder="Vista al mar, amueblada, terraza" /></label><label><span>Amenidades</span><input name="amenities" placeholder="Alberca, gimnasio, seguridad" /></label></div>
+                <label><span>Keywords para búsqueda interna</span><input name="keywords" placeholder="playa, inversión, entrega inmediata" /></label>
+                <label><span>Descripción en español</span><textarea name="description" rows="7" maxlength="50000"></textarea></label>
+                <label><span>Descripción en inglés</span><textarea name="descriptionEn" rows="5" maxlength="50000"></textarea></label>
+                <label><span>Información complementaria visible</span><textarea name="additionalInformation" rows="4" maxlength="8000" placeholder="Condiciones, equipamiento u otros datos confirmados de la propiedad"></textarea></label>
+              </fieldset>
+
+              <fieldset class="external-form-section">
+                <legend>Galería privada</legend>
+                <label class="file-field"><span>Fotografías de la propiedad</span><input name="imageFile" type="file" accept="image/jpeg,image/jpg,image/png,image/webp" multiple /><small>JPG, PNG o WEBP. Máximo 20 imágenes. La primera será la portada.</small></label>
+                <div class="image-preview" id="externalPropertyImagePreview" hidden><div class="image-preview-header"><span>Orden y descripción de fotografías</span><button class="text-button danger" type="button" id="clearExternalPropertyImages">Quitar todas</button></div><div class="image-preview-grid"></div><small>Usa las flechas para ordenar. Las descripciones se utilizan como texto alternativo.</small></div>
+              </fieldset>
+
+              <fieldset class="external-form-section external-private-section">
+                <legend>Origen y contacto privado</legend>
+                <p class="private-data-notice"><i data-lucide="shield-check"></i><span>Esta información solo es visible para administradores. Se añade al enlace únicamente cuando eliges “con datos de contacto”.</span></p>
+                <div class="form-row"><label><span>Nombre del colega / agente</span><input name="externalContactName" maxlength="180" /></label><label><span>Empresa / inmobiliaria</span><input name="externalCompany" maxlength="180" /></label><label><span>Referencia interna</span><input name="referenceCode" maxlength="80" placeholder="Se genera automáticamente" /></label></div>
+                <div class="form-row"><label><span>Teléfono</span><input name="externalPhone" type="tel" maxlength="60" /></label><label><span>WhatsApp</span><input name="externalWhatsapp" type="tel" maxlength="60" /></label><label><span>Correo</span><input name="externalEmail" type="email" maxlength="254" /></label></div>
+                <label><span>Notas internas</span><textarea name="internalNotes" rows="4" maxlength="12000" placeholder="Comisión, acuerdos, vigencia o seguimiento. Nunca se comparte."></textarea></label>
+                <label><span>Información adicional del contacto</span><textarea name="externalAdditionalInfo" rows="3" maxlength="8000"></textarea></label>
+              </fieldset>
+
+              <p class="form-message" id="externalPropertyFormMessage" aria-live="polite"></p>
+              <div class="form-actions external-form-actions"><button class="primary-button" type="submit" id="externalPropertySubmit"><i data-lucide="save"></i><span>Guardar publicación externa</span></button><button class="ghost-button" type="button" id="resetExternalPropertyForm">Nueva publicación</button><button class="danger-button" type="button" id="deleteExternalPropertyFromForm" hidden><i data-lucide="trash-2"></i><span>Eliminar del inventario</span></button></div>
+            </form>
+          </section>
+
+          <section class="external-property-inventory" data-external-view="external-properties">
+            <div class="admin-listing-toolbar external-listing-toolbar" aria-label="Buscar y filtrar publicaciones externas">
+              <label class="admin-listing-search"><span>Buscar en inventario externo</span><div class="search-input-with-icon"><i data-lucide="search"></i><input id="externalPropertySearch" type="search" autocomplete="off" placeholder="Título, referencia, zona, agente, empresa, característica..." /></div></label>
+              <label><span>Tipo</span><select id="externalPropertyTypeFilter"><option value="">Todos</option></select></label>
+              <label><span>Zona</span><select id="externalPropertyZoneFilter"><option value="">Todas</option></select></label>
+              <label><span>Operación</span><select id="externalPropertyOperationFilter"><option value="">Todas</option><option value="sale">Venta</option><option value="rent">Renta</option></select></label>
+              <label><span>Estado</span><select id="externalPropertyStatusFilter"><option value="">Activas</option><option value="available">Disponible</option><option value="draft">Borrador</option><option value="reserved">Reservada</option><option value="unavailable">No disponible</option><option value="sold">Vendida</option><option value="rented">Rentada</option><option value="archived">Archivada</option></select></label>
+              <label><span>Precio mínimo</span><input id="externalPropertyMinPrice" type="number" min="0" step="1000" /></label>
+              <label><span>Precio máximo</span><input id="externalPropertyMaxPrice" type="number" min="0" step="1000" /></label>
+              <label><span>Ordenar</span><select id="externalPropertySort"><option value="updated_desc">Actualización reciente</option><option value="updated_asc">Actualización antigua</option><option value="title_asc">Título A-Z</option><option value="title_desc">Título Z-A</option><option value="price_asc">Precio menor a mayor</option><option value="price_desc">Precio mayor a menor</option></select></label>
+              <button class="ghost-button" id="clearExternalPropertyFilters" type="button"><i data-lucide="x"></i><span>Limpiar</span></button>
+            </div>
+            <div class="panel-card-subhead listings-subhead"><span id="externalPropertySummary">Cargando inventario...</span><span>Los contactos nunca aparecen en el catálogo público.</span></div>
+            <div class="admin-listings external-property-list" id="externalPropertyList" aria-live="polite"></div>
+            <nav class="external-pagination" id="externalPropertyPagination" aria-label="Páginas del inventario externo" hidden><button class="ghost-button" type="button" data-external-page="previous"><i data-lucide="chevron-left"></i><span>Anterior</span></button><span id="externalPropertyPageLabel"></span><button class="ghost-button" type="button" data-external-page="next"><span>Siguiente</span><i data-lucide="chevron-right"></i></button></nav>
+          </section>
+        </article>
         <div class="dashboard-grid admin-layout" id="adminOperationsGrid">
           <article class="panel-card admin-requests-card" id="adminRequestsCard" data-admin-section-panel="requests">
             <h2 data-i18n="adminRequestsTitle">Solicitudes de vendedores</h2>
@@ -2876,6 +2988,28 @@
             <div class="form-actions"><button class="ghost-button" type="button" id="backGuestSale"><i data-lucide="arrow-left"></i><span data-i18n="back">Volver</span></button><button class="primary-button" type="submit"><i data-lucide="send"></i><span data-i18n="confirmSendRequest">Confirmar y enviar</span></button></div>
             <p class="form-message" id="guestSaleMessage" aria-live="polite"></p>
           </section>
+        </form>
+      </section>
+    </div>
+
+    <div class="modal-backdrop" id="externalShareModal" hidden>
+      <section class="modal-card external-share-modal" role="dialog" aria-modal="true" aria-labelledby="externalShareTitle">
+        <button class="modal-close" type="button" data-close-external-share aria-label="Cerrar"><i data-lucide="x"></i></button>
+        <span class="external-badge">EXT</span>
+        <span class="eyebrow">PICK.STATE · ENLACE PRIVADO</span>
+        <h2 id="externalShareTitle">Compartir publicación externa</h2>
+        <p id="externalSharePropertyTitle"></p>
+        <form id="externalShareForm" class="stacked-form">
+          <input name="propertyId" type="hidden" />
+          <fieldset class="external-share-options">
+            <legend>¿Qué datos podrá ver el cliente?</legend>
+            <label><input type="radio" name="includeContact" value="false" checked /><span><i data-lucide="shield-check"></i><b>Sin datos de contacto</b><small>Comparte únicamente la información confirmada de la propiedad.</small></span></label>
+            <label><input type="radio" name="includeContact" value="true" /><span><i data-lucide="contact"></i><b>Con datos de contacto</b><small>Incluye nombre, empresa, teléfono, WhatsApp y correo del colaborador.</small></span></label>
+          </fieldset>
+          <p class="external-share-security"><i data-lucide="lock-keyhole"></i><span>El enlace vence en 7 días, no aparece en Google y siempre muestra la identificación EXT.</span></p>
+          <button class="primary-button external-whatsapp-button" type="submit"><i data-lucide="message-circle"></i><span>Preparar en WhatsApp</span></button>
+          <p class="form-message" id="externalShareMessage" aria-live="polite"></p>
+          <a class="mini-button primary pdf-share-fallback" id="externalShareFallback" href="#" target="_blank" rel="noopener noreferrer" hidden>Abrir WhatsApp de nuevo</a>
         </form>
       </section>
     </div>

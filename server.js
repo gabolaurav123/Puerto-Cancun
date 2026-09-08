@@ -39,6 +39,13 @@ const {
   periodToDays,
   sanitizeVisitorPayload,
 } = require("./visitor-analytics");
+const {
+  EXTERNAL_PROPERTY_STATUSES,
+  externalPropertyWhatsappText,
+  normalizeExternalPropertyInput,
+  renderExternalPropertyShareHtml,
+  toExternalProperty,
+} = require("./external-property-utils");
 const pdfParse = require("pdf-parse");
 const {
   MUTATING_METHODS,
@@ -1434,7 +1441,7 @@ function internalRoleAllows(req, user) {
   const internalRole = user.internalRole;
   if (!internalRole || ["super_admin", "admin"].includes(internalRole)) return true;
   const route = String(req.originalUrl || "").split("?")[0];
-  const editorPrefixes = ["/api/admin/properties", "/api/admin/developments", "/api/admin/blog", "/api/admin/files", "/api/admin/file-folders", "/api/admin/documents", "/api/admin/ai", "/api/admin/campaigns", "/api/admin/instagram"];
+  const editorPrefixes = ["/api/admin/properties", "/api/admin/developments", "/api/admin/external-properties", "/api/admin/blog", "/api/admin/files", "/api/admin/file-folders", "/api/admin/documents", "/api/admin/ai", "/api/admin/campaigns", "/api/admin/instagram"];
   const advisorPrefixes = ["/api/admin/requests", "/api/admin/guest-sale-requests", "/api/admin/leads", "/api/admin/contacts", "/api/admin/valuations", "/api/admin/tasks", "/api/admin/matches", "/api/admin/buyers", "/api/admin/messages", "/api/admin/whatsapp", "/api/admin/notifications"];
   const allowed = internalRole === "editor" ? editorPrefixes : internalRole === "advisor" ? advisorPrefixes : [];
   return allowed.some((prefix) => route.startsWith(prefix));
@@ -1588,6 +1595,125 @@ const PROPERTY_SUMMARY_COLUMNS = `
     LIMIT 1) AS parent_development_record,
   GREATEST(COALESCE(jsonb_array_length(p.images), 0), CASE WHEN p.image IS NULL THEN 0 ELSE 1 END)::int AS image_count
 `;
+
+const EXTERNAL_PROPERTY_COLUMNS = `
+  ep.id, ep.reference_code, ep.title_es, ep.title_en, ep.type, ep.operation, ep.state, ep.city, ep.zone,
+  ep.neighborhood, ep.address, ep.latitude, ep.longitude, ep.map_place, ep.location_precision,
+  ep.google_maps_url, ep.price_currency, ep.price_amount, ep.price_unit, ep.beds, ep.baths, ep.parking,
+  ep.area, ep.lot, ep.features, ep.amenities, ep.keywords, ep.image_metadata, ep.description_es,
+  ep.description_en, ep.additional_information, ep.status, ep.external_contact_name, ep.external_company,
+  ep.external_phone, ep.external_whatsapp, ep.external_email, ep.internal_notes, ep.external_additional_info,
+  ep.created_by, ep.updated_by, ep.created_at, ep.updated_at, ep.archived_at,
+  GREATEST(COALESCE(jsonb_array_length(ep.images), 0), CASE WHEN ep.image IS NULL THEN 0 ELSE 1 END)::int AS image_count
+`;
+
+const EXTERNAL_PROPERTY_WRITE_COLUMNS = [
+  "reference_code", "title_es", "title_en", "type", "operation", "state", "city", "zone", "neighborhood",
+  "address", "latitude", "longitude", "map_place", "location_precision", "google_maps_url", "price_currency",
+  "price_amount", "price_unit", "beds", "baths", "parking", "area", "lot", "features", "amenities", "keywords",
+  "image", "images", "image_metadata", "description_es", "description_en", "additional_information", "status",
+  "external_contact_name", "external_company", "external_phone", "external_whatsapp", "external_email", "internal_notes",
+  "external_additional_info",
+];
+
+function externalPropertyWriteValues(property) {
+  return [
+    property.referenceCode, property.titleEs, property.titleEn, property.type, property.operation, property.state,
+    property.city, property.zone, property.neighborhood, property.address, property.latitude, property.longitude,
+    property.mapPlace, property.locationPrecision, property.googleMapsUrl, property.currency, property.price,
+    property.priceUnit, property.beds, property.baths, property.parking, property.area, property.lot,
+    JSON.stringify(property.features), JSON.stringify(property.amenities), JSON.stringify(property.keywords),
+    property.images[0] || null, JSON.stringify(property.images), JSON.stringify(property.imageMetadata),
+    property.descriptionEs, property.descriptionEn, property.additionalInformation, property.status,
+    property.externalContactName, property.externalCompany, property.externalPhone, property.externalWhatsapp,
+    property.externalEmail || null, property.internalNotes, property.externalAdditionalInfo,
+  ];
+}
+
+async function getExternalPropertySummary(id, client = { query }) {
+  const result = await client.query(
+    `SELECT ${EXTERNAL_PROPERTY_COLUMNS} FROM external_properties ep WHERE ep.id = $1`,
+    [id]
+  );
+  return result.rows[0] || null;
+}
+
+function externalPropertyAdminView(row) {
+  return toExternalProperty(row, {
+    includePrivate: true,
+    mediaBase: `/media/external-properties/${encodeURIComponent(row.id)}`,
+  });
+}
+
+async function listExternalProperties(filters = {}, client = { query }) {
+  const where = [];
+  const values = [];
+  const add = (sql, value) => {
+    values.push(value);
+    where.push(sql.replace("?", `$${values.length}`));
+  };
+  const search = String(filters.search || "").trim().slice(0, 160);
+  const type = String(filters.type || "").trim().slice(0, 80);
+  const zone = String(filters.zone || "").trim().slice(0, 160);
+  const operation = ["sale", "rent"].includes(filters.operation) ? filters.operation : "";
+  const status = EXTERNAL_PROPERTY_STATUSES.has(filters.status) ? filters.status : "";
+  const minPrice = filters.minPrice === "" || filters.minPrice === undefined ? null : Number(filters.minPrice);
+  const maxPrice = filters.maxPrice === "" || filters.maxPrice === undefined ? null : Number(filters.maxPrice);
+  if (search) {
+    add(
+      `LOWER(CONCAT_WS(' ', ep.title_es, ep.title_en, ep.type, ep.state, ep.city, ep.zone, ep.neighborhood,
+        ep.address, ep.map_place, ep.reference_code, ep.external_contact_name, ep.external_company,
+        ep.external_email, ep.external_phone, ep.external_whatsapp, ep.status, ep.price_amount::text,
+        ep.features::text, ep.amenities::text, ep.keywords::text)) LIKE LOWER(?)`,
+      `%${search}%`
+    );
+  }
+  if (type) add("ep.type = ?", type);
+  if (zone) add("ep.zone = ?", zone);
+  if (operation) add("ep.operation = ?", operation);
+  if (status) add("ep.status = ?", status);
+  else where.push("ep.status <> 'archived'");
+  if (Number.isFinite(minPrice) && minPrice >= 0) add("ep.price_amount >= ?", minPrice);
+  if (Number.isFinite(maxPrice) && maxPrice >= 0) add("ep.price_amount <= ?", maxPrice);
+  const sortSql = {
+    updated_desc: "ep.updated_at DESC",
+    updated_asc: "ep.updated_at ASC",
+    title_asc: "ep.title_es ASC, ep.updated_at DESC",
+    title_desc: "ep.title_es DESC, ep.updated_at DESC",
+    price_asc: "ep.price_amount ASC NULLS LAST, ep.updated_at DESC",
+    price_desc: "ep.price_amount DESC NULLS LAST, ep.updated_at DESC",
+  }[filters.sort] || "ep.updated_at DESC";
+  const requestedLimit = Number(filters.limit);
+  const requestedOffset = Number(filters.offset);
+  const limit = Number.isFinite(requestedLimit) ? Math.max(10, Math.min(200, Math.trunc(requestedLimit))) : 60;
+  const offset = Number.isFinite(requestedOffset) ? Math.max(0, Math.trunc(requestedOffset)) : 0;
+  values.push(limit, offset);
+  const result = await client.query(
+    `SELECT ${EXTERNAL_PROPERTY_COLUMNS}, COUNT(*) OVER()::int AS filtered_total
+     FROM external_properties ep
+     ${where.length ? `WHERE ${where.join(" AND ")}` : ""}
+     ORDER BY ${sortSql}
+     LIMIT $${values.length - 1} OFFSET $${values.length}`,
+    values
+  );
+  const facets = await client.query(
+    `SELECT
+       COALESCE(ARRAY_AGG(DISTINCT type ORDER BY type) FILTER (WHERE type <> ''), ARRAY[]::text[]) AS types,
+       COALESCE(ARRAY_AGG(DISTINCT zone ORDER BY zone) FILTER (WHERE zone <> ''), ARRAY[]::text[]) AS zones,
+       COUNT(*)::int AS total,
+       COUNT(*) FILTER (WHERE status = 'archived')::int AS archived
+     FROM external_properties`
+  );
+  return {
+    externalProperties: result.rows.map(externalPropertyAdminView),
+    pagination: {
+      total: Number(result.rows[0]?.filtered_total || 0),
+      limit,
+      offset,
+    },
+    facets: facets.rows[0] || { types: [], zones: [], total: 0, archived: 0 },
+  };
+}
 
 const SELLER_REQUEST_SUMMARY_COLUMNS = `
   r.id, r.seller_id, r.seller_name, r.email, r.phone, r.preferred_contact, r.title, r.type,
@@ -2759,6 +2885,81 @@ async function initDatabase() {
         await migrationClient.query("CREATE INDEX IF NOT EXISTS idx_visitor_page_views_created ON visitor_page_views (created_at DESC)");
       },
     });
+    await runMigration(client, {
+      id: "0009-external-properties",
+      description: "Inventario privado de propiedades externas y enlaces temporales Pick.State",
+      up: async (migrationClient) => {
+        await migrationClient.query(`
+          CREATE TABLE IF NOT EXISTS external_properties (
+            id TEXT PRIMARY KEY,
+            reference_code TEXT NOT NULL UNIQUE,
+            title_es TEXT NOT NULL,
+            title_en TEXT NOT NULL DEFAULT '',
+            type TEXT NOT NULL,
+            operation TEXT NOT NULL CHECK (operation IN ('sale', 'rent')),
+            state TEXT NOT NULL DEFAULT 'Quintana Roo',
+            city TEXT NOT NULL DEFAULT 'Cancun',
+            zone TEXT NOT NULL,
+            neighborhood TEXT,
+            address TEXT,
+            latitude NUMERIC,
+            longitude NUMERIC,
+            map_place TEXT,
+            location_precision TEXT NOT NULL DEFAULT 'approximate',
+            google_maps_url TEXT,
+            price_currency TEXT NOT NULL DEFAULT 'USD' CHECK (price_currency IN ('USD', 'MXN')),
+            price_amount NUMERIC,
+            price_unit TEXT NOT NULL DEFAULT 'total' CHECK (price_unit IN ('total', 'sqm')),
+            beds INTEGER NOT NULL DEFAULT 0,
+            baths NUMERIC NOT NULL DEFAULT 0,
+            parking INTEGER NOT NULL DEFAULT 0,
+            area NUMERIC NOT NULL DEFAULT 0,
+            lot NUMERIC NOT NULL DEFAULT 0,
+            features JSONB NOT NULL DEFAULT '[]'::jsonb,
+            amenities JSONB NOT NULL DEFAULT '[]'::jsonb,
+            keywords JSONB NOT NULL DEFAULT '[]'::jsonb,
+            image TEXT,
+            images JSONB NOT NULL DEFAULT '[]'::jsonb,
+            image_metadata JSONB NOT NULL DEFAULT '[]'::jsonb,
+            description_es TEXT NOT NULL DEFAULT '',
+            description_en TEXT NOT NULL DEFAULT '',
+            additional_information TEXT NOT NULL DEFAULT '',
+            status TEXT NOT NULL DEFAULT 'available' CHECK (status IN ('draft','available','reserved','unavailable','sold','rented','archived')),
+            external_contact_name TEXT NOT NULL DEFAULT '',
+            external_company TEXT NOT NULL DEFAULT '',
+            external_phone TEXT NOT NULL DEFAULT '',
+            external_whatsapp TEXT NOT NULL DEFAULT '',
+            external_email TEXT,
+            internal_notes TEXT NOT NULL DEFAULT '',
+            external_additional_info TEXT NOT NULL DEFAULT '',
+            created_by TEXT,
+            updated_by TEXT,
+            idempotency_key TEXT UNIQUE,
+            created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+            updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+            archived_at TIMESTAMPTZ
+          )
+        `);
+        await migrationClient.query(`
+          CREATE TABLE IF NOT EXISTS external_property_share_links (
+            code TEXT PRIMARY KEY,
+            external_property_id TEXT NOT NULL REFERENCES external_properties(id) ON DELETE CASCADE,
+            include_contact BOOLEAN NOT NULL DEFAULT FALSE,
+            expires_at TIMESTAMPTZ NOT NULL,
+            is_active BOOLEAN NOT NULL DEFAULT TRUE,
+            open_count INTEGER NOT NULL DEFAULT 0,
+            last_opened_at TIMESTAMPTZ,
+            created_by TEXT,
+            created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+          )
+        `);
+        await migrationClient.query("CREATE INDEX IF NOT EXISTS idx_external_properties_status_updated ON external_properties (status, updated_at DESC)");
+        await migrationClient.query("CREATE INDEX IF NOT EXISTS idx_external_properties_filters ON external_properties (type, operation, zone, price_amount)");
+        await migrationClient.query("CREATE INDEX IF NOT EXISTS idx_external_properties_reference ON external_properties (reference_code)");
+        await migrationClient.query("CREATE INDEX IF NOT EXISTS idx_external_share_property ON external_property_share_links (external_property_id, include_contact, is_active, expires_at DESC)");
+        await migrationClient.query("CREATE INDEX IF NOT EXISTS idx_external_share_expires ON external_property_share_links (expires_at) WHERE is_active = TRUE");
+      },
+    });
     await client.query(
       "DELETE FROM visitor_page_views WHERE created_at < NOW() - make_interval(days => $1)",
       [visitorAnalyticsRetentionDays]
@@ -3068,7 +3269,9 @@ app.use((req, res, next) => {
     return;
   }
   res.setHeader("X-Robots-Tag", "noindex, nofollow, noarchive");
-  if (["GET", "HEAD"].includes(req.method) && /^\/f\/[A-Za-z0-9_-]{8,80}$/.test(req.path)) {
+  const allowedSharePath = /^\/f\/[A-Za-z0-9_-]{8,80}$/.test(req.path)
+    || /^\/ext\/[A-Za-z0-9_-]{8,80}(?:\/media\/(?:[0-9]|1[0-9]))?$/.test(req.path);
+  if (["GET", "HEAD"].includes(req.method) && allowedSharePath) {
     next();
     return;
   }
@@ -3179,7 +3382,8 @@ app.get("/compartiendo-ficha", (_req, res) => {
           return;
         }
         const validHost = parsedShareUrl.hostname === allowedShareHost || parsedShareUrl.hostname === 'www.' + allowedShareHost;
-        if (!['whatsapp', 'facebook', 'instagram'].includes(channel) || parsedShareUrl.protocol !== 'https:' || !validHost || !/^\\/f\\/[A-Za-z0-9_-]{8,80}$/.test(parsedShareUrl.pathname)) {
+        const validSharePath = /^\\/f\\/[A-Za-z0-9_-]{8,80}$/.test(parsedShareUrl.pathname) || /^\\/ext\\/[A-Za-z0-9_-]{8,80}$/.test(parsedShareUrl.pathname);
+        if (!['whatsapp', 'facebook', 'instagram'].includes(channel) || parsedShareUrl.protocol !== 'https:' || !validHost || !validSharePath) {
           showInvalidPayload();
           return;
         }
@@ -3534,6 +3738,46 @@ function validatePropertyVideo(buffer, contentType) {
   }
   return buffer;
 }
+
+app.get("/media/external-properties/:id/:index", requireRole("admin"), async (req, res, next) => {
+  try {
+    const imageIndex = Number(req.params.index);
+    if (!Number.isInteger(imageIndex) || imageIndex < 0 || imageIndex >= IMAGE_MAX_COUNT) {
+      res.status(404).end();
+      return;
+    }
+    const result = await query(
+      `SELECT updated_at,
+              CASE
+                WHEN jsonb_array_length(COALESCE(images, '[]'::jsonb)) > 0 THEN images ->> ($2::int)
+                WHEN $2::int = 0 THEN image
+                ELSE NULL
+              END AS selected_image
+       FROM external_properties
+       WHERE id = $1`,
+      [req.params.id, imageIndex]
+    );
+    const row = result.rows[0];
+    const decoded = decodeDataImage(row?.selected_image);
+    if (!decoded) {
+      res.status(404).end();
+      return;
+    }
+    const requestedWidth = Number(req.query.w || 0);
+    const width = [240, 640, 1200, 1600].includes(requestedWidth) ? requestedWidth : 0;
+    const buffer = width
+      ? await sharp(decoded.buffer).rotate().resize({ width, withoutEnlargement: true }).webp({ quality: width <= 240 ? 72 : 84 }).toBuffer()
+      : decoded.buffer;
+    res.set({
+      "Content-Type": width ? "image/webp" : decoded.type,
+      "Cache-Control": "private, max-age=600",
+      "X-Content-Type-Options": "nosniff",
+    });
+    res.send(buffer);
+  } catch (error) {
+    next(error);
+  }
+});
 
 app.get("/media/properties/:id/video", async (req, res, next) => {
   try {
@@ -4166,6 +4410,255 @@ app.get("/api/admin/properties", requireRole("admin"), async (_req, res, next) =
   try {
     const result = await query(`SELECT ${PROPERTY_SUMMARY_COLUMNS} FROM properties p ORDER BY p.created_at DESC`);
     res.json({ properties: result.rows.map(withPropertyMediaPlaceholders).map(toProperty) });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.get("/api/admin/external-properties", requireRole("admin"), async (req, res, next) => {
+  try {
+    res.json(await listExternalProperties({
+      search: req.query.search,
+      type: req.query.type,
+      zone: req.query.zone,
+      operation: req.query.operation,
+      status: req.query.status,
+      minPrice: req.query.minPrice,
+      maxPrice: req.query.maxPrice,
+      sort: req.query.sort,
+      limit: req.query.limit,
+      offset: req.query.offset,
+    }));
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.post("/api/admin/external-properties", requireRole("admin"), async (req, res, next) => {
+  let client;
+  try {
+    const safeBody = await sanitizePropertyImageBody(req.body || {});
+    const idempotencyKey = String(req.get("Idempotency-Key") || "").trim().slice(0, 120);
+    client = await pool.connect();
+    await client.query("BEGIN");
+    if (idempotencyKey) {
+      const existing = await client.query(
+        `SELECT ${EXTERNAL_PROPERTY_COLUMNS} FROM external_properties ep WHERE ep.idempotency_key = $1`,
+        [idempotencyKey]
+      );
+      if (existing.rows[0]) {
+        await client.query("COMMIT");
+        res.json({ externalProperty: externalPropertyAdminView(existing.rows[0]), idempotent: true });
+        return;
+      }
+    }
+    const id = uuid("external-property");
+    const images = parseExternalUploadedImages(safeBody, [], id);
+    const property = normalizeExternalPropertyInput(safeBody, { id, images });
+    const writeValues = externalPropertyWriteValues(property);
+    const columns = ["id", ...EXTERNAL_PROPERTY_WRITE_COLUMNS, "created_by", "updated_by", "idempotency_key"];
+    const values = [property.id, ...writeValues, req.session.user.id, req.session.user.id, idempotencyKey || null];
+    const placeholders = values.map((_value, index) => `$${index + 1}`);
+    const result = await client.query(
+      `INSERT INTO external_properties (${columns.join(", ")})
+       VALUES (${placeholders.join(", ")})
+       RETURNING id`,
+      values
+    );
+    const created = await getExternalPropertySummary(result.rows[0].id, client);
+    await client.query("COMMIT");
+    res.status(201).json({ externalProperty: externalPropertyAdminView(created) });
+  } catch (error) {
+    await client?.query("ROLLBACK").catch(() => null);
+    if (error.code === "23505") {
+      res.status(409).json({ error: "La referencia externa ya existe. Usa un código diferente." });
+      return;
+    }
+    next(error);
+  } finally {
+    client?.release();
+  }
+});
+
+app.put("/api/admin/external-properties/:id", requireRole("admin"), async (req, res, next) => {
+  let client;
+  try {
+    const safeBody = await sanitizePropertyImageBody(req.body || {});
+    client = await pool.connect();
+    await client.query("BEGIN");
+    const existing = await client.query("SELECT * FROM external_properties WHERE id = $1", [req.params.id]);
+    const current = existing.rows[0];
+    if (!current) {
+      await client.query("ROLLBACK");
+      res.status(404).json({ error: "Publicación externa no encontrada." });
+      return;
+    }
+    if (safeBody.referenceCode === undefined) safeBody.referenceCode = current.reference_code;
+    if (safeBody.imageMetadata === undefined) safeBody.imageMetadata = current.image_metadata;
+    const images = parseExternalUploadedImages(safeBody, mergeLegacyImages(current.images, current.image), req.params.id);
+    const property = normalizeExternalPropertyInput(safeBody, { id: req.params.id, images });
+    const writeValues = externalPropertyWriteValues(property);
+    const assignments = EXTERNAL_PROPERTY_WRITE_COLUMNS.map((column, index) => `${column} = $${index + 2}`);
+    const updatedByIndex = writeValues.length + 2;
+    const expectedAtIndex = writeValues.length + 3;
+    const result = await client.query(
+      `UPDATE external_properties
+       SET ${assignments.join(", ")},
+           updated_by = $${updatedByIndex},
+           archived_at = CASE WHEN status = 'archived' THEN COALESCE(archived_at, NOW()) ELSE NULL END,
+           updated_at = NOW()
+       WHERE id = $1
+         AND ($${expectedAtIndex}::timestamptz IS NULL OR date_trunc('milliseconds', updated_at) = date_trunc('milliseconds', $${expectedAtIndex}::timestamptz))
+       RETURNING id`,
+      [req.params.id, ...writeValues, req.session.user.id, safeBody.expectedUpdatedAt || null]
+    );
+    if (!result.rows[0]) {
+      await client.query("ROLLBACK");
+      res.status(409).json({ error: "Esta publicación externa cambió en otra sesión. Recarga el inventario antes de guardar." });
+      return;
+    }
+    const updated = await getExternalPropertySummary(result.rows[0].id, client);
+    await client.query("COMMIT");
+    res.json({ externalProperty: externalPropertyAdminView(updated) });
+  } catch (error) {
+    await client?.query("ROLLBACK").catch(() => null);
+    if (error.code === "23505") {
+      res.status(409).json({ error: "La referencia externa ya existe. Usa un código diferente." });
+      return;
+    }
+    next(error);
+  } finally {
+    client?.release();
+  }
+});
+
+app.patch("/api/admin/external-properties/:id/status", requireRole("admin"), async (req, res, next) => {
+  try {
+    const requested = String(req.body?.status || "").toLowerCase();
+    if (!EXTERNAL_PROPERTY_STATUSES.has(requested)) {
+      res.status(400).json({ error: "Selecciona un estado válido para la publicación externa." });
+      return;
+    }
+    const result = await query(
+      `UPDATE external_properties
+       SET status = $2,
+           archived_at = CASE WHEN $2 = 'archived' THEN COALESCE(archived_at, NOW()) ELSE NULL END,
+           updated_by = $3,
+           updated_at = NOW()
+       WHERE id = $1
+       RETURNING id`,
+      [req.params.id, requested, req.session.user.id]
+    );
+    if (!result.rows[0]) {
+      res.status(404).json({ error: "Publicación externa no encontrada." });
+      return;
+    }
+    res.json({ externalProperty: externalPropertyAdminView(await getExternalPropertySummary(req.params.id)) });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.delete("/api/admin/external-properties/:id", requireRole("admin"), async (req, res, next) => {
+  try {
+    const result = await query(
+      `UPDATE external_properties
+       SET status = 'archived', archived_at = NOW(), updated_by = $2, updated_at = NOW()
+       WHERE id = $1
+       RETURNING id`,
+      [req.params.id, req.session.user.id]
+    );
+    if (!result.rows[0]) {
+      res.status(404).json({ error: "Publicación externa no encontrada." });
+      return;
+    }
+    await query("UPDATE external_property_share_links SET is_active = FALSE WHERE external_property_id = $1", [req.params.id]);
+    res.json({ ok: true, archived: true });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.post("/api/admin/external-properties/:id/duplicate", requireRole("admin"), async (req, res, next) => {
+  try {
+    const source = await query("SELECT * FROM external_properties WHERE id = $1", [req.params.id]);
+    if (!source.rows[0]) {
+      res.status(404).json({ error: "Publicación externa no encontrada." });
+      return;
+    }
+    const id = uuid("external-property");
+    const referenceCode = `EXT-${id.replace(/[^a-z0-9]/gi, "").slice(-8).toUpperCase()}`;
+    const result = await query(
+      `INSERT INTO external_properties
+        (id, reference_code, title_es, title_en, type, operation, state, city, zone, neighborhood, address,
+         latitude, longitude, map_place, location_precision, google_maps_url, price_currency, price_amount,
+         price_unit, beds, baths, parking, area, lot, features, amenities, keywords, image, images, image_metadata,
+         description_es, description_en, additional_information, status, external_contact_name, external_company,
+         external_phone, external_whatsapp, external_email, internal_notes, external_additional_info, created_by, updated_by)
+       SELECT $2, $3, title_es || ' (copia)', title_en, type, operation, state, city, zone, neighborhood, address,
+         latitude, longitude, map_place, location_precision, google_maps_url, price_currency, price_amount,
+         price_unit, beds, baths, parking, area, lot, features, amenities, keywords, image, images, image_metadata,
+         description_es, description_en, additional_information, 'draft', external_contact_name, external_company,
+         external_phone, external_whatsapp, external_email, internal_notes, external_additional_info, $4, $4
+       FROM external_properties WHERE id = $1
+       RETURNING id`,
+      [req.params.id, id, referenceCode, req.session.user.id]
+    );
+    res.status(201).json({ externalProperty: externalPropertyAdminView(await getExternalPropertySummary(result.rows[0].id)) });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.post("/api/admin/external-properties/:id/share", requireRole("admin"), async (req, res, next) => {
+  try {
+    const includeContact = req.body?.includeContact === true || req.body?.includeContact === "true";
+    const row = await getExternalPropertySummary(req.params.id);
+    if (!row || row.status === "archived") {
+      res.status(404).json({ error: "Publicación externa no encontrada o eliminada." });
+      return;
+    }
+    let shareLink = await query(
+      `SELECT code, expires_at
+       FROM external_property_share_links
+       WHERE external_property_id = $1 AND include_contact = $2 AND is_active = TRUE
+         AND expires_at > NOW() + INTERVAL '1 day'
+       ORDER BY expires_at DESC
+       LIMIT 1`,
+      [req.params.id, includeContact]
+    );
+    if (!shareLink.rows[0]) {
+      for (let attempt = 0; attempt < 4 && !shareLink.rows[0]; attempt += 1) {
+        const code = crypto.randomBytes(12).toString("base64url");
+        shareLink = await query(
+          `INSERT INTO external_property_share_links
+            (code, external_property_id, include_contact, expires_at, created_by)
+           VALUES ($1, $2, $3, NOW() + INTERVAL '7 days', $4)
+           ON CONFLICT (code) DO NOTHING
+           RETURNING code, expires_at`,
+          [code, req.params.id, includeContact, req.session.user.id]
+        );
+      }
+    }
+    if (!shareLink.rows[0]) throw new Error("No fue posible crear el enlace temporal de la publicación externa.");
+    const sharePath = `/ext/${encodeURIComponent(shareLink.rows[0].code)}`;
+    const requestOrigin = `${String(req.get("x-forwarded-proto") || req.protocol || "https").split(",")[0].trim()}://${String(req.get("x-forwarded-host") || req.get("host") || "").split(",")[0].trim()}`;
+    const configuredShareOrigin = publicShareDomain && !/^https?:\/\//i.test(publicShareDomain)
+      ? `https://${publicShareDomain}`
+      : publicShareDomain;
+    const shareUrl = absoluteUrl(sharePath, configuredShareOrigin || requestOrigin || siteUrl);
+    const property = toExternalProperty(row, {
+      includePrivate: includeContact,
+      mediaBase: `${shareUrl}/media`,
+    });
+    const message = externalPropertyWhatsappText(property, shareUrl, { includeContact });
+    res.json({
+      shareUrl,
+      expiresAt: shareLink.rows[0].expires_at,
+      includeContact,
+      message,
+      whatsappUrl: `https://api.whatsapp.com/send/?text=${encodeURIComponent(message)}&type=custom_url&app_absent=0`,
+    });
   } catch (error) {
     next(error);
   }
@@ -9174,6 +9667,96 @@ app.post("/api/admin/documents/:id/share", requireRole("admin"), async (req, res
   }
 });
 
+app.get("/ext/:code/media/:index", async (req, res, next) => {
+  try {
+    const code = String(req.params.code || "").slice(0, 80);
+    const imageIndex = Number(req.params.index);
+    if (!/^[A-Za-z0-9_-]{8,80}$/.test(code) || !Number.isInteger(imageIndex) || imageIndex < 0 || imageIndex >= IMAGE_MAX_COUNT) {
+      res.status(404).end();
+      return;
+    }
+    const result = await query(
+      `SELECT ep.updated_at,
+              CASE
+                WHEN jsonb_array_length(COALESCE(ep.images, '[]'::jsonb)) > 0 THEN ep.images ->> ($2::int)
+                WHEN $2::int = 0 THEN ep.image
+                ELSE NULL
+              END AS selected_image
+       FROM external_property_share_links link
+       JOIN external_properties ep ON ep.id = link.external_property_id
+       WHERE link.code = $1 AND link.is_active = TRUE AND link.expires_at > NOW() AND ep.status <> 'archived'`,
+      [code, imageIndex]
+    );
+    const decoded = decodeDataImage(result.rows[0]?.selected_image);
+    if (!decoded) {
+      res.status(404).end();
+      return;
+    }
+    const buffer = await sharp(decoded.buffer)
+      .rotate()
+      .resize({ width: 1400, withoutEnlargement: true })
+      .webp({ quality: 84 })
+      .toBuffer();
+    res.set({
+      "Content-Type": "image/webp",
+      "Cache-Control": "private, max-age=600",
+      "X-Robots-Tag": "noindex, nofollow, noarchive, noimageindex",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+    });
+    res.send(buffer);
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.get("/ext/:code", async (req, res, next) => {
+  try {
+    const code = String(req.params.code || "").slice(0, 80);
+    if (!/^[A-Za-z0-9_-]{8,80}$/.test(code)) {
+      res.status(404).type("text/plain").send("Presentación no encontrada.");
+      return;
+    }
+    const linkResult = await query(
+      `UPDATE external_property_share_links
+       SET open_count = open_count + 1, last_opened_at = NOW()
+       WHERE code = $1 AND is_active = TRUE AND expires_at > NOW()
+       RETURNING external_property_id, include_contact`,
+      [code]
+    );
+    const link = linkResult.rows[0];
+    if (!link) {
+      res.status(410).type("text/plain").send("Esta presentación privada es inválida o ya venció.");
+      return;
+    }
+    const row = await getExternalPropertySummary(link.external_property_id);
+    if (!row || row.status === "archived") {
+      res.status(410).type("text/plain").send("Esta propiedad externa ya no está disponible.");
+      return;
+    }
+    const sharePath = `/ext/${encodeURIComponent(code)}`;
+    const configuredShareOrigin = publicShareDomain && !/^https?:\/\//i.test(publicShareDomain)
+      ? `https://${publicShareDomain}`
+      : publicShareDomain;
+    const shareUrl = absoluteUrl(sharePath, configuredShareOrigin || siteUrl);
+    const property = toExternalProperty(row, {
+      includePrivate: Boolean(link.include_contact),
+      mediaBase: `${shareUrl}/media`,
+    });
+    res.set({
+      "Cache-Control": "private, no-store, max-age=0",
+      "X-Robots-Tag": "noindex, nofollow, noarchive, nosnippet, noimageindex",
+      "Referrer-Policy": "no-referrer",
+    });
+    res.type("html").send(renderExternalPropertyShareHtml(property, {
+      shareUrl,
+      includeContact: Boolean(link.include_contact),
+    }));
+  } catch (error) {
+    next(error);
+  }
+});
+
 app.get("/f/:code", async (req, res, next) => {
   try {
     const linkResult = await query(
@@ -10867,6 +11450,39 @@ function parseUploadedImages(body, existingImages = [], propertyId = "") {
     const exactExisting = stored.find((existing) => existing === image);
     if (exactExisting) return exactExisting;
     const error = new Error("Una de las imagenes existentes ya no esta disponible. Recarga la publicacion e intenta nuevamente.");
+    error.status = 400;
+    throw error;
+  });
+}
+
+function parseExternalUploadedImages(body, existingImages = [], propertyId = "") {
+  if (body.removeImage === true || body.removeImage === "true") return [];
+  const incoming = Array.isArray(body.images)
+    ? body.images
+    : body.imageDataUrl
+      ? [{ imageDataUrl: body.imageDataUrl, imageType: body.imageType, imageSize: body.imageSize }]
+      : [];
+  const stored = safeJsonArray(existingImages).filter(Boolean).slice(0, IMAGE_MAX_COUNT);
+  if (!incoming.length) return stored;
+  if (incoming.length > IMAGE_MAX_COUNT) {
+    const error = new Error(`Solo puedes cargar hasta ${IMAGE_MAX_COUNT} imágenes por publicación externa.`);
+    error.status = 400;
+    throw error;
+  }
+  return incoming.map((image) => {
+    if (typeof image !== "string") return validateImagePayload(image);
+    if (/^data:image\//i.test(image)) {
+      const decoded = decodeDataImage(image);
+      return validateImagePayload({ imageDataUrl: image, imageType: decoded?.type, imageSize: decoded?.buffer?.length });
+    }
+    const mediaMatch = image.match(/^\/media\/external-properties\/([^/]+)\/(\d+)(?:\?.*)?$/);
+    if (mediaMatch && (!propertyId || decodeURIComponent(mediaMatch[1]) === propertyId)) {
+      const existing = stored[Number(mediaMatch[2])];
+      if (existing) return existing;
+    }
+    const exactExisting = stored.find((existing) => existing === image);
+    if (exactExisting) return exactExisting;
+    const error = new Error("Una fotografía externa ya no está disponible. Recarga el inventario e intenta nuevamente.");
     error.status = 400;
     throw error;
   });
