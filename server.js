@@ -8329,6 +8329,8 @@ app.post("/api/admin/properties", requireRole("admin"), async (req, res, next) =
   let inTransaction = false;
   try {
     const safeBody = await sanitizePropertyImageBody(req.body);
+    if (safeBody.status === undefined) safeBody.status = "draft";
+    if (safeBody.isPublic === undefined) safeBody.isPublic = false;
     const idempotencyKey = String(req.get("Idempotency-Key") || "").trim().slice(0, 120);
     client = await pool.connect();
     await client.query("BEGIN");

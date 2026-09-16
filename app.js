@@ -9936,8 +9936,8 @@ function resetListingForm(clearDraft = true) {
     deleteButton.hidden = true;
     deleteButton.dataset.deleteListing = "";
   }
-  if (formField(form, "status")) formField(form, "status").value = "active";
-  if (formField(form, "isPublic")) formField(form, "isPublic").checked = true;
+  if (formField(form, "status")) formField(form, "status").value = "draft";
+  if (formField(form, "isPublic")) formField(form, "isPublic").checked = false;
   if (formField(form, "priceUnit")) formField(form, "priceUnit").value = "total";
   configureListingFormMode(state.adminSection);
   refreshLocationSelects();
