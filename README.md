@@ -24,11 +24,14 @@ RELEASE_SHA=commit-del-despliegue
 PUBLIC_SITE_URL=https://www.puertocancun.center
 PUBLIC_SHARE_DOMAIN=https://pic.estate
 SESSION_SECRET=un-secreto-largo-y-aleatorio
+WHATSAPP_AUTH_SECRET=otro-secreto-largo-y-aleatorio
 ADMIN_USER=adminprueba
 ADMIN_PASSWORD=tu-password-admin
 OPENAI_API_KEY=
 OPENAI_MODEL=gpt-5-mini
 OPENAI_IMAGE_QUALITY=medium
+RESEND_API_KEY=
+MAIL_FROM=Puerto Cancun Center <contacto@dominio-verificado.com>
 INSTAGRAM_ACCOUNT_ID=
 INSTAGRAM_ACCESS_TOKEN=
 INSTAGRAM_OAUTH_URL=
@@ -42,6 +45,8 @@ PORT=3000
 No subas `.env` al repositorio. La conexión PostgreSQL, las claves y la contraseña del administrador deben existir únicamente como variables de entorno.
 `GOOGLE_CLIENT_ID` activa el inicio con Google. `GOOGLE_MAPS_API_KEY` activa Google Maps y su geocodificación; sin esa clave el sistema utiliza el mapa interactivo de OpenStreetMap y geocodificación desde el servidor.
 `PUBLIC_SHARE_DOMAIN` se reserva exclusivamente para enlaces temporales de fichas PDF. La aplicación responde con `404` en la raíz de ese dominio y no muestra ni redirige al portal principal.
+`SESSION_SECRET` y `WHATSAPP_AUTH_SECRET` deben ser valores aleatorios distintos de al menos 32 caracteres. Cambiar `SESSION_SECRET` invalida las sesiones abiertas, por lo que los usuarios deberán iniciar sesión nuevamente.
+El correo transaccional requiere `RESEND_API_KEY` y `MAIL_FROM` al mismo tiempo. `MAIL_FROM` debe pertenecer a un dominio verificado en Resend; mientras no exista ese dominio, deja `MAIL_FROM` sin configurar para que el alta de usuarios no dependa de un correo que no puede entregarse.
 
 ### Despliegue en Seenode
 
@@ -82,7 +87,8 @@ El servidor crea automáticamente las tablas necesarias y carga propiedades de e
 - Hero responsive WebP, Open Graph 1200×630 y staging Seenode bloqueado para indexación.
 - Persistencia PostgreSQL para operación, documentos, archivos, campañas, métricas y sesiones.
 - Identificación de versión, commit, recursos estáticos y solicitudes mediante `/api/version` y cabeceras de soporte.
-- Protección de origen, límites de solicitudes, cabeceras de seguridad y validación reforzada de cuentas.
+- Protección de origen y CSRF, límites de solicitudes, cabeceras de seguridad, sesiones privadas y validación reforzada de cuentas.
+- Archivos administrativos restringidos por tipo y tamaño: las imágenes se decodifican y recodifican, los PDF con acciones activas se rechazan y las descargas privadas no se almacenan en caché.
 - Auditoría automática de mutaciones administrativas sin registrar contraseñas ni contenido sensible.
 - Carga aislada de módulos: una integración caída no bloquea todo el panel.
 - Archivo recuperable de propiedades en lugar de borrado físico inmediato.

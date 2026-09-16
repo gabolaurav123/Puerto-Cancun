@@ -24,8 +24,11 @@ function validateRuntimeConfig(env = process.env) {
   const errors = [];
   const warnings = [];
   const sessionSecret = String(env.SESSION_SECRET || "");
+  const whatsappSecret = String(env.WHATSAPP_AUTH_SECRET || "");
+  const adminPassword = String(env.ADMIN_PASSWORD || "");
+  const predictableSecret = (value) => /change-me|cambialo|session-secret|puerto[-_ ]?cancun/i.test(value);
   if (!env.DATABASE_URL) warnings.push("DATABASE_URL no está configurada; el portal no podrá consultar datos.");
-  if (production && (sessionSecret.length < 32 || sessionSecret.includes("change-me") || sessionSecret === "dev-session-secret-change-me")) {
+  if (production && (sessionSecret.length < 32 || predictableSecret(sessionSecret))) {
     errors.push("SESSION_SECRET debe contener al menos 32 caracteres aleatorios en producción.");
   }
   if (production && env.ADMIN_USER && !env.ADMIN_PASSWORD) {
@@ -34,7 +37,17 @@ function validateRuntimeConfig(env = process.env) {
   if (production && env.ADMIN_PASSWORD && String(env.ADMIN_PASSWORD).length < 12) {
     errors.push("ADMIN_PASSWORD debe contener al menos 12 caracteres en producción.");
   }
-  if (!env.WHATSAPP_AUTH_SECRET) warnings.push("WHATSAPP_AUTH_SECRET no está configurada; se usará SESSION_SECRET como respaldo.");
+  if (production && adminPassword && (!/[a-z]/.test(adminPassword) || !/[A-Z]/.test(adminPassword) || !/\d/.test(adminPassword) || !/[^A-Za-z0-9]/.test(adminPassword) || predictableSecret(adminPassword))) {
+    warnings.push("ADMIN_PASSWORD debería reemplazarse por una contraseña única con mayúsculas, minúsculas, números y símbolos.");
+  }
+  if (production && (whatsappSecret.length < 32 || whatsappSecret === sessionSecret || predictableSecret(whatsappSecret))) {
+    errors.push("WHATSAPP_AUTH_SECRET debe ser un secreto aleatorio e independiente de SESSION_SECRET en producción.");
+  } else if (!whatsappSecret) {
+    warnings.push("WHATSAPP_AUTH_SECRET no está configurada; se usará SESSION_SECRET como respaldo.");
+  }
+  if (Boolean(env.RESEND_API_KEY) !== Boolean(env.MAIL_FROM)) {
+    warnings.push("RESEND_API_KEY y MAIL_FROM deben configurarse juntos para habilitar el correo.");
+  }
   return { errors, warnings };
 }
 
@@ -54,21 +67,24 @@ function securityHeaders() {
   return (req, res, next) => {
     res.set({
       "X-Content-Type-Options": "nosniff",
-      "X-Frame-Options": "SAMEORIGIN",
+      "X-Frame-Options": "DENY",
+      "X-Permitted-Cross-Domain-Policies": "none",
       "Referrer-Policy": "strict-origin-when-cross-origin",
       "Permissions-Policy": "camera=(), microphone=(), geolocation=(self)",
       "Cross-Origin-Opener-Policy": "same-origin-allow-popups",
+      "Cross-Origin-Resource-Policy": "same-site",
       "Origin-Agent-Cluster": "?1",
       "Content-Security-Policy": [
         "default-src 'self'",
         "base-uri 'self'",
         "object-src 'none'",
-        "frame-ancestors 'self'",
+        "frame-ancestors 'none'",
         "form-action 'self'",
         "script-src 'self' 'unsafe-inline' https://unpkg.com https://accounts.google.com",
         "style-src 'self' 'unsafe-inline' https://unpkg.com",
         "img-src 'self' data: blob: https:",
         "font-src 'self' data: https:",
+        "media-src 'self' blob: data:",
         "connect-src 'self' https://accounts.google.com https://www.googleapis.com https://nominatim.openstreetmap.org https://*.tile.openstreetmap.org",
         "frame-src 'self' https://www.google.com https://accounts.google.com",
         "worker-src 'self' blob:",

@@ -45,7 +45,7 @@ test("la versión desplegada se resuelve desde el commit del proveedor", () => {
 
 test("la configuración productiva rechaza secretos inseguros", () => {
   const invalid = validateRuntimeConfig({ NODE_ENV: "production", SESSION_SECRET: "change-me", ADMIN_USER: "admin" });
-  assert.equal(invalid.errors.length, 2);
+  assert.equal(invalid.errors.length, 3);
   const valid = validateRuntimeConfig({
     NODE_ENV: "production",
     DATABASE_URL: "postgres://example",

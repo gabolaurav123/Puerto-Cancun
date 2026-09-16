@@ -1195,6 +1195,11 @@ async function sanitizeUploadedFile(parsed) {
     throw error;
   }
   if (parsed.mimeType.startsWith("image/")) {
+    if (parsed.buffer.length > 12 * 1024 * 1024) {
+      const error = new Error("La imagen supera el límite permitido de 12 MB.");
+      error.status = 400;
+      throw error;
+    }
     let safeBuffer;
     try {
       const metadata = await sharp(parsed.buffer, { limitInputPixels: 40_000_000, failOn: "warning" }).metadata();
@@ -1212,14 +1217,26 @@ async function sanitizeUploadedFile(parsed) {
     return { mimeType: "image/webp", buffer: safeBuffer, content: `data:image/webp;base64,${safeBuffer.toString("base64")}` };
   }
   if (parsed.mimeType === "application/pdf") {
+    if (parsed.buffer.length > 15 * 1024 * 1024) {
+      const error = new Error("El PDF supera el límite permitido de 15 MB.");
+      error.status = 400;
+      throw error;
+    }
     const header = parsed.buffer.subarray(0, 8).toString("latin1");
     const searchable = parsed.buffer.toString("latin1");
-    if (!header.startsWith("%PDF-") || /\/(?:JavaScript|JS|Launch|EmbeddedFile)\b/i.test(searchable)) {
+    const trailer = parsed.buffer.subarray(Math.max(0, parsed.buffer.length - 4096)).toString("latin1");
+    const activePdfContent = /\/(?:JavaScript|JS|Launch|EmbeddedFile|EmbeddedFiles|OpenAction|AA|RichMedia|FileAttachment|SubmitForm|ImportData|GoToE)\b/i;
+    if (!header.startsWith("%PDF-") || !trailer.includes("%%EOF") || activePdfContent.test(searchable)) {
       const error = new Error("El PDF no es válido o contiene acciones o archivos incrustados no permitidos.");
       error.status = 400;
       throw error;
     }
     return parsed;
+  }
+  if (parsed.buffer.length > 2 * 1024 * 1024) {
+    const error = new Error("El archivo de texto supera el límite permitido de 2 MB.");
+    error.status = 400;
+    throw error;
   }
   const text = parsed.buffer.toString("utf8");
   if (text.includes("\u0000") || /<script\b|javascript:|<iframe\b/i.test(text)) {
@@ -3519,6 +3536,11 @@ app.use(["/api/admin", "/api/seller", "/api/auth"], (req, res, next) => {
 });
 
 app.use("/api", sameOriginMutationGuard());
+app.use(["/api/auth", "/api/admin", "/api/seller"], (_req, res, next) => {
+  res.set("Cache-Control", "private, no-store, max-age=0");
+  res.set("Pragma", "no-cache");
+  next();
+});
 app.use("/api", (req, res, next) => {
   if (!MUTATING_METHODS.has(req.method)) {
     next();
@@ -3542,6 +3564,11 @@ app.use("/api/leads", createRateLimiter({ windowMs: 10 * 60 * 1000, max: 12, mes
 app.use("/api/guest-sale-requests", createRateLimiter({ windowMs: 15 * 60 * 1000, max: 6, message: "Se recibieron demasiadas solicitudes de venta desde esta conexión. Espera unos minutos antes de volver a intentar." }));
 app.use("/api/analytics", createRateLimiter({ windowMs: 5 * 60 * 1000, max: 180 }));
 app.use("/api/metrics", createRateLimiter({ windowMs: 5 * 60 * 1000, max: 180 }));
+const authenticatedRateKey = (req) => `${req.session?.user?.id || "anonymous"}:${req.ip || req.socket?.remoteAddress || "unknown"}`;
+app.use("/api/admin/ai", createRateLimiter({ windowMs: 10 * 60 * 1000, max: 40, keyGenerator: authenticatedRateKey, message: "Se alcanzó el límite temporal de herramientas de IA." }));
+app.use("/api/admin/files", createRateLimiter({ windowMs: 10 * 60 * 1000, max: 120, keyGenerator: authenticatedRateKey, message: "Se alcanzó el límite temporal de operaciones con archivos." }));
+app.use("/api/admin", createRateLimiter({ windowMs: 5 * 60 * 1000, max: 900, keyGenerator: authenticatedRateKey, message: "Se alcanzó el límite temporal del panel administrativo." }));
+app.use("/api/seller", createRateLimiter({ windowMs: 5 * 60 * 1000, max: 300, keyGenerator: authenticatedRateKey, message: "Se alcanzó el límite temporal del panel de vendedor." }));
 
 app.use("/api/admin", (req, res, next) => {
   if (!MUTATING_METHODS.has(req.method)) return next();
@@ -3963,6 +3990,12 @@ function createSecureToken() {
   return { token, hash: crypto.createHash("sha256").update(token).digest("hex") };
 }
 
+function constantTimeCredentialEqual(candidate, expected) {
+  const candidateHash = crypto.createHash("sha256").update(String(candidate || ""), "utf8").digest();
+  const expectedHash = crypto.createHash("sha256").update(String(expected || ""), "utf8").digest();
+  return crypto.timingSafeEqual(candidateHash, expectedHash);
+}
+
 async function sendTransactionalEmail({ to, subject, html }) {
   if (!process.env.RESEND_API_KEY || !process.env.MAIL_FROM) {
     const error = new Error("El envío de correo todavía no está configurado. Define RESEND_API_KEY y MAIL_FROM.");
@@ -4010,7 +4043,7 @@ app.post("/api/auth/login", async (req, res, next) => {
     const username = String(req.body.username || "").trim();
     const password = String(req.body.password || "");
     if (adminUsernameMatches(username)) {
-      if (!adminPassword || password !== adminPassword) {
+      if (!adminPassword || !constantTimeCredentialEqual(password, adminPassword)) {
         res.status(401).json({ error: "Invalid credentials" });
         return;
       }
@@ -9367,7 +9400,11 @@ app.get("/api/admin/files/:id/download", requireRole("admin"), async (req, res, 
     }
     res.setHeader("Content-Type", file.mime_type);
     const disposition = req.query.inline === "1" ? "inline" : "attachment";
-    res.setHeader("Content-Disposition", `${disposition}; filename="${String(file.name).replace(/"/g, "")}"`);
+    const safeFilename = String(file.name || "archivo").replace(/[^A-Za-z0-9._() -]+/g, "_").slice(0, 180) || "archivo";
+    res.setHeader("Content-Disposition", `${disposition}; filename="${safeFilename}"`);
+    res.setHeader("Cache-Control", "private, no-store, max-age=0");
+    res.setHeader("Cross-Origin-Resource-Policy", "same-origin");
+    if (disposition === "inline") res.setHeader("Content-Security-Policy", "sandbox; default-src 'none'");
     res.send(parsed.buffer);
   } catch (error) {
     next(error);
