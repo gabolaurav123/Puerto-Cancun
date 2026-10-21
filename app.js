@@ -1,6 +1,6 @@
 const IMAGE_MAX_BYTES = 240 * 1024;
 const IMAGE_ORIGINAL_MAX_BYTES = 12 * 1024 * 1024;
-const IMAGE_MAX_COUNT = 20;
+const IMAGE_MAX_COUNT = 60;
 const VIDEO_MAX_BYTES = 45 * 1024 * 1024;
 const DESCRIPTION_MAX_LENGTH = 50000;
 const LISTING_DRAFT_KEY = "pcc.admin.listingDraft.v2";
@@ -287,7 +287,7 @@ const translations = {
     priceUsd: "Precio USD",
     priceMxn: "Precio MXN",
     imageUpload: "Imagenes de la propiedad",
-    imageHelp: "JPG, PNG o WEBP. Maximo 20 imagenes. Se optimizan antes de guardarse.",
+    imageHelp: "JPG, PNG o WEBP. Maximo 60 imagenes. Se optimizan antes de guardarse.",
     imageGalleryTitle: "Galería y orden de publicación",
     imageGalleryHelp: "La primera imagen será la portada. Arrastra las fotos o usa las flechas para cambiar su orden.",
     currentImage: "Imagen actual",
@@ -295,7 +295,7 @@ const translations = {
     removeImage: "Quitar imagenes",
     imageRemoved: "Imagenes quitadas. Puedes seleccionar otras antes de guardar.",
     imageTooLarge: "La imagen no debe superar 1.5 MB.",
-    tooManyImages: "Solo puedes cargar hasta 20 imagenes por publicacion.",
+    tooManyImages: "Solo puedes cargar hasta 60 imagenes por publicacion.",
     invalidImageType: "La imagen debe ser JPG, JPEG, PNG o WEBP.",
     missingPrice: "Agrega al menos un precio: USD o MXN.",
     markFeatured: "Marcar como destacada",
@@ -860,7 +860,7 @@ const translations = {
     priceUsd: "USD price",
     priceMxn: "MXN price",
     imageUpload: "Property images",
-    imageHelp: "JPG, PNG or WEBP. Up to 20 images. They are optimized before saving.",
+    imageHelp: "JPG, PNG or WEBP. Up to 60 images. They are optimized before saving.",
     imageGalleryTitle: "Gallery and publication order",
     imageGalleryHelp: "The first image will be the cover. Drag photos or use the arrows to change their order.",
     currentImage: "Current image",
@@ -868,7 +868,7 @@ const translations = {
     removeImage: "Remove images",
     imageRemoved: "Images removed. You can select others before saving.",
     imageTooLarge: "Image must not exceed 1.5 MB.",
-    tooManyImages: "You can upload up to 20 images per listing.",
+    tooManyImages: "You can upload up to 60 images per listing.",
     invalidImageType: "Image must be JPG, JPEG, PNG, or WEBP.",
     missingPrice: "Add at least one price: USD or MXN.",
     markFeatured: "Mark as featured",

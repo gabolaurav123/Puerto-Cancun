@@ -115,7 +115,7 @@ for (const failure of ["http", "timeout", "incomplete", "invalid-json", "refusal
 
 test("empty and oversized galleries are rejected", async () => {
   await assert.rejects(analyzePhotos({ ...dependencies, stored: [] }), { status: 400 });
-  await assert.rejects(analyzePhotos({ ...dependencies, stored: Array(21).fill("image") }), { status: 400 });
+  await assert.rejects(analyzePhotos({ ...dependencies, stored: Array(61).fill("image") }), { status: 400 });
 });
 
 test("the editor analysis endpoint requires admin role and does not publish its proposals", () => {

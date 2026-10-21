@@ -115,7 +115,7 @@ function normalizeExternalPropertyInput(body = {}, { id, images = [] } = {}) {
     error.status = 400;
     throw error;
   }
-  const storedImages = safeJsonArray(images).filter(Boolean).slice(0, 20);
+  const storedImages = safeJsonArray(images).filter(Boolean).slice(0, 60);
   return {
     id,
     referenceCode: externalReference(id, body.referenceCode),

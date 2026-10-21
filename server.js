@@ -140,7 +140,7 @@ function publicDatabaseState() {
 }
 
 const IMAGE_MAX_BYTES = 240 * 1024;
-const IMAGE_MAX_COUNT = 20;
+const IMAGE_MAX_COUNT = 60;
 const VIDEO_MAX_BYTES = 45 * 1024 * 1024;
 const VIDEO_TYPES = new Set(["video/mp4", "video/webm"]);
 const DESCRIPTION_MAX_LENGTH = 50000;
@@ -9057,8 +9057,8 @@ app.put("/api/admin/listing-drafts/:key", requireRole("admin"), async (req, res,
       mediaDirty: draft.mediaDirty === true,
       missingDraftMedia: draft.missingDraftMedia === true,
       galleryRevision: String(draft.galleryRevision || "").slice(0, 100),
-      imageCount: Number.isInteger(draft.imageCount) && draft.imageCount >= 0 && draft.imageCount <= 20 ? draft.imageCount : undefined,
-      imageMetadata: Array.isArray(draft.imageMetadata) ? draft.imageMetadata.slice(0, 20).map((image) => ({
+      imageCount: Number.isInteger(draft.imageCount) && draft.imageCount >= 0 && draft.imageCount <= IMAGE_MAX_COUNT ? draft.imageCount : undefined,
+      imageMetadata: Array.isArray(draft.imageMetadata) ? draft.imageMetadata.slice(0, IMAGE_MAX_COUNT).map((image) => ({
         descriptionEs: String(image?.descriptionEs || "").slice(0, 1000),
         descriptionEn: String(image?.descriptionEn || "").slice(0, 1000),
       })) : undefined,
