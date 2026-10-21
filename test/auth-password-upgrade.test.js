@@ -3,6 +3,7 @@ const fs = require("node:fs");
 const path = require("node:path");
 const test = require("node:test");
 const { adminUsernameMatches } = require("../server");
+const { passwordPolicyError, accountSession, internalRoleAllows } = require("../auth-utils");
 
 const root = path.join(__dirname, "..");
 const read = (file) => fs.readFileSync(path.join(root, file), "utf8");
@@ -16,13 +17,12 @@ test("el administrador acepta variantes equivalentes sin relajar correos", () =>
   assert.equal(adminUsernameMatches("adminexamplecom", "admin@example.com"), false);
 });
 
-test("registro y actualización exigen al menos 12 caracteres", () => {
-  const server = read("server.js");
+test("las contraseñas admiten 6 caracteres sin combinaciones obligatorias", () => {
   const html = read("index.html");
-  assert.match(server, /password\.length < 12/);
-  assert.match(server, /newPassword\.length < 12/);
-  assert.match(html, /id="registerForm"[\s\S]*?minlength="12"/);
-  assert.match(html, /id="passwordUpdateForm"[\s\S]*?name="currentPassword"[\s\S]*?name="newPassword"[\s\S]*?minlength="12"/);
+  for (const value of ["123456", "abcdef", "!!!!!!", "hola mundo", "áéíóúñ"]) assert.equal(passwordPolicyError(value), "");
+  for (const value of ["", "12345", "a".repeat(73), "é".repeat(37)]) assert.ok(passwordPolicyError(value));
+  assert.match(html, /id="registerForm"[\s\S]*?minlength="6"/);
+  assert.match(html, /id="passwordUpdateForm"[\s\S]*?name="currentPassword"[\s\S]*?name="newPassword"[\s\S]*?minlength="6"/);
 });
 
 test("una contraseña existente solo cambia después de verificar la actual", () => {
@@ -35,11 +35,20 @@ test("una contraseña existente solo cambia después de verificar la actual", ()
   assert.doesNotMatch(route[0], /INSERT INTO seller_accounts/);
 });
 
-test("las cuentas anteriores reciben una actualización guiada", () => {
-  const server = read("server.js");
+test("no se obliga a cambiar una contraseña válida al iniciar sesión", () => {
   const app = read("app.js");
-  assert.match(server, /mustUpdatePassword: password\.length < 12/);
-  assert.match(app, /data\.user\.mustUpdatePassword/);
-  assert.match(app, /passwordUpgradeRequired/);
+  assert.equal(accountSession({ id: "seller-test", first_name: "Prueba", last_name: "", email: "test@example.test" }, "registered").mustUpdatePassword, false);
+  assert.doesNotMatch(app, /if \(data\.user\.mustUpdatePassword\)/);
   assert.match(app, /passwordUpdateSubmit/);
+});
+
+test("los roles limitan rutas y no elevan privilegios mediante permisos libres", () => {
+  const permits = (role, method, route, permissions = []) => internalRoleAllows({ method, originalUrl: route }, { id: "staff-test", internalRole: role, permissions });
+  assert.equal(permits("editor", "POST", "/api/admin/ai/improve-description"), true);
+  assert.equal(permits("editor", "PUT", "/api/admin/listing-drafts/new-properties"), true);
+  assert.equal(permits("viewer", "PATCH", "/api/admin/properties/test/status"), false);
+  assert.equal(permits("advisor", "GET", "/api/admin/users", ["users:write"]), false);
+  assert.equal(permits("editor", "PATCH", "/api/admin/settings/site", ["settings:write"]), false);
+  assert.equal(permits("administrator", "PATCH", "/api/admin/users/test"), true);
+  assert.equal(permits("editor", "POST", "/api/admin/properties-evil"), false);
 });

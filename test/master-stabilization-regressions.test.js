@@ -80,7 +80,8 @@ test("las fichas usan códigos cortos auditables y mantienen la ruta firmada his
 });
 
 test("desarrollos empiezan como borrador y las superficies modificadas caben en móvil", () => {
-  assert.match(app, /developmentMode && !recordId/);
+  const reset = app.match(/function resetListingForm[\s\S]*?\n}/)?.[0] || "";
+  assert.match(reset, /configureListingFormMode\(state.adminSection\)/);
   assert.match(app, /formField\(form, "status"\)\.value = "draft"/);
   assert.match(app, /formField\(form, "isPublic"\)\.checked = false/);
   assert.match(styles, /\.admin-mailing-card \.module-split[\s\S]+grid-template-columns: minmax\(0, 1fr\)/);

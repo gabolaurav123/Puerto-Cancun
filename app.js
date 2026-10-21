@@ -330,7 +330,7 @@ const translations = {
     hidePassword: "Ocultar contraseña",
     currentPassword: "Contraseña actual",
     newPassword: "Nueva contraseña",
-    passwordRule: "Usa 12 caracteres o más con mayúscula, minúscula, número y símbolo.",
+    passwordRule: "Mínimo 6 caracteres. No es obligatorio combinar letras, números y símbolos.",
     forgotPassword: "¿Olvidaste tu contraseña?",
     forgotPasswordIntro: "Te enviaremos un enlace seguro que vence en 45 minutos.",
     sendRecovery: "Enviar enlace de recuperación",
@@ -342,11 +342,10 @@ const translations = {
     cookieAccept: "Aceptar medición",
     updateExistingPassword: "¿Ya tenías cuenta? Actualizar contraseña",
     updatePasswordTitle: "Actualizar contraseña",
-    updatePasswordIntro: "Si ya tenías una cuenta, confirma tu contraseña actual y crea una nueva de al menos 12 caracteres.",
+    updatePasswordIntro: "Confirma tu contraseña actual y crea una nueva de al menos 6 caracteres.",
     updatePasswordAction: "Actualizar contraseña",
     backToLogin: "Volver a iniciar sesión",
     passwordUpdated: "Contraseña actualizada. Ya puedes iniciar sesión.",
-    passwordUpgradeRequired: "Tu contraseña anterior sigue siendo válida, pero ahora debes actualizarla a un mínimo de 12 caracteres.",
     adminPasswordManaged: "La contraseña de la cuenta administradora se cambia en ADMIN_PASSWORD dentro de Seenode y requiere un nuevo despliegue.",
     noAccount: "No tienes cuenta? Crear una cuenta para vender",
     googleAuthCopy: "Tambien puedes entrar con tu cuenta de Google.",
@@ -904,7 +903,7 @@ const translations = {
     hidePassword: "Hide password",
     currentPassword: "Current password",
     newPassword: "New password",
-    passwordRule: "Use 12 or more characters with an uppercase letter, lowercase letter, number, and symbol.",
+    passwordRule: "At least 6 characters. No required combination of letters, numbers or symbols.",
     forgotPassword: "Forgot your password?",
     forgotPasswordIntro: "We will email you a secure link that expires in 45 minutes.",
     sendRecovery: "Send recovery link",
@@ -916,11 +915,10 @@ const translations = {
     cookieAccept: "Accept measurement",
     updateExistingPassword: "Already have an account? Update password",
     updatePasswordTitle: "Update password",
-    updatePasswordIntro: "If you already had an account, confirm your current password and create a new one with at least 12 characters.",
+    updatePasswordIntro: "Confirm your current password and choose a new one with at least 6 characters.",
     updatePasswordAction: "Update password",
     backToLogin: "Back to sign in",
     passwordUpdated: "Password updated. You can now sign in.",
-    passwordUpgradeRequired: "Your previous password is still valid, but it must now be updated to at least 12 characters.",
     adminPasswordManaged: "The administrator password is changed through ADMIN_PASSWORD in Seenode and requires a new deployment.",
     noAccount: "No account? Create a seller account",
     googleAuthCopy: "You can also continue with your Google account.",
@@ -1227,6 +1225,8 @@ const state = {
   alertCapabilities: { internal: { available: true }, email: { available: false }, whatsapp: { available: false } },
   tours: [],
   internalUsers: [],
+  listingDrafts: [],
+  adminListingSort: "created_desc",
   files: [],
   fileFolders: [],
   scopedLibrary: { scope: "property", folderId: "all" },
@@ -1404,6 +1404,11 @@ let lastScrollY = 0;
 let adminListingSearchTimer = 0;
 let externalPropertySearchTimer = 0;
 let listingDraftTimer = 0;
+const listingCloudTimers = new Map();
+let listingCloudQueue = Promise.resolve();
+let listingAiProposal = null;
+let listingAiRequestId = 0;
+let listingPhotoRequest = null;
 let sellerDraftTimer = 0;
 let whatsappPollTimer = 0;
 let whatsappSearchTimer = 0;
@@ -1415,6 +1420,7 @@ const mapGeocodeTimers = new WeakMap();
 const mapGeocodeControllers = new WeakMap();
 const mapSuggestionTimers = new WeakMap();
 const mapSuggestionControllers = new WeakMap();
+const formImageJobs = new WeakMap();
 const DEFAULT_MAP_CENTER = { lat: 21.1619, lng: -86.8515 };
 
 function safeParseStoredIds(key) {
@@ -1442,25 +1448,71 @@ function openDraftDatabase() {
 }
 
 async function writePersistentDraft(key, value) {
-  const database = await openDraftDatabase();
-  if (!database) return;
-  await new Promise((resolve) => {
-    const transaction = database.transaction("drafts", "readwrite");
-    transaction.objectStore("drafts").put({ key, value });
-    transaction.oncomplete = resolve;
-    transaction.onerror = resolve;
-    transaction.onabort = resolve;
-  });
+  try {
+    const database = await openDraftDatabase();
+    if (!database) return false;
+    return await new Promise((resolve) => {
+      const transaction = database.transaction("drafts", "readwrite");
+      transaction.objectStore("drafts").put({ key, value });
+      transaction.oncomplete = () => resolve(true);
+      transaction.onerror = () => resolve(false);
+      transaction.onabort = () => resolve(false);
+    });
+  } catch { return false; }
+}
+
+function cancelFormImageProcessing(form) {
+  const job = formImageJobs.get(form);
+  if (job) {
+    job.input.disabled = job.disabled;
+    job.input.value = "";
+    formImageJobs.delete(form);
+  }
+  form.dataset.processingImages = "false";
+}
+
+async function processFormImages(input, apply, onError) {
+  const form = input.form;
+  const files = Array.from(input.files || []);
+  if (!files.length || form.dataset.saving === "true") return;
+  cancelFormImageProcessing(form);
+  const job = { input, disabled: input.disabled };
+  formImageJobs.set(form, job);
+  form.dataset.processingImages = "true";
+  input.disabled = true;
+  try {
+    const payload = await readImageFiles(files);
+    // Resetting or switching records cancels the result, even if compression is still running.
+    if (formImageJobs.get(form) === job) apply(payload, form);
+  } catch (error) {
+    if (formImageJobs.get(form) === job) onError(error);
+  } finally {
+    if (formImageJobs.get(form) === job) cancelFormImageProcessing(form);
+  }
+}
+
+function formImagesReady(form, message) {
+  if (form.dataset.processingImages === "true") {
+    setFormMessage(message, "Espera a que termine la carga de las fotos antes de guardar.", true);
+    return false;
+  }
+  if (form.dataset.missingDraftMedia === "true") {
+    setFormMessage(message, "No se recuperaron todas las fotos del borrador. No se ha eliminado ninguna foto publicada. Abre el borrador en el dispositivo original o vuelve a cargar la galería antes de guardar.", true);
+    return false;
+  }
+  return true;
 }
 
 async function readPersistentDraft(key) {
-  const database = await openDraftDatabase();
-  if (!database) return null;
-  return new Promise((resolve) => {
-    const request = database.transaction("drafts", "readonly").objectStore("drafts").get(key);
-    request.onsuccess = () => resolve(request.result?.value || null);
-    request.onerror = () => resolve(null);
-  });
+  try {
+    const database = await openDraftDatabase();
+    if (!database) return null;
+    return await new Promise((resolve) => {
+      const request = database.transaction("drafts", "readonly").objectStore("drafts").get(key);
+      request.onsuccess = () => resolve(request.result?.value || null);
+      request.onerror = () => resolve(null);
+    });
+  } catch { return null; }
 }
 
 async function deletePersistentDraft(key) {
@@ -2203,7 +2255,7 @@ function escapeHtml(value) {
 }
 
 async function api(path, options = {}) {
-  const { timeoutMs = 45000, body, headers = {}, retry = true, ...fetchOptions } = options;
+  const { timeoutMs = 45000, body, headers = {}, retry = true, csrfRetried = false, ...fetchOptions } = options;
   const method = String(fetchOptions.method || "GET").toUpperCase();
   if (method !== "GET" && !state.csrfToken) {
     const sessionResponse = await fetch("/api/session", { credentials: "same-origin", cache: "no-store" });
@@ -2243,6 +2295,16 @@ async function api(path, options = {}) {
     }
     const data = await response.json().catch(() => ({}));
     if (!response.ok) {
+      if (data.code === "CSRF_INVALID" && !csrfRetried) {
+        const refreshed = await api("/api/session", { retry: false });
+        state.csrfToken = refreshed.csrfToken || "";
+        if (state.csrfToken) return api(path, { ...options, csrfRetried: true });
+      }
+      if (response.status === 401 && /^\/api\/(admin|seller)\//.test(path)) {
+        if ($("#listingForm")?.dataset.dirty === "true") saveListingDraft({ sync: false });
+        openAuth("login");
+        setFormMessage($("#loginMessage"), "Vuelve a iniciar sesión para continuar. Tu formulario sigue guardado.", true);
+      }
       if (attempt + 1 < attempts && [502, 503, 504].includes(response.status)) {
         await new Promise((resolve) => window.setTimeout(resolve, 300));
         continue;
@@ -3552,6 +3614,7 @@ function closeSellerOptions() {
 function resetGuestSaleForm() {
   const form = $("#guestSaleForm");
   if (!form) return;
+  cancelFormImageProcessing(form);
   form.reset();
   form.dataset.images = "[]";
   delete form.dataset.idempotencyKey;
@@ -3610,6 +3673,7 @@ function updateGuestContactFields() {
 async function guestSaleSubmit(event) {
   event.preventDefault();
   const form = event.currentTarget;
+  if (!formImagesReady(form, $("#guestSaleMessage"))) return;
   const button = form.querySelector('[type="submit"]');
   const message = $("#guestSaleMessage");
   const method = form.querySelector('[name="preferredContact"]:checked')?.value || "email";
@@ -4958,13 +5022,25 @@ function renderAdminListingFilters() {
   if ($("#adminListingOperationFilter")) $("#adminListingOperationFilter").value = filters.operation;
   if ($("#adminListingStatusFilter")) $("#adminListingStatusFilter").value = filters.status;
   if ($("#adminListingQualityFilter")) $("#adminListingQualityFilter").value = filters.quality;
+  if ($("#adminListingSort")) $("#adminListingSort").value = state.adminListingSort;
 }
 
 function renderAdminListings() {
   const list = $("#adminListings");
   if (!list) return;
   const developmentInventory = state.adminSection === "developments";
-  const inventory = sortedProperties(state.properties).filter((property) =>
+  const inventory = [...state.properties].sort((a, b) => {
+    const time = (item, key) => new Date(item[key] || item.createdAt || 0).getTime() || 0;
+    const amount = item => Number(item.priceMxn ?? (item.priceUsd != null ? item.priceUsd * state.config.exchangeRate : item.price ?? 0));
+    switch (state.adminListingSort) {
+      case "title_asc": return localizedTitle(a).localeCompare(localizedTitle(b), state.lang);
+      case "created_asc": return time(a, "createdAt") - time(b, "createdAt");
+      case "updated_desc": return time(b, "updatedAt") - time(a, "updatedAt");
+      case "price_asc": return amount(a) - amount(b);
+      case "price_desc": return amount(b) - amount(a);
+      default: return time(b, "createdAt") - time(a, "createdAt");
+    }
+  }).filter((property) =>
     developmentInventory
       ? property.publicationSection === "developments"
       : property.publicationSection !== "developments"
@@ -5058,6 +5134,7 @@ function renderAdminListings() {
                 ? `<details class="listing-more"><summary>${escapeHtml(t("showMore"))}</summary><p>${escapeHtml(description)}</p></details>`
                 : ""
             }
+            <label class="checkbox-row inventory-visibility"><input type="checkbox" data-listing-visibility="${escapeHtml(property.id)}" ${property.isPublic && property.status === "active" ? "checked" : ""} ${property.status === "archived" ? "disabled" : ""} /><span>${state.lang === "en" ? "Visible on website" : "Visible en la web"}</span></label>
             <div class="item-actions">
               <button class="mini-button primary" type="button" data-edit-listing="${escapeHtml(property.id)}">${escapeHtml(t("edit"))}</button>
               <button class="mini-button" type="button" data-status-listing="${escapeHtml(property.id)}" data-status-value="active">${escapeHtml(property.status === "archived" ? t("restoreListing") : t("markActive"))}</button>
@@ -5080,6 +5157,9 @@ function renderAdminListings() {
       `;
     })
     .join("");
+  if (!canManageListings()) {
+    list.querySelectorAll("[data-edit-listing], [data-status-listing], [data-feature-listing], [data-duplicate-listing], [data-delete-listing], [data-verify-property], [data-listing-visibility]").forEach(control => { control.disabled = true; });
+  }
 }
 
 function externalPropertyStatusLabel(status) {
@@ -5247,6 +5327,7 @@ function moveExternalPropertyImage(from, to) {
 function resetExternalPropertyForm() {
   const form = $("#externalPropertyForm");
   if (!form) return;
+  cancelFormImageProcessing(form);
   form.reset();
   formField(form, "id").value = "";
   formField(form, "state").value = "Quintana Roo";
@@ -5317,6 +5398,7 @@ function editExternalProperty(id) {
 async function externalPropertySubmit(event) {
   event.preventDefault();
   const form = event.currentTarget;
+  if (!formImagesReady(form, $("#externalPropertyFormMessage"))) return;
   if (form.dataset.saving === "true" || !form.reportValidity()) return;
   const field = (name) => formField(form, name);
   const id = field("id").value;
@@ -7063,21 +7145,25 @@ function renderMediaLibrary() {
 function renderInternalUsers() {
   const list = $("#adminRoles");
   if (!list) return;
-  list.innerHTML = state.internalUsers.length
+  const search = normalizeSearchText($("#adminUserSearch")?.value);
+  const source = $("#adminUserSource")?.value;
+  const roles = { seller: "Usuario registrado", admin: "Administrador", super_admin: "Super administrador", advisor: "Asesor", editor: "Editor", marketing: "Marketing", viewer: "Solo lectura" };
+  const users = state.internalUsers.filter(u => (!source || u.source === source) && (!search || normalizeSearchText(`${u.name} ${u.email}`).includes(search)));
+  list.innerHTML = users.length
     ? `
       <table class="data-table">
         <thead><tr><th>Nombre</th><th>Correo</th><th>Rol</th><th>Estado</th><th>Último acceso</th><th>Acciones</th></tr></thead>
         <tbody>
-          ${state.internalUsers
+          ${users
             .map(
               (user) => `
                 <tr>
-                  <td><strong>${escapeHtml(user.name)}</strong></td>
+                  <td><strong>${escapeHtml(user.name)}</strong><small>${user.source === "registered" ? "Cuenta registrada" : "Equipo interno"}</small></td>
                   <td>${escapeHtml(user.email)}</td>
-                  <td>${escapeHtml(user.role)}</td>
-                  <td><span class="status ${escapeHtml(user.status)}">${escapeHtml(user.status)}</span></td>
+                  <td>${escapeHtml(roles[user.role] || user.role)}</td>
+                  <td><span class="status ${escapeHtml(user.status)}">${user.status === "active" ? "Activo" : "Inactivo"}</span></td>
                   <td>${escapeHtml(user.lastLoginAt ? formatDate(user.lastLoginAt) : "Nunca")}</td>
-                  <td><button class="mini-button" type="button" data-edit-user="${escapeHtml(user.id)}">Editar</button><button class="mini-button" type="button" data-toggle-user="${escapeHtml(user.id)}">${user.status === "active" ? "Desactivar" : "Activar"}</button></td>
+                  <td><div class="item-actions"><button class="mini-button" type="button" data-edit-user="${escapeHtml(user.id)}">Editar / contraseña</button><button class="mini-button" type="button" data-toggle-user="${escapeHtml(user.id)}" ${user.id === state.session?.id ? "disabled" : ""}>${user.status === "active" ? "Desactivar" : "Activar"}</button></div></td>
                 </tr>
               `
             )
@@ -7085,7 +7171,7 @@ function renderInternalUsers() {
         </tbody>
       </table>
     `
-    : `<p class="empty-state">No hay usuarios internos. Crea asesores, editores o responsables de marketing con permisos explícitos.</p>`;
+    : `<p class="empty-state">No hay cuentas que coincidan con estos filtros.</p>`;
 }
 
 function renderAdminNotifications() {
@@ -7725,6 +7811,8 @@ async function useMediaInListing(id) {
 async function internalUserSubmit(event) {
   event.preventDefault();
   const form = event.currentTarget;
+  const submit = form.querySelector('[type="submit"]');
+  if (submit.disabled) return;
   const id = form.elements.id.value;
   const permissions = Array.from(form.querySelectorAll('[name="permissions"]:checked')).map((item) => item.value);
   const body = {
@@ -7735,18 +7823,21 @@ async function internalUserSubmit(event) {
     permissions,
   };
   if (form.password.value) body.password = form.password.value;
+  setButtonLoading(submit, true, "Guardando...");
   try {
-    await api(id ? `/api/admin/users/${encodeURIComponent(id)}` : "/api/admin/users", {
+    const result = await api(id ? `/api/admin/users/${encodeURIComponent(id)}` : "/api/admin/users", {
       method: id ? "PATCH" : "POST",
       body,
     });
+    if (result.csrfToken) state.csrfToken = result.csrfToken;
+    if (id === state.session?.id) Object.assign(state.session, { name: result.user.name, email: result.user.email, permissions: result.user.permissions });
     form.reset();
     form.hidden = true;
     await renderPanel();
     showToast(id ? "Usuario actualizado." : "Usuario interno creado.");
   } catch (error) {
     setFormMessage($("#internalUserFormMessage"), error.message, true);
-  }
+  } finally { setButtonLoading(submit, false); }
 }
 
 function editInternalUser(id) {
@@ -7758,6 +7849,8 @@ function editInternalUser(id) {
   form.name.value = user.name;
   form.email.value = user.email;
   form.password.value = "";
+  form.password.required = false;
+  form.querySelector('option[value="seller"]').disabled = user.source !== "registered";
   form.role.value = user.role;
   form.status.value = user.status;
   form.querySelectorAll('[name="permissions"]').forEach((input) => {
@@ -7769,11 +7862,13 @@ function editInternalUser(id) {
 async function toggleInternalUser(id) {
   const user = state.internalUsers.find((item) => item.id === id);
   if (!user) return;
-  await api(`/api/admin/users/${encodeURIComponent(id)}`, {
-    method: "PATCH",
-    body: { status: user.status === "active" ? "inactive" : "active" },
-  });
-  await renderPanel();
+  try {
+    await api(`/api/admin/users/${encodeURIComponent(id)}`, {
+      method: "PATCH",
+      body: { status: user.status === "active" ? "inactive" : "active" },
+    });
+    await renderPanel();
+  } catch (error) { showToast(error.message, "error"); }
 }
 
 const settingsFieldConfig = {
@@ -8383,7 +8478,7 @@ async function loadPanelData() {
       state.externalPropertyFacets = externalPropertiesData.facets || state.externalPropertyFacets;
       state.externalPropertyPagination = externalPropertiesData.pagination || state.externalPropertyPagination;
     }
-    const failedModules = adminResults.filter((result) => result.status === "rejected").length;
+    const failedModules = adminResults.filter((result) => result.status === "rejected" && result.reason?.status !== 403).length;
     if (failedModules) showToast(`${failedModules} módulo${failedModules === 1 ? "" : "s"} no respondió. El resto del panel continúa disponible.`, "error");
     state.serviceRequests = [];
     state.messages = [];
@@ -8452,6 +8547,9 @@ function sellerDraftSnapshot(form) {
   return {
     fields,
     images: safeParseImages(form.dataset.currentImages),
+    imageCount: safeParseImages(form.dataset.currentImages).length,
+    galleryRevision: form.dataset.galleryRevision || "",
+    missingDraftMedia: form.dataset.missingDraftMedia === "true",
     mediaDirty: form.dataset.mediaDirty === "true",
     idempotencyKey: form.dataset.idempotencyKey || "",
     savedAt: new Date().toISOString(),
@@ -8467,24 +8565,26 @@ function saveSellerDraft() {
   if (!form || state.session?.role !== "seller") return;
   const draftKey = currentSellerDraftKey();
   const snapshot = sellerDraftSnapshot(form);
-  localStorage.setItem(draftKey, JSON.stringify({ ...snapshot, images: [] }));
-  if (form.dataset.persistentMediaDirty === "true") {
-    form.dataset.persistentMediaDirty = "false";
-    void queueDraftOperation(() => writePersistentDraft(draftKey, snapshot));
-  }
+  try { localStorage.setItem(draftKey, JSON.stringify({ ...snapshot, images: [] })); } catch { /* Try IndexedDB as a fallback. */ }
+  void queueDraftOperation(() => writePersistentDraft(draftKey, snapshot)).then((saved) => {
+    if (!saved && snapshot.images.length) setFormMessage($("#sellerFormMessage"), "Las fotos están listas, pero el navegador no pudo guardar su borrador. No cierres esta página antes de enviar la solicitud.", true);
+  });
   form.dataset.dirty = "true";
 }
 
 function clearSellerDraft() {
   const draftKey = currentSellerDraftKey();
-  localStorage.removeItem(draftKey);
+  try { localStorage.removeItem(draftKey); } catch { /* Storage may be unavailable. */ }
   void queueDraftOperation(() => deletePersistentDraft(draftKey));
   const form = $("#sellerRequestForm");
   if (form) {
+    cancelFormImageProcessing(form);
     form.dataset.dirty = "false";
     form.dataset.currentImages = "[]";
     form.dataset.mediaDirty = "false";
     form.dataset.persistentMediaDirty = "false";
+    delete form.dataset.missingDraftMedia;
+    delete form.dataset.galleryRevision;
     delete form.dataset.idempotencyKey;
   }
 }
@@ -8495,10 +8595,13 @@ async function restoreSellerDraft() {
   form.dataset.draftRestored = "true";
   try {
     const draftKey = currentSellerDraftKey();
-    const localDraft = JSON.parse(localStorage.getItem(draftKey) || "null");
+    const original = JSON.stringify(sellerDraftSnapshot(form).fields);
+    let localDraft = null;
+    try { localDraft = JSON.parse(localStorage.getItem(draftKey) || "null"); } catch { /* Try the persistent copy. */ }
     const richDraft = await readPersistentDraft(draftKey);
-    const draft = localDraft || richDraft;
-    const sameRichDraft = richDraft && (!localDraft || richDraft.idempotencyKey === localDraft.idempotencyKey);
+    if (currentSellerDraftKey() !== draftKey || JSON.stringify(sellerDraftSnapshot(form).fields) !== original || form.dataset.dirty === "true" || form.dataset.processingImages === "true") return;
+    const draft = [localDraft, richDraft].filter(Boolean).sort((a, b) => String(b.savedAt).localeCompare(String(a.savedAt)))[0];
+    const sameRichDraft = richDraft && richDraft.idempotencyKey === draft?.idempotencyKey && (richDraft.galleryRevision || "") === (draft?.galleryRevision || "") && (!Number.isInteger(draft?.imageCount) || richDraft.images?.length === draft.imageCount);
     if (draft && sameRichDraft && Array.isArray(richDraft.images)) draft.images = richDraft.images;
     if (!draft?.fields || !Object.values(draft.fields).some((value) => value !== "" && value !== false)) return;
     Object.entries(draft.fields).forEach(([name, value]) => {
@@ -8508,16 +8611,18 @@ async function restoreSellerDraft() {
       else field.value = value ?? "";
     });
     if (draft.idempotencyKey) form.dataset.idempotencyKey = draft.idempotencyKey;
+    form.dataset.galleryRevision = draft.galleryRevision || "";
     if (Array.isArray(draft.images) && (draft.images.length || draft.mediaDirty)) {
       form.dataset.currentImages = JSON.stringify(draft.images);
       updateSellerImagePreview(draft.images.map((image) => image.imageDataUrl || image));
     }
     form.dataset.mediaDirty = draft.mediaDirty ? "true" : "false";
+    form.dataset.missingDraftMedia = String(Boolean(draft.missingDraftMedia || (draft.imageCount > (draft.images?.length || 0))));
     form.dataset.dirty = "true";
     updateMapPickerForForm(form);
-    setFormMessage($("#sellerFormMessage"), "Borrador recuperado. Revisa la información antes de enviarla.");
+    setFormMessage($("#sellerFormMessage"), form.dataset.missingDraftMedia === "true" ? "Texto recuperado. Vuelve a seleccionar las fotos: el navegador no pudo recuperarlas." : "Borrador recuperado. Revisa la información antes de enviarla.");
   } catch {
-    localStorage.removeItem(currentSellerDraftKey());
+    setFormMessage($("#sellerFormMessage"), "No se pudo recuperar el borrador. La copia guardada no se ha eliminado.", true);
   }
 }
 
@@ -8530,9 +8635,16 @@ function prepareSellerForm() {
   void restoreSellerDraft();
 }
 
+function canManageListings() {
+  const user = state.session;
+  if (user?.role !== "admin" || user.internalRole === "viewer") return false;
+  return user.id === "admin-prueba" || ["super_admin", "admin", "editor"].includes(user.internalRole) || user.permissions?.includes("properties:write");
+}
+
 function updateAdminShell() {
   if (!$("#adminPanel")) return;
   const section = state.adminSection || "dashboard";
+  $$("[data-admin-section-link]").filter(button => ["new-property", "new-development", "new-external-property"].includes(button.dataset.adminSectionLink)).forEach(button => { button.hidden = !canManageListings(); });
   $$("[data-admin-section]").forEach((button) => {
     const active = button.dataset.adminSection === section
       || (button.dataset.adminSection === "properties" && section === "new-property")
@@ -8543,6 +8655,9 @@ function updateAdminShell() {
       || (button.dataset.adminSection === "requests" && section === "guest-requests")
       || (button.dataset.adminSection === "contacts" && section === "guest-contacts");
     button.classList.toggle("active", active);
+    if (["roles", "settings", "integrations"].includes(button.dataset.adminSection)) {
+      button.hidden = state.session?.id !== "admin-prueba" && !["admin", "super_admin"].includes(state.session?.internalRole);
+    }
   });
   $$("[data-admin-section-panel]").forEach((panel) => {
     panel.hidden = !String(panel.dataset.adminSectionPanel || "").split(/\s+/).includes(section);
@@ -8576,6 +8691,7 @@ function updateAdminShell() {
       || (parent?.dataset.adminSection === "developments" && section === "new-development");
     const open = belongsToSection && subnav.dataset.userCollapsed !== "true";
     subnav.classList.toggle("is-open", open);
+    subnav.inert = !open;
     if (parent?.matches("[data-admin-section]")) parent.setAttribute("aria-expanded", String(open));
   });
   const leadBadge = $("#sidebarLeadBadge");
@@ -8673,10 +8789,6 @@ function configureListingFormMode(section = state.adminSection) {
         : state.lang === "en" ? "Delete property" : "Eliminar propiedad";
     }
   }
-  if (developmentMode && !recordId) {
-    formField(form, "status").value = "draft";
-    formField(form, "isPublic").checked = false;
-  }
   if (developmentMode) renderDevelopmentPropertyLinker();
 }
 
@@ -8684,6 +8796,12 @@ function setAdminSection(section) {
   const requestedSection = /^[a-z0-9-]+$/i.test(String(section || "")) ? String(section) : "dashboard";
   const available = requestedSection === "dashboard" || $$(`[data-admin-section-panel~="${requestedSection}"]`).length > 0;
   section = available ? requestedSection : "dashboard";
+  if (["new-property", "new-development", "new-external-property"].includes(section) && !canManageListings()) {
+    showToast("Tu rol no permite editar publicaciones.", "error"); return;
+  }
+  if (["roles", "settings", "integrations"].includes(section) && state.session?.id !== "admin-prueba" && !["admin", "super_admin"].includes(state.session?.internalRole)) {
+    showToast("Esta sección requiere un rol de administrador.", "error"); return;
+  }
   const previousSection = state.adminSection;
   const listingForm = $("#listingForm");
   const externalForm = $("#externalPropertyForm");
@@ -8691,13 +8809,11 @@ function setAdminSection(section) {
   const opensListingForm = ["new-property", "new-development"].includes(section);
   const wasExternalForm = previousSection === "new-external-property";
   const opensExternalForm = section === "new-external-property";
-  if (wasListingForm && !opensListingForm && listingForm?.dataset.saving === "true") {
+  if (wasListingForm && section !== previousSection && listingForm?.dataset.saving === "true") {
     showToast("Espera a que termine de guardarse la publicación.");
     return;
   }
-  if (wasListingForm && !opensListingForm) {
-    resetListingForm(true);
-  }
+  if (wasListingForm && listingForm?.dataset.dirty === "true") saveListingDraft();
   if (wasExternalForm && !opensExternalForm && externalForm?.dataset.saving === "true") {
     showToast("Espera a que termine de guardarse la publicación externa.");
     return;
@@ -8705,6 +8821,13 @@ function setAdminSection(section) {
   if (wasExternalForm && !opensExternalForm) resetExternalPropertyForm();
   state.adminSection = section || "dashboard";
   if (opensListingForm && listingForm) {
+    if ((section !== previousSection && listingForm.dataset.draftSection !== section) || listingFormRecordId(listingForm)) {
+      resetListingForm(false);
+      listingForm.dataset.draftSection = section;
+      listingForm.dataset.dirty = "false";
+      listingForm.dataset.draftSlot = section === "new-development" ? "new-developments" : "new-properties";
+      void restoreListingDraft(listingForm.dataset.draftSlot);
+    }
     configureListingFormMode(section);
   }
   if (opensExternalForm && !wasExternalForm) resetExternalPropertyForm();
@@ -8719,6 +8842,7 @@ function setAdminSection(section) {
     state.adminListingFilters = { search: "", type: "", zone: "", operation: "", status: "", quality: "", missingCover: false };
     renderAdminListingFilters();
     renderAdminListings();
+    void loadListingDraftShelf();
   }
   if (state.adminSection === "external-properties") {
     renderExternalPropertyFilters();
@@ -8870,7 +8994,7 @@ async function renderPanel() {
     setSellerSection(state.sellerSection || "sale");
   }
   bindMapPickers();
-  if (isAdmin) void restoreListingDraft();
+  if (isAdmin) void loadListingDraftShelf();
   translatePanelStaticCopy();
   const panelLanguageLabel = $("#panelLanguageToggle span");
   if (panelLanguageLabel) panelLanguageLabel.textContent = state.lang === "es" ? "English" : "Español";
@@ -8977,6 +9101,7 @@ function renderScopedMediaLibrary() {
 }
 
 function updateAuthNav() {
+  if ($("#accountPasswordButton")) $("#accountPasswordButton").hidden = !state.session || state.session.id === "admin-prueba";
   const loginButton = $("#loginOpen");
   if (!loginButton) return;
   if (!state.session) {
@@ -9142,6 +9267,11 @@ function closeAuth() {
 }
 
 function switchAuthTab(tab) {
+  if (tab === "passwordUpdate") {
+    const username = $("#passwordUpdateForm").username;
+    username.readOnly = Boolean(state.session);
+    if (state.session) username.value = state.session.email;
+  }
   $$("[data-auth-tab]").forEach((button) => {
     button.classList.toggle("active", button.dataset.authTab === tab);
   });
@@ -9218,7 +9348,7 @@ function hidePanel() {
     showToast("Espera a que termine de guardarse la publicación.");
     return;
   }
-  if (listingForm) resetListingForm(true);
+  if (listingForm?.dataset.dirty === "true") saveListingDraft();
   if (document.body.dataset.page === "panel") {
     window.location.assign("/");
     return;
@@ -9254,6 +9384,7 @@ async function loginSubmit(event) {
   const form = event.currentTarget;
   const message = $("#loginMessage");
   const button = form.querySelector('button[type="submit"]');
+  const previousUser = state.session;
   setFormMessage(message, "");
   try {
     setButtonLoading(button, true, state.lang === "en" ? "Signing in..." : "Iniciando sesión...");
@@ -9266,17 +9397,12 @@ async function loginSubmit(event) {
     });
     state.session = data.user;
     state.csrfToken = data.csrfToken || state.csrfToken;
-    if (data.user.mustUpdatePassword) {
-      const updateForm = $("#passwordUpdateForm");
-      updateForm.username.value = form.username.value.trim();
-      updateForm.currentPassword.value = form.password.value;
-      updateForm.newPassword.value = "";
-      switchAuthTab("passwordUpdate");
-      setFormMessage($("#passwordUpdateMessage"), t("passwordUpgradeRequired"), true);
-      return;
-    }
     closeAuth();
     updateAuthNav();
+    if (previousUser?.id === data.user.id && previousUser?.internalRole === data.user.internalRole && previousUser?.role === data.user.role && !$("#panelView").hidden) {
+      showToast("Sesión renovada. Puedes continuar donde estabas.");
+      return;
+    }
     window.location.assign("/panel");
   } catch (error) {
     if (error.code === "DATABASE_UNAVAILABLE") {
@@ -9287,12 +9413,6 @@ async function loginSubmit(event) {
       setFormMessage(message, state.lang === "en"
         ? "Confirm your email before signing in. Check the verification message we sent you."
         : "Confirma tu correo antes de iniciar sesión. Revisa el mensaje de verificación que te enviamos.", true);
-      return;
-    }
-    if (error.status === 401 && form.username.value.includes("@")) {
-      switchAuthTab("register");
-      $("#registerForm").email.value = form.username.value.trim();
-      setFormMessage($("#registerMessage"), t("accountPrompt"));
       return;
     }
     setFormMessage(message, error.status === 429 ? error.message : t("loginError"), true);
@@ -9442,7 +9562,7 @@ async function passwordUpdateSubmit(event) {
   const message = $("#passwordUpdateMessage");
   setFormMessage(message, "");
   try {
-    await api("/api/auth/update-password", {
+    const result = await api("/api/auth/update-password", {
       method: "POST",
       body: {
         username: form.username.value.trim(),
@@ -9451,13 +9571,14 @@ async function passwordUpdateSubmit(event) {
         confirmNewPassword: form.confirmNewPassword.value,
       },
     });
+    if (result.csrfToken) state.csrfToken = result.csrfToken;
     const username = form.username.value.trim();
     form.reset();
     if (state.session) {
       state.session.mustUpdatePassword = false;
       closeAuth();
       updateAuthNav();
-      window.location.assign("/panel");
+      showToast(state.lang === "en" ? "Password updated." : "Contraseña actualizada.");
       return;
     }
     switchAuthTab("login");
@@ -9473,6 +9594,7 @@ async function passwordUpdateSubmit(event) {
 async function sellerRequestSubmit(event) {
   event.preventDefault();
   const form = event.currentTarget;
+  if (!formImagesReady(form, $("#sellerFormMessage"))) return;
   if (form.dataset.saving === "true") return;
   const message = $("#sellerFormMessage");
   const button = form.querySelector('[type="submit"]');
@@ -9717,53 +9839,178 @@ async function rejectBrochureFields() {
   setFormMessage($("#brochureMessage"), "Extracción descartada. No se modificó el formulario.");
 }
 
+function listingPhotoContext() {
+  const form = $("#listingForm");
+  return {
+    slot: listingDraftSlot(form), generation: form.dataset.draftGeneration || "",
+    imagesKey: form.dataset.currentImages || "[]", propertyId: listingFormRecordId(form),
+    title: formField(form, "title").value, type: formField(form, "type").value,
+    publicationSection: listingFormIsDevelopment(form) ? "developments" : "properties",
+    expectedUpdatedAt: form.dataset.expectedUpdatedAt || "",
+  };
+}
+
+function listingPhotoContextMatches(context) {
+  return Boolean(context) && JSON.stringify(context) === JSON.stringify(listingPhotoContext());
+}
+
+function currentListingPhotoAnalysis() {
+  return listingPhotoContextMatches(state.imageAnalysis?.context) ? state.imageAnalysis : null;
+}
+
+function updatePhotoKeywordSelection() {
+  const options = $$("#listingPhotoKeywordOptions input[type='checkbox']");
+  const count = options.filter((input) => input.checked).length;
+  $("#applyPhotoKeywords").disabled = !count;
+  $("#listingPhotoKeywordStatus").textContent = count + " de " + options.length + " seleccionadas";
+}
+
 function renderListingImageAnalysis(data) {
   const panel = $("#listingImageAnalysis");
   const summary = $("#listingImageAnalysisSummary");
   const images = safeParseImages($("#listingForm")?.dataset.currentImages);
   if (!panel || !summary) return;
   const items = Array.isArray(data?.items) ? data.items : [];
-  summary.innerHTML = items.length ? `<div class="image-analysis-grid">${items.map((item) => `
-    <article class="image-analysis-row ${item.duplicateOf !== null && item.duplicateOf !== undefined ? "has-warning" : ""}">
-      <img src="${escapeHtml(images[item.index] || fallbackImage)}" alt="Fotografía ${Number(item.index) + 1}" />
-      <div><strong>${escapeHtml(item.classification || "Sin clasificar")}</strong><p>${escapeHtml(item.suggestedAlt || "Sin texto ALT sugerido")}</p><small>${item.width && item.height ? `${escapeHtml(item.width)} × ${escapeHtml(item.height)} · ` : ""}${item.lowResolution ? "Resolución baja · " : ""}${item.duplicateOf !== null && item.duplicateOf !== undefined ? `Posible duplicado de la foto ${Number(item.duplicateOf) + 1}` : "Sin duplicados detectados"}</small>${Array.isArray(item.tags) && item.tags.length ? `<div class="keyword-chips">${item.tags.map((tag) => `<span>${escapeHtml(tag)}</span>`).join("")}</div>` : ""}</div>
-    </article>`).join("")}</div>` : `<p class="empty-state">No hay fotografías analizables.</p>`;
+  summary.innerHTML = items.length ? '<div class="image-analysis-grid">' + items.map((item) => {
+    const index = Number(item.index);
+    const editable = item.visualAnalyzed && Boolean(item.suggestedAlt || item.suggestedAltEn);
+    return '<article class="image-analysis-row ' + (item.duplicateOf != null ? "has-warning" : "") + '">' +
+      '<img src="' + escapeHtml(images[index] || fallbackImage) + '" alt="Fotografía ' + (index + 1) + '" />' +
+      '<div><strong>Foto ' + (index + 1) + ' · ' + escapeHtml(item.classification || "Sin clasificar") + '</strong>' +
+      '<p><small>' + (item.width && item.height ? escapeHtml(item.width) + ' × ' + escapeHtml(item.height) + ' · ' : '') +
+      (item.lowResolution ? 'Resolución baja · ' : '') + (item.duplicateOf != null ? 'Posible duplicado de la foto ' + (Number(item.duplicateOf) + 1) : 'Sin duplicados detectados') + '</small></p>' +
+      (editable ? '<div class="photo-caption-review"><label><span>Descripción de imagen en español</span><textarea rows="3" maxlength="500" data-photo-caption-es="' + index + '">' + escapeHtml(item.suggestedAlt || "") +
+      '</textarea></label><label><span>Descripción de imagen en inglés</span><textarea rows="3" maxlength="500" data-photo-caption-en="' + index + '">' + escapeHtml(item.suggestedAltEn || "") +
+      '</textarea></label></div><button class="ghost-button" type="button" data-apply-photo-caption="' + index + '"><i data-lucide="check"></i> Aplicar descripción a esta foto</button>'
+      : '<p>' + escapeHtml(item.unavailableReason || "Sin descripción visual disponible.") + '</p>') + '</div></article>';
+  }).join("") + '</div>' : '<p class="empty-state">No hay fotografías analizables.</p>';
   const coverButton = $("#useRecommendedCover");
-  const orderButton = $("#applySuggestedImageOrder");
-  coverButton.hidden = !items.length;
-  orderButton.hidden = !items.length;
-  coverButton.dataset.index = String(data?.recommendedCoverIndex ?? 0);
+  coverButton.hidden = !Number.isInteger(data?.recommendedCoverIndex);
+  $("#applySuggestedImageOrder").hidden = items.length < 2;
+  coverButton.dataset.index = String(data?.recommendedCoverIndex ?? "");
+  const keywords = Array.isArray(data.keywords) ? data.keywords : [];
+  $("#listingPhotoKeywords").hidden = !keywords.length;
+  $("#listingPhotoKeywordOptions").innerHTML = keywords.map((keyword, index) =>
+    '<label><input type="checkbox" data-photo-keyword="' + index + '" checked /><span>' + escapeHtml(keyword) + '</span></label>').join("");
+  updatePhotoKeywordSelection();
   panel.hidden = false;
   refreshIcons();
 }
 
-async function analyzeListingImages() {
-  const form = $("#listingForm");
-  const id = listingFormRecordId(form);
-  const button = $("#analyzeListingImages");
-  if (!id) {
-    setFormMessage($("#listingFormMessage"), "Guarda primero la publicación y su galería antes de analizar fotografías.", true);
-    return;
-  }
-  if (form.dataset.mediaDirty === "true") {
-    setFormMessage($("#listingFormMessage"), "Guarda los cambios de la galería antes de ejecutar el análisis.", true);
-    return;
-  }
-  setButtonLoading(button, true, "Analizando…");
-  setFormMessage($("#listingFormMessage"), "Revisando resolución, duplicados y composición sin alterar los archivos…");
-  try {
-    const data = await api(`/api/admin/properties/${encodeURIComponent(id)}/analyze-images`, { method: "POST", timeoutMs: 90000, retry: false });
-    state.imageAnalysis = data;
+async function requestListingPhotoAnalysis() {
+  const context = listingPhotoContext();
+  const images = safeParseImages(context.imagesKey);
+  if (!images.length) throw new Error("Agrega fotografías a la galería para generar contenido.");
+  if (listingPhotoRequest && JSON.stringify(listingPhotoRequest.context) === JSON.stringify(context)) return listingPhotoRequest.promise;
+  const request = { context };
+  request.promise = (async () => {
+    const data = await api("/api/admin/ai/analyze-images", {
+      method: "POST", timeoutMs: 90000, retry: false,
+      body: { propertyId: context.propertyId, expectedUpdatedAt: context.expectedUpdatedAt,
+        title: context.title, type: context.type, publicationSection: context.publicationSection, images },
+    });
+    if (!listingPhotoContextMatches(context)) return null;
+    state.imageAnalysis = { ...data, context };
     renderListingImageAnalysis(data);
-    setFormMessage($("#listingFormMessage"), data.provider === "openai" ? "Análisis visual completado. Revisa cada recomendación antes de aplicarla." : "Análisis técnico completado. Configura OpenAI para clasificación visual y ALT contextual.");
+    return state.imageAnalysis;
+  })();
+  listingPhotoRequest = request;
+  try { return await request.promise; }
+  finally { if (listingPhotoRequest === request) listingPhotoRequest = null; }
+}
+
+async function analyzeListingImages() {
+  const button = $("#analyzeListingImages");
+  const context = listingPhotoContext();
+  saveListingDraft();
+  setButtonLoading(button, true, "Analizando…");
+  setFormMessage($("#listingImageAnalysisMessage"), "");
+  setFormMessage($("#listingFormMessage"), "Analizando las fotografías de la galería actual…");
+  try {
+    const data = await requestListingPhotoAnalysis();
+    if (!data) return;
+    const message = data.warning || "Análisis visual completado: " + data.analyzedCount + " de " + data.totalCount + " fotos. Revisa los textos y selecciona las keywords.";
+    setFormMessage($("#listingImageAnalysisMessage"), message, Boolean(data.warning));
+    setFormMessage($("#listingFormMessage"), message, Boolean(data.warning));
   } catch (error) {
-    setFormMessage($("#listingFormMessage"), error.message, true);
-  } finally {
-    setButtonLoading(button, false);
+    if (listingPhotoContextMatches(context)) setFormMessage($("#listingFormMessage"), error.message, true);
+  } finally { setButtonLoading(button, false); }
+}
+
+function applyListingPhotoCaption(index) {
+  const data = currentListingPhotoAnalysis();
+  if (!data) { setFormMessage($("#listingImageAnalysisMessage"), "La galería o publicación cambió. Analiza las fotos de nuevo antes de aplicar.", true); return; }
+  const item = data.items.find((candidate) => candidate.index === index && candidate.visualAnalyzed);
+  if (!item) return;
+  const form = $("#listingForm");
+  const images = safeParseImages(form.dataset.currentImages);
+  const metadata = normalizedImageMetadata(form.dataset.imageMetadata, images.length);
+  const proposed = {
+    descriptionEs: $("[data-photo-caption-es='" + index + "']").value.trim().slice(0, 500),
+    descriptionEn: $("[data-photo-caption-en='" + index + "']").value.trim().slice(0, 500),
+  };
+  if (!proposed.descriptionEs && !proposed.descriptionEn) { setFormMessage($("#listingImageAnalysisMessage"), "Escribe al menos una descripción para esta foto.", true); return; }
+  const previous = metadata[index];
+  if (!previous) return;
+  const replace = Object.keys(proposed).some((key) => proposed[key] && previous[key] && proposed[key] !== previous[key]);
+  if (replace && !window.confirm("Esta foto ya tiene una descripción. ¿Reemplazarla con la propuesta revisada?")) return;
+  for (const key of Object.keys(proposed)) if (proposed[key]) previous[key] = proposed[key];
+  form.dataset.imageMetadata = JSON.stringify(metadata);
+  form.dataset.mediaDirty = "true";
+  form.dataset.persistentMediaDirty = "true";
+  $("#saveListingImages").hidden = !listingFormRecordId(form);
+  updateListingImagePreview(images);
+  saveListingDraft();
+  setFormMessage($("#listingImageAnalysisMessage"), "Descripción de la foto " + (index + 1) + " aplicada al borrador.");
+}
+
+function applyListingPhotoKeywords() {
+  const data = currentListingPhotoAnalysis();
+  if (!data) { setFormMessage($("#listingImageAnalysisMessage"), "La galería o publicación cambió. Vuelve a analizar antes de aplicar las keywords.", true); return; }
+  const selected = $$("#listingPhotoKeywordOptions input:checked").map((input) => data.keywords[Number(input.dataset.photoKeyword)]).filter(Boolean);
+  const input = $("#listingKeywords");
+  const existing = parseKeywordInput(input.value);
+  const normalize = (value) => value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLocaleLowerCase("es-MX");
+  const seen = new Set(existing.map(normalize));
+  const added = [];
+  selected.forEach((keyword) => { if (!seen.has(normalize(keyword))) { added.push(keyword); seen.add(normalize(keyword)); } });
+  if (existing.length + added.length > 40) {
+    setFormMessage($("#listingImageAnalysisMessage"), "Hay " + existing.length + " keywords guardadas en el formulario. Selecciona como máximo " + (40 - existing.length) + " nuevas.", true); return;
   }
+  input.value = [...existing, ...added].join(", ");
+  renderListingKeywordChips();
+  $("#listingForm").dataset.contentDirty = "true";
+  saveListingDraft();
+  setFormMessage($("#listingImageAnalysisMessage"), added.length + " keywords agregadas al borrador. Se conservaron las anteriores.");
+}
+
+async function generateListingDescriptionFromPhotos(fieldName, button) {
+  const form = $("#listingForm");
+  const field = formField(form, fieldName);
+  const original = field.value;
+  const context = listingPhotoContext();
+  const requestId = ++listingAiRequestId;
+  saveListingDraft();
+  setButtonLoading(button, true, "Analizando fotos…");
+  setFormMessage($("#listingAiMessage"), "Preparando una descripción a partir de las fotografías…");
+  try {
+    const cached = currentListingPhotoAnalysis();
+    const data = cached?.provider === "openai" ? cached : await requestListingPhotoAnalysis();
+    if (!data || !listingPhotoContextMatches(context) || requestId !== listingAiRequestId) return;
+    const description = fieldName === "descriptionEn" ? data.descriptionEn : data.descriptionEs;
+    if (!description) throw new Error(data.warning || "No se encontró suficiente información visual para generar una descripción. Revisa las fotografías.");
+    listingAiProposal = { fieldName, original, slot: context.slot, generation: form.dataset.draftGeneration, photoContext: context };
+    $("#listingAiSuggestion").value = description;
+    $("#listingAiReview").hidden = false;
+    $("#listingAiReview").scrollIntoView({ behavior: "smooth", block: "nearest" });
+    setFormMessage($("#listingAiMessage"), "Propuesta basada en " + data.analyzedCount + " de " + data.totalCount + " fotos. Revisa los datos antes de aplicarla; tu texto original sigue intacto.");
+  } catch (error) {
+    if (listingPhotoContextMatches(context) && requestId === listingAiRequestId) setFormMessage($("#listingAiMessage"), error.message, true);
+  } finally { setButtonLoading(button, false); }
 }
 
 function useRecommendedCover() {
+  if (!currentListingPhotoAnalysis()) { showToast("La galería cambió. Analiza las fotos de nuevo.", "error"); return; }
   const index = Number($("#useRecommendedCover")?.dataset.index || 0);
   if (!Number.isInteger(index) || index < 0) return;
   if (!window.confirm(`¿Usar la fotografía ${index + 1} como portada? El cambio se aplicará al guardar la galería.`)) return;
@@ -9774,8 +10021,8 @@ function useRecommendedCover() {
 function applySuggestedImageOrder() {
   const form = $("#listingForm");
   const current = safeParseImages(form?.dataset.currentImages);
-  const order = state.imageAnalysis?.suggestedOrder;
-  if (!Array.isArray(order) || order.length !== current.length || new Set(order).size !== current.length) {
+  const order = currentListingPhotoAnalysis()?.suggestedOrder;
+  if (!Array.isArray(order) || order.length !== current.length || new Set(order).size !== current.length || !order.every((index) => Number.isInteger(index) && index >= 0 && index < current.length)) {
     showToast("La propuesta de orden no coincide con la galería actual.", "error");
     return;
   }
@@ -9833,56 +10080,156 @@ function listingDraftSnapshot(form) {
   fields.id = listingFormRecordId(form);
   fields.publicationSection = listingFormIsDevelopment(form) ? "developments" : "properties";
   fields.linkedPropertyIds = selectedDevelopmentPropertyIds(form);
+  const unavailableGallery = form.dataset.missingDraftMedia === "true" && form.dataset.unavailableDraftGallery
+    ? JSON.parse(form.dataset.unavailableDraftGallery) : null;
   return {
     fields,
     images: safeParseImages(form.dataset.currentImages),
+    imageCount: safeParseImages(form.dataset.currentImages).length,
+    galleryRevision: form.dataset.galleryRevision || "",
+    missingDraftMedia: form.dataset.missingDraftMedia === "true",
     imageMetadata: safeParseImageMetadata(form.dataset.imageMetadata),
+    ...(unavailableGallery || {}),
     mediaDirty: form.dataset.mediaDirty === "true",
     idempotencyKey: form.dataset.idempotencyKey || "",
     savedAt: new Date().toISOString(),
   };
 }
 
-function saveListingDraft() {
+function listingDraftSlot(form = $("#listingForm")) {
+  return form.dataset.draftSlot || (listingFormRecordId(form) ? `edit-${listingFormRecordId(form)}` : listingFormIsDevelopment(form) ? "new-developments" : "new-properties");
+}
+
+function listingDraftStorageKey(slot) {
+  return `${LISTING_DRAFT_KEY}.${state.session?.id}.${slot}`;
+}
+
+function listingDraftStatus(text, slot) {
+  if (!slot || listingDraftSlot() === slot) $("#listingDraftStatus").textContent = text;
+}
+
+function saveListingDraft({ sync = true } = {}) {
   const form = $("#listingForm");
   if (!form || state.session?.role !== "admin") return;
+  if (!formField(form, "title").value.trim()) return;
+  form.dataset.idempotencyKey ||= globalThis.crypto?.randomUUID?.() || `draft-${Date.now()}`;
   const snapshot = listingDraftSnapshot(form);
-  localStorage.setItem(LISTING_DRAFT_KEY, JSON.stringify({ ...snapshot, images: [] }));
-  if (form.dataset.persistentMediaDirty === "true") {
+  snapshot.fields._expectedUpdatedAt = form.dataset.expectedUpdatedAt || "";
+  const slot = listingDraftSlot(form);
+  const key = listingDraftStorageKey(slot);
+  let localSaved = false;
+  try {
+    localStorage.setItem(key, JSON.stringify({ ...snapshot, images: [] }));
+    localSaved = true;
+    listingDraftStatus("Borrador guardado en este dispositivo.", slot);
+  } catch {
+    listingDraftStatus("No se pudo guardar en este dispositivo. Comprobando copia en servidor...", slot);
+  }
+  if (form.dataset.persistentMediaDirty === "true" || !localSaved) {
     form.dataset.persistentMediaDirty = "false";
-    void queueDraftOperation(() => writePersistentDraft(LISTING_DRAFT_KEY, snapshot));
+    const generation = form.dataset.draftGeneration;
+    void queueDraftOperation(() => writePersistentDraft(key, snapshot)).then((saved) => {
+      if (!saved && listingDraftSlot(form) === slot && form.dataset.draftGeneration === generation) {
+        form.dataset.persistentMediaDirty = "true";
+        listingDraftStatus("No se pudieron guardar las fotos en el navegador. No cierres el formulario antes de guardar la publicación.", slot);
+      }
+    });
   }
   form.dataset.dirty = "true";
+  if (!sync) return;
+  window.clearTimeout(listingCloudTimers.get(slot));
+  const userId = state.session.id;
+  listingCloudTimers.set(slot, window.setTimeout(() => {
+    listingCloudTimers.delete(slot);
+    listingCloudQueue = listingCloudQueue.catch(() => null).then(async () => {
+      if (state.session?.id !== userId) return;
+      try {
+        await api(`/api/admin/listing-drafts/${encodeURIComponent(slot)}`, { method: "PUT", body: { ...snapshot, images: undefined } });
+        listingDraftStatus("Borrador sincronizado. Las fotos nuevas se conservan en este dispositivo; el video se sube al guardar.", slot);
+      } catch {
+        listingDraftStatus(localSaved ? "Sin sincronizar. El borrador local sigue disponible; revisa tu conexión o sesión." : "No se pudo guardar el borrador. No cierres el formulario; revisa tu conexión y el almacenamiento del navegador.", slot);
+      }
+    });
+  }, 900));
 }
 
-function clearListingDraft() {
-  localStorage.removeItem(LISTING_DRAFT_KEY);
-  void queueDraftOperation(() => deletePersistentDraft(LISTING_DRAFT_KEY));
+function clearListingDraft(slot = listingDraftSlot()) {
+  window.clearTimeout(listingCloudTimers.get(slot));
+  listingCloudTimers.delete(slot);
+  const key = listingDraftStorageKey(slot);
+  try { localStorage.removeItem(key); } catch { /* Storage may be unavailable. */ }
+  void queueDraftOperation(() => deletePersistentDraft(key));
+  const userId = state.session?.id;
+  listingCloudQueue = listingCloudQueue.catch(() => null).then(async () => {
+    if (state.session?.id !== userId) return;
+    try {
+      await api(`/api/admin/listing-drafts/${encodeURIComponent(slot)}`, { method: "DELETE" });
+      state.listingDrafts = state.listingDrafts.filter((draft) => draft.key !== slot);
+    } catch {
+      showToast("No se pudo retirar la copia del borrador del servidor. Puedes descartarla desde el inventario.", "error");
+    }
+  });
   const form = $("#listingForm");
-  if (form) form.dataset.dirty = "false";
+  if (form && listingDraftSlot(form) === slot) {
+    form.dataset.dirty = "false";
+    listingDraftStatus("");
+  }
 }
 
-async function restoreListingDraft() {
-  const form = $("#listingForm");
-  if (!form || form.dataset.draftRestored === "true") return;
-  form.dataset.draftRestored = "true";
+async function loadListingDraftShelf() {
+  if (state.session?.role !== "admin") return;
+  const userId = state.session.id;
+  let drafts = [];
   try {
-    const localDraft = JSON.parse(localStorage.getItem(LISTING_DRAFT_KEY) || "null");
-    const richDraft = await readPersistentDraft(LISTING_DRAFT_KEY);
-    // IndexedDB can resolve after the administrator has already opened an
-    // existing record or started a fresh form. Never let a late draft replace
-    // the entity id or the work now visible on screen.
-    if (listingFormRecordId(form) || form.dataset.dirty === "true") return;
-    const draft = localDraft || richDraft;
-    const sameEntity = richDraft && (!localDraft || (richDraft.fields?.id || "") === (localDraft.fields?.id || ""));
-    const sameNewDraft = richDraft && (!localDraft || richDraft.idempotencyKey === localDraft.idempotencyKey);
-    if (draft && sameEntity && sameNewDraft && Array.isArray(richDraft.images)) {
+    await listingCloudQueue;
+    const result = await api("/api/admin/listing-drafts");
+    drafts = result.drafts.map((draft) => ({ key: draft.draft_key, ...draft.payload }));
+  } catch { /* Offline drafts remain accessible locally. */ }
+  if (state.session?.id !== userId) return;
+  try {
+    const prefix = `${LISTING_DRAFT_KEY}.${userId}.`;
+    for (let i = 0; i < localStorage.length; i += 1) {
+      const key = localStorage.key(i);
+      if (!key.startsWith(prefix)) continue;
+      const local = { key: key.slice(prefix.length), ...JSON.parse(localStorage.getItem(key)) };
+      const index = drafts.findIndex((draft) => draft.key === local.key);
+      if (index < 0) drafts.push(local);
+      else if (local.savedAt > drafts[index].savedAt) drafts[index] = local;
+    }
+  } catch { /* Ignore inaccessible browser storage. */ }
+  state.listingDrafts = drafts;
+  const development = state.adminSection === "developments";
+  const visible = drafts.filter((draft) => draft.fields?.title && (draft.fields.publicationSection === "developments") === development);
+  $("#listingDraftShelf").hidden = !visible.length || !["properties", "developments"].includes(state.adminSection);
+  $("#listingDraftList").innerHTML = visible.map((draft) => `<div class="pending-listing-draft"><div><strong>${escapeHtml(draft.fields.title)}</strong><small>${draft.fields.id ? "Cambios sin publicar" : "Nueva publicación"} · ${escapeHtml(new Date(draft.savedAt).toLocaleString())}</small></div><button type="button" class="ghost-button" data-open-listing-draft="${escapeHtml(draft.key)}">Continuar</button><button type="button" class="ghost-button" data-discard-listing-draft="${escapeHtml(draft.key)}" aria-label="Descartar borrador"><i data-lucide="trash-2"></i></button></div>`).join("");
+  refreshIcons();
+}
+
+async function restoreListingDraft(slot = listingDraftSlot()) {
+  const form = $("#listingForm");
+  if (!form) return;
+  const key = listingDraftStorageKey(slot);
+  const generation = form.dataset.draftGeneration;
+  try {
+    let localDraft = null;
+    try { localDraft = JSON.parse(localStorage.getItem(key) || "null"); } catch { /* Fall back to the server copy. */ }
+    const richDraft = await readPersistentDraft(key);
+    const cloudDraft = state.listingDrafts.find((draft) => draft.key === slot);
+    const latest = [localDraft, richDraft, cloudDraft].filter(Boolean).sort((a, b) => String(b.savedAt).localeCompare(String(a.savedAt)))[0];
+    const draft = latest ? { ...latest } : null;
+    // A late storage read must never overwrite typing or a different record.
+    if (listingDraftSlot(form) !== slot || form.dataset.draftGeneration !== generation || form.dataset.dirty === "true") return;
+    const sameEntity = richDraft && (!draft || (richDraft.fields?.id || "") === (draft.fields?.id || ""));
+    const sameNewDraft = richDraft && (!draft || richDraft.idempotencyKey === draft.idempotencyKey);
+    const sameGallery = richDraft && (richDraft.galleryRevision || "") === (draft?.galleryRevision || "");
+    if (draft && sameEntity && sameNewDraft && sameGallery && Array.isArray(richDraft.images)) {
       draft.images = richDraft.images;
-      draft.imageMetadata = richDraft.imageMetadata;
-      draft.mediaDirty = richDraft.mediaDirty;
+      draft.imageMetadata ??= richDraft.imageMetadata;
+      draft.mediaDirty ??= richDraft.mediaDirty;
     }
     if (!draft?.fields || !Object.values(draft.fields).some((value) => value !== "" && value !== false)) return;
     const source = draft.fields;
+    form.dataset.expectedUpdatedAt = source._expectedUpdatedAt || form.dataset.expectedUpdatedAt || "";
     if (draft.idempotencyKey) form.dataset.idempotencyKey = draft.idempotencyKey;
     setLocationFormValues(form, source);
     Object.entries(source).forEach(([name, value]) => {
@@ -9899,25 +10246,48 @@ async function restoreListingDraft() {
     setListingFormRecordId(form, source.id || "");
     setSelectedDevelopmentPropertyIds(source.linkedPropertyIds || [], form);
     const sourceProperty = state.properties.find((property) => property.id === source.id);
-    const restoredImages = draft.mediaDirty ? (Array.isArray(draft.images) ? draft.images : []) : sourceProperty ? storedImages(sourceProperty) : (draft.images || []);
+    const availableImages = Array.isArray(draft.images) ? draft.images : [];
+    const missingMedia = Boolean(draft.missingDraftMedia || (draft.mediaDirty && (Number.isInteger(draft.imageCount) ? availableImages.length !== draft.imageCount : !availableImages.length)));
+    const restoredImages = draft.mediaDirty && !missingMedia ? availableImages : sourceProperty ? storedImages(sourceProperty) : [];
     form.dataset.currentImages = JSON.stringify(restoredImages);
-    form.dataset.imageMetadata = JSON.stringify(normalizedImageMetadata(draft.imageMetadata, restoredImages.length));
-    form.dataset.removeImage = restoredImages.length ? "false" : draft.mediaDirty ? "true" : "false";
+    form.dataset.imageMetadata = JSON.stringify(normalizedImageMetadata(missingMedia ? sourceProperty?.imageMetadata : draft.imageMetadata ?? sourceProperty?.imageMetadata, restoredImages.length));
+    form.dataset.galleryRevision = draft.galleryRevision || "";
+    form.dataset.missingDraftMedia = String(missingMedia);
+    if (missingMedia) form.dataset.unavailableDraftGallery = JSON.stringify({ images: [], imageCount: draft.imageCount, imageMetadata: draft.imageMetadata, galleryRevision: draft.galleryRevision || "" });
+    else delete form.dataset.unavailableDraftGallery;
+    form.dataset.removeImage = restoredImages.length || missingMedia ? "false" : draft.mediaDirty ? "true" : "false";
     form.dataset.mediaDirty = draft.mediaDirty ? "true" : "false";
     updateListingImagePreview(restoredImages);
     configureListingFormMode(source.publicationSection === "developments" ? "new-development" : "new-property");
+    if (source.status) formField(form, "status").value = source.status;
+    formField(form, "isPublic").checked = Boolean(source.isPublic);
     form.dataset.dirty = "true";
+    form.dataset.contentDirty = "true";
     renderListingKeywordChips();
     updateListingDescriptionCounter();
     updateMapPickerForForm(form);
-    showToast("Se recuperó el borrador local que estaba pendiente de guardar.");
+    listingDraftStatus(missingMedia ? "Texto recuperado, pero faltan las fotos del borrador. El guardado está bloqueado para proteger la galería publicada. Recupera las fotos desde el dispositivo original o vuelve a cargarlas." : "Borrador recuperado. Revisa las fotos y vuelve a seleccionar el video si aún no se había subido.");
   } catch {
-    localStorage.removeItem(LISTING_DRAFT_KEY);
+    listingDraftStatus("No se pudo recuperar el borrador. La copia guardada no se ha eliminado.");
   }
 }
 
 function resetListingForm(clearDraft = true) {
   const form = $("#listingForm");
+  cancelFormImageProcessing(form);
+  if (clearDraft) clearListingDraft();
+  window.clearTimeout(listingDraftTimer);
+  form.dataset.draftGeneration = String(Date.now() + Math.random());
+  form.dataset.dirty = "false";
+  delete form.dataset.draftSlot;
+  delete form.dataset.expectedUpdatedAt;
+  delete form.dataset.galleryRevision;
+  delete form.dataset.missingDraftMedia;
+  delete form.dataset.unavailableDraftGallery;
+  listingAiProposal = null;
+  $("#listingAiReview").hidden = true;
+  setFormMessage($("#listingAiMessage"), "");
+  listingDraftStatus("");
   form.reset();
   setListingFormRecordId(form, "");
   form.dataset.currentImages = "[]";
@@ -9958,7 +10328,6 @@ function resetListingForm(clearDraft = true) {
   setFormMessage($("#listingFormMessage"), "");
   renderListingKeywordChips();
   updateListingDescriptionCounter();
-  if (clearDraft) clearListingDraft();
 }
 
 function setListingQualityPreview(property) {
@@ -10014,13 +10383,18 @@ function updateListingImagePreview(images) {
   const form = $("#listingForm");
   renderImagePreview($("#listingImagePreview"), images, true, safeParseImageMetadata(form?.dataset.imageMetadata));
   const analyze = $("#analyzeListingImages");
-  if (analyze) analyze.hidden = !listingFormRecordId() || !Array.isArray(images) || images.length === 0;
+  if (analyze) analyze.hidden = !Array.isArray(images) || images.length === 0;
 }
 
 function setListingImages(images, metadata = null) {
   const form = $("#listingForm");
   const list = Array.isArray(images) ? images.filter(Boolean).slice(0, IMAGE_MAX_COUNT) : [];
+  if (JSON.stringify(list) !== form.dataset.currentImages) form.dataset.galleryRevision = globalThis.crypto.randomUUID();
   form.dataset.currentImages = JSON.stringify(list);
+  if (!currentListingPhotoAnalysis()) {
+    state.imageAnalysis = null;
+    $("#listingImageAnalysis").hidden = true;
+  }
   form.dataset.imageMetadata = JSON.stringify(normalizedImageMetadata(metadata ?? form.dataset.imageMetadata, list.length));
   form.dataset.removeImage = list.length ? "false" : "true";
   form.dataset.mediaDirty = "true";
@@ -10170,6 +10544,7 @@ function moveListingImage(fromIndex, toIndex) {
 
 async function saveListingImagesOnly() {
   const form = $("#listingForm");
+  if (form.dataset.saving === "true" || !formImagesReady(form, $("#listingFormMessage"))) return;
   const id = listingFormRecordId(form);
   if (!id) {
     setFormMessage($("#listingFormMessage"), "Guarda primero la propiedad para crear su galería.", true);
@@ -10179,6 +10554,9 @@ async function saveListingImagesOnly() {
   const images = safeParseImages(form.dataset.currentImages);
   const imageMetadata = normalizedImageMetadata(form.dataset.imageMetadata, images.length);
   const currentProperty = state.properties.find((property) => property.id === id);
+  form.dataset.saving = "true";
+  form.inert = true;
+  form.setAttribute("aria-busy", "true");
   setButtonLoading(button, true, "Guardando galería...");
   try {
     const data = await api(`/api/admin/properties/${encodeURIComponent(id)}/images`, {
@@ -10187,13 +10565,17 @@ async function saveListingImagesOnly() {
         images,
         imageMetadata,
         removeImage: images.length === 0,
-        expectedUpdatedAt: currentProperty?.updatedAt || null,
+        expectedUpdatedAt: form.dataset.expectedUpdatedAt || currentProperty?.updatedAt || null,
       },
       timeoutMs: 60000,
     });
     const saved = data.property;
     const index = state.properties.findIndex((property) => property.id === saved.id);
     if (index >= 0) state.properties.splice(index, 1, saved);
+    form.dataset.expectedUpdatedAt = saved.updatedAt;
+    form.dataset.galleryRevision = globalThis.crypto.randomUUID();
+    state.imageAnalysis = null;
+    $("#listingImageAnalysis").hidden = true;
     form.dataset.currentImages = JSON.stringify(storedImages(saved));
     form.dataset.imageMetadata = JSON.stringify(normalizedImageMetadata(saved.imageMetadata, storedImages(saved).length));
     form.dataset.mediaDirty = "false";
@@ -10209,6 +10591,9 @@ async function saveListingImagesOnly() {
   } catch (error) {
     setFormMessage($("#listingFormMessage"), error.message, true);
   } finally {
+    form.dataset.saving = "false";
+    form.inert = false;
+    form.removeAttribute("aria-busy");
     setButtonLoading(button, false);
   }
 }
@@ -10316,6 +10701,7 @@ async function getListingImagePayload(form) {
 async function listingSubmit(event) {
   event.preventDefault();
   const form = event.currentTarget;
+  if (!formImagesReady(form, $("#listingFormMessage"))) return;
   const field = (name) => formField(form, name);
   if (form.dataset.saving === "true") return;
   const submit = form.querySelector('[type="submit"]');
@@ -10382,11 +10768,13 @@ async function listingSubmit(event) {
     description: field("description").value.trim(),
     descriptionEn: field("descriptionEn").value.trim(),
     badges: ["new"],
-    expectedUpdatedAt: currentProperty?.updatedAt || null,
+    expectedUpdatedAt: form.dataset.expectedUpdatedAt || currentProperty?.updatedAt || null,
   };
   const idempotencyKey = id ? "" : form.dataset.idempotencyKey || globalThis.crypto?.randomUUID?.() || `listing-${Date.now()}-${Math.random().toString(16).slice(2)}`;
   if (!id) form.dataset.idempotencyKey = idempotencyKey;
   form.dataset.saving = "true";
+  form.inert = true;
+  form.setAttribute("aria-busy", "true");
   form.dataset.persistentMediaDirty = "true";
   saveListingDraft();
   const entityLabel = developmentMode ? "desarrollo" : "publicación";
@@ -10425,7 +10813,7 @@ async function listingSubmit(event) {
     if (existingIndex >= 0) state.properties.splice(existingIndex, 1, saved);
     else state.properties.unshift(saved);
     clearListingDraft();
-    resetListingForm(true);
+    resetListingForm(false);
     delete form.dataset.idempotencyKey;
     renderAdminListingFilters();
     renderAdminListings();
@@ -10445,9 +10833,40 @@ async function listingSubmit(event) {
   } finally {
     window.clearTimeout(slowTimer);
     form.dataset.saving = "false";
+    form.inert = false;
+    form.removeAttribute("aria-busy");
     setButtonLoading(submit, false);
     if (savedSuccessfully) setAdminSection(savedSection === "developments" ? "developments" : "properties");
   }
+}
+
+async function improveListingDescription(fieldName, button) {
+  const form = $("#listingForm");
+  const field = formField(form, fieldName);
+  if (!field?.value.trim()) {
+    setFormMessage($("#listingAiMessage"), "Escribe primero la descripción que deseas mejorar.", true); return;
+  }
+  const original = field.value;
+  const requestId = ++listingAiRequestId;
+  const slot = listingDraftSlot(form);
+  const generation = form.dataset.draftGeneration;
+  saveListingDraft();
+  setButtonLoading(button, true, "Mejorando...");
+  setFormMessage($("#listingAiMessage"), "");
+  try {
+    const result = await api("/api/admin/ai/improve-description", {
+      method: "POST", timeoutMs: 55000,
+      body: { title: formField(form, fieldName === "descriptionEn" ? "titleEn" : "title").value, description: original, language: fieldName === "descriptionEn" ? "en" : "es" },
+    });
+    if (listingDraftSlot(form) !== slot || form.dataset.draftGeneration !== generation || requestId !== listingAiRequestId) return;
+    listingAiProposal = { fieldName, original, slot, generation };
+    $("#listingAiSuggestion").value = result.description;
+    $("#listingAiReview").hidden = false;
+    $("#listingAiReview").scrollIntoView({ behavior: "smooth", block: "nearest" });
+    setFormMessage($("#listingAiMessage"), "Revisa la propuesta. El texto original no cambiará hasta que la apliques.");
+  } catch (error) {
+    if (listingDraftSlot(form) === slot && form.dataset.draftGeneration === generation && requestId === listingAiRequestId) setFormMessage($("#listingAiMessage"), error.message, true);
+  } finally { setButtonLoading(button, false); }
 }
 
 async function translateListingToEnglish() {
@@ -10455,6 +10874,10 @@ async function translateListingToEnglish() {
   const button = $("#translateListingToEnglish");
   const title = formField(form, "title").value.trim();
   const description = formField(form, "description").value.trim();
+  const generation = form.dataset.draftGeneration;
+  const slot = listingDraftSlot(form);
+  const previousTitleEn = formField(form, "titleEn").value;
+  const previousDescriptionEn = formField(form, "descriptionEn").value;
   if (!title || !description) {
     setFormMessage($("#listingFormMessage"), "Completa primero el título y la descripción en español.", true);
     return;
@@ -10466,24 +10889,36 @@ async function translateListingToEnglish() {
       body: { title, description, entityType: form.dataset.listingMode === "development" ? "development" : "property", entityId: listingFormRecordId(form) },
       timeoutMs: 60000,
     });
+    if (listingDraftSlot(form) !== slot || form.dataset.draftGeneration !== generation) return;
+    if (formField(form, "titleEn").value !== previousTitleEn || formField(form, "descriptionEn").value !== previousDescriptionEn || formField(form, "title").value.trim() !== title || formField(form, "description").value.trim() !== description) {
+      setFormMessage($("#listingFormMessage"), "El texto cambió mientras se traducía. Se conservaron tus cambios; vuelve a traducir si lo necesitas.", true); return;
+    }
     formField(form, "titleEn").value = result.titleEn;
     formField(form, "descriptionEn").value = result.descriptionEn;
+    form.dataset.contentDirty = "true";
     saveListingDraft();
     setFormMessage($("#listingFormMessage"), "Traducción generada. Revísala antes de guardar.");
   } catch (error) {
-    setFormMessage($("#listingFormMessage"), error.message, true);
+    if (listingDraftSlot(form) === slot && form.dataset.draftGeneration === generation) setFormMessage($("#listingFormMessage"), error.message, true);
   } finally {
     setButtonLoading(button, false);
   }
 }
 
 function editListing(id) {
+  if (!canManageListings()) { showToast("Tu rol no permite editar publicaciones.", "error"); return; }
   const property = state.properties.find((item) => item.id === id);
   if (!property) return;
+  if ($("#listingForm").dataset.saving === "true") return;
+  if ($("#listingForm").dataset.dirty === "true") saveListingDraft();
   const publicationSection = property.publicationSection || (property.type === "Desarrollo" ? "developments" : "properties");
   const editSection = publicationSection === "developments" ? "new-development" : "new-property";
   if (state.adminSection !== editSection) setAdminSection(editSection);
   const form = $("#listingForm");
+  resetListingForm(false);
+  form.dataset.draftSlot = `edit-${id}`;
+  form.dataset.draftSection = editSection;
+  form.dataset.expectedUpdatedAt = property.updatedAt || "";
   const field = (name) => formField(form, name);
   setListingFormRecordId(form, property.id);
   field("title").value = property.titleEs || property.title || "";
@@ -10551,6 +10986,7 @@ function editListing(id) {
   renderListingKeywordChips();
   updateListingDescriptionCounter();
   setListingQualityPreview(property);
+  void restoreListingDraft(`edit-${id}`);
   form.scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
@@ -10595,6 +11031,28 @@ async function updateListingStatus(id, status) {
   } catch (error) {
     showToast(error.message, "error");
   }
+}
+
+async function setListingVisibility(input) {
+  const property = state.properties.find((item) => item.id === input.dataset.listingVisibility);
+  if (!property) return;
+  const visible = input.checked;
+  if (visible && property.status !== "active" && !(await confirmAction("Esta acción activará la publicación y la hará visible en el sitio. ¿Continuar?", "Publicar en la web"))) {
+    input.checked = false; return;
+  }
+  input.disabled = true;
+  try {
+    const result = await api(`/api/admin/properties/${encodeURIComponent(property.id)}/status`, {
+      method: "PATCH", body: { status: visible ? "active" : property.status, isPublic: visible },
+    });
+    state.properties.splice(state.properties.findIndex((item) => item.id === property.id), 1, result.property);
+    renderAdminListings();
+    renderProperties();
+    showToast(visible ? "Publicación visible en la web." : "Publicación oculta. Sigue disponible en tu inventario.");
+  } catch (error) {
+    input.checked = property.isPublic && property.status === "active";
+    showToast(error.message, "error");
+  } finally { input.disabled = false; }
 }
 
 async function toggleListingFeatured(id, featured) {
@@ -11245,9 +11703,7 @@ function bindEvents() {
     else openAuth("login");
   });
   $("#authClose").addEventListener("click", closeAuth);
-  $("#authModal").addEventListener("click", (event) => {
-    if (event.target.id === "authModal") closeAuth();
-  });
+  // Only the explicit close control dismisses authentication; errors and backdrop taps keep inputs.
   $("#propertyDetailClose").addEventListener("click", closePropertyDetail);
   $("#propertyDetailModal").addEventListener("click", (event) => {
     if (event.target.id === "propertyDetailModal") closePropertyDetail();
@@ -11286,6 +11742,67 @@ function bindEvents() {
   $("#loginForm").addEventListener("submit", loginSubmit);
   $("#registerForm").addEventListener("submit", registerSubmit);
   $("#passwordUpdateForm").addEventListener("submit", passwordUpdateSubmit);
+  $("#accountPasswordButton")?.addEventListener("click", () => {
+    $("#passwordUpdateForm").reset();
+    openAuth("passwordUpdate");
+  });
+  $$("[data-improve-description]").forEach((button) => button.addEventListener("click", () => void improveListingDescription(button.dataset.improveDescription, button)));
+  $$("[data-generate-photo-description]").forEach((button) => button.addEventListener("click", () => void generateListingDescriptionFromPhotos(button.dataset.generatePhotoDescription, button)));
+  $("#discardListingAi")?.addEventListener("click", () => {
+    listingAiRequestId += 1;
+    listingAiProposal = null;
+    $("#listingAiReview").hidden = true;
+    setFormMessage($("#listingAiMessage"), "La descripción original se conservó.");
+  });
+  $("#applyListingAi")?.addEventListener("click", () => {
+    const form = $("#listingForm");
+    if (!listingAiProposal || listingAiProposal.slot !== listingDraftSlot(form) || listingAiProposal.generation !== form.dataset.draftGeneration) return;
+    if (listingAiProposal.photoContext && !listingPhotoContextMatches(listingAiProposal.photoContext)) {
+      setFormMessage($("#listingAiMessage"), "La galería o publicación cambió. Genera una nueva descripción antes de aplicarla.", true); return;
+    }
+    const field = formField(form, listingAiProposal.fieldName);
+    if (field.value !== listingAiProposal.original) {
+      setFormMessage($("#listingAiMessage"), "Modificaste el texto original después de generar la propuesta. No lo sobrescribimos; genera otra propuesta con tus cambios.", true); return;
+    }
+    const proposed = $("#listingAiSuggestion").value.trim();
+    if (!proposed || proposed.length > DESCRIPTION_MAX_LENGTH) {
+      setFormMessage($("#listingAiMessage"), "La propuesta debe tener entre 1 y 50.000 caracteres.", true); return;
+    }
+    field.value = proposed;
+    form.dataset.contentDirty = "true";
+    updateListingDescriptionCounter();
+    saveListingDraft();
+    listingAiProposal = null;
+    $("#listingAiReview").hidden = true;
+    setFormMessage($("#listingAiMessage"), "Propuesta aplicada al borrador. Guarda la publicación para actualizarla en la web.");
+  });
+  $("#adminListings")?.addEventListener("change", (event) => {
+    if (event.target.matches("[data-listing-visibility]")) void setListingVisibility(event.target);
+  });
+  $("#listingDraftList")?.addEventListener("click", async (event) => {
+    const open = event.target.closest("[data-open-listing-draft]");
+    const discard = event.target.closest("[data-discard-listing-draft]");
+    if (open) {
+      const draft = state.listingDrafts.find((item) => item.key === open.dataset.openListingDraft);
+      if (!draft) return;
+      if (draft.fields.id) {
+        if (!state.properties.some((item) => item.id === draft.fields.id)) { showToast("Esta publicación ya no está en el inventario.", "error"); return; }
+        editListing(draft.fields.id);
+      } else {
+        setAdminSection(draft.fields.publicationSection === "developments" ? "new-development" : "new-property");
+        resetListingForm(false);
+        $("#listingForm").dataset.draftSlot = draft.key;
+        $("#listingForm").dataset.draftSection = state.adminSection;
+        await restoreListingDraft(draft.key);
+      }
+    }
+    if (discard && await confirmAction("¿Descartar este borrador? La publicación guardada no se modificará.", "Descartar borrador")) {
+      const slot = discard.dataset.discardListingDraft;
+      clearListingDraft(slot);
+      if (listingDraftSlot() === slot) resetListingForm(false);
+      await loadListingDraftShelf();
+    }
+  });
   $("#forgotForm")?.addEventListener("submit", forgotPasswordSubmit);
   $("#resetPasswordForm")?.addEventListener("submit", resetPasswordSubmit);
 
@@ -11311,20 +11828,14 @@ function bindEvents() {
   $("#guestSaleForm")?.addEventListener("submit", guestSaleSubmit);
   $("#guestSaleForm")?.querySelectorAll('[name="preferredContact"]').forEach((input) => input.addEventListener("change", updateGuestContactFields));
   formField($("#guestSaleForm"), "imageFile")?.addEventListener("change", async (event) => {
-    const form = event.currentTarget.form;
-    try {
-      const payload = await readImageFiles(event.currentTarget.files);
+    await processFormImages(event.currentTarget, (payload, form) => {
       form.dataset.images = JSON.stringify(payload.images);
       renderImagePreview($("#guestSaleImagePreview"), payload.images.map((image) => image.imageDataUrl));
-    } catch (error) {
-      event.currentTarget.value = "";
-      form.dataset.images = "[]";
-      renderImagePreview($("#guestSaleImagePreview"), []);
-      showToast(error.message, "error");
-    }
+    }, (error) => showToast(error.message, "error"));
   });
   $("#clearGuestSaleImages")?.addEventListener("click", () => {
     const form = $("#guestSaleForm");
+    cancelFormImageProcessing(form);
     formField(form, "imageFile").value = "";
     form.dataset.images = "[]";
     renderImagePreview($("#guestSaleImagePreview"), []);
@@ -11447,6 +11958,9 @@ function bindEvents() {
 
   $("#backToSite").addEventListener("click", hidePanel);
   $("#logoutButton").addEventListener("click", async () => {
+    if ($("#listingForm")?.dataset.dirty === "true") saveListingDraft({ sync: false });
+    listingCloudTimers.forEach(timer => window.clearTimeout(timer));
+    listingCloudTimers.clear();
     stopWhatsappPolling();
     await api("/api/auth/logout", { method: "POST" }).catch(() => null);
     state.session = null;
@@ -11485,32 +11999,24 @@ function bindEvents() {
     $("#sellerNotificationDrawer").hidden = true;
   });
   $("#sellerRequestForm").elements.imageFile.addEventListener("change", async (event) => {
-    const files = event.target.files;
     const message = $("#sellerFormMessage");
     setFormMessage(message, "");
-    if (!files.length) {
-      updateSellerImagePreview(safeParseImages(event.currentTarget.form.dataset.currentImages).map((image) => image.imageDataUrl || image));
-      return;
-    }
-    try {
-      const payload = await readImageFiles(files);
-      event.currentTarget.form.dataset.currentImages = JSON.stringify(payload.images);
-      event.currentTarget.form.dataset.mediaDirty = "true";
-      event.currentTarget.form.dataset.persistentMediaDirty = "true";
+    await processFormImages(event.currentTarget, (payload, form) => {
+      form.dataset.currentImages = JSON.stringify(payload.images);
+      delete form.dataset.missingDraftMedia;
+      form.dataset.galleryRevision = globalThis.crypto.randomUUID();
+      form.dataset.mediaDirty = "true";
+      form.dataset.persistentMediaDirty = "true";
       updateSellerImagePreview(payload.images.map((image) => image.imageDataUrl));
       saveSellerDraft();
       setFormMessage(message, `${payload.images.length} imagen${payload.images.length === 1 ? "" : "es"} optimizada${payload.images.length === 1 ? "" : "s"} y protegida${payload.images.length === 1 ? "" : "s"} en el borrador.`);
-    } catch (error) {
-      event.target.value = "";
-      event.currentTarget.form.dataset.currentImages = "[]";
-      event.currentTarget.form.dataset.mediaDirty = "true";
-      event.currentTarget.form.dataset.persistentMediaDirty = "true";
-      updateSellerImagePreview([]);
-      setFormMessage(message, error.message, true);
-    }
+    }, (error) => setFormMessage(message, error.message, true));
   });
   $("#clearSellerImage").addEventListener("click", () => {
     const form = $("#sellerRequestForm");
+    cancelFormImageProcessing(form);
+    delete form.dataset.missingDraftMedia;
+    form.dataset.galleryRevision = globalThis.crypto.randomUUID();
     formField(form, "imageFile").value = "";
     form.dataset.currentImages = "[]";
     form.dataset.mediaDirty = "true";
@@ -11526,6 +12032,18 @@ function bindEvents() {
   $("#analyzeListingImages")?.addEventListener("click", () => void analyzeListingImages());
   $("#useRecommendedCover")?.addEventListener("click", useRecommendedCover);
   $("#applySuggestedImageOrder")?.addEventListener("click", applySuggestedImageOrder);
+  $("#listingImageAnalysisSummary")?.addEventListener("click", (event) => {
+    const button = event.target.closest("[data-apply-photo-caption]");
+    if (button) applyListingPhotoCaption(Number(button.dataset.applyPhotoCaption));
+  });
+  $("#listingPhotoKeywordOptions")?.addEventListener("change", updatePhotoKeywordSelection);
+  $("#applyPhotoKeywords")?.addEventListener("click", applyListingPhotoKeywords);
+  [["#selectAllPhotoKeywords", true], ["#clearPhotoKeywords", false]].forEach(([selector, checked]) => {
+    $(selector)?.addEventListener("click", () => {
+      $$("#listingPhotoKeywordOptions input").forEach((input) => { input.checked = checked; });
+      updatePhotoKeywordSelection();
+    });
+  });
   $("#translateListingToEnglish")?.addEventListener("click", () => void translateListingToEnglish());
   $("#adminListingSearch")?.addEventListener("input", (event) => {
     window.clearTimeout(adminListingSearchTimer);
@@ -11548,6 +12066,9 @@ function bindEvents() {
       renderAdminListings();
     });
   });
+  $("#adminListingSort")?.addEventListener("change", event => { state.adminListingSort = event.target.value; renderAdminListings(); });
+  $("#adminUserSearch")?.addEventListener("input", renderInternalUsers);
+  $("#adminUserSource")?.addEventListener("change", renderInternalUsers);
   $("#clearAdminListingSearch")?.addEventListener("click", () => {
     state.adminListingFilters = { search: "", type: "", zone: "", operation: "", status: "", quality: "", missingCover: false };
     renderAdminListingFilters();
@@ -11566,14 +12087,10 @@ function bindEvents() {
     if (id) void deleteExternalProperty(id);
   });
   formField($("#externalPropertyForm"), "imageFile")?.addEventListener("change", async (event) => {
-    const form = event.currentTarget.form;
-    const currentImages = safeParseImages(form.dataset.currentImages);
-    const currentMetadata = normalizedImageMetadata(form.dataset.imageMetadata, currentImages.length);
-    const files = event.currentTarget.files;
     setFormMessage($("#externalPropertyFormMessage"), "");
-    if (!files?.length) return;
-    try {
-      const payload = await readImageFiles(files);
+    await processFormImages(event.currentTarget, (payload, form) => {
+      const currentImages = safeParseImages(form.dataset.currentImages);
+      const currentMetadata = normalizedImageMetadata(form.dataset.imageMetadata, currentImages.length);
       const added = payload.images.map((image) => image.imageDataUrl);
       if (currentImages.length + added.length > IMAGE_MAX_COUNT) throw new Error(`Solo puedes cargar hasta ${IMAGE_MAX_COUNT} imágenes.`);
       setExternalPropertyImages(
@@ -11581,16 +12098,12 @@ function bindEvents() {
         [...currentMetadata, ...normalizedImageMetadata([], added.length)]
       );
       form.dataset.dirty = "true";
-      event.currentTarget.value = "";
       setFormMessage($("#externalPropertyFormMessage"), `${added.length} fotografía${added.length === 1 ? "" : "s"} agregada${added.length === 1 ? "" : "s"}. Guarda para confirmar los cambios.`);
-    } catch (error) {
-      event.currentTarget.value = "";
-      renderExternalPropertyImagePreview();
-      setFormMessage($("#externalPropertyFormMessage"), error.message, true);
-    }
+    }, (error) => setFormMessage($("#externalPropertyFormMessage"), error.message, true));
   });
   $("#clearExternalPropertyImages")?.addEventListener("click", () => {
     const form = $("#externalPropertyForm");
+    cancelFormImageProcessing(form);
     formField(form, "imageFile").value = "";
     setExternalPropertyImages([]);
     form.dataset.dirty = "true";
@@ -11701,12 +12214,12 @@ function bindEvents() {
     if (event.target?.name !== "imageFile") event.currentTarget.dataset.contentDirty = "true";
     updateListingDescriptionCounter();
     window.clearTimeout(listingDraftTimer);
-    listingDraftTimer = window.setTimeout(saveListingDraft, 500);
+    saveListingDraft();
   });
   $("#listingForm").addEventListener("change", (event) => {
     if (event.target?.name !== "imageFile") event.currentTarget.dataset.contentDirty = "true";
     window.clearTimeout(listingDraftTimer);
-    listingDraftTimer = window.setTimeout(saveListingDraft, 300);
+    saveListingDraft();
   });
   $("#locationCatalogForm").addEventListener("submit", locationCatalogSubmit);
   $("#catalogSearch")?.addEventListener("input", (event) => {
@@ -11839,6 +12352,10 @@ function bindEvents() {
     $("#internalUserForm").reset();
     $("#internalUserForm").elements.id.value = "";
     $("#internalUserForm").hidden = false;
+    $("#internalUserForm").password.required = true;
+    $("#internalUserForm").querySelector('option[value="seller"]').disabled = true;
+    $("#internalUserForm").role.value = "advisor";
+    setFormMessage($("#internalUserFormMessage"), "");
   });
   $("#cancelUserForm")?.addEventListener("click", () => {
     $("#internalUserForm").reset();
@@ -11899,7 +12416,11 @@ function bindEvents() {
     }
   });
   $("#resetCatalogForm")?.addEventListener("click", resetCatalogForm);
-  $("#resetListingForm").addEventListener("click", () => resetListingForm(true));
+  $("#resetListingForm").addEventListener("click", async () => {
+    if ($("#listingForm").dataset.saving === "true") return;
+    if ($("#listingForm").dataset.dirty === "true" && !(await confirmAction("Se descartarán los cambios de este borrador. ¿Continuar?", "Nueva publicación"))) return;
+    resetListingForm(true);
+  });
   $("#deleteListingFromForm")?.addEventListener("click", (event) => {
     const id = event.currentTarget.dataset.deleteListing;
     if (id) void deleteListing(id);
@@ -11907,6 +12428,8 @@ function bindEvents() {
   $("#saveListingImages")?.addEventListener("click", saveListingImagesOnly);
   $("#clearListingImage").addEventListener("click", () => {
     const form = $("#listingForm");
+    cancelFormImageProcessing(form);
+    delete form.dataset.missingDraftMedia;
     formField(form, "imageFile").value = "";
     setListingImages([]);
     setFormMessage($("#listingFormMessage"), t("imageRemoved"));
@@ -11958,27 +12481,16 @@ function bindEvents() {
     setFormMessage($("#listingVideoMessage"), "El video se eliminará cuando guardes los cambios.");
   });
   formField($("#listingForm"), "imageFile").addEventListener("change", async (event) => {
-    const files = event.target.files;
-    const form = $("#listingForm");
     const message = $("#listingFormMessage");
     setFormMessage(message, "");
-    const currentImages = safeParseImages(form.dataset.currentImages);
-    if (!files.length) {
-      updateListingImagePreview(form.dataset.removeImage === "true" ? [] : currentImages);
-      return;
-    }
-    try {
-      const payload = await readImageFiles(files);
+    await processFormImages(event.currentTarget, (payload, form) => {
+      const currentImages = safeParseImages(form.dataset.currentImages);
       const added = payload.images.map((image) => image.imageDataUrl);
       if (currentImages.length + added.length > IMAGE_MAX_COUNT) throw new Error(t("tooManyImages"));
+      delete form.dataset.missingDraftMedia;
       setListingImages([...currentImages, ...added]);
-      event.target.value = "";
       setFormMessage(message, `${added.length} imagen${added.length === 1 ? "" : "es"} agregada${added.length === 1 ? "" : "s"}. Guarda la publicacion para confirmar los cambios.`);
-    } catch (error) {
-      event.target.value = "";
-      updateListingImagePreview(form.dataset.removeImage === "true" ? [] : currentImages);
-      setFormMessage(message, error.message, true);
-    }
+    }, (error) => setFormMessage(message, error.message, true));
   });
   $("#listingImagePreview")?.addEventListener("click", (event) => {
     const remove = event.target.closest("[data-remove-listing-image]");
@@ -12049,6 +12561,7 @@ function bindEvents() {
         const isOpen = subnav.classList.contains("is-open");
         subnav.dataset.userCollapsed = state.adminSection === button.dataset.adminSection && isOpen ? "true" : "false";
       }
+      if (!subnav && window.innerWidth <= 980) state.sidebarCollapsed = true;
       setAdminSection(button.dataset.adminSection);
     });
   });
@@ -12323,6 +12836,7 @@ function bindEvents() {
     if (adminSectionLink) {
       const subnav = adminSectionLink.closest(".admin-sidebar-subnav");
       if (subnav) subnav.dataset.userCollapsed = "false";
+      if (window.innerWidth <= 980) state.sidebarCollapsed = true;
       setAdminSection(adminSectionLink.dataset.adminSectionLink);
     }
 

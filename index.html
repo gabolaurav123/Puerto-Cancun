@@ -666,6 +666,7 @@
           <p id="panelSubtitle"></p>
         </div>
         <div class="panel-hero-actions">
+          <button class="outline-light" type="button" id="accountPasswordButton" hidden><i data-lucide="key-round"></i><span>Cambiar contraseña</span></button>
           <button class="outline-light panel-language-toggle" type="button" id="panelLanguageToggle">
             <i data-lucide="languages"></i>
             <span>English</span>
@@ -2267,8 +2268,8 @@
         <article class="panel-card admin-roles-card" id="adminRolesCard" data-admin-section-panel="roles">
           <div class="admin-module-heading">
             <div>
-              <h2 data-i18n="rolesTitle">Roles / usuarios internos</h2>
-              <p>Crea usuarios internos, asigna roles, permisos y controla su acceso.</p>
+              <h2>Usuarios y accesos</h2>
+              <p>Cuentas registradas y equipo interno.</p>
             </div>
             <button class="primary-button" type="button" id="toggleUserForm"><i data-lucide="user-plus"></i> Crear usuario</button>
           </div>
@@ -2276,8 +2277,8 @@
             <input type="hidden" name="id" />
             <label><span>Nombre</span><input name="name" required /></label>
             <label><span>Correo</span><input name="email" type="email" required /></label>
-            <label><span>Contraseña temporal</span><input name="password" type="password" minlength="12" autocomplete="new-password" /><small>Mínimo 12 caracteres.</small></label>
-            <label><span>Rol</span><select name="role"><option value="super_admin">Super admin</option><option value="administrator">Administrador</option><option value="advisor">Asesor</option><option value="editor">Editor</option><option value="marketing">Marketing</option><option value="viewer">Solo lectura</option></select></label>
+            <label><span>Nueva contraseña</span><input name="password" type="password" minlength="6" autocomplete="new-password" /><small>Mínimo 6 caracteres. Al editar, deja vacío para conservar la contraseña actual.</small></label>
+            <label><span>Rol</span><select name="role"><option value="seller">Usuario registrado</option><option value="super_admin">Super administrador</option><option value="admin">Administrador</option><option value="advisor">Asesor</option><option value="editor">Editor</option><option value="marketing">Marketing</option><option value="viewer">Solo lectura</option></select></label>
             <label><span>Estado</span><select name="status"><option value="active">Activo</option><option value="inactive">Inactivo</option></select></label>
             <fieldset class="permission-grid span-2">
               <legend>Permisos</legend>
@@ -2285,15 +2286,16 @@
               <label><input type="checkbox" name="permissions" value="requests:reply" /> Responder solicitudes</label>
               <label><input type="checkbox" name="permissions" value="properties:write" /> Gestionar publicaciones</label>
               <label><input type="checkbox" name="permissions" value="crm:view" /> Ver CRM</label>
-              <label><input type="checkbox" name="permissions" value="contacts:export" /> Exportar contactos</label>
               <label><input type="checkbox" name="permissions" value="analytics:view" /> Ver analítica</label>
               <label><input type="checkbox" name="permissions" value="catalogs:write" /> Gestionar catálogos</label>
-              <label><input type="checkbox" name="permissions" value="settings:write" /> Gestionar configuración</label>
-              <label><input type="checkbox" name="permissions" value="users:write" /> Gestionar usuarios</label>
             </fieldset>
             <div class="form-actions span-2"><button class="primary-button" type="submit">Guardar usuario</button><button class="ghost-button" type="button" id="cancelUserForm">Cancelar</button></div>
           </form>
           <p class="form-message" id="internalUserFormMessage"></p>
+          <div class="user-directory-filters">
+            <label><span>Buscar usuario</span><input type="search" id="adminUserSearch" placeholder="Nombre o correo" /></label>
+            <label><span>Cuentas</span><select id="adminUserSource"><option value="">Todas</option><option value="registered">Registradas en la web</option><option value="internal">Equipo interno</option></select></label>
+          </div>
           <div class="wide-data-list" id="adminRoles"></div>
         </article>
         <article class="panel-card admin-external-properties-card" id="adminExternalPropertiesCard" data-admin-section-panel="external-properties new-external-property">
@@ -2643,7 +2645,15 @@
               <section class="image-analysis-panel" id="listingImageAnalysis" hidden>
                 <div class="table-heading"><div><span class="eyebrow">RECOMENDACIONES</span><h3>Análisis de fotografías</h3></div><span>La herramienta no altera ni elimina archivos.</span></div>
                 <div id="listingImageAnalysisSummary"></div>
-                <div class="form-actions"><button class="secondary-button" id="useRecommendedCover" type="button" hidden>Usar portada recomendada</button><button class="ghost-button" id="applySuggestedImageOrder" type="button" hidden>Aplicar orden sugerido</button></div>
+                <div class="form-actions"><button class="ghost-button" id="useRecommendedCover" type="button" hidden><i data-lucide="image"></i> Usar portada recomendada</button><button class="ghost-button" id="applySuggestedImageOrder" type="button" hidden><i data-lucide="arrow-up-down"></i> Aplicar orden sugerido</button></div>
+                <fieldset class="photo-keyword-review" id="listingPhotoKeywords" hidden>
+                  <legend>Keywords sugeridas</legend>
+                  <div class="photo-keyword-options" id="listingPhotoKeywordOptions"></div>
+                  <div class="form-actions"><button class="ghost-button" type="button" id="selectAllPhotoKeywords">Seleccionar todas</button><button class="ghost-button" type="button" id="clearPhotoKeywords">Desmarcar todas</button><button class="primary-button" type="button" id="applyPhotoKeywords"><i data-lucide="check"></i> Agregar keywords seleccionadas</button></div>
+                  <p id="listingPhotoKeywordStatus" role="status" aria-live="polite"></p>
+                </fieldset>
+                <div class="form-actions"><button class="ghost-button" type="button" data-generate-photo-description="description"><i data-lucide="scan-eye"></i> Generar descripción de la publicación</button></div>
+                <p class="form-message" id="listingImageAnalysisMessage" role="status" aria-live="polite"></p>
               </section>
               <p class="form-message" id="listingFormMessage"></p>
               <div class="form-row listing-metrics-row" data-property-only>
@@ -2697,17 +2707,26 @@
                 <span data-i18n="descriptionEs">Descripción en español</span>
                 <textarea name="description" rows="10" maxlength="50000"></textarea>
                 <small class="character-counter" id="listingDescriptionCounter">0 / 50,000 caracteres</small>
+                <span class="description-ai-actions"><button class="ghost-button" type="button" data-generate-photo-description="description"><i data-lucide="scan-eye"></i> Generar descripción con fotos</button><button class="ghost-button" type="button" data-improve-description="description"><i data-lucide="sparkles"></i> Mejorar descripción</button></span>
               </label>
               <label>
                 <span data-i18n="descriptionEn">Descripción en inglés</span>
                 <textarea name="descriptionEn" rows="10" maxlength="50000"></textarea>
+                <span class="description-ai-actions"><button class="ghost-button" type="button" data-generate-photo-description="descriptionEn"><i data-lucide="scan-eye"></i> Generar descripción en inglés con fotos</button><button class="ghost-button" type="button" data-improve-description="descriptionEn"><i data-lucide="sparkles"></i> Mejorar descripción en inglés</button></span>
                 <small data-i18n="bilingualFieldHelp">Este texto se muestra cuando el visitante navega en inglés.</small>
               </label>
+              <section id="listingAiReview" class="listing-ai-review" hidden>
+                <h3>Descripción propuesta</h3>
+                <textarea id="listingAiSuggestion" rows="7" aria-label="Descripción propuesta editable"></textarea>
+                <div class="form-actions"><button class="primary-button" type="button" id="applyListingAi">Aplicar propuesta</button><button class="ghost-button" type="button" id="discardListingAi">Descartar</button></div>
+              </section>
+              <p class="form-message" id="listingAiMessage" aria-live="polite"></p>
               <button class="ghost-button" type="button" id="translateListingToEnglish">
                 <i data-lucide="languages"></i>
                 <span>Traducir título y descripción al inglés</span>
               </button>
-              <div class="form-actions">
+              <p id="listingDraftStatus" class="draft-save-status" role="status" aria-live="polite"></p>
+              <div class="form-actions listing-save-actions">
                 <button class="primary-button" type="submit" id="listingSubmitButton" data-i18n="saveListing">Guardar publicacion</button>
                 <button class="ghost-button" type="button" id="resetListingForm" data-i18n="newListing">Nueva publicacion</button>
                 <button class="danger-button" type="button" id="deleteListingFromForm" hidden>
@@ -2723,17 +2742,13 @@
                 <p data-i18n="propertyQualityMissing">Faltan</p>
               </article>
               <article>
-                <span data-i18n="adminJumpPrompts">Herramientas IA</span>
-                <button class="mini-button" type="button" data-admin-jump="adminPromptsCard">Mejorar descripcion</button>
-                <button class="mini-button" type="button" data-admin-jump="adminPromptsCard">Texto WhatsApp</button>
-              </article>
-              <article>
                 <span data-i18n="adminQuickActions">Accesos rapidos</span>
                 <button class="mini-button" type="button" data-admin-jump="adminListingsCard">Vista previa</button>
                 <button class="mini-button" type="button" data-admin-jump="adminPdfCard">Generar ficha PDF</button>
               </article>
             </aside>
             </div>
+            <section id="listingDraftShelf" data-admin-listing-view="properties developments" hidden><h3>Borradores pendientes</h3><div id="listingDraftList"></div></section>
             <div class="admin-listing-toolbar" data-admin-listing-view="properties developments" aria-label="Buscar y filtrar publicaciones">
               <label class="admin-listing-search">
                 <span>Buscar publicaciones</span>
@@ -2747,6 +2762,7 @@
               <label><span>Operación</span><select id="adminListingOperationFilter"><option value="">Todas</option><option value="sale">Venta</option><option value="rent">Renta</option></select></label>
               <label><span>Estado</span><select id="adminListingStatusFilter"><option value="">Todos</option><option value="draft">Borrador</option><option value="pending">Pendiente</option><option value="active">Activa</option><option value="disabled">Deshabilitada</option><option value="sold">Vendida</option><option value="rented">Rentada</option><option value="archived">Archivada</option></select></label>
               <label><span>Calidad</span><select id="adminListingQualityFilter"><option value="">Todas</option><option value="incomplete">Incompletas</option><option value="ready">Listas para publicar</option></select></label>
+              <label><span>Ordenar por</span><select id="adminListingSort"><option value="created_desc">Más recientes</option><option value="updated_desc">Última modificación</option><option value="created_asc">Más antiguas</option><option value="title_asc">Título A–Z</option><option value="price_asc">Precio: menor a mayor</option><option value="price_desc">Precio: mayor a menor</option></select></label>
               <button class="ghost-button" id="clearAdminListingSearch" type="button"><i data-lucide="x"></i> Limpiar</button>
             </div>
             <div class="panel-card-subhead listings-subhead" data-admin-listing-view="properties developments">
@@ -3120,13 +3136,13 @@
           </label>
           <label>
             <span data-i18n="password">Contrasena</span>
-            <input name="password" type="password" autocomplete="new-password" minlength="12" required />
-            <small data-i18n="passwordRule">Usa 12 caracteres o más con mayúscula, minúscula, número y símbolo.</small>
+            <input name="password" type="password" autocomplete="new-password" minlength="6" required />
+            <small data-i18n="passwordRule">Mínimo 6 caracteres. No es obligatorio combinar letras, números y símbolos.</small>
             <meter class="password-strength" min="0" max="4" value="0" data-password-meter></meter>
           </label>
           <label>
             <span data-i18n="confirmPassword">Confirmar contraseña</span>
-            <input name="confirmPassword" type="password" autocomplete="new-password" minlength="12" required />
+            <input name="confirmPassword" type="password" autocomplete="new-password" minlength="6" required />
           </label>
           <button class="primary-button" type="submit" data-i18n="createAccount">Crear cuenta</button>
           <p class="form-message" id="registerMessage"></p>
@@ -3135,7 +3151,7 @@
         <form id="passwordUpdateForm" class="auth-form">
           <div>
             <h3 data-i18n="updatePasswordTitle">Actualizar contraseña</h3>
-            <p data-i18n="updatePasswordIntro">Si ya tenías una cuenta, confirma tu contraseña actual y crea una nueva de al menos 12 caracteres.</p>
+            <p data-i18n="updatePasswordIntro">Confirma tu contraseña actual y crea una nueva de al menos 6 caracteres.</p>
           </div>
           <label>
             <span data-i18n="emailOrUser">Correo o usuario</span>
@@ -3147,12 +3163,12 @@
           </label>
           <label>
             <span data-i18n="newPassword">Nueva contraseña</span>
-            <input name="newPassword" type="password" autocomplete="new-password" minlength="12" required />
-            <small data-i18n="passwordRule">Usa 12 caracteres o más con mayúscula, minúscula, número y símbolo.</small>
+            <input name="newPassword" type="password" autocomplete="new-password" minlength="6" required />
+            <small data-i18n="passwordRule">Mínimo 6 caracteres. No es obligatorio combinar letras, números y símbolos.</small>
           </label>
           <label>
             <span data-i18n="confirmPassword">Confirmar contraseña</span>
-            <input name="confirmNewPassword" type="password" autocomplete="new-password" minlength="12" required />
+            <input name="confirmNewPassword" type="password" autocomplete="new-password" minlength="6" required />
           </label>
           <button class="primary-button" type="submit" data-i18n="updatePasswordAction">Actualizar contraseña</button>
           <p class="form-message" id="passwordUpdateMessage"></p>
@@ -3170,8 +3186,8 @@
         <form id="resetPasswordForm" class="auth-form">
           <input name="token" type="hidden" />
           <div><h3 data-i18n="resetPassword">Crear nueva contraseña</h3></div>
-          <label><span data-i18n="newPassword">Nueva contraseña</span><input name="password" type="password" autocomplete="new-password" minlength="12" required /><meter class="password-strength" min="0" max="4" value="0" data-password-meter></meter></label>
-          <label><span data-i18n="confirmPassword">Confirmar contraseña</span><input name="confirmPassword" type="password" autocomplete="new-password" minlength="12" required /></label>
+          <label><span data-i18n="newPassword">Nueva contraseña</span><input name="password" type="password" autocomplete="new-password" minlength="6" required /><meter class="password-strength" min="0" max="4" value="0" data-password-meter></meter></label>
+          <label><span data-i18n="confirmPassword">Confirmar contraseña</span><input name="confirmPassword" type="password" autocomplete="new-password" minlength="6" required /></label>
           <button class="primary-button" type="submit" data-i18n="resetPassword">Crear nueva contraseña</button>
           <p class="form-message" id="resetPasswordMessage"></p>
         </form>

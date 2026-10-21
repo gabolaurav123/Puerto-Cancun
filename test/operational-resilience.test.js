@@ -34,14 +34,15 @@ test("las publicaciones se archivan y pueden reactivarse sin pérdida destructiv
 
 test("un borrador local tardío no reemplaza una edición ya abierta", () => {
   const app = read("app.js");
-  const restore = app.match(/async function restoreListingDraft\(\)[\s\S]*?\n\}/)?.[0] || "";
+  const restore = app.match(/async function restoreListingDraft\([^\n]+[\s\S]*?\n\}/)?.[0] || "";
   const persistentRead = restore.indexOf("await readPersistentDraft");
-  const editGuard = restore.indexOf("listingFormRecordId(form)");
+  const editGuard = restore.indexOf("listingDraftSlot(form) !== slot");
   const dirtyGuard = restore.indexOf('form.dataset.dirty === "true"');
 
   assert.ok(persistentRead > -1, "debe mantenerse la recuperación persistente");
   assert.ok(editGuard > persistentRead, "la recuperación tardía debe respetar una edición abierta");
   assert.ok(dirtyGuard > persistentRead, "la recuperación tardía debe respetar cambios recién escritos");
+  assert.match(restore, /form.dataset.draftGeneration !== generation/);
 });
 
 test("la edición conserva una identidad estable aunque el campo oculto se reinicie", () => {
