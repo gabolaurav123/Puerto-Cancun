@@ -88,9 +88,9 @@ test('editor headings distinguish creation from editing without changing the rec
   for (const section of ['new-property', 'new-development']) {
     for (const id of ['', 'persisted-record']) {
       const form = { dataset: {}, querySelector: () => null, querySelectorAll: () => [] };
-      const nodes = { '#listingForm': form, '#listingModeIntro': {}, '#listingSubmitButton': { dataset: {} } };
+      const nodes = { '#listingForm': form, '#listingModeIntro': {}, '#adminListingsTitle': {}, '#listingSubmitButton': { dataset: {} } };
       const fields = new Map();
-      const api = runtime(['configureListingFormMode'], {
+      const api = runtime(['configureListingFormMode', 'listingEditorTitle'], {
         $: key => nodes[key], state: { adminSection: section, properties: [], lang: 'es' }, listingFormRecordId: () => id,
         formField: (_form, name) => {
           if (!fields.has(name)) fields.set(name, { value: '', closest: () => null });
@@ -100,6 +100,7 @@ test('editor headings distinguish creation from editing without changing the rec
       api.configureListingFormMode(section);
       const kind = section === 'new-development' ? 'desarrollo' : 'propiedad';
       assert.match(nodes['#listingModeIntro'].innerHTML, new RegExp(id ? `Editar ${kind}` : kind === 'desarrollo' ? 'Nuevo desarrollo' : 'Nueva propiedad'));
+      assert.equal(nodes['#adminListingsTitle'].textContent, api.listingEditorTitle(kind === 'desarrollo', Boolean(id)));
       assert.equal(form.dataset.listingMode, kind === 'desarrollo' ? 'development' : 'property');
       assert.equal(fields.has('id'), false);
     }

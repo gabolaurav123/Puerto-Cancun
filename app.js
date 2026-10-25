@@ -8713,11 +8713,12 @@ function updateAdminShell() {
   });
   const listingsTitle = $("#adminListingsTitle");
   if (listingsTitle) {
+    const editing = Boolean(listingFormRecordId($("#listingForm")));
     const labels = {
       properties: state.lang === "en" ? "Property inventory" : "Inventario de propiedades",
-      "new-property": state.lang === "en" ? "New property" : "Nueva propiedad",
+      "new-property": listingEditorTitle(false, editing),
       developments: state.lang === "en" ? "Development inventory" : "Inventario de desarrollos",
-      "new-development": state.lang === "en" ? "New development" : "Nuevo desarrollo",
+      "new-development": listingEditorTitle(true, editing),
     };
     listingsTitle.textContent = labels[section] || (state.lang === "en" ? "Listing inventory" : "Inventario de publicaciones");
   }
@@ -8757,6 +8758,15 @@ function updateAdminShell() {
     : state.sidebarCollapsed ? "Expandir menú" : "Contraer menú";
   $("#adminSidebarToggle")?.setAttribute("aria-label", sidebarLabel);
   $("#adminSidebarToggle")?.setAttribute("title", sidebarLabel);
+}
+
+function listingEditorTitle(developmentMode, editing) {
+  if (developmentMode) return state.lang === "en"
+    ? editing ? "Edit development" : "New development"
+    : editing ? "Editar desarrollo" : "Nuevo desarrollo";
+  return state.lang === "en"
+    ? editing ? "Edit property" : "New property for sale or rent"
+    : editing ? "Editar propiedad" : "Nueva propiedad en venta o renta";
 }
 
 function configureListingFormMode(section = state.adminSection) {
@@ -8805,11 +8815,10 @@ function configureListingFormMode(section = state.adminSection) {
     if (current) developmentSelect.value = current;
   }
 
+  const heading = listingEditorTitle(developmentMode, editing);
+  if ($("#adminListingsTitle")) $("#adminListingsTitle").textContent = heading;
   const intro = $("#listingModeIntro");
   if (intro) {
-    const heading = developmentMode
-      ? state.lang === "en" ? editing ? "Edit development" : "New development" : editing ? "Editar desarrollo" : "Nuevo desarrollo"
-      : state.lang === "en" ? editing ? "Edit property" : "New property for sale or rent" : editing ? "Editar propiedad" : "Nueva propiedad en venta o renta";
     intro.innerHTML = developmentMode
       ? `<span class="eyebrow">DESARROLLO INMOBILIARIO</span><h3>${heading}</h3><p>Registra nombre, ubicación, galería y descripción en español e inglés. Las propiedades disponibles se vinculan por separado.</p>`
       : `<span class="eyebrow">PROPIEDAD INDIVIDUAL</span><h3>${heading}</h3><p>Registra los datos y fotografías de la unidad. Si pertenece a un desarrollo, vincúlala para reutilizar sus amenidades e imágenes generales.</p>`;
