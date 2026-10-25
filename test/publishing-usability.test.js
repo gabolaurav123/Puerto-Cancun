@@ -127,3 +127,23 @@ test('location catalogs populate aliased seller search fields as well as cascadi
   api.refreshLocationSelects();
   assert.deepEqual(filled, [country, zone, searchZone, standalone]);
 });
+
+test('keyword suggestions show at most eight and keep selection indices consistent without applying them', async () => {
+  const state = {};
+  const nodes = new Map();
+  const keywords = ['Terraza', 'terraza', ...Array.from({ length: 12 }, (_, i) => 'Amenidad ' + i)];
+  const api = runtime(['generateListingKeywords', 'parseKeywordInput'], {
+    state, $: selector => {
+      if (!nodes.has(selector)) nodes.set(selector, {});
+      return nodes.get(selector);
+    },
+    listingPhotoContext: () => ({}), listingPhotoContextMatches: () => true,
+    setButtonLoading() {}, setFormMessage() {}, updatePhotoKeywordSelection() {}, escapeHtml: value => value,
+    requestListingPhotoAnalysis: async () => ({ provider: 'openai', keywords, context: {} }),
+  });
+  await api.generateListingKeywords();
+  assert.equal(state.photoKeywordAnalysis.keywords.length, 8);
+  assert.equal(state.photoKeywordAnalysis.keywords[0], 'Terraza');
+  assert.equal((nodes.get('#listingPhotoKeywordOptions').innerHTML.match(/data-photo-keyword=/g) || []).length, 8);
+  assert.equal(nodes.has('#listingKeywords'), false);
+});

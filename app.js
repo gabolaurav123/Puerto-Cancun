@@ -9987,12 +9987,12 @@ async function generateListingKeywords() {
     const data = await requestListingPhotoAnalysis("keywords");
     if (!data) return;
     if (data.provider !== "openai") throw new Error(data.warning || "No se pudieron generar keywords.");
-    state.photoKeywordAnalysis = data;
-    const keywords = data.keywords || [];
+    const keywords = parseKeywordInput((Array.isArray(data.keywords) ? data.keywords : []).filter((keyword) => typeof keyword === "string").join(",")).slice(0, 8);
+    state.photoKeywordAnalysis = { ...data, keywords };
     $("#listingPhotoKeywords").hidden = !keywords.length;
     $("#listingPhotoKeywordOptions").innerHTML = keywords.map((keyword, index) => '<label><input type="checkbox" data-photo-keyword="' + index + '" checked /><span>' + escapeHtml(keyword) + '</span></label>').join("");
     updatePhotoKeywordSelection();
-    setFormMessage($("#listingKeywordMessage"), keywords.length ? "Selecciona las keywords que deseas agregar. Las actuales se conservarán." : "No se encontraron atributos visuales suficientes.");
+    setFormMessage($("#listingKeywordMessage"), keywords.length ? "Hasta 8 sugerencias inmobiliarias. Selecciona las que deseas agregar; las actuales se conservarán." : "No se encontraron características inmobiliarias verificables para sugerir keywords útiles.");
   } catch (error) {
     if (listingPhotoContextMatches(context)) setFormMessage($("#listingKeywordMessage"), error.message, true);
   } finally { setButtonLoading(button, false); }

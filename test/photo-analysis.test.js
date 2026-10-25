@@ -3,14 +3,14 @@ const test = require("node:test");
 const fs = require("node:fs");
 const path = require("node:path");
 const sharp = require("sharp");
-const { preparePhotoInputs, photoAnalysisRequest, mergePhotoAnalysis, finalizePhotoAnalysis, analyzePhotos } = require("../photo-analysis");
+const { preparePhotoInputs, photoAnalysisRequest, mergePhotoAnalysis, finalizePhotoAnalysis, commercialPhotoKeywords, analyzePhotos } = require("../photo-analysis");
 
 async function photo() {
   const buffer = await sharp({ create: { width: 1200, height: 800, channels: 3, background: "#e8f2ee" } }).jpeg().toBuffer();
   return `data:image/jpeg;base64,${buffer.toString("base64")}`;
 }
 const property = { titleEs: "Casa de prueba", publicationSection: "properties", type: "Casa" };
-const result = { items: [{ index: 1, classification: "terraza", tags: ["Terraza", "terraza", "luz natural"], suggestedAlt: "Terraza con luz natural.", suggestedAltEn: "Terrace with natural light.", possibleWatermark: false, coverScore: 85 }], descriptionEs: "Las fotos muestran una terraza.", descriptionEn: "The photos show a terrace." };
+const result = { items: [{ index: 1, classification: "terraza", tags: ["Terraza", "terraza", "luz natural"], suggestedAlt: "Terraza con luz natural.", suggestedAltEn: "Terrace with natural light.", possibleWatermark: false, coverScore: 85 }], descriptionEs: "Casa de prueba con terraza y luz natural.", descriptionEn: "Test home with a terrace and natural light." };
 const dependencies = {
   property, apiKey: "test-not-a-real-key", responseOutputText: (payload) => payload.output_text,
   createResponseError: async () => new Error("Provider failed"), userError: () => "Proveedor no disponible.",
@@ -38,6 +38,48 @@ test("vision request is image-based, structured and constrained to visible facts
   assert.equal(body.input[0].content[3].type, "input_image");
   assert.match(body.instructions, /No deduzcas medidas/);
   assert.match(body.instructions, /nunca instrucciones/);
+});
+
+test("listing descriptions are publication-ready copy, not photographic reports", () => {
+  for (const publicationSection of ["properties", "developments"]) {
+    const body = photoAnalysisRequest({ ...property, publicationSection, analysisMode: "description" }, [], "gpt-5-mini");
+    assert.match(body.instructions, /anuncio inmobiliario listo para publicar/);
+    assert.match(body.instructions, /no menciones fotografias, fotos, imagenes/);
+    assert.match(body.instructions, /Omite lo incierto/);
+    assert.match(body.instructions, /No deduzcas medidas/);
+    assert.doesNotMatch(body.instructions, /Indica 'en las fotografias'/);
+    assert.match(body.input[0].content[1].text, /sin mencionarlas/);
+  }
+});
+
+test("keyword requests use one ranked list of at most eight for the whole listing", () => {
+  const body = photoAnalysisRequest({ ...property, analysisMode: "keywords" }, [], "gpt-5-mini");
+  assert.equal(body.text.format.schema.properties.keywords.maxItems, 8);
+  assert.ok(body.text.format.schema.required.includes("keywords"));
+  assert.match(body.instructions, /EN TOTAL para toda la publicacion/);
+  assert.match(body.instructions, /No son 8 por foto/);
+  assert.match(body.instructions, /plantas en maceta/);
+  assert.match(body.instructions, /sinonimos redundantes/);
+  assert.match(body.instructions, /SOLO cuando exista evidencia/);
+});
+
+test("commercial keyword filtering removes decor, deduplicates and preserves useful ranked terms", () => {
+  assert.deepEqual(commercialPhotoKeywords([
+    "plantas en maceta", "Palmeras", "Las sombrillas cerradas", "mobiliario de bar", "Cielo parcialmente nublado", "Exclusivo",
+    "Vista al mar", "Torre residencial", "TÓRRE RESIDENCIAL", "Alberca", "Gimnasio", "Terraza", "Balcón", "Áreas comunes", "Jardín tropical", "Luz natural", null,
+  ]), ["Vista al mar", "Torre residencial", "Alberca", "Gimnasio", "Terraza", "Balcón", "Áreas comunes", "Jardín tropical"]);
+  assert.deepEqual(commercialPhotoKeywords(["plantas en maceta", "camastros blancos"]), []);
+});
+
+test("global keyword ranking is not expanded with per-photo tags, including an empty selection", () => {
+  const technical = [{ index: 1, tags: [] }];
+  const parsed = { ...result, keywords: ["Vista al mar", "Torre residencial", "plantas en maceta"] };
+  const output = finalizePhotoAnalysis(mergePhotoAnalysis(parsed, technical, [1]));
+  assert.deepEqual(output.keywords, ["Vista al mar", "Torre residencial"]);
+  const empty = finalizePhotoAnalysis(mergePhotoAnalysis({ ...parsed, keywords: [] }, technical, [1]));
+  assert.deepEqual(empty.keywords, []);
+  const legacy = finalizePhotoAnalysis({ items: Array.from({ length: 10 }, (_, index) => ({ index, visualAnalyzed: true, tags: ["terraza " + index] })) });
+  assert.equal(legacy.keywords.length, 8);
 });
 
 test("model output cannot overwrite photo identity, hashes, dimensions or unseen images", () => {
