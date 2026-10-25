@@ -47,6 +47,8 @@ test("listing descriptions are publication-ready copy, not photographic reports"
     assert.match(body.instructions, /no menciones fotografias, fotos, imagenes/);
     assert.match(body.instructions, /Omite lo incierto/);
     assert.match(body.instructions, /No deduzcas medidas/);
+    assert.match(body.instructions, /No atribuyas al inmueble edificios, muelles/);
+    assert.match(body.instructions, /Si desconoces el uso de un espacio, omite su funcion/);
     assert.doesNotMatch(body.instructions, /Indica 'en las fotografias'/);
     assert.match(body.input[0].content[1].text, /sin mencionarlas/);
   }
