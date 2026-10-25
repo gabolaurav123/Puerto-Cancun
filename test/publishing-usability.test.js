@@ -109,3 +109,21 @@ test('editor exposes separate actions, publication confirmation and private prog
   assert.match(app, /await confirmListingPublication\(form\)/);
   assert.match(app, /state\.photoKeywordAnalysis/);
 });
+
+test('location catalogs populate aliased seller search fields as well as cascading editor fields', () => {
+  const editor = {};
+  const search = {};
+  const country = { name: 'country', form: editor };
+  const zone = { name: 'zone', form: editor };
+  const searchZone = { name: 'location', form: search, dataset: { locationSelect: 'zone' } };
+  const standalone = { name: 'zone', form: null };
+  const filled = [];
+  const api = runtime(['refreshLocationSelects'], {
+    $$: () => [country, zone, searchZone, standalone],
+    LOCATION_FIELD_ORDER: ['country', 'zone'],
+    formField: (form, name) => [country, zone, searchZone].find(field => field.form === form && field.name === name),
+    fillLocationSelect: field => filled.push(field),
+  });
+  api.refreshLocationSelects();
+  assert.deepEqual(filled, [country, zone, searchZone, standalone]);
+});

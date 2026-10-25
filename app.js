@@ -1630,12 +1630,18 @@ function fillLocationSelect(select, selectedValue = select?.value || "", options
 }
 
 function refreshLocationSelects() {
+  const refreshed = new Set();
   const forms = [...new Set($$("[data-location-select]").map((select) => select.form).filter(Boolean))];
   forms.forEach((form) => {
-    LOCATION_FIELD_ORDER.forEach((name) => fillLocationSelect(formField(form, name)));
+    LOCATION_FIELD_ORDER.forEach((name) => {
+      const field = formField(form, name);
+      if (!field) return;
+      fillLocationSelect(field);
+      refreshed.add(field);
+    });
   });
   $$("[data-location-select]")
-    .filter((select) => !select.form)
+    .filter((select) => !refreshed.has(select))
     .forEach((select) => fillLocationSelect(select));
 }
 
