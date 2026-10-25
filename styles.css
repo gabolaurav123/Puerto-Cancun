@@ -10124,7 +10124,7 @@ body[data-page="home"] .hero h1 {
   #listingForm, .listing-workspace, .admin-listings-card { min-width: 0; }
   #listingForm input:not([type="checkbox"]):not([type="radio"]),
   #listingForm select, #listingForm textarea,
-  .auth-form input, #internalUserForm input, #internalUserForm select { font-size: 16px; min-height: 44px; min-width: 0; max-width: 100%; }
+  .auth-form input:not([type="checkbox"]):not([type="radio"]), #internalUserForm input:not([type="checkbox"]):not([type="radio"]), #internalUserForm select { font-size: 16px; min-height: 44px; min-width: 0; max-width: 100%; }
   #listingForm textarea { min-height: 150px; }
   #listingForm .form-row, .user-directory-filters { grid-template-columns: minmax(0, 1fr); }
   #listingForm button { min-height: 44px; white-space: normal; height: auto; }
@@ -10137,6 +10137,141 @@ body[data-page="home"] .hero h1 {
   .pending-listing-draft > div { grid-column: 1 / -1; }
   .auth-modal { max-height: 100dvh; }
   .panel-hero-actions { flex-wrap: wrap; gap: 8px; }
+}
+
+.module-form-grid .check-field,
+.module-form-grid .permission-grid label,
+.checkbox-row.pdf-checkbox,
+.listing-publish-dialog .checkbox-row,
+#listingResearchOption {
+  display: flex;
+  align-items: flex-start;
+  justify-content: flex-start;
+  gap: 12px;
+  min-width: 0;
+  padding: 12px 14px;
+  border: 1px solid #cbdcdd;
+  border-radius: 6px;
+  background: #f7faf9;
+  cursor: pointer;
+  text-align: left;
+}
+.module-form-grid .check-field input,
+.permission-grid input[type="checkbox"],
+.checkbox-row.pdf-checkbox input,
+.listing-publish-dialog input[type="checkbox"],
+.listing-publish-dialog input[type="radio"],
+#listingResearchOption input {
+  flex: 0 0 20px;
+  width: 20px;
+  height: 20px;
+  min-height: 20px;
+  margin: 1px 0 0;
+  padding: 0;
+  accent-color: #006979;
+}
+.check-field span, .permission-grid label span, .pdf-checkbox span {
+  min-width: 0;
+  line-height: 1.45;
+  overflow-wrap: break-word;
+}
+.permission-grid { gap: 10px; }
+.permission-grid label:has(:checked), .check-field:has(:checked), .pdf-checkbox:has(:checked) {
+  border-color: #5d9298;
+  background: #edf6f3;
+}
+.image-preview-header { flex-wrap: wrap; align-items: flex-start; gap: 12px; }
+.image-preview-header-actions { display: flex; flex-wrap: wrap; gap: 8px; min-width: 0; }
+.image-preview-header-actions button, .description-ai-actions button {
+  white-space: normal;
+  max-width: 100%;
+  min-height: 44px;
+  line-height: 1.4;
+}
+.image-analysis-panel { margin: 16px 0; padding: 16px; min-width: 0; }
+.image-analysis-grid { grid-template-columns: minmax(0, 1fr); max-height: 640px; overflow-y: auto; overscroll-behavior: contain; }
+.image-analysis-row { min-width: 0; }
+.image-analysis-row > div { min-width: 0; }
+.photo-caption-review { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.photo-caption-review textarea { min-height: 90px; }
+.photo-keyword-options label { align-items: center; min-height: 42px; line-height: 1.4; }
+.listing-side-panel .save-progress-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 48px;
+  color: #073b46;
+  background: var(--gold);
+  border: 1px solid #a3833d;
+}
+.listing-side-panel .draft-save-status { margin: 10px 0; font-size: 0.8rem; line-height: 1.5; }
+.mobile-draft-save { display: none; }
+.listing-side-panel article > button { white-space: normal; }
+.pending-listing-draft { flex-wrap: wrap; gap: 10px; }
+.pending-listing-draft > div { flex: 1 1 220px; min-width: 0; overflow-wrap: anywhere; }
+.listing-publish-dialog {
+  width: min(560px, calc(100% - 28px));
+  max-height: calc(100dvh - 32px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 26px;
+  color: #073b46;
+  border: 1px solid #cbdcdd;
+  border-top: 4px solid var(--gold);
+  border-radius: 8px;
+  box-shadow: 0 20px 64px #062d3c40;
+}
+.listing-publish-dialog::backdrop { background: #062d3cb3; }
+body:has(.listing-publish-dialog[open]) { overflow: hidden; }
+.listing-publish-dialog h2 { font-size: 1.7rem; margin: 0 0 12px; }
+.listing-publish-dialog p { overflow-wrap: anywhere; }
+.publication-visibility-options { display: grid; gap: 10px; padding: 0; border: 0; margin: 20px 0; }
+.publication-visibility-options legend { font-weight: 700; margin-bottom: 12px; }
+.publication-visibility-options label { display: flex; gap: 12px; padding: 14px; border: 1px solid #cbdcdd; border-radius: 6px; cursor: pointer; }
+.publication-visibility-options label:has(:checked) { border-color: #006979; background: #edf6f3; }
+.publication-visibility-options strong, .publication-visibility-options small { display: block; line-height: 1.5; }
+.publication-visibility-options small { margin-top: 4px; color: #496b72; }
+.listing-publish-dialog .form-actions { display: flex; gap: 10px; margin-top: 20px; flex-wrap: wrap; }
+.draft-preview-image { width: 100%; max-height: 300px; object-fit: contain; }
+.draft-preview-description { white-space: pre-wrap; }
+.operation-stack { position: fixed; z-index: 1600; right: 18px; bottom: 22px; width: min(370px, calc(100% - 36px)); pointer-events: none; display: grid; gap: 8px; }
+.operation-notice { display: flex; gap: 12px; padding: 16px; background: #fff; color: #073b46; border: 1px solid #cbdcdd; border-left: 4px solid var(--gold); box-shadow: 0 8px 32px #073b4626; border-radius: 6px; }
+.operation-notice div { min-width: 0; overflow-wrap: anywhere; }
+.operation-notice p { margin: 4px 0 0; font-size: 0.85rem; line-height: 1.5; }
+.operation-spinner { width: 22px; height: 22px; flex: 0 0 22px; border: 2px solid #cbdcdd; border-top-color: #006979; border-radius: 50%; animation: operation-spin 1s linear infinite; }
+@keyframes operation-spin { to { transform: rotate(360deg); } }
+.form-progress-track.is-indeterminate span { width: 35%; animation: operation-progress 1.6s ease-in-out infinite alternate; }
+@keyframes operation-progress { to { transform: translateX(180%); } }
+.property-card .property-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; align-items: stretch; }
+.property-card .property-actions > * { display: flex; align-items: center; justify-content: center; gap: 6px; min-width: 0; width: 100%; min-height: 46px; height: auto; padding: 10px 8px; white-space: normal; font-size: 0.8rem; line-height: 1.35; }
+.property-card .property-actions svg { flex: 0 0 18px; width: 18px; height: 18px; }
+.property-card .property-actions span { min-width: 0; }
+.property-card .whatsapp-card-button { background: #eaf7f0; color: #08713f; }
+#listingAiSources { font-size: 0.85rem; overflow-wrap: anywhere; }
+#adminPdfCard .table-heading > div:first-child { max-width: 650px; }
+#adminPdfCard .table-heading p { font-size: 0.85rem; line-height: 1.5; }
+@media (max-width: 700px) {
+  #listingForm .mobile-draft-save { display: flex; align-items: center; justify-content: center; gap: 8px; color: #073b46; background: #f5edda; border-color: #b99c52; }
+  #listingForm .listing-save-actions { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; align-items: stretch; }
+  #listingForm .listing-save-actions button { padding: 10px 8px; font-size: 0.82rem; line-height: 1.4; }
+  #listingForm .listing-save-actions #deleteListingFromForm, #listingForm .listing-save-actions #resetListingForm { grid-column: 1 / -1; }
+  .listing-workspace, .listing-editor-layout { grid-template-columns: minmax(0, 1fr); }
+  .photo-caption-review, .module-form-grid .permission-grid { grid-template-columns: minmax(0, 1fr); }
+  .image-analysis-row { display: block; }
+  .image-analysis-row > img { width: 100%; max-height: 180px; object-fit: contain; margin-bottom: 12px; }
+  .image-analysis-panel { padding: 12px; }
+  .description-ai-actions { flex-wrap: wrap; }
+  .description-ai-actions button { flex: 1 1 180px; }
+  #listingForm textarea[name="description"], #listingForm textarea[name="descriptionEn"] { min-height: 180px; height: 230px; }
+  .listing-publish-dialog { padding: 20px; }
+  .listing-publish-dialog .form-actions > * { flex: 1 1 150px; }
+  .operation-stack { bottom: max(12px, env(safe-area-inset-bottom)); right: 12px; width: calc(100% - 24px); }
+  #savedSearchForm { grid-template-columns: minmax(0, 1fr); }
+  #savedSearchForm .span-2 { grid-column: 1; }
+  #sellerPanel .admin-module-heading p { font-size: 0.9rem; line-height: 1.6; }
+  #listingForm .form-actions > button { flex: 1 1 180px; white-space: normal; }
 }
 
 @media (prefers-reduced-motion: reduce) {

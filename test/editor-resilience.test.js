@@ -23,6 +23,7 @@ function imageRuntime(readImageFiles) {
   const messages = [];
   const functions = runtime(['cancelFormImageProcessing', 'processFormImages', 'formImagesReady'], {
     formImageJobs: new WeakMap(), readImageFiles,
+    beginOperation: () => ({ remove() {} }),
     setFormMessage: (_, text) => messages.push(text),
   });
   return { ...functions, messages };

@@ -388,13 +388,13 @@ const translations = {
     adminJumpSellers: "Vendedores",
     adminJumpMatches: "Match",
     adminJumpMap: "Mapa inteligente",
-    adminJumpMarketing: "Marketing",
+    adminJumpMarketing: "Contenido promocional",
     adminJumpPdf: "Fichas PDF",
     adminJumpAnalytics: "Analítica",
     adminJumpTasks: "Tareas",
     adminJumpFiles: "Archivos",
     adminJumpSettings: "Configuración",
-    adminJumpRoles: "Roles",
+    adminJumpRoles: "Usuarios y accesos",
     adminSidebarCollapse: "Contraer menu",
     adminSidebarExpand: "Expandir menu",
     adminAttentionTitle: "Que necesita atencion hoy",
@@ -961,13 +961,13 @@ const translations = {
     adminJumpSellers: "Sellers",
     adminJumpMatches: "Match",
     adminJumpMap: "Smart map",
-    adminJumpMarketing: "Marketing",
+    adminJumpMarketing: "Promotional content",
     adminJumpPdf: "PDF sheets",
     adminJumpAnalytics: "Analytics",
     adminJumpTasks: "Tasks",
     adminJumpFiles: "Files",
     adminJumpSettings: "Settings",
-    adminJumpRoles: "Roles",
+    adminJumpRoles: "Users and access",
     adminSidebarCollapse: "Collapse menu",
     adminSidebarExpand: "Expand menu",
     adminAttentionTitle: "What needs attention today",
@@ -1409,6 +1409,7 @@ let listingCloudQueue = Promise.resolve();
 let listingAiProposal = null;
 let listingAiRequestId = 0;
 let listingPhotoRequest = null;
+let listingCaptionJob = null;
 let sellerDraftTimer = 0;
 let whatsappPollTimer = 0;
 let whatsappSearchTimer = 0;
@@ -1480,6 +1481,7 @@ async function processFormImages(input, apply, onError) {
   formImageJobs.set(form, job);
   form.dataset.processingImages = "true";
   input.disabled = true;
+  const operation = beginOperation(`Cargando ${files.length} imágenes`, "Optimizando las fotografías. Espera antes de guardar.");
   try {
     const payload = await readImageFiles(files);
     // Resetting or switching records cancels the result, even if compression is still running.
@@ -1487,6 +1489,7 @@ async function processFormImages(input, apply, onError) {
   } catch (error) {
     if (formImageJobs.get(form) === job) onError(error);
   } finally {
+    operation.remove();
     if (formImageJobs.get(form) === job) cancelFormImageProcessing(form);
   }
 }
@@ -2489,6 +2492,16 @@ function showToast(message, type = "success") {
 
 const formProgressTimers = new WeakMap();
 
+function beginOperation(title, detail = "") {
+  const stack = $("#operationStack");
+  const notice = document.createElement("div");
+  notice.className = "operation-notice";
+  notice.setAttribute("role", "status");
+  notice.innerHTML = '<span class="operation-spinner" aria-hidden="true"></span><div><strong>' + escapeHtml(title) + '</strong><p>' + escapeHtml(detail) + '</p></div>';
+  stack?.append(notice);
+  return notice;
+}
+
 function setFormProgress(button, loading, label) {
   const form = button?.closest("form");
   if (!form) return;
@@ -2503,48 +2516,29 @@ function setFormProgress(button, loading, label) {
       indicator.innerHTML = `
         <div class="form-progress-copy">
           <span>${escapeHtml(label)}</span>
-          <strong>10%</strong>
+          <strong></strong>
         </div>
-        <div class="form-progress-track" role="progressbar" aria-label="${escapeHtml(label)}" aria-valuemin="0" aria-valuemax="100" aria-valuenow="10"><span></span></div>
+        <div class="form-progress-track is-indeterminate" role="progressbar" aria-label="${escapeHtml(label)}"><span></span></div>
         <small>${state.lang === "en" ? "Do not close this window while the information is being saved." : "No cierres esta ventana mientras se guarda la información."}</small>
       `;
       button.closest(".form-actions")?.insertAdjacentElement("afterend", indicator) || form.append(indicator);
     }
-    let progress = 10;
-    const bar = indicator.querySelector(".form-progress-track span");
-    const value = indicator.querySelector("strong");
-    bar.style.width = `${progress}%`;
-    indicator.querySelector(".form-progress-track").setAttribute("aria-valuenow", String(progress));
-    const timer = window.setInterval(() => {
-      progress = Math.min(78, progress + 1);
-      bar.style.width = `${progress}%`;
-      value.textContent = `${progress}%`;
-      indicator.querySelector(".form-progress-track").setAttribute("aria-valuenow", String(progress));
-    }, 1200);
-    formProgressTimers.set(form, timer);
+    indicator.querySelector(".form-progress-copy span").textContent = label;
     return;
   }
   const timer = formProgressTimers.get(form);
   if (timer) window.clearInterval(timer);
   formProgressTimers.delete(form);
   if (!indicator) return;
-  indicator.querySelector(".form-progress-track span").style.width = "100%";
-  indicator.querySelector(".form-progress-track").setAttribute("aria-valuenow", "100");
-  indicator.querySelector("strong").textContent = "100%";
-  indicator.querySelector(".form-progress-copy span").textContent = state.lang === "en" ? "Completed" : "Proceso completado";
-  window.setTimeout(() => indicator.remove(), 650);
+  indicator.remove();
 }
 
 function updateFormProgress(button, progress, label, detail = "") {
   const form = button?.closest("form");
   const indicator = form?.querySelector(".form-progress[data-form-progress]");
   if (!indicator) return;
-  const safeProgress = Math.max(0, Math.min(100, Number(progress) || 0));
   const track = indicator.querySelector(".form-progress-track");
-  indicator.querySelector(".form-progress-track span").style.width = `${safeProgress}%`;
-  indicator.querySelector("strong").textContent = `${Math.round(safeProgress)}%`;
   indicator.querySelector(".form-progress-copy span").textContent = label;
-  track.setAttribute("aria-valuenow", String(Math.round(safeProgress)));
   track.setAttribute("aria-label", label);
   if (detail) indicator.querySelector("small").textContent = detail;
 }
@@ -2993,8 +2987,8 @@ function renderProperties() {
             <p class="property-description">${escapeHtml(descriptionSummary)}</p>
             <div class="property-actions">
               <a class="mini-button primary" href="${escapeHtml(propertyUrl || `/propiedades/${property.slug || property.id}`)}">${escapeHtml(state.lang === "en" ? "View property" : "Ver propiedad")}</a>
-              <button class="mini-button icon-only" type="button" data-detail="${escapeHtml(property.id)}" title="${escapeHtml(state.lang === "en" ? "Quick view" : "Vista rapida")}" aria-label="${escapeHtml(state.lang === "en" ? "Quick view" : "Vista rapida")}"><i data-lucide="search"></i></button>
-              <button class="mini-button icon-only" type="button" data-tour="${escapeHtml(property.id)}" title="${escapeHtml(state.lang === "en" ? "Request a tour" : "Solicitar visita")}" aria-label="${escapeHtml(state.lang === "en" ? "Request a tour" : "Solicitar visita")}"><i data-lucide="calendar-days"></i></button>
+              <button class="mini-button" type="button" data-detail="${escapeHtml(property.id)}"><i data-lucide="search"></i><span>${escapeHtml(state.lang === "en" ? "Quick view" : "Vista rápida")}</span></button>
+              <button class="mini-button" type="button" data-tour="${escapeHtml(property.id)}"><i data-lucide="calendar-days"></i><span>${escapeHtml(state.lang === "en" ? "Request a tour" : "Solicitar visita")}</span></button>
               <button class="mini-button whatsapp-card-button" type="button" data-contact="${escapeHtml(property.id)}"><i data-lucide="message-circle"></i><span>${escapeHtml(t("contactWhatsApp"))}</span></button>
             </div>
           </div>
@@ -4954,6 +4948,7 @@ function prepareChildLocation(parentId) {
 async function toggleLocationOption(id) {
   const option = state.locationOptions.find((item) => item.id === id);
   if (!option) return;
+  const operation = beginOperation(option.isActive ? "Desactivando ubicación" : "Activando ubicación", option.name || option.label || "");
   try {
     await api(`/api/admin/location-options/${encodeURIComponent(id)}`, {
       method: "PATCH",
@@ -4963,7 +4958,7 @@ async function toggleLocationOption(id) {
     setFormMessage($("#catalogFormMessage"), t("catalogSaved"));
   } catch (error) {
     setFormMessage($("#catalogFormMessage"), error.message, true);
-  }
+  } finally { operation.remove(); }
 }
 
 function resetCatalogForm() {
@@ -6934,6 +6929,7 @@ function renderDocuments() {
                 <span class="status">${escapeHtml(document.documentType === "valuation" ? "VALORACIÓN" : "PROPIEDAD")}</span>
                 <h3>${escapeHtml(document.title)}</h3>
                 <p>${escapeHtml(formatDate(document.createdAt))} · ${escapeHtml(document.fileName)}</p>
+                <small>Vence: ${escapeHtml(new Date(document.expiresAt || new Date(document.createdAt).getTime() + 72 * 60 * 60 * 1000).toLocaleString())}</small>
               </div>
               <div class="item-actions">
                 <a class="mini-button primary" href="/api/admin/documents/${encodeURIComponent(document.id)}/download">Descargar</a>
@@ -7092,7 +7088,7 @@ async function sharePdfThroughChannel(channel, button) {
     showPdfShareFallback(channel, handoffUrl);
     if (popup && !popup.closed) popup.location.replace(handoffUrl);
     else showToast("El navegador bloqueó la ventana. Pulsa el botón para abrir el canal de nuevo.");
-    setFormMessage($("#pdfShareMessage"), "Ficha preparada. El enlace estará disponible durante 7 días. Si el canal no se abrió correctamente, usa el botón inferior.");
+    setFormMessage($("#pdfShareMessage"), "Ficha preparada. La ficha y su enlace vencen a las 72 horas de generar el PDF. Si el canal no se abrió, usa el botón inferior.");
   } catch (error) {
     popup?.close();
     setFormMessage($("#pdfShareMessage"), error.message, true);
@@ -7862,13 +7858,16 @@ function editInternalUser(id) {
 async function toggleInternalUser(id) {
   const user = state.internalUsers.find((item) => item.id === id);
   if (!user) return;
+  const operation = beginOperation(user.status === "active" ? "Desactivando cuenta" : "Activando cuenta", user.name || user.email || "");
   try {
     await api(`/api/admin/users/${encodeURIComponent(id)}`, {
       method: "PATCH",
       body: { status: user.status === "active" ? "inactive" : "active" },
     });
     await renderPanel();
+    showToast(user.status === "active" ? "Cuenta desactivada." : "Cuenta activada.");
   } catch (error) { showToast(error.message, "error"); }
+  finally { operation.remove(); }
 }
 
 const settingsFieldConfig = {
@@ -8297,6 +8296,7 @@ async function toggleWhatsappChatbot(button) {
   const jid = button.dataset.whatsappBotToggle;
   const botPaused = button.dataset.botPaused !== "true";
   setButtonLoading(button, true, "Guardando...");
+  const operation = beginOperation(botPaused ? "Pausando chatbot" : "Activando chatbot", "Aplicando el cambio a esta conversación.");
   try {
     await api(`/api/admin/whatsapp/chats/${encodeURIComponent(jid)}`, { method: "PATCH", body: { botPaused } });
     const chat = state.whatsapp.chats.find((item) => item.jid === jid);
@@ -8306,6 +8306,7 @@ async function toggleWhatsappChatbot(button) {
   } catch (error) {
     showToast(error.message, "error");
   } finally {
+    operation.remove();
     setButtonLoading(button, false);
   }
 }
@@ -8714,6 +8715,7 @@ function configureListingFormMode(section = state.adminSection) {
   const form = $("#listingForm");
   if (!form) return;
   const developmentMode = section === "new-development";
+  if ($("#listingResearchOption")) $("#listingResearchOption").hidden = !developmentMode;
   form.dataset.listingMode = developmentMode ? "development" : "property";
   formField(form, "publicationSection").value = developmentMode ? "developments" : "properties";
   const developmentLink = form.querySelector("[data-property-development-link]");
@@ -8793,6 +8795,7 @@ function configureListingFormMode(section = state.adminSection) {
 }
 
 function setAdminSection(section) {
+  if (section === "prompts") section = "new-property";
   const requestedSection = /^[a-z0-9-]+$/i.test(String(section || "")) ? String(section) : "dashboard";
   const available = requestedSection === "dashboard" || $$(`[data-admin-section-panel~="${requestedSection}"]`).length > 0;
   section = available ? requestedSection : "dashboard";
@@ -9845,6 +9848,7 @@ function listingPhotoContext() {
     slot: listingDraftSlot(form), generation: form.dataset.draftGeneration || "",
     imagesKey: form.dataset.currentImages || "[]", propertyId: listingFormRecordId(form),
     title: formField(form, "title").value, type: formField(form, "type").value,
+    city: formField(form, "city")?.value || "", zone: formField(form, "zone")?.value || "",
     publicationSection: listingFormIsDevelopment(form) ? "developments" : "properties",
     expectedUpdatedAt: form.dataset.expectedUpdatedAt || "",
   };
@@ -9886,33 +9890,31 @@ function renderListingImageAnalysis(data) {
   }).join("") + '</div>' : '<p class="empty-state">No hay fotografías analizables.</p>';
   const coverButton = $("#useRecommendedCover");
   coverButton.hidden = !Number.isInteger(data?.recommendedCoverIndex);
-  $("#applySuggestedImageOrder").hidden = items.length < 2;
+  $("#applySuggestedImageOrder").hidden = items.length < 2 || items.length !== images.length;
   coverButton.dataset.index = String(data?.recommendedCoverIndex ?? "");
-  const keywords = Array.isArray(data.keywords) ? data.keywords : [];
-  $("#listingPhotoKeywords").hidden = !keywords.length;
-  $("#listingPhotoKeywordOptions").innerHTML = keywords.map((keyword, index) =>
-    '<label><input type="checkbox" data-photo-keyword="' + index + '" checked /><span>' + escapeHtml(keyword) + '</span></label>').join("");
-  updatePhotoKeywordSelection();
+  $("#applyAllPhotoCaptions").disabled = !items.some((item) => item.visualAnalyzed);
   panel.hidden = false;
   refreshIcons();
 }
 
-async function requestListingPhotoAnalysis() {
+async function requestListingPhotoAnalysis(mode = "description", offset = 0) {
   const context = listingPhotoContext();
-  const images = safeParseImages(context.imagesKey);
+  const images = safeParseImages(context.imagesKey).slice(offset, offset + 10);
   if (!images.length) throw new Error("Agrega fotografías a la galería para generar contenido.");
-  if (listingPhotoRequest && JSON.stringify(listingPhotoRequest.context) === JSON.stringify(context)) return listingPhotoRequest.promise;
-  const request = { context };
+  const form = $("#listingForm");
+  const research = mode === "description" && context.publicationSection === "developments" && $("#listingResearchEnabled").checked;
+  const requestKey = JSON.stringify({ context, mode, offset, research });
+  if (listingPhotoRequest?.key === requestKey) return listingPhotoRequest.promise;
+  const request = { context, key: requestKey };
   request.promise = (async () => {
     const data = await api("/api/admin/ai/analyze-images", {
       method: "POST", timeoutMs: 90000, retry: false,
       body: { propertyId: context.propertyId, expectedUpdatedAt: context.expectedUpdatedAt,
-        title: context.title, type: context.type, publicationSection: context.publicationSection, images },
+        title: context.title, type: context.type, publicationSection: context.publicationSection, images, mode, research,
+        city: formField(form, "city")?.value || "", zone: formField(form, "zone")?.value || "" },
     });
     if (!listingPhotoContextMatches(context)) return null;
-    state.imageAnalysis = { ...data, context };
-    renderListingImageAnalysis(data);
-    return state.imageAnalysis;
+    return { ...data, context };
   })();
   listingPhotoRequest = request;
   try { return await request.promise; }
@@ -9920,21 +9922,99 @@ async function requestListingPhotoAnalysis() {
 }
 
 async function analyzeListingImages() {
+  if (listingCaptionJob) return;
   const button = $("#analyzeListingImages");
   const context = listingPhotoContext();
+  const total = safeParseImages(context.imagesKey).length;
+  const cached = currentListingPhotoAnalysis();
+  const job = { cancelled: false, context };
+  listingCaptionJob = job;
+  const result = { context, items: [...(cached?.items || [])], totalCount: total, provider: "openai" };
+  result.items = result.items.map((item) => ({ ...item,
+    suggestedAlt: $("[data-photo-caption-es='" + item.index + "']")?.value ?? item.suggestedAlt,
+    suggestedAltEn: $("[data-photo-caption-en='" + item.index + "']")?.value ?? item.suggestedAltEn,
+  }));
   saveListingDraft();
-  setButtonLoading(button, true, "Analizando…");
-  setFormMessage($("#listingImageAnalysisMessage"), "");
-  setFormMessage($("#listingFormMessage"), "Analizando las fotografías de la galería actual…");
+  setButtonLoading(button, true, "Generando descripciones…");
+  $("#listingImageAnalysis").hidden = false;
+  $("#listingImageAnalysisSummary").inert = true;
+  $("#cancelPhotoCaptions").hidden = false;
   try {
-    const data = await requestListingPhotoAnalysis();
-    if (!data) return;
-    const message = data.warning || "Análisis visual completado: " + data.analyzedCount + " de " + data.totalCount + " fotos. Revisa los textos y selecciona las keywords.";
-    setFormMessage($("#listingImageAnalysisMessage"), message, Boolean(data.warning));
-    setFormMessage($("#listingFormMessage"), message, Boolean(data.warning));
+    if (!total) throw new Error("Agrega fotografías antes de generar descripciones.");
+    for (let offset = 0; offset < total; offset += 10) {
+      if (job.cancelled || !listingPhotoContextMatches(context)) break;
+      const length = Math.min(10, total - offset);
+      if (result.items.filter((item) => item.index >= offset && item.index < offset + length && item.visualAnalyzed).length === length) continue;
+      setFormMessage($("#listingImageAnalysisMessage"), `Generando descripciones: fotos ${offset + 1} a ${offset + length} de ${total}…`);
+      const batch = await requestListingPhotoAnalysis("captions", offset);
+      if (!batch) return;
+      if (batch.provider !== "openai") throw new Error(batch.warning || "No se pudo analizar este lote.");
+      const incoming = batch.items.map((item) => ({ ...item, index: item.index + offset, duplicateOf: item.duplicateOf == null ? null : item.duplicateOf + offset }));
+      result.items = [...result.items.filter((item) => item.index < offset || item.index >= offset + length), ...incoming].sort((a, b) => a.index - b.index);
+      result.analyzedCount = result.items.filter((item) => item.visualAnalyzed).length;
+      result.suggestedOrder = [...result.items].sort((a, b) => (b.coverScore || 0) - (a.coverScore || 0)).map((item) => item.index);
+      result.recommendedCoverIndex = result.items.find((item) => item.index === result.suggestedOrder[0] && item.visualAnalyzed)?.index ?? null;
+      state.imageAnalysis = { ...result };
+    }
+    if (!listingPhotoContextMatches(context)) return;
+    renderListingImageAnalysis(result);
+    setFormMessage($("#listingImageAnalysisMessage"), `${job.cancelled ? "Proceso detenido. " : ""}${result.items.filter((item) => item.visualAnalyzed).length} de ${total} fotos analizadas. Revisa las propuestas antes de aplicarlas.`);
   } catch (error) {
-    if (listingPhotoContextMatches(context)) setFormMessage($("#listingFormMessage"), error.message, true);
+    if (listingPhotoContextMatches(context)) {
+      renderListingImageAnalysis(result);
+      setFormMessage($("#listingImageAnalysisMessage"), `${error.message} Se conservan ${result.items.filter((item) => item.visualAnalyzed).length} propuestas; vuelve a pulsar para reanudar los lotes pendientes.`, true);
+    }
+  } finally {
+    if (listingCaptionJob === job) listingCaptionJob = null;
+    $("#listingImageAnalysisSummary").inert = false;
+    $("#cancelPhotoCaptions").hidden = true;
+    setButtonLoading(button, false);
+  }
+}
+
+async function generateListingKeywords() {
+  const button = $("#generateListingKeywords");
+  const context = listingPhotoContext();
+  setButtonLoading(button, true, "Generando keywords…");
+  setFormMessage($("#listingKeywordMessage"), "Analizando hasta las primeras 10 fotos…");
+  try {
+    const data = await requestListingPhotoAnalysis("keywords");
+    if (!data) return;
+    if (data.provider !== "openai") throw new Error(data.warning || "No se pudieron generar keywords.");
+    state.photoKeywordAnalysis = data;
+    const keywords = data.keywords || [];
+    $("#listingPhotoKeywords").hidden = !keywords.length;
+    $("#listingPhotoKeywordOptions").innerHTML = keywords.map((keyword, index) => '<label><input type="checkbox" data-photo-keyword="' + index + '" checked /><span>' + escapeHtml(keyword) + '</span></label>').join("");
+    updatePhotoKeywordSelection();
+    setFormMessage($("#listingKeywordMessage"), keywords.length ? "Selecciona las keywords que deseas agregar. Las actuales se conservarán." : "No se encontraron atributos visuales suficientes.");
+  } catch (error) {
+    if (listingPhotoContextMatches(context)) setFormMessage($("#listingKeywordMessage"), error.message, true);
   } finally { setButtonLoading(button, false); }
+}
+
+function applyAllListingPhotoCaptions() {
+  const data = currentListingPhotoAnalysis();
+  if (!data || listingCaptionJob) return;
+  if (!window.confirm("¿Aplicar las descripciones revisadas? Se reemplazarán los pies de foto que tengan una propuesta; las demás fotos no cambiarán.")) return;
+  const form = $("#listingForm");
+  const images = safeParseImages(form.dataset.currentImages);
+  const metadata = normalizedImageMetadata(form.dataset.imageMetadata, images.length);
+  let count = 0;
+  data.items.filter((item) => item.visualAnalyzed).forEach((item) => {
+    if (!metadata[item.index]) return;
+    const es = $("[data-photo-caption-es='" + item.index + "']")?.value.trim().slice(0, 500);
+    const en = $("[data-photo-caption-en='" + item.index + "']")?.value.trim().slice(0, 500);
+    if (es) metadata[item.index].descriptionEs = es;
+    if (en) metadata[item.index].descriptionEn = en;
+    if (es || en) count += 1;
+  });
+  form.dataset.imageMetadata = JSON.stringify(metadata);
+  form.dataset.mediaDirty = "true";
+  form.dataset.persistentMediaDirty = "true";
+  $("#saveListingImages").hidden = !listingFormRecordId(form);
+  updateListingImagePreview(images);
+  saveListingDraft();
+  setFormMessage($("#listingImageAnalysisMessage"), `${count} descripciones aplicadas al borrador.`);
 }
 
 function applyListingPhotoCaption(index) {
@@ -9965,8 +10045,8 @@ function applyListingPhotoCaption(index) {
 }
 
 function applyListingPhotoKeywords() {
-  const data = currentListingPhotoAnalysis();
-  if (!data) { setFormMessage($("#listingImageAnalysisMessage"), "La galería o publicación cambió. Vuelve a analizar antes de aplicar las keywords.", true); return; }
+  const data = listingPhotoContextMatches(state.photoKeywordAnalysis?.context) ? state.photoKeywordAnalysis : null;
+  if (!data) { setFormMessage($("#listingKeywordMessage"), "La galería o publicación cambió. Genera las keywords de nuevo antes de aplicarlas.", true); return; }
   const selected = $$("#listingPhotoKeywordOptions input:checked").map((input) => data.keywords[Number(input.dataset.photoKeyword)]).filter(Boolean);
   const input = $("#listingKeywords");
   const existing = parseKeywordInput(input.value);
@@ -9975,13 +10055,13 @@ function applyListingPhotoKeywords() {
   const added = [];
   selected.forEach((keyword) => { if (!seen.has(normalize(keyword))) { added.push(keyword); seen.add(normalize(keyword)); } });
   if (existing.length + added.length > 40) {
-    setFormMessage($("#listingImageAnalysisMessage"), "Hay " + existing.length + " keywords guardadas en el formulario. Selecciona como máximo " + (40 - existing.length) + " nuevas.", true); return;
+    setFormMessage($("#listingKeywordMessage"), "Hay " + existing.length + " keywords guardadas en el formulario. Selecciona como máximo " + (40 - existing.length) + " nuevas.", true); return;
   }
   input.value = [...existing, ...added].join(", ");
   renderListingKeywordChips();
   $("#listingForm").dataset.contentDirty = "true";
   saveListingDraft();
-  setFormMessage($("#listingImageAnalysisMessage"), added.length + " keywords agregadas al borrador. Se conservaron las anteriores.");
+  setFormMessage($("#listingKeywordMessage"), added.length + " keywords agregadas al borrador. Se conservaron las anteriores.");
 }
 
 async function generateListingDescriptionFromPhotos(fieldName, button) {
@@ -9994,16 +10074,16 @@ async function generateListingDescriptionFromPhotos(fieldName, button) {
   setButtonLoading(button, true, "Analizando fotos…");
   setFormMessage($("#listingAiMessage"), "Preparando una descripción a partir de las fotografías…");
   try {
-    const cached = currentListingPhotoAnalysis();
-    const data = cached?.provider === "openai" ? cached : await requestListingPhotoAnalysis();
+    const data = await requestListingPhotoAnalysis("description");
     if (!data || !listingPhotoContextMatches(context) || requestId !== listingAiRequestId) return;
     const description = fieldName === "descriptionEn" ? data.descriptionEn : data.descriptionEs;
     if (!description) throw new Error(data.warning || "No se encontró suficiente información visual para generar una descripción. Revisa las fotografías.");
     listingAiProposal = { fieldName, original, slot: context.slot, generation: form.dataset.draftGeneration, photoContext: context };
     $("#listingAiSuggestion").value = description;
+    $("#listingAiSources").innerHTML = (data.sources || []).length ? '<p>Fuentes consultadas. Verifica que correspondan a este desarrollo:</p><ul>' + data.sources.map((source) => '<li><a href="' + escapeHtml(source.url) + '" target="_blank" rel="noopener noreferrer">' + escapeHtml(source.title) + '</a></li>').join("") + '</ul>' : "";
     $("#listingAiReview").hidden = false;
     $("#listingAiReview").scrollIntoView({ behavior: "smooth", block: "nearest" });
-    setFormMessage($("#listingAiMessage"), "Propuesta basada en " + data.analyzedCount + " de " + data.totalCount + " fotos. Revisa los datos antes de aplicarla; tu texto original sigue intacto.");
+    setFormMessage($("#listingAiMessage"), "Propuesta basada en las primeras " + data.totalCount + " fotos (" + data.analyzedCount + " analizadas). Revisa los datos antes de aplicarla; tu texto original sigue intacto.");
   } catch (error) {
     if (listingPhotoContextMatches(context) && requestId === listingAiRequestId) setFormMessage($("#listingAiMessage"), error.message, true);
   } finally { setButtonLoading(button, false); }
@@ -10105,7 +10185,62 @@ function listingDraftStorageKey(slot) {
 }
 
 function listingDraftStatus(text, slot) {
-  if (!slot || listingDraftSlot() === slot) $("#listingDraftStatus").textContent = text;
+  if (!slot || listingDraftSlot() === slot) {
+    $("#listingDraftStatus").textContent = text;
+    if ($("#listingQuickDraftStatus")) $("#listingQuickDraftStatus").textContent = text;
+  }
+}
+
+async function saveListingProgress(button = $("#saveListingProgress")) {
+  const form = $("#listingForm");
+  if (form.dataset.saving === "true" || form.dataset.savingDraft === "true" || !formImagesReady(form, $("#listingFormMessage"))) return;
+  if (!formField(form, "title").value.trim()) { formField(form, "title").focus(); showToast("Escribe un título para guardar el borrador.", "error"); return; }
+  form.dataset.savingDraft = "true";
+  const slot = listingDraftSlot(form);
+  const userId = state.session?.id;
+  const generation = form.dataset.draftGeneration;
+  setButtonLoading(button, true, "Guardando borrador…");
+  const operation = beginOperation("Guardando borrador", formField(form, "title").value);
+  saveListingDraft({ sync: false });
+  window.clearTimeout(listingCloudTimers.get(slot));
+  listingCloudTimers.delete(slot);
+  const snapshot = listingDraftSnapshot(form);
+  snapshot.fields._expectedUpdatedAt = form.dataset.expectedUpdatedAt || "";
+  try {
+    const mediaTask = queueDraftOperation(() => writePersistentDraft(listingDraftStorageKey(slot), snapshot));
+    const task = listingCloudQueue.catch(() => null).then(async () => {
+      if (state.session?.id !== userId) throw new Error("La sesión cambió. El borrador local sigue disponible.");
+      await api(`/api/admin/listing-drafts/${encodeURIComponent(slot)}`, { method: "PUT", body: { ...snapshot, images: undefined } });
+    });
+    listingCloudQueue = task.catch(() => null);
+    const [mediaSaved] = await Promise.all([mediaTask, task]);
+    if (listingDraftSlot(form) !== slot || form.dataset.draftGeneration !== generation) return;
+    const message = mediaSaved ? "Borrador guardado. Puedes continuarlo desde el inventario. Las fotos nuevas están en este dispositivo; el video se sube al publicar." : "Texto sincronizado, pero no se pudieron guardar las fotos localmente. No cierres esta ventana antes de publicar.";
+    listingDraftStatus(message, slot);
+    showToast(mediaSaved ? "Progreso guardado sin publicar." : message, mediaSaved ? "success" : "error");
+  } catch (error) {
+    listingDraftStatus(`No se pudo sincronizar: ${error.message}`, slot);
+    showToast("No se pudo sincronizar el borrador. Mantén abierto el formulario y vuelve a intentarlo.", "error");
+  } finally { form.dataset.savingDraft = "false"; operation.remove(); setButtonLoading(button, false); }
+}
+
+function confirmListingPublication(form) {
+  const dialog = $("#listingPublishDialog");
+  const development = listingFormIsDevelopment(form);
+  $("#listingPublishTitle").textContent = development ? "Guardar desarrollo" : "Guardar propiedad";
+  $("#listingPublishName").textContent = formField(form, "title").value;
+  $("#listingPublishPublic").checked = formField(form, "isPublic").checked && formField(form, "status").value === "active";
+  $("#listingPublishPrivate").checked = !$("#listingPublishPublic").checked;
+  $("#listingPublishFeatured").checked = formField(form, "featured").checked;
+  dialog.returnValue = "";
+  dialog.showModal();
+  return new Promise((resolve) => dialog.addEventListener("close", () => {
+    if (dialog.returnValue !== "save") { resolve(false); return; }
+    formField(form, "isPublic").checked = $("#listingPublishPublic").checked;
+    formField(form, "featured").checked = $("#listingPublishFeatured").checked;
+    if (formField(form, "isPublic").checked) formField(form, "status").value = "active";
+    resolve(true);
+  }, { once: true }));
 }
 
 function saveListingDraft({ sync = true } = {}) {
@@ -10201,7 +10336,7 @@ async function loadListingDraftShelf() {
   const development = state.adminSection === "developments";
   const visible = drafts.filter((draft) => draft.fields?.title && (draft.fields.publicationSection === "developments") === development);
   $("#listingDraftShelf").hidden = !visible.length || !["properties", "developments"].includes(state.adminSection);
-  $("#listingDraftList").innerHTML = visible.map((draft) => `<div class="pending-listing-draft"><div><strong>${escapeHtml(draft.fields.title)}</strong><small>${draft.fields.id ? "Cambios sin publicar" : "Nueva publicación"} · ${escapeHtml(new Date(draft.savedAt).toLocaleString())}</small></div><button type="button" class="ghost-button" data-open-listing-draft="${escapeHtml(draft.key)}">Continuar</button><button type="button" class="ghost-button" data-discard-listing-draft="${escapeHtml(draft.key)}" aria-label="Descartar borrador"><i data-lucide="trash-2"></i></button></div>`).join("");
+  $("#listingDraftList").innerHTML = visible.map((draft) => `<div class="pending-listing-draft"><div><strong>${escapeHtml(draft.fields.title)}</strong><small>${draft.fields.id ? "Cambios sin publicar" : "Nueva publicación"} · ${escapeHtml(new Date(draft.savedAt).toLocaleString())}</small></div><button type="button" class="ghost-button" data-preview-listing-draft="${escapeHtml(draft.key)}"><i data-lucide="eye"></i> Vista previa</button><button type="button" class="ghost-button" data-open-listing-draft="${escapeHtml(draft.key)}">Continuar</button><button type="button" class="ghost-button" data-discard-listing-draft="${escapeHtml(draft.key)}" aria-label="Descartar borrador"><i data-lucide="trash-2"></i></button></div>`).join("");
   refreshIcons();
 }
 
@@ -10286,6 +10421,11 @@ function resetListingForm(clearDraft = true) {
   delete form.dataset.unavailableDraftGallery;
   listingAiProposal = null;
   $("#listingAiReview").hidden = true;
+  $("#listingAiSources").innerHTML = "";
+  state.photoKeywordAnalysis = null;
+  $("#listingPhotoKeywords").hidden = true;
+  setFormMessage($("#listingKeywordMessage"), "");
+  if (listingCaptionJob) listingCaptionJob.cancelled = true;
   setFormMessage($("#listingAiMessage"), "");
   listingDraftStatus("");
   form.reset();
@@ -10703,7 +10843,7 @@ async function listingSubmit(event) {
   const form = event.currentTarget;
   if (!formImagesReady(form, $("#listingFormMessage"))) return;
   const field = (name) => formField(form, name);
-  if (form.dataset.saving === "true") return;
+  if (form.dataset.saving === "true" || $("#listingPublishDialog").open) return;
   const submit = form.querySelector('[type="submit"]');
   const id = listingFormRecordId(form);
   const developmentMode = listingFormIsDevelopment(form);
@@ -10732,6 +10872,8 @@ async function listingSubmit(event) {
     return;
   }
   const keywords = parseKeywordInput(field("keywords").value);
+  saveListingDraft();
+  if (!await confirmListingPublication(form)) return;
   const currentProperty = id ? state.properties.find((property) => property.id === id) : null;
   const payload = {
     title: field("title").value.trim(),
@@ -10779,6 +10921,7 @@ async function listingSubmit(event) {
   saveListingDraft();
   const entityLabel = developmentMode ? "desarrollo" : "publicación";
   setButtonLoading(submit, true, `Guardando ${entityLabel}...`);
+  const operation = beginOperation(`Guardando ${entityLabel}`, payload.title);
   updateFormProgress(submit, 18, `Preparando ${entityLabel}`, "Validando los datos y conservando el borrador local.");
   setFormMessage(message, `Guardando ${entityLabel}, por favor espera...`);
   const slowTimer = window.setTimeout(() => {
@@ -10831,6 +10974,7 @@ async function listingSubmit(event) {
     setFormMessage(message, errorMessage, true);
     showToast(errorMessage, "error");
   } finally {
+    operation.remove();
     window.clearTimeout(slowTimer);
     form.dataset.saving = "false";
     form.inert = false;
@@ -10860,6 +11004,7 @@ async function improveListingDescription(fieldName, button) {
     });
     if (listingDraftSlot(form) !== slot || form.dataset.draftGeneration !== generation || requestId !== listingAiRequestId) return;
     listingAiProposal = { fieldName, original, slot, generation };
+    $("#listingAiSources").innerHTML = "";
     $("#listingAiSuggestion").value = result.description;
     $("#listingAiReview").hidden = false;
     $("#listingAiReview").scrollIntoView({ behavior: "smooth", block: "nearest" });
@@ -10869,9 +11014,9 @@ async function improveListingDescription(fieldName, button) {
   } finally { setButtonLoading(button, false); }
 }
 
-async function translateListingToEnglish() {
+async function translateListingToEnglish(descriptionOnly = false) {
   const form = $("#listingForm");
-  const button = $("#translateListingToEnglish");
+  const button = $(descriptionOnly ? "#translateListingDescription" : "#translateListingToEnglish");
   const title = formField(form, "title").value.trim();
   const description = formField(form, "description").value.trim();
   const generation = form.dataset.draftGeneration;
@@ -10893,7 +11038,7 @@ async function translateListingToEnglish() {
     if (formField(form, "titleEn").value !== previousTitleEn || formField(form, "descriptionEn").value !== previousDescriptionEn || formField(form, "title").value.trim() !== title || formField(form, "description").value.trim() !== description) {
       setFormMessage($("#listingFormMessage"), "El texto cambió mientras se traducía. Se conservaron tus cambios; vuelve a traducir si lo necesitas.", true); return;
     }
-    formField(form, "titleEn").value = result.titleEn;
+    if (!descriptionOnly) formField(form, "titleEn").value = result.titleEn;
     formField(form, "descriptionEn").value = result.descriptionEn;
     form.dataset.contentDirty = "true";
     saveListingDraft();
@@ -11012,6 +11157,8 @@ async function deleteListing(id) {
 }
 
 async function updateListingStatus(id, status) {
+  const property = state.properties.find((item) => item.id === id);
+  const operation = beginOperation(status === "active" ? "Activando publicación" : "Actualizando estado", property?.titleEs || property?.title || "");
   try {
     const data = await api(`/api/admin/properties/${encodeURIComponent(id)}/status`, {
       method: "PATCH",
@@ -11030,7 +11177,7 @@ async function updateListingStatus(id, status) {
     }).catch(() => null);
   } catch (error) {
     showToast(error.message, "error");
-  }
+  } finally { operation.remove(); }
 }
 
 async function setListingVisibility(input) {
@@ -11041,6 +11188,7 @@ async function setListingVisibility(input) {
     input.checked = false; return;
   }
   input.disabled = true;
+  const operation = beginOperation(visible ? "Publicando en la web" : "Ocultando de la web", property.titleEs || property.title || "");
   try {
     const result = await api(`/api/admin/properties/${encodeURIComponent(property.id)}/status`, {
       method: "PATCH", body: { status: visible ? "active" : property.status, isPublic: visible },
@@ -11052,10 +11200,12 @@ async function setListingVisibility(input) {
   } catch (error) {
     input.checked = property.isPublic && property.status === "active";
     showToast(error.message, "error");
-  } finally { input.disabled = false; }
+  } finally { operation.remove(); input.disabled = false; }
 }
 
 async function toggleListingFeatured(id, featured) {
+  const property = state.properties.find((item) => item.id === id);
+  const operation = beginOperation(featured ? "Destacando publicación" : "Retirando de destacadas", property?.titleEs || property?.title || "");
   try {
     await api(`/api/admin/properties/${encodeURIComponent(id)}/featured`, {
       method: "PATCH",
@@ -11066,7 +11216,7 @@ async function toggleListingFeatured(id, featured) {
     showToast(featured ? "Propiedad destacada." : "Propiedad retirada de destacadas.");
   } catch (error) {
     showToast(error.message, "error");
-  }
+  } finally { operation.remove(); }
 }
 
 async function duplicateListing(id) {
@@ -11780,6 +11930,15 @@ function bindEvents() {
     if (event.target.matches("[data-listing-visibility]")) void setListingVisibility(event.target);
   });
   $("#listingDraftList")?.addEventListener("click", async (event) => {
+    const preview = event.target.closest("[data-preview-listing-draft]");
+    if (preview) {
+      const draft = state.listingDrafts.find((item) => item.key === preview.dataset.previewListingDraft);
+      if (!draft) return;
+      const local = await readPersistentDraft(listingDraftStorageKey(draft.key));
+      const images = local?.galleryRevision === draft.galleryRevision ? local.images || [] : [];
+      $("#draftPreviewContent").innerHTML = '<p class="eyebrow">BORRADOR PRIVADO</p><h3>' + escapeHtml(draft.fields.title) + '</h3><p>' + escapeHtml([draft.fields.zone, draft.fields.city].filter(Boolean).join(" · ")) + '</p>' + (images[0] ? '<img class="draft-preview-image" src="' + escapeHtml(images[0]) + '" alt="Portada del borrador" />' : '<p>La galería nueva está disponible en el dispositivo donde se cargó.</p>') + '<p class="draft-preview-description">' + escapeHtml(draft.fields.description || "Descripción pendiente") + '</p>';
+      $("#draftPreviewDialog").showModal();
+    }
     const open = event.target.closest("[data-open-listing-draft]");
     const discard = event.target.closest("[data-discard-listing-draft]");
     if (open) {
@@ -12030,6 +12189,12 @@ function bindEvents() {
   $("#applyBrochureFields")?.addEventListener("click", () => void applyBrochureFields());
   $("#rejectBrochureFields")?.addEventListener("click", () => void rejectBrochureFields());
   $("#analyzeListingImages")?.addEventListener("click", () => void analyzeListingImages());
+  $("#generateListingKeywords")?.addEventListener("click", () => void generateListingKeywords());
+  $("#applyAllPhotoCaptions")?.addEventListener("click", applyAllListingPhotoCaptions);
+  $("#cancelPhotoCaptions")?.addEventListener("click", () => { if (listingCaptionJob) listingCaptionJob.cancelled = true; });
+  $("#saveListingProgress")?.addEventListener("click", () => void saveListingProgress());
+  $("#saveListingProgressMobile")?.addEventListener("click", (event) => void saveListingProgress(event.currentTarget));
+  $("#translateListingDescription")?.addEventListener("click", () => void translateListingToEnglish(true));
   $("#useRecommendedCover")?.addEventListener("click", useRecommendedCover);
   $("#applySuggestedImageOrder")?.addEventListener("click", applySuggestedImageOrder);
   $("#listingImageAnalysisSummary")?.addEventListener("click", (event) => {

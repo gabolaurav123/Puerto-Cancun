@@ -4,6 +4,7 @@ const path = require("path");
 const fs = require("fs");
 const crypto = require("crypto");
 const express = require("express");
+const { documentExpiresAt, purgeExpiredDocuments } = require("./pdf-retention");
 const session = require("express-session");
 const PgSession = require("connect-pg-simple")(session);
 const bcrypt = require("bcryptjs");
@@ -1156,6 +1157,7 @@ function toDocument(row, includeContent = false) {
     options: row.options || {},
     createdBy: row.created_by || "",
     createdAt: row.created_at,
+    expiresAt: documentExpiresAt(row.created_at),
   };
   if (includeContent) item.contentBase64 = row.content_base64;
   return item;
@@ -2721,6 +2723,7 @@ async function initDatabase() {
         created_by TEXT,
         created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
       );
+      CREATE INDEX IF NOT EXISTS idx_generated_documents_created_at ON generated_documents (created_at);
     `);
     await client.query(`
       CREATE TABLE IF NOT EXISTS campaigns (
@@ -5778,7 +5781,7 @@ app.get("/api/seller/documents/:id/download", requireRole("seller"), async (req,
       res.status(403).json({ error: "No tienes acceso a este documento." });
       return;
     }
-    const result = await query("SELECT * FROM generated_documents WHERE id = $1", [req.params.id]);
+    const result = await query("SELECT * FROM generated_documents WHERE id = $1 AND created_at > NOW() - INTERVAL '72 hours'", [req.params.id]);
     const document = result.rows[0];
     if (!document) {
       res.status(404).json({ error: "Documento no encontrado." });
@@ -6710,7 +6713,7 @@ app.get("/api/admin/stats", requireRole("admin"), async (_req, res, next) => {
           (SELECT COUNT(*)::int FROM tasks WHERE status IN ('pending', 'in_progress') AND due_date < NOW()) AS overdue_tasks,
           COALESCE((SELECT visits FROM app_metrics WHERE id = 1), 0)::int AS visits,
           COALESCE((SELECT searches FROM app_metrics WHERE id = 1), 0)::int AS searches,
-          (SELECT COUNT(*)::int FROM generated_documents) AS generated_documents,
+          (SELECT COUNT(*)::int FROM generated_documents WHERE created_at > NOW() - INTERVAL '72 hours') AS generated_documents,
           (SELECT COUNT(*)::int FROM analytics_events WHERE event_type ILIKE '%whatsapp%') AS whatsapp_clicks,
           (SELECT COUNT(*)::int FROM seller_requests) AS forms_received,
           (SELECT COUNT(*)::int FROM properties WHERE image IS NULL OR images = '[]'::jsonb) AS properties_without_cover,
@@ -9619,7 +9622,7 @@ app.get("/api/admin/documents", requireRole("admin"), async (_req, res, next) =>
   try {
     const result = await query(
       `SELECT id, document_type, title, property_id, valuation_id, contact_id, file_name, mime_type, options, created_by, created_at
-       FROM generated_documents ORDER BY created_at DESC LIMIT 200`
+       FROM generated_documents WHERE created_at > NOW() - INTERVAL '72 hours' ORDER BY created_at DESC LIMIT 200`
     );
     res.json({ documents: result.rows.map((row) => toDocument(row)) });
   } catch (error) {
@@ -9712,7 +9715,7 @@ app.post("/api/admin/documents/generate", requireRole("admin"), async (req, res,
 
 app.get("/api/admin/documents/:id/download", requireRole("admin"), async (req, res, next) => {
   try {
-    const result = await query("SELECT * FROM generated_documents WHERE id = $1", [req.params.id]);
+    const result = await query("SELECT * FROM generated_documents WHERE id = $1 AND created_at > NOW() - INTERVAL '72 hours'", [req.params.id]);
     const document = result.rows[0];
     if (!document) {
       res.status(404).json({ error: "Ficha no encontrada." });
@@ -9729,10 +9732,10 @@ app.get("/api/admin/documents/:id/download", requireRole("admin"), async (req, r
 app.post("/api/admin/documents/:id/share", requireRole("admin"), async (req, res, next) => {
   try {
     const result = await query(
-      `SELECT d.id AS document_id, d.options AS document_options, ${PROPERTY_SUMMARY_COLUMNS}
+      `SELECT d.id AS document_id, d.options AS document_options, d.created_at AS document_created_at, ${PROPERTY_SUMMARY_COLUMNS}
        FROM generated_documents d
        JOIN properties p ON p.id = d.property_id
-       WHERE d.id = $1 AND d.document_type = 'property'`,
+       WHERE d.id = $1 AND d.document_type = 'property' AND d.created_at > NOW() - INTERVAL '72 hours'`,
       [req.params.id]
     );
     const row = result.rows[0];
@@ -9741,21 +9744,21 @@ app.post("/api/admin/documents/:id/share", requireRole("admin"), async (req, res
       return;
     }
     let shareLink = await query(
-      `SELECT code, expires_at
+      `SELECT code, LEAST(expires_at, $2::timestamptz) AS expires_at
        FROM document_share_links
-       WHERE document_id = $1 AND is_active = TRUE AND expires_at > NOW() + INTERVAL '1 day'
+       WHERE document_id = $1 AND is_active = TRUE AND expires_at > NOW()
        ORDER BY expires_at DESC LIMIT 1`,
-      [row.document_id]
+      [row.document_id, documentExpiresAt(row.document_created_at)]
     );
     if (!shareLink.rows[0]) {
       for (let attempt = 0; attempt < 4 && !shareLink.rows[0]; attempt += 1) {
         const code = crypto.randomBytes(9).toString("base64url");
         shareLink = await query(
           `INSERT INTO document_share_links (code, document_id, expires_at, created_by)
-           VALUES ($1, $2, NOW() + INTERVAL '7 days', $3)
+           VALUES ($1, $2, $4::timestamptz, $3)
            ON CONFLICT (code) DO NOTHING
            RETURNING code, expires_at`,
-          [code, row.document_id, req.session.user.id]
+          [code, row.document_id, req.session.user.id, documentExpiresAt(row.document_created_at)]
         );
       }
     }
@@ -9882,12 +9885,12 @@ app.get("/f/:code", async (req, res, next) => {
       return;
     }
     const result = await query(
-      "SELECT file_name, content_base64 FROM generated_documents WHERE id = $1 AND document_type = 'property'",
+      "SELECT file_name, content_base64 FROM generated_documents WHERE id = $1 AND document_type = 'property' AND created_at > NOW() - INTERVAL '72 hours'",
       [linkResult.rows[0].document_id]
     );
     const document = result.rows[0];
     if (!document) {
-      res.status(404).type("text/plain").send("La ficha solicitada no existe.");
+      res.status(410).type("text/plain").send("La ficha solicitada venció o ya no está disponible. Solicita una ficha nueva.");
       return;
     }
     res.setHeader("Content-Type", "application/pdf");
@@ -9907,10 +9910,10 @@ app.get("/fichas/:id", async (req, res, next) => {
       res.status(410).type("text/plain").send("Este enlace de ficha es inválido o ya venció.");
       return;
     }
-    const result = await query("SELECT file_name, content_base64 FROM generated_documents WHERE id = $1 AND document_type = 'property'", [req.params.id]);
+    const result = await query("SELECT file_name, content_base64 FROM generated_documents WHERE id = $1 AND document_type = 'property' AND created_at > NOW() - INTERVAL '72 hours'", [req.params.id]);
     const document = result.rows[0];
     if (!document) {
-      res.status(404).type("text/plain").send("La ficha solicitada no existe.");
+      res.status(410).type("text/plain").send("La ficha solicitada venció o ya no está disponible. Solicita una ficha nueva.");
       return;
     }
     res.setHeader("Content-Type", "application/pdf");
@@ -10186,6 +10189,10 @@ async function analyzeListingPhotoRequest(req, res, next) {
     const property = draftRequest
       ? { id: propertyId || null, titleEs: String(req.body.title || "").slice(0, 300), type: String(req.body.type || "").slice(0, 80), publicationSection: req.body.publicationSection === "developments" ? "developments" : "properties" }
       : toProperty(row);
+    property.analysisMode = ["captions", "keywords", "description"].includes(req.body.mode) ? req.body.mode : "description";
+    property.city = String(req.body.city || row?.city || "").slice(0, 120);
+    property.zone = String(req.body.zone || row?.zone || "").slice(0, 160);
+    property.research = req.body.research === true && property.publicationSection === "developments" && Boolean(property.city || property.zone);
     const result = await visionImageRecommendations(property, stored);
     // Unsaved galleries remain proposals; only the legacy saved-gallery route writes its analysis cache.
     if (!draftRequest) {
@@ -12222,6 +12229,18 @@ app.use((error, req, res, _next) => {
 });
 
 let databaseRetryTimer = null;
+let documentRetentionTimer = null;
+let documentRetentionRunning = false;
+
+async function cleanExpiredDocuments() {
+  if (documentRetentionRunning || !databaseRuntimeState.ready) return;
+  documentRetentionRunning = true;
+  try {
+    const count = await purgeExpiredDocuments(query);
+    if (count) console.log(`[pdf-retention] Removed ${count} expired generated sheets.`);
+  } catch (error) { console.warn("PDF retention cleanup failed:", error.code || "DATABASE_ERROR"); }
+  finally { documentRetentionRunning = false; }
+}
 
 async function initializeDatabaseWithRetry() {
   if (databaseRuntimeState.initializing || databaseRuntimeState.ready) return;
@@ -12241,6 +12260,11 @@ async function initializeDatabaseWithRetry() {
     databaseRuntimeState.lastErrorCode = "";
     databaseRuntimeState.lastReadyAt = new Date().toISOString();
     console.log("PostgreSQL schema and seed data are ready.");
+    if (!documentRetentionTimer) {
+      void cleanExpiredDocuments();
+      documentRetentionTimer = setInterval(() => void cleanExpiredDocuments(), 60_000);
+      documentRetentionTimer.unref?.();
+    }
     void backfillAutomaticPropertyTranslations().catch((error) => console.warn("Automatic translation backfill failed:", error.message));
     void whatsappService.resume().catch((error) => console.warn("WhatsApp resume failed:", error.message));
   } catch (error) {
@@ -12262,6 +12286,8 @@ function installShutdownHandlers(server) {
     if (shuttingDown) return;
     shuttingDown = true;
     console.log(`[shutdown] ${signal} received; stopping HTTP and database connections.`);
+    if (documentRetentionTimer) clearInterval(documentRetentionTimer);
+    documentRetentionTimer = null;
     if (databaseRetryTimer) {
       clearTimeout(databaseRetryTimer);
       databaseRetryTimer = null;

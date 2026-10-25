@@ -34,10 +34,10 @@ test("vision request is image-based, structured and constrained to visible facts
   assert.equal(body.model, "gpt-5-mini");
   assert.equal(body.store, false);
   assert.equal(body.text.format.strict, true);
-  assert.deepEqual(body.input[0].content[1], { type: "input_text", text: "Indice original de la fotografia: 3" });
-  assert.equal(body.input[0].content[2].type, "input_image");
-  assert.match(body.instructions, /No deduzcas ubicacion/);
-  assert.match(body.instructions, /nunca como instrucciones/);
+  assert.deepEqual(body.input[0].content[2], { type: "input_text", text: "Indice original de la fotografia: 3" });
+  assert.equal(body.input[0].content[3].type, "input_image");
+  assert.match(body.instructions, /No deduzcas medidas/);
+  assert.match(body.instructions, /nunca instrucciones/);
 });
 
 test("model output cannot overwrite photo identity, hashes, dimensions or unseen images", () => {

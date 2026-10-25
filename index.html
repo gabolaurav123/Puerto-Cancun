@@ -736,13 +736,13 @@
         <section class="seller-account-tools" aria-label="Herramientas de mi cuenta">
           <article class="panel-card seller-library-card" data-seller-panel-section="favorites" hidden>
             <div class="admin-module-heading">
-              <div><span class="eyebrow">MI COLECCIÓN</span><h2>Favoritos</h2><p>Propiedades guardadas en tu cuenta.</p></div>
+              <div><span class="eyebrow">MI COLECCIÓN</span><h2>Favoritos</h2><p>Reúne aquí las propiedades que te interesan para compararlas, consultar sus detalles o solicitar una visita.</p></div>
             </div>
             <div class="seller-property-list" id="sellerFavorites"></div>
           </article>
           <article class="panel-card seller-searches-card" data-seller-panel-section="searches" hidden>
             <div class="admin-module-heading">
-              <div><span class="eyebrow">SEGUIMIENTO</span><h2>Búsquedas y alertas</h2><p>Guarda criterios y recibe coincidencias internas sin duplicados.</p></div>
+              <div><span class="eyebrow">SEGUIMIENTO</span><h2>Búsquedas y alertas</h2><p>Guarda lo que buscas: tipo de propiedad, zona y presupuesto. Cuando encontremos una coincidencia, podrás verla aquí y recibir avisos por los canales que elijas.</p></div>
             </div>
             <form id="savedSearchForm" class="module-form-grid compact-form">
               <label><span>Nombre</span><input name="name" maxlength="100" placeholder="Ej. Departamentos frente al mar" required /></label>
@@ -751,7 +751,7 @@
               <label><span>Zona</span><select name="location" data-location-select="zone"><option value="">Cualquier zona</option></select></label>
               <label><span>Precio máximo</span><input name="maxPrice" type="number" min="0" step="1000" /></label>
               <label><span>Moneda</span><select name="currency"><option value="">Cualquiera</option><option>USD</option><option>MXN</option></select></label>
-              <label class="check-field"><input name="alertsEnabled" type="checkbox" /><span>Crear alertas internas</span></label>
+              <label class="check-field"><input name="alertsEnabled" type="checkbox" /><span>Recibir avisos en mi panel</span></label>
               <label class="check-field"><input name="emailEnabled" type="checkbox" /><span>También por correo</span></label>
               <label class="check-field"><input name="whatsappEnabled" type="checkbox" /><span>También por WhatsApp</span></label>
               <label class="check-field"><input name="consent" type="checkbox" /><span>Acepto recibir avisos relacionados con esta búsqueda.</span></label>
@@ -762,7 +762,7 @@
             <div class="saved-search-list" id="sellerSavedSearches"></div>
           </article>
           <article class="panel-card seller-tours-card" data-seller-panel-section="tours" hidden>
-            <div class="admin-module-heading"><div><span class="eyebrow">AGENDA</span><h2>Mis visitas</h2><p>Consulta el estado de tus solicitudes.</p></div></div>
+            <div class="admin-module-heading"><div><span class="eyebrow">AGENDA</span><h2>Mis visitas</h2><p>Revisa las visitas que solicitaste y la respuesta del asesor. Puedes solicitar una nueva desde la propiedad que te interesa.</p></div></div>
             <div class="seller-tour-list" id="sellerTours"></div>
           </article>
         </section>
@@ -1096,6 +1096,7 @@
               </button>
               <div class="admin-sidebar-subnav">
                 <button type="button" data-admin-section-link="contacts">Contactos y cuentas</button>
+                <button type="button" data-admin-section-link="roles">Cuentas registradas y accesos</button>
                 <button type="button" data-admin-section-link="guest-contacts">Contactos sin registrar</button>
               </div>
               <button type="button" data-admin-section="mailing">
@@ -1132,7 +1133,7 @@
               </button>
               <button type="button" data-admin-section="marketing">
                 <i data-lucide="megaphone"></i>
-                <span data-i18n="adminJumpMarketing">Marketing</span>
+                <span data-i18n="adminJumpMarketing">Contenido promocional</span>
               </button>
               <div class="admin-sidebar-subnav">
                 <button type="button" data-admin-section-link="marketing">Contenido, imágenes y redes</button>
@@ -1151,10 +1152,6 @@
               <div class="admin-sidebar-subnav">
                 <button type="button" data-admin-section-link="pdf">Generar e historial</button>
               </div>
-              <button type="button" data-admin-section="prompts">
-                <i data-lucide="message-circle"></i>
-                <span data-i18n="adminJumpPrompts">Herramientas IA</span>
-              </button>
               <button type="button" data-admin-section="analytics">
                 <i data-lucide="chart-column"></i>
                 <span data-i18n="adminJumpAnalytics">Analitica</span>
@@ -1225,10 +1222,6 @@
             <button class="primary-button" type="button" data-admin-section-link="new-property">
               <i data-lucide="plus"></i>
               <span data-i18n="adminJumpNew">Nueva propiedad</span>
-            </button>
-            <button class="ghost-button" type="button" data-admin-jump="adminPromptsCard">
-              <i data-lucide="message-circle"></i>
-              <span data-i18n="adminJumpPrompts">Herramientas IA</span>
             </button>
             <button class="ghost-button" type="button" data-admin-jump="adminContactsCard">
               <i data-lucide="user-plus"></i>
@@ -1880,7 +1873,7 @@
         <article class="panel-card admin-marketing-card" id="adminMarketingCard" data-admin-section-panel="marketing">
           <div class="admin-module-heading">
             <div>
-              <h2>Marketing y contenido</h2>
+              <h2>Contenido promocional</h2>
               <p>Prepara textos, piezas visuales institucionales y conexiones de canales desde espacios separados.</p>
             </div>
           </div>
@@ -2106,7 +2099,7 @@
             </section>
           </div>
           <div class="table-heading">
-            <h3>Historial de fichas</h3>
+            <div><h3>Historial de fichas</h3><p>Las fichas y sus enlaces vencen a las 72 horas de su generación. Descarga las que quieras conservar antes de que se eliminen automáticamente.</p></div>
             <div class="inline-actions">
               <span id="pdfHistoryCount"></span>
               <button class="mini-button danger" type="button" id="deleteAllDocuments">Eliminar todas</button>
@@ -2282,12 +2275,12 @@
             <label><span>Estado</span><select name="status"><option value="active">Activo</option><option value="inactive">Inactivo</option></select></label>
             <fieldset class="permission-grid span-2">
               <legend>Permisos</legend>
-              <label><input type="checkbox" name="permissions" value="requests:view" /> Ver solicitudes</label>
-              <label><input type="checkbox" name="permissions" value="requests:reply" /> Responder solicitudes</label>
-              <label><input type="checkbox" name="permissions" value="properties:write" /> Gestionar publicaciones</label>
-              <label><input type="checkbox" name="permissions" value="crm:view" /> Ver CRM</label>
-              <label><input type="checkbox" name="permissions" value="analytics:view" /> Ver analítica</label>
-              <label><input type="checkbox" name="permissions" value="catalogs:write" /> Gestionar catálogos</label>
+              <label><input type="checkbox" name="permissions" value="requests:view" /><span>Ver solicitudes</span></label>
+              <label><input type="checkbox" name="permissions" value="requests:reply" /><span>Responder solicitudes</span></label>
+              <label><input type="checkbox" name="permissions" value="properties:write" /><span>Gestionar publicaciones</span></label>
+              <label><input type="checkbox" name="permissions" value="crm:view" /><span>Ver CRM</span></label>
+              <label><input type="checkbox" name="permissions" value="analytics:view" /><span>Ver analítica</span></label>
+              <label><input type="checkbox" name="permissions" value="catalogs:write" /><span>Gestionar catálogos</span></label>
             </fieldset>
             <div class="form-actions span-2"><button class="primary-button" type="submit">Guardar usuario</button><button class="ghost-button" type="button" id="cancelUserForm">Cancelar</button></div>
           </form>
@@ -2614,7 +2607,8 @@
                 <div class="image-preview-header">
                   <span data-i18n="imageGalleryTitle">Galería y orden de publicación</span>
                   <div class="image-preview-header-actions">
-                    <button class="text-button" type="button" id="analyzeListingImages" hidden><i data-lucide="scan-eye"></i><span>Analizar fotografías</span></button>
+                    <button class="ghost-button" type="button" id="analyzeListingImages" data-photo-ai hidden><i data-lucide="scan-eye"></i><span>Generar descripciones para fotos</span></button>
+                    <button class="ghost-button" type="button" id="cancelPhotoCaptions" hidden>Detener después de este lote</button>
                     <button class="text-button" type="button" id="saveListingImages" hidden>Guardar galería</button>
                     <button class="text-button danger" type="button" id="clearListingImage" data-i18n="removeImage">Quitar todas</button>
                   </div>
@@ -2622,6 +2616,12 @@
                 <div class="image-preview-grid"></div>
                 <small data-i18n="imageGalleryHelp">La primera imagen será la portada. Arrastra las fotos o usa las flechas para cambiar su orden.</small>
               </div>
+              <section class="image-analysis-panel" id="listingImageAnalysis" hidden>
+                <div class="table-heading"><h3>Descripciones propuestas para las fotos</h3></div>
+                <p class="form-message" id="listingImageAnalysisMessage" role="status" aria-live="polite"></p>
+                <div id="listingImageAnalysisSummary"></div>
+                <div class="form-actions"><button class="primary-button" id="applyAllPhotoCaptions" type="button"><i data-lucide="check-check"></i> Aplicar descripciones revisadas</button><button class="ghost-button" id="useRecommendedCover" type="button" hidden><i data-lucide="image"></i> Usar portada recomendada</button><button class="ghost-button" id="applySuggestedImageOrder" type="button" hidden><i data-lucide="arrow-up-down"></i> Aplicar orden sugerido</button></div>
+              </section>
               <section class="listing-video-manager">
                 <div class="admin-module-heading">
                   <div>
@@ -2641,19 +2641,6 @@
                   <button class="ghost-button danger" type="button" id="removeListingVideo"><i data-lucide="trash-2"></i><span>Quitar video</span></button>
                 </div>
                 <p class="form-message" id="listingVideoMessage"></p>
-              </section>
-              <section class="image-analysis-panel" id="listingImageAnalysis" hidden>
-                <div class="table-heading"><div><span class="eyebrow">RECOMENDACIONES</span><h3>Análisis de fotografías</h3></div><span>La herramienta no altera ni elimina archivos.</span></div>
-                <div id="listingImageAnalysisSummary"></div>
-                <div class="form-actions"><button class="ghost-button" id="useRecommendedCover" type="button" hidden><i data-lucide="image"></i> Usar portada recomendada</button><button class="ghost-button" id="applySuggestedImageOrder" type="button" hidden><i data-lucide="arrow-up-down"></i> Aplicar orden sugerido</button></div>
-                <fieldset class="photo-keyword-review" id="listingPhotoKeywords" hidden>
-                  <legend>Keywords sugeridas</legend>
-                  <div class="photo-keyword-options" id="listingPhotoKeywordOptions"></div>
-                  <div class="form-actions"><button class="ghost-button" type="button" id="selectAllPhotoKeywords">Seleccionar todas</button><button class="ghost-button" type="button" id="clearPhotoKeywords">Desmarcar todas</button><button class="primary-button" type="button" id="applyPhotoKeywords"><i data-lucide="check"></i> Agregar keywords seleccionadas</button></div>
-                  <p id="listingPhotoKeywordStatus" role="status" aria-live="polite"></p>
-                </fieldset>
-                <div class="form-actions"><button class="ghost-button" type="button" data-generate-photo-description="description"><i data-lucide="scan-eye"></i> Generar descripción de la publicación</button></div>
-                <p class="form-message" id="listingImageAnalysisMessage" role="status" aria-live="polite"></p>
               </section>
               <p class="form-message" id="listingFormMessage"></p>
               <div class="form-row listing-metrics-row" data-property-only>
@@ -2694,12 +2681,20 @@
                 </div>
                 <div class="keyword-chips" data-keyword-chips aria-live="polite"></div>
                 <small>Separa con comas o presiona Enter. Máximo 40 keywords.</small>
+                <button class="ghost-button" type="button" id="generateListingKeywords" data-photo-ai><i data-lucide="tags"></i> Generar keywords</button>
+                <p class="form-message" id="listingKeywordMessage" role="status"></p>
+                <fieldset class="photo-keyword-review" id="listingPhotoKeywords" hidden>
+                  <legend>Elige las keywords que deseas agregar</legend>
+                  <div class="photo-keyword-options" id="listingPhotoKeywordOptions"></div>
+                  <div class="form-actions"><button class="ghost-button" type="button" id="selectAllPhotoKeywords">Seleccionar todas</button><button class="ghost-button" type="button" id="clearPhotoKeywords">Desmarcar todas</button><button class="primary-button" type="button" id="applyPhotoKeywords"><i data-lucide="check"></i> Agregar seleccionadas</button></div>
+                  <p id="listingPhotoKeywordStatus" role="status" aria-live="polite"></p>
+                </fieldset>
               </div>
-              <label class="checkbox-row">
+              <label class="checkbox-row" hidden>
                 <input name="featured" type="checkbox" />
                 <span data-i18n="markFeatured">Marcar como destacada</span>
               </label>
-              <label class="checkbox-row">
+              <label class="checkbox-row" hidden>
                 <input name="isPublic" type="checkbox" />
                 <span data-i18n="publicListing">Visible en web publica</span>
               </label>
@@ -2707,17 +2702,19 @@
                 <span data-i18n="descriptionEs">Descripción en español</span>
                 <textarea name="description" rows="10" maxlength="50000"></textarea>
                 <small class="character-counter" id="listingDescriptionCounter">0 / 50,000 caracteres</small>
-                <span class="description-ai-actions"><button class="ghost-button" type="button" data-generate-photo-description="description"><i data-lucide="scan-eye"></i> Generar descripción con fotos</button><button class="ghost-button" type="button" data-improve-description="description"><i data-lucide="sparkles"></i> Mejorar descripción</button></span>
+                <span class="description-ai-actions"><button class="ghost-button" type="button" data-generate-photo-description="description" data-photo-ai><i data-lucide="sparkles"></i> Generar descripción</button><button class="ghost-button" type="button" data-improve-description="description"><i data-lucide="pencil-line"></i> Mejorar texto</button></span>
               </label>
+              <label class="checkbox-row" id="listingResearchOption" hidden><input type="checkbox" id="listingResearchEnabled" /><span>Complementar con información pública del desarrollo y revisar sus fuentes</span></label>
               <label>
                 <span data-i18n="descriptionEn">Descripción en inglés</span>
                 <textarea name="descriptionEn" rows="10" maxlength="50000"></textarea>
-                <span class="description-ai-actions"><button class="ghost-button" type="button" data-generate-photo-description="descriptionEn"><i data-lucide="scan-eye"></i> Generar descripción en inglés con fotos</button><button class="ghost-button" type="button" data-improve-description="descriptionEn"><i data-lucide="sparkles"></i> Mejorar descripción en inglés</button></span>
+                <span class="description-ai-actions"><button class="ghost-button" type="button" id="translateListingDescription"><i data-lucide="languages"></i> Traducir descripción en español</button></span>
                 <small data-i18n="bilingualFieldHelp">Este texto se muestra cuando el visitante navega en inglés.</small>
               </label>
               <section id="listingAiReview" class="listing-ai-review" hidden>
                 <h3>Descripción propuesta</h3>
                 <textarea id="listingAiSuggestion" rows="7" aria-label="Descripción propuesta editable"></textarea>
+                <div id="listingAiSources"></div>
                 <div class="form-actions"><button class="primary-button" type="button" id="applyListingAi">Aplicar propuesta</button><button class="ghost-button" type="button" id="discardListingAi">Descartar</button></div>
               </section>
               <p class="form-message" id="listingAiMessage" aria-live="polite"></p>
@@ -2727,6 +2724,7 @@
               </button>
               <p id="listingDraftStatus" class="draft-save-status" role="status" aria-live="polite"></p>
               <div class="form-actions listing-save-actions">
+                <button class="ghost-button mobile-draft-save" type="button" id="saveListingProgressMobile"><i data-lucide="save"></i> Guardar progreso</button>
                 <button class="primary-button" type="submit" id="listingSubmitButton" data-i18n="saveListing">Guardar publicacion</button>
                 <button class="ghost-button" type="button" id="resetListingForm" data-i18n="newListing">Nueva publicacion</button>
                 <button class="danger-button" type="button" id="deleteListingFromForm" hidden>
@@ -2743,6 +2741,8 @@
               </article>
               <article>
                 <span data-i18n="adminQuickActions">Accesos rapidos</span>
+                <button class="primary-button save-progress-button" type="button" id="saveListingProgress"><i data-lucide="save"></i> Guardar progreso</button>
+                <p class="draft-save-status" id="listingQuickDraftStatus" role="status" aria-live="polite"></p>
                 <button class="mini-button" type="button" data-admin-jump="adminListingsCard">Vista previa</button>
                 <button class="mini-button" type="button" data-admin-jump="adminPdfCard">Generar ficha PDF</button>
               </article>
@@ -3035,7 +3035,7 @@
         <button class="modal-close" type="button" data-close-pdf-share aria-label="Cerrar"><i data-lucide="x"></i></button>
         <span class="eyebrow">FICHA COMERCIAL</span>
         <h2 id="pdfShareTitle">Compartir ficha PDF</h2>
-        <p>El enlace será temporal y la ficha se guardará en el historial solo cuando elijas un canal.</p>
+        <p>La ficha y su enlace vencerán a las 72 horas de generar el PDF. El archivo se prepara cuando eliges un canal.</p>
         <form id="pdfShareForm" class="stacked-form">
           <input name="documentId" type="hidden" />
           <label class="property-picker-field" data-pdf-share-property-field><span>Buscar propiedad por MLS o título</span><input id="pdfSharePropertySearch" type="search" autocomplete="off" placeholder="Escribe MLS o título" aria-controls="pdfSharePropertyMatches" aria-autocomplete="list" /><div class="property-search-matches" id="pdfSharePropertyMatches" hidden></div><select name="propertyId" id="pdfSharePropertySelect" hidden></select></label>
@@ -3261,6 +3261,21 @@
     </a>
 
     <script src="https://unpkg.com/lucide@1.46.0/dist/umd/lucide.min.js" integrity="sha384-1avDoIZZ5mKtAlvTbQ2jge+TZA4z+qwhMFHdCpATww/SLVM8wKs7sROOEKMOizyV" crossorigin="anonymous"></script>
+    <div id="operationStack" class="operation-stack" aria-live="polite"></div>
+    <dialog id="listingPublishDialog" class="listing-publish-dialog" aria-labelledby="listingPublishTitle">
+      <form method="dialog">
+        <h2 id="listingPublishTitle">Guardar publicación</h2>
+        <p id="listingPublishName"></p>
+        <fieldset class="publication-visibility-options">
+          <legend>¿Será visible en la web pública?</legend>
+          <label><input type="radio" name="visibility" id="listingPublishPublic" value="public" /><span><strong>Sí, publicar en la web</strong><small>El estado pasará a Activa y los visitantes podrán encontrarla.</small></span></label>
+          <label><input type="radio" name="visibility" id="listingPublishPrivate" value="private" checked /><span><strong>No, guardar en privado</strong><small>Solo el equipo podrá verla en el inventario.</small></span></label>
+        </fieldset>
+        <label class="checkbox-row"><input type="checkbox" id="listingPublishFeatured" /><span>Destacar cuando esté visible en la web</span></label>
+        <div class="form-actions"><button class="primary-button" value="save">Guardar</button><button class="ghost-button" value="cancel" autofocus>Volver al editor</button></div>
+      </form>
+    </dialog>
+    <dialog id="draftPreviewDialog" class="listing-publish-dialog" aria-labelledby="draftPreviewTitle"><h2 id="draftPreviewTitle">Vista previa del borrador</h2><div id="draftPreviewContent"></div><form method="dialog"><button class="ghost-button">Cerrar</button></form></dialog>
     <script src="/app.js?v=20260905.1"></script>
   </body>
 </html>

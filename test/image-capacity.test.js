@@ -64,14 +64,15 @@ test("server drafts retain all 60 image captions and their count", () => {
   assert.equal(result.imageMetadata[59].descriptionEn, "Photo 59");
 });
 
-test("photo analysis accepts galleries of 60 without truncating their indices", async () => {
+test("general photo analysis samples the first ten while retaining the gallery count of 60", async () => {
   assert.equal(PHOTO_LIMIT, 60);
   const result = await analyzePhotos({ stored: gallery, property: { titleEs: "Test" }, apiKey: "" });
-  assert.equal(result.totalCount, 60);
-  assert.equal(result.items[59].index, 59);
+  assert.equal(result.totalCount, 10);
+  assert.equal(result.sourceTotalCount, 60);
+  assert.equal(result.items[9].index, 9);
   const request = photoAnalysisRequest({ titleEs: "Test" }, gallery.map((imageUrl, index) => ({ imageUrl, index })), "gpt-5-mini");
-  assert.equal(request.input[0].content.filter((item) => item.type === "input_image").length, 60);
-  assert.equal(request.max_output_tokens, 30000);
+  assert.equal(request.input[0].content.filter((item) => item.type === "input_image").length, 10);
+  assert.ok(request.max_output_tokens <= 7000);
 });
 
 test("60 maximum-size optimized photos and captions fit the existing JSON request limit", () => {
