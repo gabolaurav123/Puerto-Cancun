@@ -1206,6 +1206,7 @@ const state = {
   csrfToken: "",
   session: null,
   properties: [],
+  publicInventoryStatus: "loading",
   externalProperties: [],
   externalPropertyFacets: { types: [], zones: [], total: 0, archived: 0 },
   externalPropertyPagination: { total: 0, limit: 60, offset: 0 },
@@ -2745,7 +2746,12 @@ function filterServerRenderedCategory() {
     if (matches) count += 1;
   });
   const status = $("#categorySearchStatus");
-  if (status) status.textContent = state.lang === "en" ? `${count} available listings` : `${count} propiedades disponibles`;
+  const countLabel = state.lang === "en"
+    ? `${count} available ${count === 1 ? "listing" : "listings"}`
+    : `${count} ${count === 1 ? "propiedad disponible" : "propiedades disponibles"}`;
+  if (status) status.textContent = countLabel;
+  const heading = $("#categoryInventoryCount");
+  if (heading) heading.textContent = countLabel;
   const empty = $("#categorySearchEmpty");
   if (empty) empty.hidden = count > 0;
 }
@@ -2906,6 +2912,34 @@ function updateHomeEditorialImages() {
   });
 }
 
+function renderPublicInventoryStatus(grid) {
+  const pending = state.publicInventoryStatus === "loading";
+  grid.setAttribute("aria-busy", String(pending));
+  if (state.properties.length || !["loading", "error"].includes(state.publicInventoryStatus)) return false;
+  const message = pending
+    ? state.lang === "en" ? "Loading available properties..." : "Cargando propiedades disponibles..."
+    : state.lang === "en" ? "The inventory could not be loaded. Please try again." : "No se pudo cargar el inventario. Intenta nuevamente.";
+  grid.innerHTML = `<div class="inventory-status" role="status"><i data-lucide="${pending ? "loader-circle" : "wifi-off"}" aria-hidden="true"></i><p>${escapeHtml(message)}</p>${pending ? "" : `<button class="outline-button" type="button" data-retry-inventory>${state.lang === "en" ? "Try again" : "Volver a intentar"}</button>`}</div>`;
+  if ($("#resultCount")) $("#resultCount").textContent = "";
+  if ($("#homeCatalogCta")) $("#homeCatalogCta").hidden = true;
+  refreshIcons();
+  return true;
+}
+
+async function retryPublicInventory() {
+  if (state.publicInventoryStatus === "loading") return;
+  state.publicInventoryStatus = "loading";
+  renderProperties();
+  try {
+    const data = await api("/api/properties");
+    state.properties = data.properties || [];
+    state.publicInventoryStatus = "ready";
+  } catch {
+    state.publicInventoryStatus = "error";
+  }
+  renderProperties();
+}
+
 function renderProperties() {
   const grid = $("#propertyGrid");
   if (!grid) return;
@@ -2940,6 +2974,7 @@ function renderProperties() {
     $("#homeCatalogLink").href = state.lang === "en" ? "/en/properties" : "/propiedades";
   }
 
+  if (renderPublicInventoryStatus(grid)) return;
   if (!properties.length) {
     grid.innerHTML = `<p class="empty-state">${escapeHtml(t("noResults"))}</p>`;
     refreshIcons();
@@ -8349,6 +8384,7 @@ async function loadPublicData() {
   const locationData = value(2, { options: [] });
   const configData = value(3, state.config);
   state.properties = propertiesData.properties || [];
+  state.publicInventoryStatus = results[0].status === "fulfilled" ? "ready" : "error";
   state.session = sessionData.user;
   state.csrfToken = sessionData.csrfToken || state.csrfToken;
   state.locationOptions = locationData.options || [];
@@ -8715,12 +8751,20 @@ function updateAdminShell() {
   if (taskBadge) taskBadge.textContent = String(state.tasks.filter((task) => ["pending", "in_progress"].includes(task.status)).length);
   if (whatsappBadge) whatsappBadge.textContent = String(state.whatsapp.overview?.counts?.unread || 0);
   $("#adminPanel")?.classList.toggle("sidebar-collapsed", state.sidebarCollapsed);
+  $("#adminSidebarToggle")?.setAttribute("aria-expanded", String(!state.sidebarCollapsed));
+  const sidebarLabel = state.lang === "en"
+    ? state.sidebarCollapsed ? "Expand menu" : "Collapse menu"
+    : state.sidebarCollapsed ? "Expandir menú" : "Contraer menú";
+  $("#adminSidebarToggle")?.setAttribute("aria-label", sidebarLabel);
+  $("#adminSidebarToggle")?.setAttribute("title", sidebarLabel);
 }
 
 function configureListingFormMode(section = state.adminSection) {
   const form = $("#listingForm");
   if (!form) return;
   const developmentMode = section === "new-development";
+  const recordId = listingFormRecordId(form);
+  const editing = Boolean(recordId);
   if ($("#listingResearchOption")) $("#listingResearchOption").hidden = !developmentMode;
   form.dataset.listingMode = developmentMode ? "development" : "property";
   formField(form, "publicationSection").value = developmentMode ? "developments" : "properties";
@@ -8763,17 +8807,18 @@ function configureListingFormMode(section = state.adminSection) {
 
   const intro = $("#listingModeIntro");
   if (intro) {
+    const heading = developmentMode
+      ? state.lang === "en" ? editing ? "Edit development" : "New development" : editing ? "Editar desarrollo" : "Nuevo desarrollo"
+      : state.lang === "en" ? editing ? "Edit property" : "New property for sale or rent" : editing ? "Editar propiedad" : "Nueva propiedad en venta o renta";
     intro.innerHTML = developmentMode
-      ? `<span class="eyebrow">DESARROLLO INMOBILIARIO</span><h3>Nuevo desarrollo</h3><p>Registra nombre, ubicación, galería y descripción en español e inglés. Las propiedades disponibles se vinculan por separado.</p>`
-      : `<span class="eyebrow">PROPIEDAD INDIVIDUAL</span><h3>Nueva propiedad en venta o renta</h3><p>Registra los datos y fotografías de la unidad. Si pertenece a un desarrollo, vincúlala para reutilizar sus amenidades e imágenes generales.</p>`;
+      ? `<span class="eyebrow">DESARROLLO INMOBILIARIO</span><h3>${heading}</h3><p>Registra nombre, ubicación, galería y descripción en español e inglés. Las propiedades disponibles se vinculan por separado.</p>`
+      : `<span class="eyebrow">PROPIEDAD INDIVIDUAL</span><h3>${heading}</h3><p>Registra los datos y fotografías de la unidad. Si pertenece a un desarrollo, vincúlala para reutilizar sus amenidades e imágenes generales.</p>`;
   }
   const imageLabel = formField(form, "imageFile")?.closest("label")?.querySelector("span");
   if (imageLabel) imageLabel.textContent = developmentMode ? "Imágenes generales del desarrollo" : "Imágenes propias de la unidad";
   const submitButton = $("#listingSubmitButton");
   const resetButton = $("#resetListingForm");
   const deleteButton = $("#deleteListingFromForm");
-  const recordId = listingFormRecordId(form);
-  const editing = Boolean(recordId);
   if (submitButton) {
     const translationKey = developmentMode
       ? editing ? "saveDevelopmentChanges" : "publishDevelopment"
@@ -9251,6 +9296,7 @@ function refreshIcons() {
 }
 
 function openAuth(tab = "login") {
+  closeMobileNav();
   $("#authModal").hidden = false;
   document.body.classList.add("modal-open");
   switchAuthTab(tab);
@@ -9379,13 +9425,18 @@ function setFormMessage(element, text, error = false) {
 }
 
 function installImageFallbacks() {
-  document.addEventListener("error", (event) => {
-    const image = event.target;
+  const applyFallback = (image) => {
     if (!(image instanceof HTMLImageElement) || image.dataset.fallbackApplied === "true") return;
     if (!/^https?:\/\//i.test(image.currentSrc || image.src)) return;
     image.dataset.fallbackApplied = "true";
+    image.removeAttribute("srcset");
     image.src = fallbackImage;
-  }, true);
+  };
+  document.addEventListener("error", (event) => applyFallback(event.target), true);
+  // Eager images may fail before the deferred application script is ready.
+  document.querySelectorAll("img").forEach((image) => {
+    if (image.complete && image.naturalWidth === 0 && image.getAttribute("src")) applyFallback(image);
+  });
 }
 
 async function loginSubmit(event) {
@@ -11630,6 +11681,7 @@ function openGeneralWhatsApp(event) {
 
 function closeMobileNav() {
   $("#mainNav").classList.remove("open");
+  $("#menuToggle")?.setAttribute("aria-expanded", "false");
 }
 
 async function handleSellEntry(event) {
@@ -11797,8 +11849,17 @@ function bindEvents() {
   $("#panelLanguageToggle")?.addEventListener("click", toggleLanguage);
 
   $("#menuToggle").addEventListener("click", () => {
-    $("#mainNav").classList.toggle("open");
+    const open = $("#mainNav").classList.toggle("open");
+    $("#menuToggle").setAttribute("aria-expanded", String(open));
     updateHeaderVisibility();
+  });
+  $("#mainNav")?.addEventListener("keydown", (event) => {
+    if (event.key !== "Escape" || !$("#mainNav").classList.contains("open")) return;
+    closeMobileNav();
+    $("#menuToggle").focus();
+  });
+  $("#propertyGrid")?.addEventListener("click", (event) => {
+    if (event.target.closest("[data-retry-inventory]")) void retryPublicInventory();
   });
 
   $$(".brand").forEach((brand) => {
