@@ -10098,6 +10098,9 @@ body[data-page="home"] .hero h1 {
 }
 
 .admin-listing-toolbar { grid-template-columns: repeat(auto-fit, minmax(145px, 1fr)); }
+@media (min-width: 761px) {
+  .admin-listing-toolbar .admin-listing-view-filter { grid-column: span 2; }
+}
 .inventory-visibility { display: inline-flex; gap: 8px; align-items: center; margin: 12px 0; }
 .inventory-visibility input { width: 18px; min-height: 18px; flex: 0 0 18px; margin: 0; }
 .user-directory-filters { display: grid; grid-template-columns: 2fr 1fr; gap: 14px; margin: 20px 0; }

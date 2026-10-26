@@ -310,6 +310,9 @@ const translations = {
     verifiedDaysAgo: "Verificada hace {days} días",
     reviewAvailabilityDays: "Revisar disponibilidad · {days} días",
     noListingMatches: "No se encontraron publicaciones con esa búsqueda.",
+    inventoryView: "Vista / estado",
+    inventoryGeneral: "Inventario general",
+    inventoryDrafts: "Borradores",
     removeFeatured: "Quitar destacada",
     featureListing: "Destacar",
     duplicateListing: "Duplicar",
@@ -883,6 +886,9 @@ const translations = {
     verifiedDaysAgo: "Verified {days} days ago",
     reviewAvailabilityDays: "Review availability · {days} days",
     noListingMatches: "No listings match this search.",
+    inventoryView: "View / status",
+    inventoryGeneral: "General inventory",
+    inventoryDrafts: "Drafts",
     removeFeatured: "Remove featured status",
     featureListing: "Feature",
     duplicateListing: "Duplicate",
@@ -5064,6 +5070,7 @@ function renderAdminListingFilters() {
 function renderAdminListings() {
   const list = $("#adminListings");
   if (!list) return;
+  renderListingDraftShelf();
   const developmentInventory = state.adminSection === "developments";
   const inventory = [...state.properties].sort((a, b) => {
     const time = (item, key) => new Date(item[key] || item.createdAt || 0).getTime() || 0;
@@ -5084,7 +5091,7 @@ function renderAdminListings() {
   const filters = state.adminListingFilters;
   const search = normalizeSearchText(filters.search);
   const properties = inventory.filter((property) => {
-    if (!filters.status && property.status === "archived") return false;
+    if (!filters.status && ["draft", "archived"].includes(property.status)) return false;
     if (filters.type && property.type !== filters.type) return false;
     if (filters.zone && property.zone !== filters.zone) return false;
     if (filters.operation && property.operation !== filters.operation) return false;
@@ -5104,15 +5111,13 @@ function renderAdminListings() {
   });
   const summary = $("#adminListingSummary");
   if (summary) {
-    const featured = inventory.filter((property) => property.featured).length;
+    const featured = inventory.filter((property) => property.featured && !["draft", "archived"].includes(property.status)).length;
     const archived = inventory.filter((property) => property.status === "archived").length;
-    const current = inventory.length - archived;
-    const noun = developmentInventory
-      ? state.lang === "en" ? "developments" : "desarrollos"
-      : state.lang === "en" ? "properties" : "propiedades";
+    const drafts = inventory.filter((property) => property.status === "draft").length;
+    const current = inventory.length - archived - drafts;
     summary.textContent = state.lang === "en"
-      ? `${properties.length} shown · ${current} active ${noun} · ${archived} removed · ${featured} featured`
-      : `${properties.length} mostrados · ${current} ${noun} activos · ${archived} eliminados · ${featured} destacados`;
+      ? `${properties.length} shown · ${current} in general inventory · ${drafts} drafts · ${archived} removed · ${featured} featured`
+      : `${properties.length} mostrados · ${current} en inventario general · ${drafts} borradores · ${archived} eliminados · ${featured} destacados`;
   }
   if (!properties.length) {
     const filtered = search || filters.type || filters.zone || filters.operation || filters.status || filters.quality || filters.missingCover;
@@ -5196,6 +5201,16 @@ function renderAdminListings() {
   if (!canManageListings()) {
     list.querySelectorAll("[data-edit-listing], [data-status-listing], [data-feature-listing], [data-duplicate-listing], [data-delete-listing], [data-verify-property], [data-listing-visibility]").forEach(control => { control.disabled = true; });
   }
+}
+
+function focusAdminListing(id) {
+  const property = state.properties.find((item) => item.id === id);
+  if (!property) return;
+  setAdminSection(property.publicationSection === "developments" ? "developments" : "properties");
+  state.adminListingFilters.search = id;
+  state.adminListingFilters.status = ["draft", "archived"].includes(property.status) ? property.status : "";
+  renderAdminListingFilters();
+  renderAdminListings();
 }
 
 function externalPropertyStatusLabel(status) {
@@ -8706,7 +8721,8 @@ function updateAdminShell() {
     panel.hidden = !String(panel.dataset.adminSectionPanel || "").split(/\s+/).includes(section);
   });
   $$("[data-admin-listing-view]").forEach((view) => {
-    view.hidden = !String(view.dataset.adminListingView || "").split(/\s+/).includes(section);
+    view.hidden = !String(view.dataset.adminListingView || "").split(/\s+/).includes(section)
+      || (view.id === "listingDraftShelf" && state.adminListingFilters.status !== "draft");
   });
   $$("[data-external-view]").forEach((view) => {
     view.hidden = !String(view.dataset.externalView || "").split(/\s+/).includes(section);
@@ -10399,9 +10415,15 @@ async function loadListingDraftShelf() {
     }
   } catch { /* Ignore inaccessible browser storage. */ }
   state.listingDrafts = drafts;
+  renderListingDraftShelf();
+}
+
+function renderListingDraftShelf() {
+  const shelf = $("#listingDraftShelf");
+  if (!shelf) return;
   const development = state.adminSection === "developments";
-  const visible = drafts.filter((draft) => draft.fields?.title && (draft.fields.publicationSection === "developments") === development);
-  $("#listingDraftShelf").hidden = !visible.length || !["properties", "developments"].includes(state.adminSection);
+  const visible = (state.listingDrafts || []).filter((draft) => draft.fields?.title && (draft.fields.publicationSection === "developments") === development);
+  shelf.hidden = state.adminListingFilters.status !== "draft" || !visible.length || !["properties", "developments"].includes(state.adminSection);
   $("#listingDraftList").innerHTML = visible.map((draft) => `<div class="pending-listing-draft"><div><strong>${escapeHtml(draft.fields.title)}</strong><small>${draft.fields.id ? "Cambios sin publicar" : "Nueva publicación"} · ${escapeHtml(new Date(draft.savedAt).toLocaleString())}</small></div><button type="button" class="ghost-button" data-preview-listing-draft="${escapeHtml(draft.key)}"><i data-lucide="eye"></i> Vista previa</button><button type="button" class="ghost-button" data-open-listing-draft="${escapeHtml(draft.key)}">Continuar</button><button type="button" class="ghost-button" data-discard-listing-draft="${escapeHtml(draft.key)}" aria-label="Descartar borrador"><i data-lucide="trash-2"></i></button></div>`).join("");
   refreshIcons();
 }
@@ -10995,6 +11017,7 @@ async function listingSubmit(event) {
   }, 12000);
   let savedSuccessfully = false;
   let savedSection = payload.publicationSection;
+  let savedStatus = payload.status;
   try {
     Object.assign(payload, await getListingImagePayload(form));
     updateFormProgress(submit, 42, "Preparando galería", "Las imágenes nuevas se validarán y protegerán en el servidor.");
@@ -11018,6 +11041,7 @@ async function listingSubmit(event) {
     }
     updateFormProgress(submit, 92, "Actualizando inventario", "La publicación ya fue guardada; estamos actualizando el panel.");
     savedSection = saved.publicationSection || savedSection;
+    savedStatus = saved.status;
     const existingIndex = state.properties.findIndex((property) => property.id === saved.id);
     if (existingIndex >= 0) state.properties.splice(existingIndex, 1, saved);
     else state.properties.unshift(saved);
@@ -11046,7 +11070,14 @@ async function listingSubmit(event) {
     form.inert = false;
     form.removeAttribute("aria-busy");
     setButtonLoading(submit, false);
-    if (savedSuccessfully) setAdminSection(savedSection === "developments" ? "developments" : "properties");
+    if (savedSuccessfully) {
+      setAdminSection(savedSection === "developments" ? "developments" : "properties");
+      if (["draft", "archived"].includes(savedStatus)) {
+        state.adminListingFilters.status = savedStatus;
+        renderAdminListingFilters();
+        renderAdminListings();
+      }
+    }
   }
 }
 
@@ -12126,11 +12157,9 @@ function bindEvents() {
     const result = event.target.closest("[data-global-result-section]");
     if (!result) return;
     toggleAdminGlobalSearch(false);
-    setAdminSection(result.dataset.globalResultSection);
     if (result.dataset.globalResultSection === "properties" || result.dataset.globalResultSection === "developments") {
-      state.adminListingFilters.search = result.dataset.globalResultId;
-      renderAdminListings();
-    }
+      focusAdminListing(result.dataset.globalResultId);
+    } else setAdminSection(result.dataset.globalResultSection);
   });
   document.addEventListener("keydown", (event) => {
     if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "k") {
@@ -12186,9 +12215,7 @@ function bindEvents() {
   $("#adminDataQuality")?.addEventListener("click", (event) => {
     const button = event.target.closest("[data-quality-property]");
     if (!button) return;
-    setAdminSection("properties");
-    state.adminListingFilters.search = button.dataset.qualityProperty;
-    renderAdminListings();
+    focusAdminListing(button.dataset.qualityProperty);
   });
 
   $("#backToSite").addEventListener("click", hidePanel);
