@@ -7087,7 +7087,7 @@ function openPdfShareModal(trigger) {
   const select = formField(form, "propertyId");
   select.innerHTML = `<option value="">Selecciona una propiedad</option>`;
   state.properties
-    .filter((property) => property.publicationSection !== "developments")
+    .filter((property) => property.publicationSection !== "developments" || property.id === selectedPropertyId)
     .forEach((property) => select.append(new Option(propertySearchLabel(property), property.id)));
   formField(form, "documentId").value = documentId;
   formField(form, "neutral").checked = existingDocument?.options?.brandMode === "neutral";
