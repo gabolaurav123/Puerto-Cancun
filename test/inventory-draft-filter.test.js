@@ -11,6 +11,7 @@ function runtime(names, bindings) {
 
 const emptyFilters = () => ({ search: '', type: '', zone: '', operation: '', status: '', quality: '', missingCover: false });
 function inventoryRuntime(section = 'developments') {
+  const iconRefreshes = [];
   const nodes = new Map(['#adminListings', '#adminListingSummary', '#listingDraftShelf', '#listingDraftList'].map(id => [id, { innerHTML: '', textContent: '', hidden: false }]));
   const properties = ['properties', 'developments'].flatMap(publicationSection => ['active', 'draft', 'pending', 'disabled', 'sold', 'rented', 'archived'].map((status, index) => ({
     id: `${publicationSection}-${status}`, titleEs: `${publicationSection} ${status}`, publicationSection, status,
@@ -27,13 +28,26 @@ function inventoryRuntime(section = 'developments') {
     primaryImage: () => '/placeholder.jpg', fallbackImage: '/placeholder.jpg', storedImages: p => p.images,
     escapeHtml: value => String(value ?? ''), t: key => key, displayType: value => value,
     propertyStatusLabel: value => value, formatPriceSummary: () => '', displayLocation: p => p.zone,
-    qualityLevelLabel: () => '', truncateText: text => text, canManageListings: () => true, refreshIcons() {},
+    qualityLevelLabel: () => '', truncateText: text => text, canManageListings: () => true,
+    refreshIcons() { iconRefreshes.push(nodes.get('#adminListings').innerHTML); },
   });
   const ids = () => [...nodes.get('#adminListings').innerHTML.matchAll(/data-edit-listing="([^"]+)"/g)].map(match => match[1]);
-  return { ...api, state, nodes, ids };
+  return { ...api, state, nodes, ids, iconRefreshes };
 }
 
 for (const section of ['properties', 'developments']) {
+  test(`${section}: share icons are initialized after every inventory render`, () => {
+    const api = inventoryRuntime(section);
+    for (const status of ['', 'draft', 'active', '']) {
+      api.state.adminListingFilters.status = status;
+      api.iconRefreshes.length = 0;
+      api.renderAdminListings();
+      const markup = api.nodes.get('#adminListings').innerHTML;
+      assert.equal(api.iconRefreshes.at(-1), markup);
+      assert.match(markup, /data-open-pdf-share="property"[^>]+title="Compartir ficha PDF"><i data-lucide="share-2"><\/i>/);
+    }
+  });
+
   test(`${section}: general inventory excludes drafts and archives without changing records`, () => {
     const api = inventoryRuntime(section);
     const before = JSON.stringify(api.state.properties);

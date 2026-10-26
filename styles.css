@@ -3097,22 +3097,25 @@ textarea:focus {
 }
 
 .pdf-share-trigger {
-  width: 42px;
-  min-width: 42px;
-  height: 42px;
+  width: 44px;
+  min-width: 44px;
+  height: 44px;
+  flex: 0 0 auto;
+  align-self: center;
   display: inline-grid;
   place-items: center;
   padding: 0;
   border: 1px solid #0b74c8;
+  border-radius: 4px;
   background: #0b74c8;
   color: #fff;
   cursor: pointer;
 }
 
 .pdf-share-trigger.mini {
-  width: 36px;
-  min-width: 36px;
-  height: 36px;
+  width: 40px;
+  min-width: 40px;
+  height: 40px;
 }
 
 .pdf-share-trigger:hover,
@@ -3121,9 +3124,24 @@ textarea:focus {
   border-color: #075b9e;
 }
 
+.pdf-share-trigger:focus-visible {
+  outline: 2px solid #075b9e;
+  outline-offset: 3px;
+}
+
+.pdf-share-trigger i[data-lucide],
 .pdf-share-trigger svg {
-  width: 18px;
-  height: 18px;
+  width: 20px;
+  height: 20px;
+  color: inherit;
+}
+
+@media (max-width: 760px), (pointer: coarse) {
+  .pdf-share-trigger.mini {
+    width: 44px;
+    min-width: 44px;
+    height: 44px;
+  }
 }
 
 .share-mode-toggle {
