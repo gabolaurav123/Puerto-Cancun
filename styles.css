@@ -12891,6 +12891,38 @@ body[data-page="home"] .hero h1 {
   font-size: 0.9rem;
 }
 
+#searchForm .search-field {
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr);
+}
+
+#searchInput,
+#searchForm .search-field-prompt {
+  grid-area: 1 / 2;
+  min-width: 0;
+}
+
+#searchInput::placeholder {
+  color: transparent;
+}
+
+#searchInput {
+  align-self: stretch;
+}
+
+#searchForm .search-field-prompt {
+  padding: 12px;
+  font-size: 0.9rem;
+  line-height: 1.5;
+  text-align: left;
+  color: var(--muted);
+  pointer-events: none;
+}
+
+#searchInput:not(:placeholder-shown) + .search-field-prompt {
+  visibility: hidden;
+}
+
 /* Public content rhythm */
 .contact-strip {
   display: flex;
