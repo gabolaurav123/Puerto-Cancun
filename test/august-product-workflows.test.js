@@ -50,6 +50,7 @@ test("el panel retira Match y Mapa inteligente y conserva un dashboard operativo
   assert.doesNotMatch(indexSource, /data-admin-section-panel="matches"/);
   assert.doesNotMatch(indexSource, /data-admin-section-panel="smart-map"/);
   assert.match(appSource, /dashboard-priority-list/);
-  assert.match(appSource, /dashboard-zone-bars/);
+  assert.match(indexSource, /data-admin-section-panel="statistics"/);
+  assert.match(appSource, /PccAdminInventory\?\.mount/);
   assert.match(stylesSource, /\.dashboard-operations/);
 });

@@ -34,9 +34,9 @@ test('category filtering keeps the main heading and live count synchronized in b
 test('server-rendered inventory exposes a stable heading target without changing card order', () => {
   const property = { id: 'audit-test', titleEs: 'Terreno', type: 'Terreno', status: 'active', isPublic: true, operation: 'sale', images: [] };
   const html = renderCategoryPage(getPageByPath('/propiedades/terrenos-cancun'), [property]);
-  assert.match(html, /id="categoryInventoryCount">1 propiedad disponible/);
-  assert.ok(html.indexOf('categoryInventoryCount') < html.indexOf('categoryKeywordSearch'));
-  assert.ok(html.indexOf('categoryKeywordSearch') < html.indexOf('data-category-property'));
+  assert.match(html, /id="categoryInventoryCount" role="status">Encontramos 1 propiedad/);
+  assert.ok(html.indexOf('catalogFilters') < html.indexOf('categoryInventoryCount'));
+  assert.ok(html.indexOf('categoryInventoryCount') < html.indexOf('data-category-property='));
 });
 
 test('loading and connection errors are not presented as an empty inventory', () => {
@@ -130,17 +130,21 @@ test('image fallback repairs early failures, preserves loaded photos and never l
     }
     getAttribute(name) { return this[name]; }
     removeAttribute(name) { delete this[name]; }
+    matches(selector) { return selector === '[data-location-cover]' && this.dataset.locationCover !== undefined; }
+    closest() { return null; }
   }
   const failed = new Image('https://example.test/failed.jpg', true, 0);
   const loaded = new Image('https://example.test/loaded.jpg', true, 640);
   const pending = new Image('https://example.test/pending.jpg', false, 0);
   const localPreview = new Image('blob:local-photo', true, 0);
+  const locationCover = new Image('https://example.test/location.jpg', true, 0);
+  locationCover.dataset.locationCover = '';
   let listener;
   const api = runtime(['installImageFallbacks'], {
     HTMLImageElement: Image, fallbackImage: '/assets/fallback.webp',
     document: {
       addEventListener(type, fn, capture) { assert.equal(type, 'error'); assert.equal(capture, true); listener = fn; },
-      querySelectorAll: () => [failed, loaded, pending, localPreview],
+      querySelectorAll: () => [failed, loaded, pending, localPreview, locationCover],
     },
   });
   api.installImageFallbacks();
@@ -149,6 +153,8 @@ test('image fallback repairs early failures, preserves loaded photos and never l
   assert.equal(loaded.src, 'https://example.test/loaded.jpg');
   assert.equal(pending.src, 'https://example.test/pending.jpg');
   assert.equal(localPreview.src, 'blob:local-photo');
+  assert.equal(locationCover.hidden, true);
+  assert.equal(locationCover.src, 'https://example.test/location.jpg', 'never replace a Location photo with an unrelated property');
   listener({ target: pending });
   assert.equal(pending.src, '/assets/fallback.webp');
   pending.src = '/assets/replacement.webp';

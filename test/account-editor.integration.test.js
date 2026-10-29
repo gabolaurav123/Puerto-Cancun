@@ -63,7 +63,12 @@ test("cuentas, permisos, sesiones y borradores en PostgreSQL aislado", { skip: !
           title: `QA Solicitud ${type} ${suffix}`, type, state: 'Quintana Roo', city: 'Cancun', zone: 'Puerto Cancun',
           price: 1000000, currency: 'MXN', address: 'Direccion de prueba', description: 'Prueba aislada',
           consent: true, email: account.email, phone: account.phone, images: [image],
+          contextLocations: 'puerto-cancun,puerto-cancun,invalid', contextType: 'Casa', contextZone: 'Origen de busqueda',
         }, 201)).request;
+        assert.deepEqual(request.commercialContext, { locations: ['puerto-cancun'], type: 'Casa', zone: 'Origen de busqueda', intent: 'sell' });
+        assert.equal(request.zone, 'Puerto Cancun', 'Commercial intent never replaces physical geography');
+        const received = (await root('/api/admin/requests')).requests.find(item => item.id === request.id);
+        assert.deepEqual(received.commercialContext, request.commercialContext);
         property = (await root(`/api/admin/requests/${request.id}/approve`, 'POST', {})).property;
         assert.equal(property.publicationSection, type === 'Desarrollo' ? 'developments' : 'properties');
         assert.equal(property.isPublic, true);
@@ -92,6 +97,10 @@ test("cuentas, permisos, sesiones y borradores en PostgreSQL aislado", { skip: !
     editorId = created.user.id;
     await editor("/api/auth/login", "POST", { username: created.user.email, password: "editor" });
     await editor("/api/admin/users", "GET", undefined, 403);
+    await editor("/api/admin/demand-gaps", "GET", undefined, 403);
+    const demand = await root("/api/admin/demand-gaps");
+    assert.equal(demand.source, 'registered_saved_searches');
+    assert.equal(demand.scannedLimit, 500);
     await editor(`/api/admin/users/${editorId}`, "PATCH", { role: "super_admin" }, 403);
     await root(`/api/admin/users/${memberId}`, "PATCH", { role: "admin" });
     assert.equal((await member("/api/session")).user, null);
@@ -128,9 +137,12 @@ test("cuentas, permisos, sesiones y borradores en PostgreSQL aislado", { skip: !
     try {
       unit = (await root('/api/admin/properties', 'POST', { ...common, title: `QA Unidad ${suffix}`, titleEn: 'QA Linked unit', descriptionEn: 'A linked property for testing.', type: 'Departamento', publicationSection: 'properties', price: 1000000, currency: 'MXN' }, 201)).property;
       development = (await root('/api/admin/properties', 'POST', { ...common, title: `QAVinculado${suffix}`, titleEn: 'QA Linked development', descriptionEn: 'A development for testing.', type: 'Desarrollo', publicationSection: 'developments', linkedPropertyIds: [unit.id] }, 201)).property;
-      const results = (await root('/api/search/intelligent', 'POST', { query: development.titleEs })).properties;
+      const results = (await root('/api/search/intelligent', 'POST', { query: `Desarrollo ${development.titleEs}` })).properties;
       assert.ok(results.some(item => item.id === development.id));
-      assert.ok(results.some(item => item.id === unit.id));
+      assert.ok(!results.some(item => item.id === unit.id), 'Projects and units have separate inventories');
+      const units = (await root('/api/search/intelligent', 'POST', { query: `Departamentos del desarrollo ${development.titleEs}` })).properties;
+      assert.ok(units.some(item => item.id === unit.id));
+      assert.ok(!units.some(item => item.id === development.id));
       assert.ok((await root('/api/developments')).developments.some(item => item.id === development.id));
       for (const lang of ['es', 'en']) {
         const response = await fetch(base + propertyPath(development, lang));

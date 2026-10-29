@@ -75,6 +75,8 @@ test("las respuestas incluyen seguridad, versión e identificador de soporte", (
   assert.equal(res.headers["X-App-Release"], "abc123");
   assert.equal(res.headers["X-Content-Type-Options"], "nosniff");
   assert.match(res.headers["Strict-Transport-Security"], /max-age=/);
+  assert.match(res.headers["Content-Security-Policy"], /style-src 'self' 'unsafe-inline' https:\/\/unpkg.com https:\/\/fonts.googleapis.com;/);
+  assert.match(res.headers["Content-Security-Policy"], /object-src 'none'/);
 });
 
 test("las mutaciones entre orígenes se bloquean", () => {

@@ -37,6 +37,9 @@
       rel="stylesheet"
     />
     <link rel="stylesheet" href="/styles.css?v=20260905.1" />
+    <link rel="stylesheet" href="/catalog.css?v=20261029.1" />
+    <link rel="stylesheet" href="/admin-inventory.css?v=20261029.1" />
+    <link rel="stylesheet" href="/comparison.css?v=20261029.1" />
     <!-- SEO_JSON_LD -->
   </head>
   <body data-page="home">
@@ -72,7 +75,7 @@
           <div class="nav-item has-menu">
             <button type="button" data-i18n="navPropertyType">Tipo de propiedad</button>
             <div class="nav-menu wide-menu">
-              <a href="/propiedades" data-i18n="menuAllSale">Ver todo en venta</a>
+              <a href="/propiedades/en-venta" data-i18n="menuAllSale">Ver todo en venta</a>
               <div class="menu-columns">
                 <div>
                   <a href="/propiedades/casas-cancun" data-i18n="typeHouses">Casas</a>
@@ -95,9 +98,9 @@
             <div class="nav-menu">
               <a href="/propiedades/puerto-cancun/casas" data-i18n="typeHouses">Casas</a>
               <a href="/propiedades/puerto-cancun/departamentos" data-i18n="typeCondos">Departamentos</a>
-              <a href="/propiedades-en-renta-cancun" data-i18n="typeRentals">Rentas</a>
-              <a href="/propiedades/terrenos-cancun" data-i18n="typeLand">Terrenos</a>
-              <a href="/preventas-cancun" data-i18n="typePresales">Preventas</a>
+              <a href="/propiedades?location=puerto-cancun&amp;operation=rent" data-i18n="typeRentals">Rentas</a>
+              <a href="/propiedades?location=puerto-cancun&amp;type=Terreno" data-i18n="typeLand">Terrenos</a>
+              <a href="/propiedades?location=puerto-cancun&amp;operation=sale&amp;modality=presale" data-i18n="typePresales">Preventas</a>
             </div>
           </div>
 
@@ -107,14 +110,12 @@
               <a href="/zonas-cancun" data-i18n="menuAllZones">Ver todas las zonas</a>
               <div class="menu-columns">
                 <div>
-                  <a href="/propiedades/puerto-cancun">Puerto Cancun</a>
-                  <a href="/propiedades/cancun-centro">Cancun Centro</a>
-                  <a href="/propiedades/playa-mujeres">Punta Sam / Playa Mujeres</a>
+                  <a href="/propiedades/zona-hotelera">Zona Hotelera (ZH)</a>
+                  <a href="/propiedades/puerto-cancun">Puerto Cancún</a>
                 </div>
                 <div>
-                  <a href="/propiedades/zona-hotelera">Zona Hotelera</a>
-                  <a href="/propiedades/riviera-maya">Riviera Maya</a>
-                  <a href="/propiedades/isla-mujeres">Isla Mujeres</a>
+                  <a href="/propiedades/cancun-city">Cancún City</a>
+                  <a href="/propiedades/fuera-de-cancun">Fuera de Cancún</a>
                 </div>
               </div>
             </div>
@@ -145,10 +146,10 @@
             <img src="/assets/cancun-hotel-zone-hero-1920.webp" width="1920" height="1080" fetchpriority="high" alt="" />
           </picture>
           <div class="hero-content">
-            <h1 data-i18n="heroTitle">Compra o vende tu propiedad en Cancun</h1>
+            <h1 data-i18n="heroTitle">Compra o vende tu propiedad en Cancún</h1>
             <p class="hero-subtitle" data-i18n="heroSubtitle">
-              Te ayudamos a validar precios, preparar tu propiedad, encontrar compradores reales y tomar mejores
-              decisiones inmobiliarias en Cancun.
+              Te ayudamos a validar precios, preparar tu propiedad y encontrar compradores.
+              Te acompañamos para tomar mejores decisiones inmobiliarias.
             </p>
             <div class="hero-actions">
               <a class="accent-button" href="/vender-casa-cancun" id="heroSellButton" data-open-seller-options data-i18n="heroSellCta">Quiero vender mi propiedad</a>
@@ -178,11 +179,9 @@
           </div>
         </section>
 
-        <section class="contact-strip home-only" aria-label="Contact">
-          <h2 data-i18n="contactToday">Contactanos Hoy</h2>
-          <div class="contact-numbers">
-            <a href="tel:+5219982166563">MEX +52 1 998-216-6563</a>
-          </div>
+        <section class="compact-business-contact home-only" aria-label="WhatsApp">
+          <a href="https://wa.me/5219982166563" target="_blank" rel="noopener" data-business-contact="mx">México · WhatsApp +52 1 998 216 6563</a>
+          <a href="https://wa.me/19562518956" target="_blank" rel="noopener" data-business-contact="us">USA · WhatsApp +1 956 251 8956</a>
         </section>
 
         <section class="ai-validation-home home-only" id="validar-ia" hidden>
@@ -272,36 +271,32 @@
         <section class="zones-band home-only" id="zones">
           <div class="content-wrap">
             <div class="section-heading inverse">
-              <h2 data-i18n="featuredZones">Zonas destacadas</h2>
+              <h2 data-i18n="featuredZones">Locations</h2>
               <a class="outline-button" href="/zonas-cancun">
                 <span data-i18n="allZones">Todas las zonas</span>
                 <i data-lucide="arrow-right"></i>
               </a>
             </div>
             <div class="zone-grid">
-              <a class="zone-card" href="/propiedades/puerto-cancun">
-                <img
-                  src="/assets/cancun-hotel-zone-hero-768.webp"
-                  alt="Vista aérea del litoral de Cancún"
-                  width="900" height="600" loading="lazy"
-                />
-                <span>Puerto Cancun</span>
+              <a class="zone-card" href="/propiedades/zona-hotelera" data-commercial-location="zona-hotelera">
+                <img data-location-cover alt="" width="900" height="600" loading="lazy" hidden />
+                <i class="location-cover-placeholder" data-lucide="map-pin" aria-hidden="true"></i>
+                <span>Zona Hotelera (ZH)</span>
               </a>
-              <a class="zone-card" href="/propiedades/zona-hotelera">
-                <img
-                  src="/assets/type-apartments-cancun.jpg"
-                  alt="Zona Hotelera de Cancún frente al mar Caribe"
-                  width="900" height="600" loading="lazy"
-                />
-                <span>Zona Hotelera</span>
+              <a class="zone-card" href="/propiedades/puerto-cancun" data-commercial-location="puerto-cancun">
+                <img data-location-cover alt="" width="900" height="600" loading="lazy" hidden />
+                <i class="location-cover-placeholder" data-lucide="map-pin" aria-hidden="true"></i>
+                <span>Puerto Cancún</span>
               </a>
-              <a class="zone-card" href="/preventas-cancun">
-                <img
-                  src="/assets/type-houses-cancun.jpg"
-                  alt="Desarrollo residencial contemporáneo"
-                  width="900" height="600" loading="lazy"
-                />
-                <span data-i18n="zonePresales">Preventas | Presales</span>
+              <a class="zone-card" href="/propiedades/cancun-city" data-commercial-location="cancun-city">
+                <img data-location-cover alt="" width="900" height="600" loading="lazy" hidden />
+                <i class="location-cover-placeholder" data-lucide="map-pin" aria-hidden="true"></i>
+                <span>Cancún City</span>
+              </a>
+              <a class="zone-card" href="/propiedades/fuera-de-cancun" data-commercial-location="fuera-de-cancun">
+                <img data-location-cover alt="" width="900" height="600" loading="lazy" hidden />
+                <i class="location-cover-placeholder" data-lucide="map-pin" aria-hidden="true"></i>
+                <span>Fuera de Cancún</span>
               </a>
             </div>
           </div>
@@ -326,7 +321,7 @@
                 <h3 data-i18n="featuredProperties">Propiedades destacadas</h3>
                 <p data-i18n="featuredCopy">
                   Oportunidades de alta plusvalia en desarrollos frente al mar, residencias en canales y condominios
-                  con amenidades premium.
+                  con distintas amenidades.
                 </p>
                 <a class="primary-button" href="/propiedades" data-i18n="seeMore">Ver mas</a>
               </div>
@@ -364,23 +359,12 @@
                   width="1200" height="800"
                 />
               </a>
+              <a class="type-tile" href="/propiedades/comerciales-cancun">
+                <span data-i18n="typeCommercial">Comercial</span>
+                <img src="/assets/type-apartments-cancun.jpg" alt="Inventario comercial" width="1200" height="800" loading="lazy" />
+              </a>
             </div>
 
-            <div class="presale-feature">
-              <div>
-                <h3 data-i18n="presaleTitle">Pre-ventas</h3>
-                <p data-i18n="presaleCopy">
-                  Conozca de la mano de nuestros expertos opciones en preventa, con informacion clara de entrega,
-                  plusvalia y esquema de pago.
-                </p>
-                <a class="primary-button" href="/preventas-cancun" data-i18n="seeMore">Ver mas</a>
-              </div>
-              <img
-                src="/assets/type-apartments-cancun.jpg"
-                alt="Departamento contemporáneo disponible en Cancún"
-                width="1200" height="800" loading="lazy"
-              />
-            </div>
           </div>
         </section>
 
@@ -506,6 +490,23 @@
               <input type="hidden" name="leadType" value="alerta-busqueda-comprador" />
               <p class="form-message" data-lead-message></p>
             </form>
+          </div>
+        </section>
+
+        <section class="presale-section home-only">
+          <div class="content-wrap">
+            <div class="presale-feature">
+              <div>
+                <h3 data-i18n="presaleTitle">Pre-ventas</h3>
+                <p data-i18n="presaleCopy">
+                  Conozca de la mano de nuestros expertos opciones en preventa, con informacion clara de entrega,
+                  plusvalia y esquema de pago.
+                </p>
+                <a class="primary-button" href="/preventas-cancun" data-i18n="seeMore">Ver mas</a>
+              </div>
+              <img src="/assets/type-apartments-cancun.jpg" alt="Departamento contemporáneo disponible en Cancún"
+                width="1200" height="800" loading="lazy" />
+            </div>
           </div>
         </section>
 
@@ -750,6 +751,8 @@
               <label><span>Consulta</span><input name="query" maxlength="600" placeholder="Ej. 2 recámaras hasta 700 mil USD" /></label>
               <label><span>Tipo</span><select name="propertyType"><option value="">Cualquiera</option><option>Casa</option><option>Departamento</option><option>Terreno</option><option>Comercial</option><option>Preventa</option></select></label>
               <label><span>Zona</span><select name="location" data-location-select="zone"><option value="">Cualquier zona</option></select></label>
+              <label><span>Operación</span><select name="operation"><option value="">Sin seleccionar</option><option value="sale">Venta</option><option value="rent">Renta</option></select></label>
+              <label><span>Periodo de renta</span><select name="rentPeriod"><option value="">Sin seleccionar</option><option value="month">Mensual</option><option value="day">Diario</option><option value="year">Anual</option></select></label>
               <label><span>Precio máximo</span><input name="maxPrice" type="number" min="0" step="1000" /></label>
               <label><span>Moneda</span><select name="currency"><option value="">Cualquiera</option><option>USD</option><option>MXN</option></select></label>
               <label class="check-field"><input name="alertsEnabled" type="checkbox" /><span>Recibir avisos en mi panel</span></label>
@@ -846,6 +849,10 @@
               </p>
             </div>
             <form id="sellerRequestForm" class="stacked-form">
+              <input type="hidden" name="contextLocations" />
+              <input type="hidden" name="contextType" />
+              <input type="hidden" name="contextZone" />
+              <p id="sellerContextSummary" class="form-message" role="status" hidden></p>
               <fieldset class="form-section">
                 <legend data-i18n="sellerContactTitle">Datos de contacto para esta solicitud</legend>
                 <div class="form-row">
@@ -874,12 +881,13 @@
                 <label>
                   <span data-i18n="propertyType">Tipo de propiedad</span>
                   <select name="type" required>
+                    <option value="">Selecciona el tipo de propiedad</option>
                     <option>Casa</option>
                     <option>Departamento</option>
                     <option>Terreno</option>
                     <option>Comercial</option>
-                    <option>Preventa</option>
-                    <option>Desarrollo</option>
+                    <option hidden>Preventa</option>
+                    <option hidden>Desarrollo</option>
                   </select>
                 </label>
               </div>
@@ -1004,7 +1012,7 @@
                 <div class="image-preview-grid"></div>
               </div>
               <p class="form-message" id="sellerFormMessage"></p>
-              <button class="primary-button" type="submit" data-i18n="sendRequest">Enviar solicitud</button>
+              <button class="primary-button" type="submit" id="sellerRequestSubmitButton" data-i18n="sendRequest">Enviar solicitud</button>
             </form>
           </article>
 
@@ -1153,14 +1161,15 @@
               <div class="admin-sidebar-subnav">
                 <button type="button" data-admin-section-link="pdf">Generar e historial</button>
               </div>
-              <button type="button" data-admin-section="analytics">
+              <button type="button" data-admin-section="statistics">
                 <i data-lucide="chart-column"></i>
-                <span data-i18n="adminJumpAnalytics">Analitica</span>
+                <span>Estadísticas</span>
               </button>
-              <button type="button" data-admin-section="data-quality">
-                <i data-lucide="list-checks"></i>
-                <span>Calidad de datos</span>
-              </button>
+              <div class="admin-sidebar-subnav">
+                <button type="button" data-admin-section-link="statistics">Inventario y precios</button>
+                <button type="button" data-admin-section-link="analytics">Demanda y actividad</button>
+                <button type="button" data-admin-section-link="data-quality">Calidad de datos</button>
+              </div>
               <button type="button" data-admin-section="integrations">
                 <i data-lucide="plug-zap"></i>
                 <span>Integraciones</span>
@@ -1198,6 +1207,14 @@
           </div>
         </section>
         <div class="stats-grid" id="statsGrid" data-admin-section-panel="dashboard"></div>
+        <section id="adminStatistics" class="pcc-statistics" data-admin-section-panel="statistics" aria-labelledby="adminStatisticsTitle" hidden>
+          <h2 id="adminStatisticsTitle">Estadísticas</h2>
+          <section id="adminOperationalStatsSection" aria-labelledby="adminOperationalStatsTitle">
+            <h3 id="adminOperationalStatsTitle">Demanda y operación</h3>
+            <div class="stats-grid" id="adminOperationalStats"></div>
+            <button class="ghost-button" type="button" data-admin-section-link="analytics"><i data-lucide="chart-no-axes-combined" aria-hidden="true"></i><span>Analítica por periodo y zona</span></button>
+          </section>
+        </section>
         <div class="admin-command-bar" data-admin-section-panel="dashboard">
           <div>
             <h2 data-i18n="adminWorkspaceTitle">Centro de control</h2>
@@ -1610,12 +1627,13 @@
             <select id="buyerUrgencyFilter"><option value="">Toda urgencia</option><option value="high">Alta</option><option value="medium">Media</option><option value="low">Baja</option></select>
           </div>
           <div class="wide-data-list" id="adminBuyers"></div>
+          <section class="demand-review"><h3>Demanda sin coincidencias</h3><p>Búsquedas guardadas de cuentas registradas, separadas de las visitas anónimas.</p><button type="button" class="ghost-button" id="reviewDemand"><i data-lucide="search" aria-hidden="true"></i>Consultar demanda actual</button><div id="demandReviewResults" aria-live="polite"></div></section>
         </article>
         <article class="panel-card admin-sellers-card" id="adminSellersCard" data-admin-section-panel="sellers">
           <div class="admin-module-heading">
             <div>
               <h2 data-i18n="sellerOpsTitle">Vendedores / Propietarios</h2>
-              <p data-i18n="sellerAudienceCopy">Ayudamos a definir precio competitivo, preparar la propiedad y conectar con compradores reales.</p>
+              <p data-i18n="sellerAudienceCopy">Ayudamos a definir precio competitivo, preparar la propiedad y conectar con compradores.</p>
             </div>
           </div>
           <div class="seller-readiness-legend">
@@ -2419,6 +2437,7 @@
             <form id="listingForm" class="stacked-form">
               <input type="hidden" name="id" />
               <input name="publicationSection" type="hidden" value="properties" />
+              <div class="form-actions"><button class="ghost-button" type="button" id="listingReturnButton"><i data-lucide="arrow-left" aria-hidden="true"></i><span>Volver al listado</span></button></div>
               <section class="listing-mode-intro" id="listingModeIntro" aria-live="polite">
                 <span class="eyebrow">PROPIEDAD INDIVIDUAL</span>
                 <h3>Nueva propiedad en venta o renta</h3>
@@ -2524,6 +2543,20 @@
                   </select>
                 </label>
               </div>
+              <details class="listing-commercial-classification" open>
+                <summary>Clasificación comercial y publicación</summary>
+                <div class="form-row">
+                  <label><span>Location comercial</span><select name="commercialLocationId"><option value="">Según subzona documentada / pendiente de revisar</option><option value="zona-hotelera">Zona Hotelera (ZH)</option><option value="puerto-cancun">Puerto Cancún</option><option value="cancun-city">Cancún City</option><option value="fuera-de-cancun">Fuera de Cancún</option></select></label>
+                  <label><span>Modalidad de venta</span><select name="salesModality"><option value="unclassified">Por clasificar</option><option value="presale">Preventa</option><option value="direct">Venta directa / entrega inmediata</option><option value="resale">Reventa</option></select></label>
+                  <label data-property-only><span>Periodo si es renta</span><select name="rentPeriod"><option value="unclassified">Por confirmar / no aplica</option><option value="month">Mensual</option><option value="day">Diario</option><option value="year">Anual</option></select></label>
+                </div>
+                <details class="location-classification-help"><summary>¿Qué incluye esta zona?</summary><ul><li><strong>Zona Hotelera (ZH):</strong> Zona Hotelera de Cancún, Costa Mujeres y Punta Sam.</li><li><strong>Puerto Cancún:</strong> únicamente Puerto Cancún.</li><li><strong>Cancún City:</strong> ciudad de Cancún, Huayacán, corredor Colosio y subzonas urbanas confirmadas.</li><li><strong>Fuera de Cancún:</strong> Tulum, Playa del Carmen, Mérida, Ciudad de México y otros destinos fuera de las anteriores.</li></ul><p>Esta agrupación no cambia la dirección, municipio ni coordenadas. Confirma en la fuente los casos ambiguos.</p></details>
+                <div class="form-row">
+                  <label data-property-only class="checkbox-label"><input type="checkbox" name="priceOnRequest" /><span>Precio a consultar (sin inventar un importe)</span></label>
+                  <label><span>Orden en destacadas</span><input name="homeOrder" type="number" min="0" max="9999" step="1" /><small>Menor número primero. Solo aparece si está destacada y publicada.</small></label>
+                  <label><span>Ubicación en la web pública</span><select name="publicLocationPrecision"><option value="approximate">Aproximada</option><option value="exact">Dirección y pin exactos</option><option value="hidden">No mostrar ubicación exacta ni pin</option></select></label>
+                </div>
+              </details>
               <label data-property-development-link>
                 <span>Desarrollo al que pertenece</span>
                 <select name="developmentId" id="listingDevelopmentSelect">
@@ -2724,6 +2757,11 @@
                 <span>Traducir título y descripción al inglés</span>
               </button>
               <p id="listingDraftStatus" class="draft-save-status" role="status" aria-live="polite"></p>
+              <section id="listingConflict" class="form-section" aria-labelledby="listingConflictTitle" hidden>
+                <h3 id="listingConflictTitle">Cambios en otra sesión</h3>
+                <div id="listingConflictContent" role="status"></div>
+                <div class="form-actions"><button class="ghost-button" type="button" id="compareListingConflict"><i data-lucide="columns-2" aria-hidden="true"></i>Comparar con la versión actual</button><button class="ghost-button" type="button" id="listingConflictHistory"><i data-lucide="history" aria-hidden="true"></i>Ver historial</button></div>
+              </section>
               <div class="form-actions listing-save-actions">
                 <button class="ghost-button mobile-draft-save" type="button" id="saveListingProgressMobile"><i data-lucide="save"></i> Guardar progreso</button>
                 <button class="primary-button" type="submit" id="listingSubmitButton" data-i18n="saveListing">Guardar publicacion</button>
@@ -3273,10 +3311,18 @@
           <label><input type="radio" name="visibility" id="listingPublishPrivate" value="private" checked /><span><strong>No, guardar en privado</strong><small>Solo el equipo podrá verla en el inventario.</small></span></label>
         </fieldset>
         <label class="checkbox-row"><input type="checkbox" id="listingPublishFeatured" /><span>Destacar cuando esté visible en la web</span></label>
-        <div class="form-actions"><button class="primary-button" value="save">Guardar</button><button class="ghost-button" value="cancel" autofocus>Volver al editor</button></div>
+        <div class="form-actions"><button class="primary-button" type="submit" value="save">Guardar</button><button class="ghost-button" type="submit" value="cancel" autofocus>Volver al editor</button></div>
       </form>
     </dialog>
     <dialog id="draftPreviewDialog" class="listing-publish-dialog" aria-labelledby="draftPreviewTitle"><h2 id="draftPreviewTitle">Vista previa del borrador</h2><div id="draftPreviewContent"></div><form method="dialog"><button class="ghost-button">Cerrar</button></form></dialog>
+    <script src="/inventory-contract.js?v=20261029.1"></script>
+    <script src="/csv-utils.js?v=20261029.1"></script>
+    <script src="/contact-config.js?v=20261029.1"></script>
+    <script src="/admin-inventory-ui.js?v=20261029.1"></script>
+    <script src="/comparison-ui.js?v=20261029.1"></script>
+    <script src="/catalog-map.js?v=20261029.1"></script>
+    <script src="/catalog-assistant.js?v=20261029.1"></script>
     <script src="/app.js?v=20260905.1"></script>
+    <script src="/catalog-ui.js?v=20261029.1"></script>
   </body>
 </html>

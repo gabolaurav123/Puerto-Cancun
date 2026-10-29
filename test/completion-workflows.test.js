@@ -2,6 +2,7 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const path = require("node:path");
+const vm = require("node:vm");
 const sharp = require("sharp");
 const {
   extractBrochureFields,
@@ -119,14 +120,47 @@ test("las integraciones tienen diagnóstico persistente sin exponer secretos", (
   assert.doesNotMatch(server.match(/function getIntegrationHealth\([\s\S]+?\n\}/)?.[0] || "", /OPENAI_API_KEY\s*:/);
 });
 
-test("el dashboard consolida estadísticas para no agotar el pool remoto", () => {
+test("el dashboard consolida estadísticas para no agotar el pool remoto", async () => {
   const server = source("server.js");
   const statsRoute = server.match(/app\.get\("\/api\/admin\/stats"[\s\S]+?\n\}\);/)?.[0] || "";
-  assert.match(statsRoute, /AS active_properties/);
+  const summaryColumns = server.match(/const PROPERTY_SUMMARY_COLUMNS = `[\s\S]+?`;/)?.[0];
+  const mediaPlaceholders = server.match(/function withPropertyMediaPlaceholders\([\s\S]+?\n\}/)?.[0];
+  assert.ok(statsRoute && summaryColumns && mediaPlaceholders);
   assert.match(statsRoute, /AS average_response_hours/);
-  assert.match(statsRoute, /AS image_count/);
+  assert.match(summaryColumns, /AS image_count/);
+  assert.match(statsRoute, /SELECT \$\{PROPERTY_SUMMARY_COLUMNS\} FROM properties p/);
   assert.doesNotMatch(statsRoute, /SELECT image, images,/);
+  assert.doesNotMatch(summaryColumns, /(?:^|,)\s*p\.(?:image|images)\s*(?:,|$)/m);
   assert.ok((statsRoute.match(/await Promise\.all/g) || []).length <= 1);
+  const inventoryContract = require("../inventory-contract");
+  for (const multiplier of [1, 40]) {
+    const base = { titleEs: "Casa de prueba", type: "Casa", operation: "sale", status: "active", zone: "Puerto Cancun", price: 100, currency: "USD", area: 120, image_count: 1, descriptionEs: "Descripcion documentada de una propiedad de prueba. ".repeat(3) };
+    const fixtures = [{}, { image_count: 0 }, { status: "disabled" }, { status: "draft" }, { status: "archived" }, { type: "Desarrollo", developmentData: { stage: "Construccion" } }, { type: "Desarrollo", status: "draft" }, { publicationSection: "typologies" }];
+    const rows = Array.from({ length: multiplier }, (_, batch) => fixtures.map((fields, index) => ({ ...base, ...fields, id: `${batch}-${index}` }))).flat();
+    let handler, result, inFlight = 0, maximum = 0, conversions = 0;
+    const queries = [];
+    vm.runInNewContext(`${summaryColumns}\n${mediaPlaceholders}\n${statsRoute}`, {
+      app: { get(route, _auth, callback) { assert.equal(route, "/api/admin/stats"); handler = callback; } },
+      requireRole: (role) => { assert.equal(role, "admin"); return "authenticated-admin"; },
+      inventoryContract, toProperty: (row) => { conversions++; return row; },
+      query: async (sql) => {
+        queries.push(sql); inFlight++; maximum = Math.max(maximum, inFlight);
+        await Promise.resolve(); inFlight--;
+        return queries.length === 1 ? { rows: [{ pending_requests: 3 }] } : { rows };
+      },
+    });
+    await handler({}, { json: (value) => { result = value; } }, (error) => { throw error; });
+    assert.equal(queries.length, 2, "Two bounded queries regardless of inventory size; no N+1");
+    assert.equal(maximum, 1, "Summary and inventory do not compete for pool connections");
+    assert.ok(queries.every((sql) => /^\s*SELECT\b/.test(sql)), "Read-only queries");
+    assert.equal(conversions, rows.length, "Every row uses the production property adapter");
+    assert.equal(result.properties, 3 * multiplier, "Units exclude drafts, archives, developments and typologies");
+    assert.equal(result.activeProperties, 2 * multiplier, "Only active units count as active properties");
+    assert.equal(result.incompleteProperties, multiplier, "Completeness comes from the shared contract");
+    assert.equal(result.developments, multiplier);
+    assert.equal(result.pendingRequests, 3);
+    assert.equal(result.inventory.pendingRecords.length, multiplier);
+  }
 });
 
 test("el CRM distingue datos confirmados, inferencias y actividad real", () => {

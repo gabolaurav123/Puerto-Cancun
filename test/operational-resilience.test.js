@@ -123,15 +123,17 @@ test("el despliegue expone versión, readiness y recursos con huella", () => {
   assert.match(server, /installShutdownHandlers\(server\)/);
   assert.match(workflow, /npm run verify/);
   assert.match(workflow, /SEENODE_DEPLOY_HOOK_URL/);
-  assert.match(workflow, /\/api\/version/);
+  assert.match(workflow, /node scripts\/deploy-smoke\.js/);
+  assert.match(workflow, /EXPECTED_ASSET_VERSION: \$\{\{ steps\.expected\.outputs\.assetVersion \}\}/);
+  assert.match(read("scripts/deploy-smoke.js"), /read\("api\/version"\)/);
 });
 
 test("el administrador tiene auditoría y un criterio único de propiedades incompletas", () => {
   const server = read("server.js");
   const app = read("app.js");
   assert.match(server, /app\.get\("\/api\/admin\/activity"/);
-  assert.match(server, /incompleteProperties\.rows\.filter\(\(property\) => propertyQuality\(property\)\.score < 70\)/);
-  assert.match(app, /filters\.quality === "incomplete" && \(property\.qualityScore \|\| 0\) >= 70/);
+  assert.match(server, /unitItems\.filter\(\(property\) => !inventoryContract\.quality\(property\)\.complete\)/);
+  assert.match(app, /PccAdminInventory\.filterListings\(inventory, filters/);
   assert.match(app, /data-admin-metric/);
 });
 

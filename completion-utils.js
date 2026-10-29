@@ -53,20 +53,10 @@ function extractBrochureFields(text) {
 }
 
 function publicationReadiness(property = {}) {
-  const images = Array.isArray(property.images) ? property.images.filter(Boolean) : [];
-  const blocking = [];
-  const improvements = [];
-  if (!cleanText(property.titleEs || property.title_es, 200)) blocking.push("Título en español");
-  if (!cleanText(property.descriptionEs || property.description_es, 1000)) blocking.push("Descripción en español");
-  if (!cleanText(property.zone, 120)) blocking.push("Zona");
-  if (!Number(property.price || property.price_amount || property.price_usd || property.price_mxn)) blocking.push("Precio");
-  if (!images.length && !property.image) blocking.push("Imagen de portada");
-  if (!property.latitude || !property.longitude) improvements.push("Ubicación precisa");
-  if (images.length < 5) improvements.push("Mínimo recomendado de 5 fotografías");
-  if (cleanText(property.descriptionEs || property.description_es).length < 220) improvements.push("Descripción comercial más completa");
-  if (!Array.isArray(property.amenities) || !property.amenities.length) improvements.push("Amenidades");
-  const score = Math.max(0, Math.min(100, 100 - blocking.length * 20 - improvements.length * 6));
-  return { score, publishable: blocking.length === 0, blocking, improvements };
+  const quality = require("./inventory-contract").quality(property);
+  const improvements = quality.issues.map((issue) => issue.reason);
+  if ((property.images || []).filter(Boolean).length < 5) improvements.push("Añadir más fotografías cuando estén disponibles (recomendado, no obligatorio)");
+  return { score: quality.score, publishable: quality.complete, blocking: quality.missing, improvements, version: quality.version };
 }
 
 async function analyzeImageBuffer(buffer, context = {}) {

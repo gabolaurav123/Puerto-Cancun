@@ -29,6 +29,7 @@ function inventoryRuntime(section = 'developments') {
     escapeHtml: value => String(value ?? ''), t: key => key, displayType: value => value,
     propertyStatusLabel: value => value, formatPriceSummary: () => '', displayLocation: p => p.zone,
     qualityLevelLabel: () => '', truncateText: text => text, canManageListings: () => true,
+    mountAdminInventory() {},
     refreshIcons() { iconRefreshes.push(nodes.get('#adminListings').innerHTML); },
   });
   const ids = () => [...nodes.get('#adminListings').innerHTML.matchAll(/data-edit-listing="([^"]+)"/g)].map(match => match[1]);

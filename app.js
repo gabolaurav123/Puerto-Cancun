@@ -75,7 +75,7 @@ const translations = {
     heroKicker: "Propiedades de lujo en Cancún",
     heroTitle: "Compra o vende tu propiedad en Cancún",
     heroSubtitle:
-      "Te ayudamos a validar precios, preparar tu propiedad, encontrar compradores reales y tomar mejores decisiones inmobiliarias en Cancún.",
+      "Te ayudamos a validar precios, preparar tu propiedad y encontrar compradores.\nTe acompañamos para tomar mejores decisiones inmobiliarias.",
     heroSellCta: "Quiero vender mi propiedad",
     sellerOptionsEyebrow: "ELIGE CÓMO EMPEZAR",
     sellerOptionsTitle: "¿Cómo quieres vender tu propiedad?",
@@ -129,7 +129,7 @@ const translations = {
     validateWithAdvisor: "Validar con asesor local",
     sellerAudienceTitle: "Para propietarios que quieren vender mejor",
     sellerAudienceCopy:
-      "Te ayudamos a definir un precio competitivo, preparar tu propiedad, crear una estrategia de difusión y negociar con compradores reales.",
+      "Te ayudamos a definir un precio competitivo, preparar tu propiedad, crear una estrategia de difusión y negociar con compradores.",
     buyerAudienceTitle: "Para compradores que buscan elegir bien",
     buyerAudienceCopy:
       "Te ayudamos a encontrar propiedades según tu presupuesto, zona, estilo de vida y objetivo de inversión.",
@@ -142,7 +142,7 @@ const translations = {
     resourceValuation: "Valoración inmobiliaria",
     resourceFaq: "Preguntas frecuentes",
     resourceZones: "Zonas de Cancún",
-    featuredZones: "Zonas destacadas",
+    featuredZones: "Locations",
     allZones: "Todas las zonas",
     zonePresales: "Preventas | Presales",
     welcomeTitle: "Bienvenido a Puerto Cancún Center!",
@@ -150,7 +150,7 @@ const translations = {
       "Con años de experiencia en el ramo inmobiliario de lujo en Cancún, Puerto Cancún y la Zona Hotelera, Puerto Cancún Center representa propiedades seleccionadas con inventario actualizado, asesoría profesional y seguimiento cercano para compradores, vendedores e inversionistas.",
     featuredProperties: "Propiedades destacadas",
     featuredCopy:
-      "Oportunidades de alta plusvalía en desarrollos frente al mar, residencias en canales y condominios con amenidades premium.",
+      "Explora desarrollos frente al mar, residencias en canales y condominios con distintas amenidades.",
     seeMore: "Ver más",
     searchByType: "Busca por tipo",
     presaleTitle: "Pre-ventas",
@@ -654,7 +654,7 @@ const translations = {
     heroKicker: "Luxury properties in Cancun",
     heroTitle: "Buy or sell your Cancun property",
     heroSubtitle:
-      "We help you validate pricing, prepare your property, find real buyers, and make better real estate decisions in Cancun.",
+      "We help you validate prices, prepare your property and find buyers.\nWe guide you toward better real estate decisions.",
     heroSellCta: "I want to sell my property",
     sellerOptionsEyebrow: "CHOOSE HOW TO START",
     sellerOptionsTitle: "How would you like to sell your property?",
@@ -708,7 +708,7 @@ const translations = {
     validateWithAdvisor: "Validate with local advisor",
     sellerAudienceTitle: "For owners who want to sell better",
     sellerAudienceCopy:
-      "We help define a competitive price, prepare your property, create a marketing strategy, and negotiate with real buyers.",
+      "We help define a competitive price, prepare your property, create a marketing strategy, and negotiate with buyers.",
     buyerAudienceTitle: "For buyers who want to choose well",
     buyerAudienceCopy: "We help find properties by budget, area, lifestyle, and investment objective.",
     valuationRequest: "Request valuation",
@@ -720,7 +720,7 @@ const translations = {
     resourceValuation: "Property valuation",
     resourceFaq: "Frequently asked questions",
     resourceZones: "Cancun areas",
-    featuredZones: "Featured areas",
+    featuredZones: "Locations",
     allZones: "All areas",
     zonePresales: "Presales",
     welcomeTitle: "Welcome to Puerto Cancun Center!",
@@ -728,7 +728,7 @@ const translations = {
       "With years of experience in luxury real estate across Cancun, Puerto Cancun, and the Hotel Zone, Puerto Cancun Center represents selected properties with updated inventory, professional guidance, and close follow-up for buyers, sellers, and investors.",
     featuredProperties: "Featured properties",
     featuredCopy:
-      "High-value opportunities in oceanfront developments, canal residences, and condos with premium amenities.",
+      "Explore oceanfront developments, canal residences, and condos with a variety of amenities.",
     seeMore: "See more",
     searchByType: "Search by type",
     presaleTitle: "Presales",
@@ -1206,7 +1206,7 @@ const translations = {
 
 const storedLanguage = localStorage.getItem(keys.lang);
 const urlLanguage = window.location.pathname === "/en" || window.location.pathname.startsWith("/en/") ? "en" : "";
-const initialLanguage = urlLanguage || storedLanguage || document.body.dataset.lang || "es";
+const initialLanguage = urlLanguage || (window.location.pathname === "/panel" ? storedLanguage : "") || document.body.dataset.lang || "es";
 
 const state = {
   lang: initialLanguage,
@@ -1311,7 +1311,7 @@ const state = {
   },
   detailPropertyId: null,
   favorites: safeParseStoredIds(keys.favorites),
-  compare: safeParseStoredIds(keys.compare).slice(0, 3),
+  compare: safeParseStoredIds(keys.compare).slice(0, 4),
   guided: { budget: 0, beds: 0 },
   brochureImport: null,
   imageAnalysis: null,
@@ -2633,11 +2633,15 @@ function displayType(type) {
   return map[type] || type;
 }
 
-function formatCurrencyLine(code, amount, operation = "sale") {
-  if (amount === null || amount === undefined || amount === "") return "";
+function formatCurrencyLine(code, amount, operation = null, period = "unclassified") {
+  if (!["USD", "MXN"].includes(code) || !["number", "string"].includes(typeof amount) || !Number.isFinite(Number(amount)) || Number(amount) <= 0) return "";
   const locale = state.lang === "en" ? "en-US" : "es-MX";
-  const formatted = new Intl.NumberFormat(locale, { maximumFractionDigits: 0 }).format(Number(amount || 0));
-  return `${code} ${formatted}${operation === "rent" ? t("perMonth") : ""}`;
+  const formatted = new Intl.NumberFormat(locale, { maximumFractionDigits: 0 }).format(Number(amount));
+  const periods = state.lang === "en"
+    ? { month: " / month", day: " / day", year: " / year" }
+    : { month: " / mes", day: " / día", year: " / año" };
+  const suffix = operation === "rent" ? periods[period] || (state.lang === "en" ? " / period to be confirmed" : " / periodo por confirmar") : "";
+  return `${code} ${formatted}${suffix}`;
 }
 
 function propertyPriceUnitLabel(property) {
@@ -2646,19 +2650,24 @@ function propertyPriceUnitLabel(property) {
 }
 
 function localizedPropertyPrice(property) {
-  const currency = property.currency || (property.priceUsd !== null && property.priceUsd !== undefined ? "USD" : "MXN");
-  const amount = property.price ?? (currency === "USD" ? property.priceUsd : property.priceMxn);
-  return amount !== null && amount !== undefined && amount !== "" ? [currency, Number(amount)] : null;
+  const price = window.PccInventory?.priceOf(property);
+  return price && price.amount !== null && ["USD", "MXN"].includes(price.currency) && ["total", "sqm"].includes(price.basis)
+    ? [price.currency, price.amount]
+    : null;
 }
 
 function formatPriceLines(property) {
   const selected = localizedPropertyPrice(property);
-  return selected ? [`${formatCurrencyLine(selected[0], selected[1], property.operation)}${propertyPriceUnitLabel(property)}`] : [];
+  if (!selected) return [];
+  const price = window.PccInventory.priceOf(property);
+  return [`${formatCurrencyLine(selected[0], selected[1], price.operation, price.period)}${propertyPriceUnitLabel({ priceUnit: price.basis })}`];
 }
 
 function formatPriceSummary(property) {
   const lines = formatPriceLines(property);
-  return lines.length ? lines.join(" / ") : "Precio por confirmar";
+  if (lines.length) return lines.join(" / ");
+  const onRequest = (property.catalogData || property.catalog_data)?.priceOnRequest === true;
+  return state.lang === "en" ? onRequest ? "Price on request" : "Price to be confirmed" : onRequest ? "Consultar precio" : "Precio por confirmar";
 }
 
 function selectedPrice(property) {
@@ -2821,7 +2830,7 @@ function categoryIntro() {
   }
   if (state.filters.featured) {
     return state.lang === "en"
-      ? "Selected opportunities from the current inventory with premium location, views, or standout value."
+      ? "Selected listings from the current inventory. Review each property's location, views and details."
       : "Oportunidades seleccionadas del inventario actual por ubicacion, vistas o valor destacado.";
   }
   return "";
@@ -2840,43 +2849,29 @@ function renderCategoryPage() {
   section.hidden = false;
 }
 
-function propertyMatches(property) {
-  if (property.isPublic === false || !["active", "featured", undefined, null, ""].includes(property.status)) return false;
-  const filters = state.filters;
-  if (
-    property.publicationSection === "developments"
-    && filters.type !== "Desarrollo"
-    && !state.intelligentSearch.active
-    && !filters.text
-  ) return false;
-  if (filters.type && property.type !== filters.type) return false;
-  if (filters.zone && property.zone !== filters.zone) return false;
-  if (filters.operation && property.operation !== filters.operation) return false;
-  if (filters.featured && !property.featured) return false;
-  if (state.intelligentSearch.active && !state.intelligentSearch.ids.includes(property.id)) return false;
-  if (state.guided.budget && comparablePrice(property) > Number(state.guided.budget)) return false;
-  if (state.guided.beds && Number(property.beds || 0) < Number(state.guided.beds)) return false;
-  if (filters.text) {
-    const haystack = [
-      localizedTitle(property),
-      localizedDescription(property),
-      property.state,
-      property.city,
-      property.zone,
-      property.neighborhood,
-      property.address,
-      property.mapPlace,
-      property.type,
-      property.mls,
-      property.parentDevelopment?.nameEs,
-      property.parentDevelopment?.nameEn,
-      property.parentDevelopment?.developer,
-      ...(Array.isArray(property.keywords) ? property.keywords : []),
-    ]
-      .join(" ")
-      .toLowerCase();
-    if (!haystack.includes(filters.text.toLowerCase())) return false;
+function propertyMatches(property, parsed = null, guided = null) {
+  const contract = window.PccInventory;
+  if (!contract) return false;
+  if (!parsed) {
+    const filters = state.filters;
+    const location = !filters.location && !filters.locations?.length ? contract.locationId(filters.zone) : "";
+    parsed = contract.parseQuery({
+      ...filters, entity: filters.entity || (filters.type === "Desarrollo" ? "developments" : "properties"),
+      ...(location ? { location, zone: "" } : {}),
+    });
   }
+  if (!guided) {
+    const budget = state.guided.budget;
+    const hasBudget = budget !== undefined && budget !== null && budget !== "" && budget !== 0;
+    guided = contract.parseQuery({
+      entity: parsed.query.entity, operation: hasBudget ? parsed.query.operation : "",
+      currency: hasBudget ? "USD" : "", max: hasBudget ? budget : null,
+      priceBasis: parsed.query.priceBasis, priceBasisExplicit: parsed.query.priceBasisExplicit,
+      rentPeriod: hasBudget ? parsed.query.rentPeriod : "", beds: state.guided.beds === 0 ? null : state.guided.beds,
+    });
+  }
+  if (parsed.errors.length || guided.errors.length || !contract.matches(property, parsed.query) || !contract.matches(property, guided.query)) return false;
+  if (state.intelligentSearch.active && !state.intelligentSearch.ids.includes(property.id)) return false;
   return true;
 }
 
@@ -2897,18 +2892,14 @@ function updateHomeEditorialImages() {
     [".type-grid .type-tile:nth-child(1)", (property) => property.type === "Casa"],
     [".type-grid .type-tile:nth-child(2)", (property) => property.type === "Departamento"],
     [".type-grid .type-tile:nth-child(3)", (property) => property.type === "Terreno"],
-    [".zone-grid .zone-card:nth-child(1)", (property) => /puerto canc[uú]n/i.test(property.zone || "")],
-    [".zone-grid .zone-card:nth-child(2)", (property) => /zona hotelera/i.test(property.zone || "")],
-    [".zone-grid .zone-card:nth-child(3)", (property) => property.type === "Preventa" || property.publicationSection === "developments"],
+    [".type-grid .type-tile:nth-child(4)", (property) => property.type === "Comercial"],
+    ...["zona-hotelera", "puerto-cancun", "cancun-city", "fuera-de-cancun"].map((id, index) => [`.zone-grid .zone-card:nth-child(${index + 1})`, (property) => window.PccInventory?.resolveLocation(property).id === id]),
   ];
   assignments.forEach(([selector, matches]) => {
     const image = document.querySelector(`${selector} img`);
     const property = candidates.find((candidate) => {
       const source = primaryImage(candidate);
       return matches(candidate) && !usedProperties.has(candidate.id) && !usedImages.has(source);
-    }) || candidates.find((candidate) => {
-      const source = primaryImage(candidate);
-      return !usedProperties.has(candidate.id) && !usedImages.has(source);
     });
     if (!image || !property) return;
     const source = primaryImage(property);
@@ -2953,8 +2944,35 @@ function renderProperties() {
   syncFilterControls();
   updateActiveFilterSummary();
   renderCategoryPage();
-  const properties = sortedProperties(state.properties.filter(propertyMatches));
   const isHome = document.body.dataset.page === "home";
+  const contract = window.PccInventory;
+  if (!contract) {
+    grid.innerHTML = `<p class="inventory-status" role="alert">${state.lang === "en" ? "Inventory search is unavailable. Reload the page to retry." : "La búsqueda de inventario no está disponible. Recarga la página para reintentar."}</p>`;
+    $("#resultCount").textContent = "";
+    if ($("#homeCatalogCta")) $("#homeCatalogCta").hidden = true;
+    return;
+  }
+  const filters = state.filters;
+  const location = !filters.location && !filters.locations?.length ? contract.locationId(filters.zone) : "";
+  const selectedSort = $("#sortSelect")?.value || filters.sort || "high";
+  const parsed = contract.parseQuery({
+    ...filters, entity: filters.entity || (filters.type === "Desarrollo" ? "developments" : "properties"),
+    ...(location ? { location, zone: "" } : {}),
+    sort: ({ high: "price-desc", low: "price-asc", new: "recent" })[selectedSort] || selectedSort,
+  });
+  const budget = state.guided.budget;
+  const hasBudget = budget !== undefined && budget !== null && budget !== "" && budget !== 0;
+  const guided = contract.parseQuery({
+    entity: parsed.query.entity, operation: hasBudget ? parsed.query.operation : "",
+    currency: hasBudget ? "USD" : "", max: hasBudget ? budget : null,
+    priceBasis: parsed.query.priceBasis, priceBasisExplicit: parsed.query.priceBasisExplicit,
+    rentPeriod: hasBudget ? parsed.query.rentPeriod : "", beds: state.guided.beds === 0 ? null : state.guided.beds,
+  });
+  const errors = [...new Set([...parsed.errors, ...guided.errors])];
+  const properties = errors.length ? [] : contract.queryInventory(
+    state.properties.filter((property) => propertyMatches(property, parsed, guided) && (!isHome || property.featured)), parsed.query
+  ).all;
+  if (isHome) properties.sort((a, b) => (a.catalogData?.homeOrder ?? 9999) - (b.catalogData?.homeOrder ?? 9999));
   const displayedProperties = isHome ? properties.slice(0, 6) : properties;
   const guidedSearch = $("#guidedSearchForm");
   const propertyToolbar = $(".properties-section .property-toolbar");
@@ -2966,7 +2984,7 @@ function renderProperties() {
   const propertiesTitle = $("#propertiesTitle");
   const catalogCta = $("#homeCatalogCta");
   if (propertiesTitle) propertiesTitle.textContent = isHome
-    ? state.lang === "en" ? "Selected properties" : "Propiedades seleccionadas"
+    ? state.lang === "en" ? "Featured properties" : "Propiedades destacadas"
     : t("allProperties");
   $("#resultCount").textContent = isHome && properties.length > displayedProperties.length
     ? `${displayedProperties.length} ${state.lang === "en" ? "of" : "de"} ${properties.length} ${t("resultText")}`
@@ -2982,6 +3000,13 @@ function renderProperties() {
   }
 
   if (renderPublicInventoryStatus(grid)) return;
+  if (errors.length) {
+    grid.innerHTML = `<p class="inventory-status" role="alert">${escapeHtml(errors.join(". "))}</p>`;
+    $("#resultCount").textContent = "";
+    if (catalogCta) catalogCta.hidden = true;
+    refreshIcons();
+    return;
+  }
   if (!properties.length) {
     grid.innerHTML = `<p class="empty-state">${escapeHtml(t("noResults"))}</p>`;
     refreshIcons();
@@ -2990,7 +3015,8 @@ function renderProperties() {
 
   grid.innerHTML = displayedProperties
     .map((property) => {
-      const badges = [...(property.badges || [])];
+      const createdDays = (Date.now() - Date.parse(property.createdAt)) / 86400000;
+      const badges = [...(property.badges || [])].filter((badge) => !["premium", "verified"].includes(badge) && (badge !== "new" || (createdDays >= 0 && createdDays <= 30)));
       if (property.operation === "rent") badges.unshift("rent");
       const badgeHtml = badges
         .map((badge) => {
@@ -3024,7 +3050,7 @@ function renderProperties() {
             <div class="badge-row">${badgeHtml}</div>
             <div class="property-save-actions">
               <button class="${isFavorite ? "active" : ""}" type="button" data-favorite="${escapeHtml(property.id)}" title="${escapeHtml(favoriteLabel)}" aria-label="${escapeHtml(favoriteLabel)}"><i data-lucide="heart"></i></button>
-              <button class="${isCompared ? "active" : ""}" type="button" data-compare="${escapeHtml(property.id)}" title="${escapeHtml(compareLabel)}" aria-label="${escapeHtml(compareLabel)}"><i data-lucide="git-compare-arrows"></i></button>
+              <button class="${isCompared ? "active" : ""}" type="button" data-compare-id="${escapeHtml(property.id)}" title="${escapeHtml(compareLabel)}" aria-label="${escapeHtml(compareLabel)}"><i data-lucide="git-compare-arrows"></i></button>
             </div>
           </div>
           <div class="property-body">
@@ -3082,11 +3108,12 @@ async function toggleFavorite(id) {
 }
 
 function toggleCompare(id) {
+  if (window.pccComparison) { window.pccComparison.toggle(id); return; }
   if (state.compare.includes(id)) {
     state.compare = state.compare.filter((item) => item !== id);
   } else {
-    if (state.compare.length >= 3) {
-      showToast("Puedes comparar hasta tres propiedades.", "error");
+    if (state.compare.length >= 4) {
+      showToast("Puedes comparar hasta cuatro propiedades.", "error");
       return;
     }
     state.compare.push(id);
@@ -3097,6 +3124,12 @@ function toggleCompare(id) {
 
 function renderCompareTray() {
   const tray = $("#compareTray");
+  if (window.pccComparison) {
+    if (tray) tray.hidden = true;
+    window.pccComparison.syncControls();
+    window.pccComparison.refreshFavorites();
+    return;
+  }
   if (!tray) return;
   const properties = state.compare
     .map((id) => state.properties.find((property) => property.id === id))
@@ -3117,6 +3150,7 @@ function renderCompareTray() {
 }
 
 function openCompareModal() {
+  if (window.pccComparison) { window.pccComparison.open(); return; }
   const properties = state.compare
     .map((id) => state.properties.find((property) => property.id === id))
     .filter(Boolean);
@@ -3509,6 +3543,8 @@ async function savedSearchSubmit(event) {
   const filters = {
     propertyType: values.propertyType || "",
     location: values.location || "",
+    operation: values.operation || "",
+    rentPeriod: values.rentPeriod || "",
     maxPrice: Number(values.maxPrice || 0) || null,
     currency: values.currency || "",
   };
@@ -3543,6 +3579,7 @@ async function savedSearchSubmit(event) {
 async function runSavedSearch(id) {
   try {
     const data = await api(`/api/seller/saved-searches/${encodeURIComponent(id)}/run`, { method: "POST", body: { createAlerts: true } });
+    if (data.url) { window.location.assign(localizedRoute(data.url)); return; }
     state.intelligentSearch = { active: true, ids: (data.matches || []).map((property) => property.id), interpreted: null, exactMatch: true, message: "" };
     const search = state.savedSearches.find((item) => item.id === id);
     if (search) search.lastRunAt = new Date().toISOString();
@@ -3638,8 +3675,74 @@ function closeTourRequest() {
   document.body.classList.remove("modal-open");
 }
 
+function parseSellerContext(search = window.location.search, pathname = window.location.pathname) {
+  const params = new URLSearchParams(search);
+  if (params.get("intent") !== "sell" && !["/vender-casa-cancun", "/en/sell-property-cancun"].includes(pathname.replace(/\/$/, ""))) return null;
+  const contract = window.PccInventory;
+  const locations = [...new Set(params.getAll("location").flatMap((value) => value.split(",")).map((value) => contract?.locationId(value)).filter(Boolean))];
+  const type = contract?.TYPES.includes(params.get("type")) ? params.get("type") : "";
+  return { locations, type, zone: String(params.get("zone") || "").replace(/[\x00-\x1f\x7f]/g, "").trim().slice(0, 160) };
+}
+
+function rememberSellerContext(force = false) {
+  const key = "pcc.seller-context.v1";
+  let saved = state.sellerIntentContext || null;
+  try { saved ||= JSON.parse(sessionStorage.getItem(key) || "null"); } catch { /* URL and memory remain available without storage. */ }
+  if (saved && (!Number.isFinite(saved.savedAt) || Date.now() - saved.savedAt > 86400000 || saved.savedAt > Date.now() || (saved.userId && state.session?.id && saved.userId !== state.session.id))) saved = null;
+  const fromUrl = parseSellerContext();
+  const context = fromUrl || saved || (force ? { locations: [], type: "", zone: "" } : null);
+  if (!context) return null;
+  // Revalidate persisted public criteria; never restore an arbitrary redirect or geography.
+  const params = new URLSearchParams({ intent: "sell", location: Array.isArray(context.locations) ? context.locations.join(",") : "", type: context.type || "", zone: context.zone || "" });
+  const normalized = { ...parseSellerContext(params.toString(), "/panel"), savedAt: fromUrl || !saved ? Date.now() : saved.savedAt, userId: state.session?.role === "seller" ? state.session.id : context.userId || "" };
+  state.sellerIntentContext = normalized;
+  try { sessionStorage.setItem(key, JSON.stringify(normalized)); } catch { /* Only non-sensitive public criteria are carried in the URL. */ }
+  return normalized;
+}
+
+function sellerPanelUrl(user = state.session) {
+  if (user?.role !== "seller") return "/panel";
+  const context = rememberSellerContext();
+  if (!context) return "/panel";
+  const params = new URLSearchParams({ intent: "sell" });
+  if (context.locations.length) params.set("location", context.locations.join(","));
+  if (context.type) params.set("type", context.type);
+  if (context.zone) params.set("zone", context.zone);
+  return `/panel?${params}`;
+}
+
+async function openSellerAccess(tab = "register") {
+  rememberSellerContext(true);
+  if (!state.session) { openAuth(tab); return; }
+  await showPanel();
+  if (state.session?.role === "seller") setSellerSection("sale");
+}
+
+function applySellerContext(form) {
+  const context = rememberSellerContext();
+  const summary = $("#sellerContextSummary");
+  const locationsField = formField(form, "contextLocations");
+  if (!locationsField) return;
+  const hasDraftContext = Boolean(locationsField.value || formField(form, "contextType")?.value || formField(form, "contextZone")?.value);
+  if (context && !hasDraftContext) {
+    locationsField.value = context.locations.join(",");
+    formField(form, "contextType").value = context.type;
+    formField(form, "contextZone").value = context.zone;
+    const type = formField(form, "type");
+    if (type && !type.value && form.dataset.dirty !== "true") type.value = context.type;
+  }
+  const labels = locationsField.value.split(",").map((id) => window.PccInventory?.LOCATIONS.find((item) => item.id === id)?.name).filter(Boolean);
+  const details = [...labels, formField(form, "contextType")?.value, formField(form, "contextZone")?.value].filter(Boolean);
+  if (summary) {
+    summary.hidden = !details.length;
+    summary.textContent = details.length ? `${state.lang === "en" ? "Original inquiry" : "Consulta de origen"}: ${details.join(" · ")}. ${state.lang === "en" ? "Commercial reference only. Confirm the property's actual address below; existing draft details are retained." : "Referencia comercial. Confirma abajo la ubicación física del inmueble; se conservan los datos del borrador existente."}` : "";
+  }
+  if (context && !hasDraftContext && details.length) saveSellerDraft();
+}
+
 function openSellerOptions(event) {
   event?.preventDefault?.();
+  rememberSellerContext(true);
   const modal = $("#sellerOptionsModal");
   if (!modal) return;
   modal.hidden = false;
@@ -3745,6 +3848,7 @@ async function guestSaleSubmit(event) {
 
 async function openDetailedSale() {
   closeSellerOptions();
+  rememberSellerContext(true);
   if (state.session?.role === "seller") {
     await showPanel();
     setSellerSection("sale");
@@ -4368,27 +4472,43 @@ async function openContactIntelligence(id) {
   }
 }
 
+function mountAdminInventory() {
+  if (typeof window === "undefined") return;
+  window.PccAdminInventory?.mount(state, { openListing: editListing, focusListing: focusAdminListing,
+    setSection: setAdminSection, renderListings: renderAdminListings, refreshIcons, canManageListings });
+}
+
 function renderStats() {
-  const english = state.lang === "en";
-  const stats = [
-    [state.stats.properties, t("statProperties"), "properties"],
-    [state.stats.activeProperties || 0, t("statusActive"), "active-properties"],
-    [state.stats.incompleteProperties || 0, t("qualityIncomplete"), "incomplete-properties"],
-    [state.stats.pendingRequests, t("statRequests"), "pending-requests"],
-    [state.stats.newLeads || 0, t("statLeads"), "new-leads"],
-    [state.stats.premiumLeads || 0, t("leadScorePremium"), "premium-leads"],
-    [state.stats.valuationLeads || 0, t("adminJumpValuations"), "valuations"],
-    [state.stats.pendingTasks || 0, t("adminJumpTasks"), "tasks"],
-    [state.stats.contacts || 0, t("crmTitle"), "contacts"],
-    [state.stats.searches, t("statSearches"), "analytics"],
-    [state.stats.propertiesWithoutCover || 0, english ? "Missing cover" : "Sin portada", "properties-without-cover"],
-    [state.stats.averageResponseHours ? `${state.stats.averageResponseHours} h` : english ? "N/A" : "N/D", english ? "Average response" : "Respuesta promedio", "leads"],
-    [state.stats.generatedDocuments || 0, english ? "PDF sheets" : "Fichas PDF", "pdf"],
-    [state.stats.whatsappClicks || 0, english ? "WhatsApp clicks" : "Clicks WhatsApp", "analytics"],
-  ];
-  $("#statsGrid").innerHTML = stats
-    .map(([value, label, target]) => `<button class="stat-card" type="button" data-admin-metric="${escapeHtml(target)}" aria-label="${escapeHtml(`${label}: ${value}. ${english ? "Open details" : "Abrir detalle"}`)}"><strong>${value}</strong><span>${escapeHtml(label)}</span><small>${english ? "View details" : "Ver detalle"}</small></button>`)
-    .join("");
+  const records = typeof window !== "undefined" && window.PccAdminInventory
+    ? window.PccAdminInventory.snapshot(state.properties).records : null;
+  const stats = ["properties", "developments"].flatMap((entity) => {
+    const rows = records?.filter((record) => record.entity === entity);
+    const label = entity === "properties" ? "Propiedades" : "Desarrollos";
+    return [
+      [rows?.length, label, entity, "IDs cargados; todos los estados"],
+      [rows?.filter((record) => record.status === "active").length, `${label}: activos`, `active-${entity}`, "Estado activo; no equivale a visible en web"],
+      [rows?.filter((record) => !record.quality.complete).length, `${label}: incompletos`, `incomplete-${entity}`, "Faltantes editoriales; todos los estados"],
+      [rows?.filter((record) => record.quality.missingFields.some((field) => field.field === "images")).length, `${label}: sin portada`, `${entity}-without-cover`, "Portada ausente; todos los estados"],
+    ];
+  });
+  const metricMarkup = ([value, label, target, scope]) => {
+    const shown = value === null || value === undefined ? "Sin datos" : value;
+    return `<button class="stat-card" type="button" data-admin-metric="${escapeHtml(target)}" aria-label="${escapeHtml(`${label}: ${shown}. ${scope}. Abrir detalle`)}"><strong>${escapeHtml(shown)}</strong><span>${escapeHtml(label)}</span><small>${escapeHtml(scope)}</small></button>`;
+  };
+  const grid = $("#statsGrid");
+  if (grid) grid.innerHTML = stats.map(metricMarkup).join("");
+  const operations = $("#adminOperationalStats");
+  if (operations) operations.innerHTML = [
+    [state.stats.pendingRequests, "Solicitudes pendientes", "pending-requests", "Estado pendiente; sin filtro temporal"],
+    [state.stats.newLeads, "Leads nuevos", "new-leads", "Estado nuevo; sin filtro temporal"],
+    [state.stats.valuationLeads, "Valoraciones abiertas", "valuations", "Nuevas, contactadas o en revisión"],
+    [state.stats.pendingTasks, "Tareas abiertas", "tasks", "Pendientes o en progreso"],
+    [state.stats.contacts, "Contactos", "contacts", "Total de registros; no ventas confirmadas"],
+    [state.stats.searches, "Búsquedas", "analytics", "Contador acumulado; no usuarios únicos"],
+    [state.stats.whatsappClicks, "Eventos WhatsApp", "analytics", "Eventos registrados; no mensajes recibidos"],
+    [state.stats.generatedDocuments, "Fichas PDF", "pdf", "Documentos generados en las últimas 72 h"],
+  ].map(metricMarkup).join("");
+  mountAdminInventory();
 }
 
 function openAdminMetric(metric) {
@@ -4424,95 +4544,31 @@ function openAdminMetric(metric) {
 function renderAdminInsights() {
   const container = $("#adminInsights");
   if (!container) return;
-  const properties = state.properties;
+  const records = typeof window !== "undefined" && window.PccAdminInventory
+    ? window.PccAdminInventory.snapshot(state.properties).records : [];
   const pending = state.requests.filter((request) => request.status === "pending").length;
   const newLeads = state.leads.filter((lead) => lead.status === "new").length;
-  const premiumLeads = state.leads.filter((lead) => lead.priority === "premium" || lead.leadScore === "premium").length;
-  const incompleteProperties = properties.filter((property) => (property.qualityScore || 0) < 70).length;
   const openTasks = state.tasks.filter((task) => ["pending", "in_progress"].includes(task.status)).length;
-  const featured = properties.filter((property) => property.featured).length;
-  const usdProperties = properties.filter((property) => property.priceUsd);
-  const average =
-    usdProperties.length > 0
-      ? Math.round(usdProperties.reduce((sum, property) => sum + Number(property.priceUsd || 0), 0) / usdProperties.length)
-      : 0;
-  const topZones = Object.entries(countBy(properties, "zone"))
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, 4);
-  const operationCounts = countBy(properties, "operation");
-  const maxZoneInventory = Math.max(1, ...topZones.map(([, count]) => count));
   const overdueTasks = state.tasks.filter((task) => task.status === "overdue").length;
   const priorityActions = [
     [pending, "Solicitudes pendientes", "pending-requests", "message-circle"],
     [newLeads, "Leads sin atender", "new-leads", "inbox"],
-    [incompleteProperties, "Fichas incompletas", "incomplete-properties", "file-warning"],
+    [records.filter((record) => record.entity === "properties" && !record.quality.complete).length, "Propiedades incompletas", "incomplete-properties", "file-warning"],
+    [records.filter((record) => record.entity === "developments" && !record.quality.complete).length, "Desarrollos incompletos", "incomplete-developments", "building-2"],
     [openTasks, "Tareas abiertas", "tasks", "list-checks"],
   ].sort((a, b) => b[0] - a[0]);
-
   container.innerHTML = `
     <section class="dashboard-operations" aria-labelledby="dashboardOperationsTitle">
       <div class="dashboard-operations-heading">
-        <div><span class="eyebrow">OPERACIÓN EN VIVO</span><h3 id="dashboardOperationsTitle">Qué requiere atención ahora</h3></div>
-        <span class="dashboard-health ${overdueTasks ? "warning" : "healthy"}">${overdueTasks ? `${overdueTasks} vencidas` : "Sin tareas vencidas"}</span>
+        <div><h3 id="dashboardOperationsTitle">Pendientes de atención</h3><small>Registros cargados; sin filtro temporal. Los indicadores pueden coincidir.</small></div>
+        <span class="dashboard-health ${overdueTasks ? "warning" : "healthy"}">${overdueTasks ? `${overdueTasks} vencidas` : "Sin tareas marcadas como vencidas"}</span>
       </div>
       <div class="dashboard-priority-list">
-        ${priorityActions.map(([value, label, metric, icon], index) => `<button type="button" data-admin-metric="${metric}" class="dashboard-priority-item ${index === 0 && value ? "urgent" : ""}"><i data-lucide="${icon}"></i><span><b>${escapeHtml(label)}</b><small>${value ? "Abrir y gestionar" : "Sin pendientes"}</small></span><strong>${value}</strong></button>`).join("")}
+        ${priorityActions.map(([value, label, metric, icon], index) => `<button type="button" data-admin-metric="${metric}" class="dashboard-priority-item ${index === 0 && value ? "urgent" : ""}"><i data-lucide="${icon}" aria-hidden="true"></i><span><b>${escapeHtml(label)}</b><small>${value ? "Abrir registros" : "Sin pendientes"}</small></span><strong>${value}</strong></button>`).join("")}
       </div>
     </section>
-    <section class="dashboard-inventory" aria-labelledby="dashboardInventoryTitle">
-      <div class="dashboard-operations-heading"><div><span class="eyebrow">INVENTARIO</span><h3 id="dashboardInventoryTitle">Distribución por zona</h3></div><b>${properties.length} fichas</b></div>
-      <div class="dashboard-zone-bars">
-        ${topZones.length ? topZones.map(([zone, count]) => `<div><span>${escapeHtml(zone || "Sin zona")}</span><div><i style="width:${Math.max(8, Math.round((count / maxZoneInventory) * 100))}%"></i></div><b>${count}</b></div>`).join("") : `<p class="empty-state">Sin inventario disponible.</p>`}
-      </div>
-    </section>
-    <article class="insight-card attention-card">
-      <span>${escapeHtml(t("adminAttentionTitle"))}</span>
-      <strong>${pending + newLeads + premiumLeads + incompleteProperties + openTasks}</strong>
-      <p>${escapeHtml(pending)} solicitudes · ${escapeHtml(newLeads)} leads · ${escapeHtml(openTasks)} tareas</p>
-    </article>
-    <article class="insight-card priority">
-      <span>${escapeHtml(t("adminInsightPending"))}</span>
-      <strong>${pending}</strong>
-      <p>${escapeHtml(pending ? t("adminRequestsTitle") : t("adminNoPending"))}</p>
-    </article>
-    <article class="insight-card priority">
-      <span>${escapeHtml(t("adminInsightLeads"))}</span>
-      <strong>${newLeads}</strong>
-      <p>${escapeHtml(newLeads ? t("adminLeadsTitle") : t("adminNoLeads"))}</p>
-    </article>
-    <article class="insight-card">
-      <span>${escapeHtml(t("adminInsightFeatured"))}</span>
-      <strong>${featured}</strong>
-      <p>${escapeHtml(t("adminInventory"))}: ${escapeHtml(properties.length)}</p>
-    </article>
-    <article class="insight-card">
-      <span>${escapeHtml(t("adminInsightAverage"))}</span>
-      <strong>${escapeHtml(average ? formatUsd(average) : "N/A")}</strong>
-      <p>${escapeHtml(t("adminOperations"))}: ${escapeHtml(t("sale"))} ${operationCounts.sale || 0} · ${escapeHtml(t("rent"))} ${operationCounts.rent || 0}</p>
-    </article>
-    <article class="insight-card">
-      <span>${escapeHtml(t("leadScorePremium"))}</span>
-      <strong>${premiumLeads}</strong>
-      <p>${escapeHtml(t("nextAction"))}: WhatsApp / asesor</p>
-    </article>
-    <article class="insight-card">
-      <span>${escapeHtml(t("qualityIncomplete"))}</span>
-      <strong>${incompleteProperties}</strong>
-      <p>${escapeHtml(t("propertyQualityMissing"))}: fotos, SEO o precio</p>
-      <button class="mini-button" type="button" data-show-incomplete-listings>Revisar cuáles son</button>
-    </article>
-    <article class="insight-card">
-      <span>${escapeHtml(t("adminTopZones"))}</span>
-      <div class="zone-pill-row">
-        ${
-          topZones.length
-            ? topZones.map(([zone, count]) => `<small>${escapeHtml(zone)} <b>${count}</b></small>`).join("")
-            : `<small>${escapeHtml(t("listingsEmpty"))}</small>`
-        }
-      </div>
-      <p>${escapeHtml(t("adminInsightSearches"))}: ${escapeHtml(state.stats.searches || 0)}</p>
-    </article>
   `;
+  mountAdminInventory();
 }
 
 function renderAdminIntelligence() {
@@ -4772,6 +4828,18 @@ async function copilotSubmit(event) {
     });
     const feature = state.copilotFeatures.find((item) => item.section === data.suggestedSection);
     addCopilotMessage("assistant", data.answer, { suggestedSection: data.suggestedSection, suggestedLabel: feature?.name, responseId: data.responseId });
+    if (data.selection) {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "ghost-button";
+      button.textContent = `Abrir los ${data.selection.ids.length} registros`;
+      button.addEventListener("click", () => {
+        setAdminSection(data.selection.entity);
+        state.adminListingFilters = { search: "", type: "", zone: "", operation: "", status: "all", quality: "", ...data.selection.filters, ids: data.selection.ids };
+        renderAdminListings();
+      });
+      $("#copilotConversation").lastElementChild?.append(button);
+    }
     setFormMessage($("#copilotMessage"), data.fallback ? "Respuesta generada con el registro interno porque el proveedor de IA no estuvo disponible." : `Fuente: ${data.tool || "documentación interna"}.`);
   } catch (error) {
     addCopilotMessage("assistant", "Puerto Cancún Copilot no está disponible temporalmente. El resto del panel continúa funcionando.");
@@ -5073,32 +5141,41 @@ function renderAdminListings() {
   if (!list) return;
   renderListingDraftShelf();
   const developmentInventory = state.adminSection === "developments";
-  const inventory = [...state.properties].sort((a, b) => {
+  const inventoryModule = typeof window !== "undefined" ? window.PccAdminInventory : null;
+  const contract = typeof window !== "undefined" ? window.PccInventory : null;
+  const priceSort = ["price_asc", "price_desc"].includes(state.adminListingSort);
+  const source = inventoryModule ? inventoryModule.snapshot(state.properties).records.map((record) => record.property) : state.properties;
+  const sorted = priceSort && inventoryModule
+    ? inventoryModule.sortListingsByPrice(source, state.adminListingSort === "price_desc" ? "desc" : "asc")
+    : [...source].sort((a, b) => {
     const time = (item, key) => new Date(item[key] || item.createdAt || 0).getTime() || 0;
-    const amount = item => Number(item.priceMxn ?? (item.priceUsd != null ? item.priceUsd * state.config.exchangeRate : item.price ?? 0));
     switch (state.adminListingSort) {
       case "title_asc": return localizedTitle(a).localeCompare(localizedTitle(b), state.lang);
       case "created_asc": return time(a, "createdAt") - time(b, "createdAt");
       case "updated_desc": return time(b, "updatedAt") - time(a, "updatedAt");
-      case "price_asc": return amount(a) - amount(b);
-      case "price_desc": return amount(b) - amount(a);
       default: return time(b, "createdAt") - time(a, "createdAt");
     }
-  }).filter((property) =>
-    developmentInventory
-      ? property.publicationSection === "developments"
-      : property.publicationSection !== "developments"
-  );
+  });
+  const inventory = sorted.filter((property) => {
+    const entity = contract?.entityOf(property) || (property.publicationSection === "developments" ? "developments" : "properties");
+    return entity === (developmentInventory ? "developments" : "properties");
+  });
   const filters = state.adminListingFilters;
   const search = normalizeSearchText(filters.search);
-  const properties = inventory.filter((property) => {
+  const properties = typeof window !== "undefined" && window.PccAdminInventory
+    ? window.PccAdminInventory.filterListings(inventory, filters, developmentInventory ? "developments" : "properties")
+    : inventory.filter((property) => {
     if (!filters.status && ["draft", "archived"].includes(property.status)) return false;
     if (filters.type && property.type !== filters.type) return false;
     if (filters.zone && property.zone !== filters.zone) return false;
     if (filters.operation && property.operation !== filters.operation) return false;
-    if (filters.status && property.status !== filters.status) return false;
-    if (filters.quality === "incomplete" && (property.qualityScore || 0) >= 70) return false;
-    if (filters.quality === "ready" && (property.qualityScore || 0) < 70) return false;
+    if (filters.status && filters.status !== "all" && property.status !== filters.status) return false;
+    if (Array.isArray(filters.ids) && !filters.ids.map(String).includes(String(property.id))) return false;
+    const completeness = contract?.quality(property) || property.completeness || { complete: false };
+    if (filters.quality === "incomplete" && completeness.complete) return false;
+    if (filters.quality === "ready" && !completeness.complete) return false;
+    if (filters.location && typeof window !== "undefined" && (window.PccInventory.resolveLocation(property).id || "pending") !== filters.location) return false;
+    if (filters.featured && !property.featured) return false;
     if (filters.missingCover && storedImages(property).length > 0) return false;
     if (!search) return true;
     const haystack = normalizeSearchText(
@@ -5121,12 +5198,18 @@ function renderAdminListings() {
       : `${properties.length} mostrados · ${current} en inventario general · ${drafts} borradores · ${archived} eliminados · ${featured} destacados`;
   }
   if (!properties.length) {
-    const filtered = search || filters.type || filters.zone || filters.operation || filters.status || filters.quality || filters.missingCover;
+    const filtered = search || filters.type || filters.zone || filters.operation || filters.status || filters.quality || filters.missingCover || filters.location || filters.featured || Array.isArray(filters.ids);
     list.innerHTML = `<p class="empty-state">${escapeHtml(filtered ? t("noListingMatches") : t("listingsEmpty"))}</p>`;
+    mountAdminInventory();
     return;
   }
+  let previousPriceGroup = null;
   list.innerHTML = properties
     .map((property) => {
+      const group = priceSort && inventoryModule ? inventoryModule.priceGroupOf(property) : null;
+      const groupHeading = group && previousPriceGroup !== group.key
+        ? `<h3 class="pcc-price-group-heading">${escapeHtml(group.label)}<small>${group.comparable ? "Orden por importe original dentro de este grupo; sin conversión. Precios ausentes al final." : "Criterios pendientes de confirmar; sin orden numérico."}</small></h3>` : "";
+      if (group) previousPriceGroup = group.key;
       const developmentMode = property.publicationSection === "developments";
       const description = localizedDescription(property);
       const excerpt = truncateText(description, 180);
@@ -5140,7 +5223,7 @@ function renderAdminListings() {
           ? freshnessDays === 1 ? t("verifiedDayAgo") : t("verifiedDaysAgo").replace("{days}", freshnessDays)
           : t("reviewAvailabilityDays").replace("{days}", freshnessDays);
       return `
-        <div class="listing-item detailed-listing">
+        ${groupHeading}<div class="listing-item detailed-listing" data-pcc-listing-id="${escapeHtml(property.id)}">
           <img src="${escapeHtml(primaryImage(property))}" alt="${escapeHtml(localizedTitle(property))}" loading="lazy" onerror="this.onerror=null;this.src='${escapeHtml(fallbackImage)}';" />
           <div class="listing-content">
             <div class="listing-heading">
@@ -5202,6 +5285,7 @@ function renderAdminListings() {
   if (!canManageListings()) {
     list.querySelectorAll("[data-edit-listing], [data-status-listing], [data-feature-listing], [data-duplicate-listing], [data-delete-listing], [data-verify-property], [data-listing-visibility]").forEach(control => { control.disabled = true; });
   }
+  mountAdminInventory();
   refreshIcons();
 }
 
@@ -6077,7 +6161,7 @@ async function exportVisitorLeadsCsv() {
       total = Math.min(Number(data.pagination?.total || 0), 5000);
       offset += Number(data.pagination?.limit || 100);
     } while (offset < total);
-    const csv = visitorLeadCsvRows(visitors).map((row) => row.map((cell) => `"${String(cell ?? "").replace(/"/g, '""')}"`).join(",")).join("\r\n");
+    const csv = window.PccCsv.stringify(visitorLeadCsvRows(visitors));
     const blob = new Blob(["\ufeff", csv], { type: "text/csv;charset=utf-8" });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
@@ -6355,14 +6439,27 @@ async function reviewPropertyQuality(id) {
 }
 
 async function verifyPropertyFreshness(id) {
+  const property = state.properties.find((item) => item.id === id);
+  if (!property || !canManageListings()) return;
+  if (["draft", "archived"].includes(property.status)) {
+    showToast("Los borradores y las publicaciones archivadas no se verifican como inventario disponible.", "error");
+    return;
+  }
+  state.availabilityVerifying ||= new Set();
+  if (state.availabilityVerifying.has(id)) return;
+  const userId = state.session?.id;
+  state.availabilityVerifying.add(id);
   try {
-    const data = await api(`/api/admin/properties/${encodeURIComponent(id)}/verify`, { method: "POST" });
+    if (!await confirmAction(`¿Confirmas que revisaste la disponibilidad de “${property.titleEs || id}” con una fuente actual? Se registrarán la fecha real y tu usuario. No se cambiarán el precio, el estado comercial ni la fecha de edición.`, "Registrar revisión de disponibilidad")) return;
+    if (state.session?.id !== userId) return;
+    const data = await api(`/api/admin/properties/${encodeURIComponent(id)}/verify`, { method: "POST", body: { confirmAvailability: true }, retry: false });
+    if (state.session?.id !== userId) return;
     state.properties = state.properties.map((property) => property.id === id ? { ...property, ...data.property } : property);
     renderAdminListings();
-    showToast("Vigencia confirmada y registrada en auditoría.");
+    showToast("Revisión registrada con fecha y responsable. El estado comercial no cambió.");
   } catch (error) {
-    showToast(error.message, "error");
-  }
+    if (state.session?.id === userId) showToast(error.message, "error");
+  } finally { state.availabilityVerifying.delete(id); }
 }
 
 async function showPropertyHistory(id) {
@@ -6535,6 +6632,7 @@ function healthItem(label, value, detail, ok = true) {
 function renderReleaseInfo() {
   const element = $("#appRelease");
   if (!element) return;
+  if (document.body.dataset.page !== "panel") { element.hidden = true; return; }
   const version = state.platform?.version || "";
   const release = state.platform?.shortRelease || state.platform?.release || document.body.dataset.release || "";
   element.textContent = version || release ? `v${version || "?"} · ${release || "sin commit"}` : "";
@@ -8027,7 +8125,7 @@ function exportContactsCsv() {
       Array.isArray(contact.preferredZones) ? contact.preferredZones.join(" | ") : "",
     ]);
   });
-  const csv = rows.map((row) => row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(",")).join("\n");
+  const csv = window.PccCsv.stringify(rows, "\n");
   const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
@@ -8407,10 +8505,49 @@ async function loadPublicData() {
   state.locationOptions = locationData.options || [];
   state.config = configData || state.config;
   state.platform = configData?.platform || state.platform;
+  mountPublicComparison(state.properties);
+  hydrateLocationCovers(state.properties);
   if (results.every((result) => result.status === "rejected")) throw results[0].reason;
   if (results.some((result) => result.status === "rejected")) {
     showToast(t("partialLoadError"), "error");
   }
+}
+
+function hydrateLocationCovers(properties) {
+  if (!window.PccInventory) return;
+  document.querySelectorAll('[data-commercial-location]').forEach(card => {
+    const image = card.querySelector('[data-location-cover]');
+    if (!image) return;
+    const candidates = window.PccInventory.queryInventory(properties, { location: card.dataset.commercialLocation }).all;
+    const property = candidates.find(item => item.images?.some(source => source !== fallbackImage && /^(https?:\/\/|\/media\/properties\/)/.test(source)));
+    const source = property?.images.find(source => source !== fallbackImage && /^(https?:\/\/|\/media\/properties\/)/.test(source));
+    image.hidden = !source;
+    card.classList.toggle('has-location-cover', Boolean(source));
+    if (source) { image.alt = localizedTitle(property); image.src = source; }
+    else image.removeAttribute('src');
+  });
+}
+
+function mountPublicComparison(publicProperties) {
+  if (!window.PccComparison || window.location.pathname === "/panel") return;
+  if (window.pccComparison) {
+    window.pccComparison.updateProperties(publicProperties);
+    return;
+  }
+  const hasLink = new URLSearchParams(location.search).has("compare");
+  window.pccComparison = window.PccComparison.mount({
+    properties: publicProperties,
+    ...(!hasLink ? { ids: state.compare } : {}),
+    getFavoriteIds: () => state.favorites,
+    onFavorite: (id) => toggleFavorite(id),
+    onContact: (id) => contactAdvisor(id),
+    onTour: (id) => openTourRequest(id),
+    onChange: (ids) => {
+      state.compare = ids;
+      localStorage.setItem(keys.compare, JSON.stringify(ids));
+    },
+  });
+  if ($("#compareTray")) $("#compareTray").hidden = true;
 }
 
 async function loadPanelData() {
@@ -8633,6 +8770,7 @@ function saveSellerDraft() {
 }
 
 function clearSellerDraft() {
+  window.clearTimeout(sellerDraftTimer);
   const draftKey = currentSellerDraftKey();
   try { localStorage.removeItem(draftKey); } catch { /* Storage may be unavailable. */ }
   void queueDraftOperation(() => deletePersistentDraft(draftKey));
@@ -8686,13 +8824,15 @@ async function restoreSellerDraft() {
   }
 }
 
-function prepareSellerForm() {
+async function prepareSellerForm() {
   const form = $("#sellerRequestForm");
   if (!form || !state.session || state.session.role !== "seller") return;
   if (!form.email.value) form.email.value = state.session.email || "";
   if (!form.phone.value) form.phone.value = state.session.phone || "";
-  form.preferredContact.value = state.session.preferredContact || "email";
-  void restoreSellerDraft();
+  if (!form.preferredContact.value) form.preferredContact.value = state.session.preferredContact || "email";
+  const userId = state.session.id;
+  await restoreSellerDraft();
+  if (state.session?.id === userId && state.session?.role === "seller") applySellerContext(form);
 }
 
 function canManageListings() {
@@ -8808,6 +8948,18 @@ function configureListingFormMode(section = state.adminSection) {
       control.disabled = developmentMode;
     });
   });
+  const price = formField(form, "price");
+  const original = editing ? state.properties.find(property => property.id === recordId) : null;
+  if (price) price.required = !developmentMode && !formField(form, "priceOnRequest")?.checked && (!original || original.price != null);
+  if (price) price.step = original ? "any" : "0.01";
+  for (const name of ["currency", "priceUnit"]) {
+    const control = formField(form, name);
+    if (!control) continue;
+    if (original && original[name] == null && control.options && !Array.from(control.options).some(option => option.value === "")) {
+      control.append(new Option(state.lang === "en" ? "To be confirmed" : "Por confirmar", ""));
+    }
+    control.required = !developmentMode && (!original || original[name] != null);
+  }
 
   const type = formField(form, "type");
   if (type) {
@@ -8872,6 +9024,80 @@ function configureListingFormMode(section = state.adminSection) {
   if (developmentMode) renderDevelopmentPropertyLinker();
 }
 
+function captureListingReturnContext(section) {
+  const fromList = ["properties", "developments"].includes(state.adminSection);
+  const list = $("#adminListings");
+  state.listingReturnContext = {
+    userId: state.session?.id,
+    section: fromList ? state.adminSection : section === "new-development" ? "developments" : "properties",
+    filters: fromList ? structuredClone(state.adminListingFilters || {}) : {},
+    sort: state.adminListingSort,
+    page: state.adminListingPage,
+    pagination: state.adminListingPagination ? structuredClone(state.adminListingPagination) : undefined,
+    scrollX: window.scrollX || 0, scrollY: window.scrollY || 0,
+    listScrollTop: list?.scrollTop || 0, listScrollLeft: list?.scrollLeft || 0,
+    focusId: document.activeElement?.dataset?.editListing || "",
+  };
+  window.history.pushState({ ...window.history.state, pccListingEditor: true }, "");
+}
+
+function restoreListingReturnContext(fallback = "properties") {
+  const saved = state.listingReturnContext;
+  const context = saved?.userId === state.session?.id ? saved : null;
+  const section = context?.section || fallback;
+  setAdminSection(section);
+  if (state.adminSection !== section) return false;
+  if (context) {
+    state.adminListingFilters = structuredClone(context.filters);
+    state.adminListingSort = context.sort;
+    if (context.page !== undefined) state.adminListingPage = context.page;
+    if (context.pagination !== undefined) state.adminListingPagination = structuredClone(context.pagination);
+    renderAdminListingFilters();
+    renderAdminListings();
+    window.requestAnimationFrame(() => {
+      if (state.adminSection !== section || state.session?.id !== context.userId) return;
+      const list = $("#adminListings");
+      const focus = Array.from(list?.querySelectorAll("[data-edit-listing]") || []).find((button) => button.dataset.editListing === context.focusId);
+      focus?.focus({ preventScroll: true });
+      if (list) { list.scrollTop = context.listScrollTop; list.scrollLeft = context.listScrollLeft; }
+      window.scrollTo({ top: context.scrollY, left: context.scrollX, behavior: "instant" });
+    });
+  }
+  state.listingReturnContext = null;
+  if (window.history.state?.pccListingEditor) window.history.replaceState({ ...window.history.state, pccListingEditor: false }, "");
+  return true;
+}
+
+async function returnToAdminListings() {
+  const form = $("#listingForm");
+  if (!form || form.dataset.returning === "true") return false;
+  if (form.dataset.saving === "true" || form.dataset.savingDraft === "true" || form.dataset.processingImages === "true" || $("#listingPublishDialog")?.open) {
+    showToast("Espera a que termine la operación del editor."); return false;
+  }
+  form.dataset.returning = "true";
+  const generation = form.dataset.draftGeneration;
+  const userId = state.session?.id;
+  try {
+    if (form.dataset.dirty === "true") {
+      if (!await confirmAction("Se guardará un borrador privado antes de volver al listado. La publicación no cambiará. ¿Continuar?", "Guardar borrador y volver")) return false;
+      if (formField(form, "videoFile")?.files?.length) {
+        showToast("El video seleccionado no puede conservarse en un borrador. Guárdalo con la publicación o retíralo antes de volver.", "error"); return false;
+      }
+      if (!await saveListingProgress($("#listingReturnButton"))) return false;
+    }
+    if (state.session?.id !== userId || form.dataset.draftGeneration !== generation) return false;
+    form.dataset.dirty = "false";
+    return restoreListingReturnContext(listingFormIsDevelopment(form) ? "developments" : "properties");
+  } finally { form.dataset.returning = "false"; }
+}
+
+function preventImplicitListingSubmit(event) {
+  if (event.key !== "Enter" || event.isComposing || event.defaultPrevented) return;
+  const target = event.target;
+  if (!target || target.tagName === "TEXTAREA" || target.isContentEditable || target.closest?.("button") || ["submit", "button", "file"].includes(target.type)) return;
+  event.preventDefault();
+}
+
 function setAdminSection(section) {
   if (section === "prompts") section = "new-property";
   const requestedSection = /^[a-z0-9-]+$/i.test(String(section || "")) ? String(section) : "dashboard";
@@ -8890,7 +9116,7 @@ function setAdminSection(section) {
   const opensListingForm = ["new-property", "new-development"].includes(section);
   const wasExternalForm = previousSection === "new-external-property";
   const opensExternalForm = section === "new-external-property";
-  if (wasListingForm && section !== previousSection && listingForm?.dataset.saving === "true") {
+  if (wasListingForm && section !== previousSection && (listingForm?.dataset.saving === "true" || listingForm?.dataset.savingDraft === "true")) {
     showToast("Espera a que termine de guardarse la publicación.");
     return;
   }
@@ -8900,6 +9126,7 @@ function setAdminSection(section) {
     return;
   }
   if (wasExternalForm && !opensExternalForm) resetExternalPropertyForm();
+  if (opensListingForm && !wasListingForm) captureListingReturnContext(section);
   state.adminSection = section || "dashboard";
   if (opensListingForm && listingForm) {
     if ((section !== previousSection && listingForm.dataset.draftSection !== section) || listingFormRecordId(listingForm)) {
@@ -9064,7 +9291,7 @@ async function renderPanel() {
     renderWhatsappModule();
     updateAdminShell();
   } else {
-    prepareSellerForm();
+    await prepareSellerForm();
     renderSellerRequests();
     renderSellerServiceRequests();
     renderSellerNotifications();
@@ -9209,6 +9436,9 @@ function updateHeaderVisibility() {
 const localizedRoutes = {
   "/": "/en/",
   "/propiedades": "/en/properties",
+  "/propiedades/en-venta": "/en/properties/for-sale",
+  "/propiedades/cancun-city": "/en/properties/cancun-city",
+  "/propiedades/fuera-de-cancun": "/en/properties/outside-cancun",
   "/propiedades/destacadas-cancun": "/en/properties/featured-cancun",
   "/propiedades/casas-cancun": "/en/properties/homes-cancun",
   "/propiedades/departamentos-cancun": "/en/properties/condos-cancun",
@@ -9238,7 +9468,10 @@ const localizedRoutes = {
 };
 
 function localizedRoute(pathname, lang = state.lang) {
-  const [path, suffix = ""] = String(pathname || "").split(/(?=[?#])/);
+  const source = String(pathname || "");
+  const split = source.search(/[?#]/);
+  const path = split < 0 ? source : source.slice(0, split);
+  const suffix = split < 0 ? "" : source.slice(split);
   if (lang === "en") return `${localizedRoutes[path] || path}${suffix}`;
   const spanish = Object.entries(localizedRoutes).find(([, english]) => english === path)?.[0];
   return `${spanish || path}${suffix}`;
@@ -9306,7 +9539,7 @@ function toggleLanguage() {
   }
   const alternate = String(document.body.dataset.alternateUrl || "").trim();
   const currentPath = `${window.location.pathname}${window.location.search}${window.location.hash}`;
-  window.location.assign(alternate || localizedRoute(currentPath, nextLanguage));
+  window.location.assign(alternate ? `${alternate}${window.location.search}${window.location.hash}` : localizedRoute(currentPath, nextLanguage));
 }
 
 function refreshIcons() {
@@ -9323,6 +9556,7 @@ function refreshIcons() {
 }
 
 function openAuth(tab = "login") {
+  rememberSellerContext();
   closeMobileNav();
   $("#authModal").hidden = false;
   document.body.classList.add("modal-open");
@@ -9366,6 +9600,7 @@ function switchAuthTab(tab) {
 
 async function handleGoogleCredential(response) {
   const message = $("#googleAuthMessage");
+  const previousUser = state.session;
   setFormMessage(message, "");
   try {
     const data = await api("/api/auth/google", {
@@ -9376,7 +9611,11 @@ async function handleGoogleCredential(response) {
     state.csrfToken = data.csrfToken || state.csrfToken;
     closeAuth();
     updateAuthNav();
-    window.location.assign("/panel");
+    if (previousUser?.id === data.user.id && previousUser?.internalRole === data.user.internalRole && previousUser?.role === data.user.role && $("#panelView") && !$("#panelView").hidden) {
+      showToast("Sesión renovada. Puedes continuar donde estabas.");
+      return;
+    }
+    window.location.assign(sellerPanelUrl(data.user));
   } catch (error) {
     setFormMessage(message, t("googleLoginError"), true);
   }
@@ -9409,7 +9648,7 @@ async function initializeGoogleAuth() {
 
 async function showPanel() {
   if (!$("#panelView")) {
-    window.location.assign("/panel");
+    window.location.assign(sellerPanelUrl());
     return;
   }
   $("#siteShell").hidden = true;
@@ -9453,6 +9692,11 @@ function setFormMessage(element, text, error = false) {
 
 function installImageFallbacks() {
   const applyFallback = (image) => {
+    if (image instanceof HTMLImageElement && image.matches('[data-location-cover]')) {
+      image.hidden = true;
+      image.closest('[data-commercial-location]')?.classList.remove('has-location-cover');
+      return;
+    }
     if (!(image instanceof HTMLImageElement) || image.dataset.fallbackApplied === "true") return;
     if (!/^https?:\/\//i.test(image.currentSrc || image.src)) return;
     image.dataset.fallbackApplied = "true";
@@ -9486,11 +9730,11 @@ async function loginSubmit(event) {
     state.csrfToken = data.csrfToken || state.csrfToken;
     closeAuth();
     updateAuthNav();
-    if (previousUser?.id === data.user.id && previousUser?.internalRole === data.user.internalRole && previousUser?.role === data.user.role && !$("#panelView").hidden) {
+    if (previousUser?.id === data.user.id && previousUser?.internalRole === data.user.internalRole && previousUser?.role === data.user.role && $("#panelView") && !$("#panelView").hidden) {
       showToast("Sesión renovada. Puedes continuar donde estabas.");
       return;
     }
-    window.location.assign("/panel");
+    window.location.assign(sellerPanelUrl(data.user));
   } catch (error) {
     if (error.code === "DATABASE_UNAVAILABLE") {
       setFormMessage(message, t("loginUnavailable"), true);
@@ -9681,6 +9925,7 @@ async function passwordUpdateSubmit(event) {
 async function sellerRequestSubmit(event) {
   event.preventDefault();
   const form = event.currentTarget;
+  if (event.submitter !== $("#sellerRequestSubmitButton")) return;
   if (!formImagesReady(form, $("#sellerFormMessage"))) return;
   if (form.dataset.saving === "true") return;
   const message = $("#sellerFormMessage");
@@ -9706,6 +9951,13 @@ async function sellerRequestSubmit(event) {
       headers: { "Idempotency-Key": idempotencyKey },
       timeoutMs: 60000,
     });
+    state.sellerIntentContext = null;
+    try { sessionStorage.removeItem("pcc.seller-context.v1"); } catch { /* Storage may be unavailable. */ }
+    const cleanUrl = new URL(window.location.href);
+    if (cleanUrl.searchParams.get("intent") === "sell") {
+      ["intent", "location", "zone", "type"].forEach((key) => cleanUrl.searchParams.delete(key));
+      window.history.replaceState(window.history.state, "", `${cleanUrl.pathname}${cleanUrl.search}${cleanUrl.hash}`);
+    }
     clearSellerDraft();
     form.reset();
     form.dataset.currentImages = "[]";
@@ -10275,36 +10527,50 @@ function listingDraftStatus(text, slot) {
   }
 }
 
+function listingDraftContentKey(snapshot) {
+  const { savedAt, ...content } = snapshot;
+  return JSON.stringify(content);
+}
+
 async function saveListingProgress(button = $("#saveListingProgress")) {
   const form = $("#listingForm");
-  if (form.dataset.saving === "true" || form.dataset.savingDraft === "true" || !formImagesReady(form, $("#listingFormMessage"))) return;
-  if (!formField(form, "title").value.trim()) { formField(form, "title").focus(); showToast("Escribe un título para guardar el borrador.", "error"); return; }
+  if (form.dataset.saving === "true" || form.dataset.savingDraft === "true" || !formImagesReady(form, $("#listingFormMessage"))) return false;
+  if (!formField(form, "title").value.trim()) { formField(form, "title").focus(); showToast("Escribe un título para guardar el borrador.", "error"); return false; }
   form.dataset.savingDraft = "true";
   const slot = listingDraftSlot(form);
   const userId = state.session?.id;
   const generation = form.dataset.draftGeneration;
+  const storageKey = listingDraftStorageKey(slot);
   setButtonLoading(button, true, "Guardando borrador…");
   const operation = beginOperation("Guardando borrador", formField(form, "title").value);
   saveListingDraft({ sync: false });
   window.clearTimeout(listingCloudTimers.get(slot));
   listingCloudTimers.delete(slot);
   const snapshot = listingDraftSnapshot(form);
+  const revision = listingDraftContentKey(snapshot);
   snapshot.fields._expectedUpdatedAt = form.dataset.expectedUpdatedAt || "";
   try {
-    const mediaTask = queueDraftOperation(() => writePersistentDraft(listingDraftStorageKey(slot), snapshot));
+    const mediaTask = queueDraftOperation(() => writePersistentDraft(storageKey, snapshot));
     const task = listingCloudQueue.catch(() => null).then(async () => {
       if (state.session?.id !== userId) throw new Error("La sesión cambió. El borrador local sigue disponible.");
       await api(`/api/admin/listing-drafts/${encodeURIComponent(slot)}`, { method: "PUT", body: { ...snapshot, images: undefined } });
     });
     listingCloudQueue = task.catch(() => null);
     const [mediaSaved] = await Promise.all([mediaTask, task]);
-    if (listingDraftSlot(form) !== slot || form.dataset.draftGeneration !== generation) return;
-    const message = mediaSaved ? "Borrador guardado. Puedes continuarlo desde el inventario. Las fotos nuevas están en este dispositivo; el video se sube al publicar." : "Texto sincronizado, pero no se pudieron guardar las fotos localmente. No cierres esta ventana antes de publicar.";
+    if (state.session?.id !== userId || listingDraftSlot(form) !== slot || form.dataset.draftGeneration !== generation) return false;
+    if (revision !== listingDraftContentKey(listingDraftSnapshot(form))) {
+      listingDraftStatus("Se sincronizó una versión anterior del borrador. Hay cambios nuevos; vuelve a guardar antes de salir.", slot);
+      return false;
+    }
+    const recoverable = mediaSaved || !snapshot.images.length;
+    const message = recoverable ? "Borrador sincronizado. Puedes continuarlo desde el inventario. Las fotos nuevas están en este dispositivo; el video se sube al publicar." : "Texto sincronizado, pero no se pudieron guardar las fotos localmente. No cierres esta ventana antes de publicar.";
     listingDraftStatus(message, slot);
-    showToast(mediaSaved ? "Progreso guardado sin publicar." : message, mediaSaved ? "success" : "error");
+    showToast(recoverable ? "Progreso guardado sin publicar." : message, recoverable ? "success" : "error");
+    return recoverable;
   } catch (error) {
     listingDraftStatus(`No se pudo sincronizar: ${error.message}`, slot);
     showToast("No se pudo sincronizar el borrador. Mantén abierto el formulario y vuelve a intentarlo.", "error");
+    return false;
   } finally { form.dataset.savingDraft = "false"; operation.remove(); setButtonLoading(button, false); }
 }
 
@@ -10316,9 +10582,11 @@ function confirmListingPublication(form) {
   $("#listingPublishPublic").checked = formField(form, "isPublic").checked && formField(form, "status").value === "active";
   $("#listingPublishPrivate").checked = !$("#listingPublishPublic").checked;
   $("#listingPublishFeatured").checked = formField(form, "featured").checked;
+  const origin = document.activeElement;
   dialog.returnValue = "";
   dialog.showModal();
   return new Promise((resolve) => dialog.addEventListener("close", () => {
+    if (origin?.isConnected) origin.focus({ preventScroll: true });
     if (dialog.returnValue !== "save") { resolve(false); return; }
     formField(form, "isPublic").checked = $("#listingPublishPublic").checked;
     formField(form, "featured").checked = $("#listingPublishFeatured").checked;
@@ -10330,6 +10598,7 @@ function confirmListingPublication(form) {
 function saveListingDraft({ sync = true } = {}) {
   const form = $("#listingForm");
   if (!form || state.session?.role !== "admin") return;
+  form.dataset.dirty = "true";
   if (!formField(form, "title").value.trim()) return;
   form.dataset.idempotencyKey ||= globalThis.crypto?.randomUUID?.() || `draft-${Date.now()}`;
   const snapshot = listingDraftSnapshot(form);
@@ -10509,6 +10778,8 @@ function resetListingForm(clearDraft = true) {
   delete form.dataset.galleryRevision;
   delete form.dataset.missingDraftMedia;
   delete form.dataset.unavailableDraftGallery;
+  if ($("#listingConflict")) $("#listingConflict").hidden = true;
+  if ($("#listingConflictContent")) $("#listingConflictContent").replaceChildren();
   listingAiProposal = null;
   $("#listingAiReview").hidden = true;
   $("#listingAiSources").innerHTML = "";
@@ -10931,24 +11202,42 @@ async function getListingImagePayload(form) {
 async function listingSubmit(event) {
   event.preventDefault();
   const form = event.currentTarget;
+  if (event.submitter !== $("#listingSubmitButton")) return;
   if (!formImagesReady(form, $("#listingFormMessage"))) return;
   const field = (name) => formField(form, name);
   if (form.dataset.saving === "true" || $("#listingPublishDialog").open) return;
   const submit = form.querySelector('[type="submit"]');
   const id = listingFormRecordId(form);
+  const currentProperty = id ? state.properties.find((property) => property.id === id) : null;
   const developmentMode = listingFormIsDevelopment(form);
   field("publicationSection").value = developmentMode ? "developments" : "properties";
   const message = $("#listingFormMessage");
   setFormMessage(message, "");
   if (!form.reportValidity()) return;
-  const currency = developmentMode ? "USD" : field("currency").value === "MXN" ? "MXN" : "USD";
+  const currency = developmentMode ? "USD" : field("currency").value || null;
   const price = developmentMode ? null : field("price").value === "" ? null : Number(field("price").value);
-  if (!developmentMode && price === null) {
+  const priceUnit = developmentMode ? "total" : field("priceUnit").value || null;
+  // Omitted fields tell the PUT to preserve the original DB columns, including legacy nulls.
+  const priceFields = { currency, price, priceUnit };
+  if (currentProperty) {
+    for (const name of Object.keys(priceFields)) {
+      if (developmentMode || priceFields[name] === (currentProperty[name] ?? null)) delete priceFields[name];
+    }
+  }
+  if (!developmentMode && Object.hasOwn(priceFields, "price") && price === null && !field("priceOnRequest")?.checked) {
     setFormMessage(message, t("missingPrice"), true);
     return;
   }
-  if (!developmentMode && (!Number.isFinite(price) || price < 0)) {
+  if (!developmentMode && price !== null && (!Number.isFinite(price) || price < 0)) {
     setFormMessage(message, "Revisa el precio ingresado.", true);
+    return;
+  }
+  const amountChanged = Object.hasOwn(priceFields, "price") && price !== null;
+  if (!developmentMode && (
+    ((amountChanged || Object.hasOwn(priceFields, "currency")) && !["USD", "MXN"].includes(currency))
+    || ((amountChanged || Object.hasOwn(priceFields, "priceUnit")) && !["total", "sqm"].includes(priceUnit))
+  )) {
+    setFormMessage(message, "Confirma la moneda y la base del precio que estas modificando.", true);
     return;
   }
   const latitude = field("latitude").value === "" ? null : Number(field("latitude").value);
@@ -10964,7 +11253,6 @@ async function listingSubmit(event) {
   const keywords = parseKeywordInput(field("keywords").value);
   saveListingDraft();
   if (!await confirmListingPublication(form)) return;
-  const currentProperty = id ? state.properties.find((property) => property.id === id) : null;
   const payload = {
     title: field("title").value.trim(),
     titleEn: field("titleEn").value.trim(),
@@ -10980,14 +11268,12 @@ async function listingSubmit(event) {
     latitude,
     longitude,
     mapPlace: field("mapPlace").value,
-    locationPrecision: latitude !== null && longitude !== null ? "exact" : "approximate",
+    locationPrecision: field("publicLocationPrecision")?.value || "approximate",
     googleMapsUrl: form.querySelector("[data-open-map]")?.href || "",
     operation: developmentMode ? "sale" : field("operation").value,
     status: field("status").value,
     isPublic: field("isPublic").checked,
-    currency,
-    price,
-    priceUnit: developmentMode ? "total" : field("priceUnit").value === "sqm" ? "sqm" : "total",
+    ...priceFields,
     beds: developmentMode ? 0 : Number(field("beds").value || 0),
     baths: developmentMode ? 0 : Number(field("baths").value || 0),
     parking: developmentMode ? 0 : Number(field("parking").value || 0),
@@ -11001,6 +11287,13 @@ async function listingSubmit(event) {
     descriptionEn: field("descriptionEn").value.trim(),
     badges: ["new"],
     expectedUpdatedAt: form.dataset.expectedUpdatedAt || currentProperty?.updatedAt || null,
+    catalogData: {
+      locationId: field("commercialLocationId")?.value || "",
+      salesModality: field("salesModality")?.value || "unclassified",
+      rentPeriod: field("rentPeriod")?.value || "unclassified",
+      priceOnRequest: Boolean(field("priceOnRequest")?.checked),
+      homeOrder: field("homeOrder")?.value || "",
+    },
   };
   const idempotencyKey = id ? "" : form.dataset.idempotencyKey || globalThis.crypto?.randomUUID?.() || `listing-${Date.now()}-${Math.random().toString(16).slice(2)}`;
   if (!id) form.dataset.idempotencyKey = idempotencyKey;
@@ -11062,6 +11355,10 @@ async function listingSubmit(event) {
       renderStats();
     }).catch(() => null);
   } catch (error) {
+    if (error.status === 409 && id && $("#listingConflict")) {
+      $("#listingConflict").hidden = false;
+      $("#listingConflictContent").textContent = "La versión guardada cambió. Tu borrador y su versión original se conservan; compara antes de continuar.";
+    }
     const errorMessage = error.message || "No se pudo guardar la publicación. Revisa la información e intenta nuevamente.";
     setFormMessage(message, errorMessage, true);
     showToast(errorMessage, "error");
@@ -11073,13 +11370,39 @@ async function listingSubmit(event) {
     form.removeAttribute("aria-busy");
     setButtonLoading(submit, false);
     if (savedSuccessfully) {
-      setAdminSection(savedSection === "developments" ? "developments" : "properties");
-      if (["draft", "archived"].includes(savedStatus)) {
+      const hadContext = state.listingReturnContext?.userId === state.session?.id;
+      restoreListingReturnContext(savedSection === "developments" ? "developments" : "properties");
+      if (!hadContext && ["draft", "archived"].includes(savedStatus)) {
         state.adminListingFilters.status = savedStatus;
         renderAdminListingFilters();
         renderAdminListings();
       }
     }
+  }
+}
+
+async function compareListingConflict() {
+  const form = $("#listingForm");
+  const id = listingFormRecordId(form);
+  const generation = form.dataset.draftGeneration;
+  const userId = state.session?.id;
+  if (!id || form.dataset.comparingConflict === "true") return;
+  const output = $("#listingConflictContent");
+  form.dataset.comparingConflict = "true";
+  setButtonLoading($("#compareListingConflict"), true, "Consultando versión...");
+  try {
+    const data = await api("/api/admin/properties", { retry: false });
+    if (state.session?.id !== userId || listingFormRecordId(form) !== id || form.dataset.draftGeneration !== generation) return;
+    const latest = data.properties?.find((item) => item.id === id);
+    if (!latest) { output.textContent = "El registro ya no está disponible. Tu borrador permanece intacto."; return; }
+    const fields = [["title", "titleEs", "Título"], ["type", "type", "Tipo"], ["operation", "operation", "Operación"], ["price", "price", "Precio"], ["currency", "currency", "Moneda"], ["zone", "zone", "Zona física"], ["city", "city", "Ciudad"], ["address", "address", "Dirección"], ["description", "descriptionEs", "Descripción"], ["status", "status", "Estado"]];
+    const changes = fields.filter(([name, key]) => String(formField(form, name)?.value ?? "") !== String(latest[key] ?? ""));
+    output.innerHTML = `<p>Versión del editor: ${escapeHtml(form.dataset.expectedUpdatedAt || "No informada")} · Versión actual: ${escapeHtml(latest.updatedAt || "No informada")}</p><p>La comparación no reemplaza campos ni autoriza sobrescribir. Revisa también el historial para imágenes y otros cambios.</p>${changes.length ? `<dl>${changes.map(([name, key, label]) => `<dt><strong>${label}</strong></dt><dd><strong>Tu borrador:</strong> ${escapeHtml(formField(form, name)?.value || "Sin dato")}</dd><dd><strong>Guardado:</strong> ${escapeHtml(latest[key] ?? "Sin dato")}</dd>`).join("")}</dl>` : "<p>No hay diferencias en los campos de texto comparados. Puede haber cambios en galería, relaciones o disponibilidad.</p>"}`;
+  } catch (error) {
+    if (state.session?.id === userId && listingFormRecordId(form) === id && form.dataset.draftGeneration === generation) output.textContent = `No se pudo consultar la versión actual: ${error.message}. Se conserva el borrador.`;
+  } finally {
+    form.dataset.comparingConflict = "false";
+    setButtonLoading($("#compareListingConflict"), false);
   }
 }
 
@@ -11153,11 +11476,13 @@ function editListing(id) {
   if (!canManageListings()) { showToast("Tu rol no permite editar publicaciones.", "error"); return; }
   const property = state.properties.find((item) => item.id === id);
   if (!property) return;
-  if ($("#listingForm").dataset.saving === "true") return;
+  if ($("#listingForm").dataset.saving === "true" || $("#listingForm").dataset.savingDraft === "true") return;
   if ($("#listingForm").dataset.dirty === "true") saveListingDraft();
   const publicationSection = property.publicationSection || (property.type === "Desarrollo" ? "developments" : "properties");
   const editSection = publicationSection === "developments" ? "new-development" : "new-property";
   if (state.adminSection !== editSection) setAdminSection(editSection);
+  if (state.adminSection !== editSection) return;
+  if (state.listingReturnContext) state.listingReturnContext.focusId = id;
   const form = $("#listingForm");
   resetListingForm(false);
   form.dataset.draftSlot = `edit-${id}`;
@@ -11185,11 +11510,21 @@ function editListing(id) {
   if (field("developmentId")) field("developmentId").value = property.developmentId || "";
   setLocationFormValues(form, property);
   field("operation").value = property.operation;
+  if (field("commercialLocationId")) field("commercialLocationId").value = property.catalogData?.locationId || "";
+  if (field("salesModality")) field("salesModality").value = property.catalogData?.salesModality || "unclassified";
+  if (field("rentPeriod")) field("rentPeriod").value = property.catalogData?.rentPeriod || "unclassified";
+  if (field("priceOnRequest")) field("priceOnRequest").checked = property.catalogData?.priceOnRequest === true;
+  if (field("homeOrder")) field("homeOrder").value = property.catalogData?.homeOrder ?? "";
+  if (field("publicLocationPrecision")) field("publicLocationPrecision").value = property.locationPrecision || "approximate";
+  field("price").required = publicationSection !== "developments" && !field("priceOnRequest")?.checked && property.price != null;
   field("status").value = property.status || "active";
   field("isPublic").checked = property.isPublic !== false;
-  field("currency").value = property.currency || (property.priceUsd !== null && property.priceUsd !== undefined ? "USD" : "MXN");
-  field("price").value = property.price ?? (field("currency").value === "USD" ? property.priceUsd : property.priceMxn) ?? "";
-  field("priceUnit").value = property.priceUnit === "sqm" ? "sqm" : "total";
+  for (const name of ["currency", "priceUnit"]) {
+    const control = field(name);
+    control.value = property[name] ?? "";
+    control.required = publicationSection !== "developments" && property[name] != null;
+  }
+  field("price").value = property.price ?? "";
   field("address").value = property.address || "";
   field("latitude").value = property.latitude ?? "";
   field("longitude").value = property.longitude ?? "";
@@ -11408,6 +11743,7 @@ async function respondToRequest(requestTable, requestId) {
         <span class="status ${escapeHtml(item.status)}">${escapeHtml(item.status)}</span>
         <h3>${escapeHtml(item.title)}</h3>
         <p><strong>${escapeHtml(item.sellerName)}</strong><br>${escapeHtml(item.email)}<br>${escapeHtml(item.phone)}</p>
+        ${item.commercialContext?.locations?.length ? `<p><strong>Contexto de la búsqueda:</strong> ${escapeHtml([...item.commercialContext.locations.map(id => window.PccInventory?.LOCATIONS.find(location => location.id === id)?.name || id), item.commercialContext.type, item.commercialContext.zone].filter(Boolean).join(" · "))}</p>` : ""}
         <p>${escapeHtml(displayLocation(item))}<br>${escapeHtml(item.type)} · ${escapeHtml(item.area)} m² · ${escapeHtml(item.beds)} recámaras</p>
         <p>${escapeHtml(item.description || "")}</p>
       ` : guestRequest
@@ -11505,63 +11841,14 @@ async function responseFormSubmit(event) {
 
 async function handleSearch(event) {
   event.preventDefault();
-  const text = $("#searchInput").value.trim();
-  void trackAnalyticsEvent("search_submitted", null, { title: text.slice(0, 220) });
-  resetFilters();
-  $("#searchInput").value = text;
   const status = $("#intelligentSearchStatus");
-  const submit = event.currentTarget.querySelector('button[type="submit"]');
-  if (status) {
+  if (!window.PccCatalogAssistant) {
     status.hidden = false;
-    status.className = "intelligent-search-status is-loading";
-    status.innerHTML = `<i data-lucide="loader-circle"></i><span>Interpretando tu búsqueda y revisando el inventario real…</span>`;
-    refreshIcons();
+    status.textContent = state.lang === "en" ? "Search is not ready. Please reload the page." : "El buscador no está listo. Recarga la página.";
+    return;
   }
-  setButtonLoading(submit, true, "Buscando…");
-  try {
-    const result = await api("/api/search/intelligent", { method: "POST", body: { query: text }, timeoutMs: 25000, retry: false });
-    state.intelligentSearch = {
-      active: true,
-      ids: (result.properties || []).map((property) => property.id),
-      interpreted: result.interpreted || null,
-      exactMatch: Boolean(result.exactMatch),
-      message: result.message || "",
-    };
-    if (status) {
-      const filterLabels = {
-        operation: "Operación",
-        propertyType: "Tipo",
-        location: "Ubicación",
-        minPrice: "Precio mínimo",
-        maxPrice: "Precio máximo",
-        currency: "Moneda",
-        bedrooms: "Recámaras",
-        bathrooms: "Baños",
-        minArea: "Superficie mínima",
-        amenities: "Amenidades",
-        features: "Características",
-      };
-      const interpreted = Object.entries(result.interpreted || {})
-        .filter(([key, value]) => key !== "sort" && value !== null && value !== "" && (!Array.isArray(value) || value.length))
-        .slice(0, 6)
-        .map(([key, value]) => `<span>${escapeHtml(filterLabels[key] || key)}: ${escapeHtml(Array.isArray(value) ? value.map((item) => String(item).replace(/_/g, " ")).join(", ") : value)}</span>`)
-        .join("");
-      status.className = `intelligent-search-status ${result.exactMatch ? "is-success" : "is-alternative"}`;
-      status.innerHTML = `<strong>${escapeHtml(result.message || "")}</strong>${interpreted ? `<div class="intelligent-filter-chips">${interpreted}</div>` : ""}${result.fallback ? `<small>Se utilizó la interpretación local segura.</small>` : ""}`;
-    }
-  } catch (error) {
-    state.filters.text = text;
-    state.intelligentSearch = { active: false, ids: [], interpreted: null, exactMatch: true, message: "" };
-    if (status) {
-      status.className = "intelligent-search-status is-error";
-      status.innerHTML = `<strong>No pudimos interpretar tu búsqueda.</strong><span>Aplicamos la búsqueda tradicional para que puedas continuar.</span>`;
-    }
-    void api("/api/metrics/search", { method: "POST" }).catch(() => null);
-  } finally {
-    setButtonLoading(submit, false);
-  }
-  renderProperties();
-  $("#properties").scrollIntoView({ behavior: "smooth", block: "start" });
+  void trackAnalyticsEvent("search_submitted", null, { title: $("#searchInput").value.trim().slice(0, 220) });
+  return window.PccCatalogAssistant.search($("#searchInput").value.trim(), status, event.currentTarget.querySelector('button[type="submit"]'));
 }
 
 function applyElementFilter(element) {
@@ -11711,14 +11998,14 @@ function openPropertyWhatsApp(property) {
     "",
     "Quisiera recibir más información.",
   ].join("\n");
-  window.open(`https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(message)}`, "_blank", "noopener,noreferrer");
+  window.open(window.PccContacts.whatsappUrl("mx", message), "_blank", "noopener,noreferrer");
 }
 
 function openGeneralWhatsApp(event) {
   event?.preventDefault();
   void trackAnalyticsEvent("whatsapp_clicked");
   const message = "Hola, quiero recibir informacion de Puerto Cancun Center.";
-  window.open(`https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(message)}`, "_blank", "noopener,noreferrer");
+  window.open(window.PccContacts.whatsappUrl("mx", message), "_blank", "noopener,noreferrer");
 }
 
 function closeMobileNav() {
@@ -11923,6 +12210,13 @@ function bindEvents() {
   });
 
   $("#searchForm").addEventListener("submit", handleSearch);
+  $('#listingForm [name="priceOnRequest"]')?.addEventListener("change", (event) => {
+    const form = $("#listingForm");
+    const original = state.properties.find(property => property.id === listingFormRecordId(form));
+    const price = formField(form, "price");
+    price.required = !listingFormIsDevelopment(form) && !event.target.checked && (!original || original.price != null);
+    saveListingDraft();
+  });
   $("#guidedSearchForm")?.addEventListener("submit", guidedSearchSubmit);
   $$("[data-lead-form]").forEach((form) => {
     form.addEventListener("submit", leadFormSubmit);
@@ -11946,6 +12240,11 @@ function bindEvents() {
     "#mainNav a[data-filter], #mainNav a[data-type], #mainNav a[data-zone], .zone-card, .type-tile, .more-grid button, .footer a[data-zone], .footer a[data-filter], .footer a[data-type], .feature-copy a[data-filter], .presale-feature a[data-type]"
   ).forEach((element) => {
     element.addEventListener("click", (event) => {
+      const destination = element.getAttribute("href");
+      if (element.tagName === "A" && destination && !destination.startsWith("#")) {
+        closeMobileNav();
+        return;
+      }
       event.preventDefault();
       if (document.body.dataset.page === "seo") {
         const href = element.getAttribute("href") || "#properties";
@@ -12129,8 +12428,7 @@ function bindEvents() {
       const sellerAccess = event.target.closest("[data-seller-access]");
       if (sellerAccess) {
         event.preventDefault();
-        if (state.session) void showPanel();
-        else openAuth(sellerAccess.dataset.sellerAccess === "login" ? "login" : "register");
+        void openSellerAccess(sellerAccess.dataset.sellerAccess === "login" ? "login" : "register");
       }
       const detail = event.target.closest("[data-detail]");
       if (detail) viewDetails(detail.dataset.detail);
@@ -12235,11 +12533,14 @@ function bindEvents() {
   });
 
   $("#sellerRequestForm").addEventListener("submit", sellerRequestSubmit);
+  $("#sellerRequestForm").addEventListener("keydown", preventImplicitListingSubmit);
   $("#sellerRequestForm").addEventListener("input", () => {
+    $("#sellerRequestForm").dataset.dirty = "true";
     window.clearTimeout(sellerDraftTimer);
     sellerDraftTimer = window.setTimeout(saveSellerDraft, 500);
   });
   $("#sellerRequestForm").addEventListener("change", () => {
+    $("#sellerRequestForm").dataset.dirty = "true";
     window.clearTimeout(sellerDraftTimer);
     sellerDraftTimer = window.setTimeout(saveSellerDraft, 300);
   });
@@ -12290,6 +12591,15 @@ function bindEvents() {
     setFormMessage($("#sellerFormMessage"), t("imageRemoved"));
   });
   $("#listingForm").addEventListener("submit", listingSubmit);
+  $("#listingForm").addEventListener("keydown", preventImplicitListingSubmit);
+  $("#listingPublishDialog")?.addEventListener("keydown", preventImplicitListingSubmit);
+  $("#listingReturnButton")?.addEventListener("click", () => void returnToAdminListings());
+  $("#compareListingConflict")?.addEventListener("click", () => void compareListingConflict());
+  $("#listingConflictHistory")?.addEventListener("click", () => void showPropertyHistory(listingFormRecordId()));
+  window.addEventListener("popstate", async () => {
+    if (state.session?.role !== "admin" || !state.listingReturnContext || !["new-property", "new-development"].includes(state.adminSection) || window.history.state?.pccListingEditor) return;
+    if (!await returnToAdminListings()) window.history.pushState({ ...window.history.state, pccListingEditor: true }, "");
+  });
   $("#analyzeBrochure")?.addEventListener("click", () => void analyzeBrochure());
   $("#applyBrochureFields")?.addEventListener("click", () => void applyBrochureFields());
   $("#rejectBrochureFields")?.addEventListener("click", () => void rejectBrochureFields());
@@ -12521,6 +12831,24 @@ function bindEvents() {
   $("#contactForm")?.addEventListener("submit", contactSubmit);
   $("#cancelContactEdit")?.addEventListener("click", resetContactForm);
   $("#buyerForm")?.addEventListener("submit", buyerSubmit);
+  $("#reviewDemand")?.addEventListener("click", async (event) => {
+    const button = event.currentTarget;
+    const target = $("#demandReviewResults");
+    const userId = state.session?.id;
+    setButtonLoading(button, true, "Consultando...");
+    target.textContent = "Consultando búsquedas guardadas e inventario público vigente...";
+    try {
+      const data = await api("/api/admin/demand-gaps");
+      if (state.session?.id !== userId) return;
+      target.innerHTML = `<p>${data.analyzed} búsquedas revisadas · ${data.unmatched} sin coincidencias · ${data.needsReview.length} con criterios por confirmar.</p><p>Máximo ${data.scannedLimit} búsquedas recientes. No son compradores confirmados ni visitas anónimas.</p>${data.groups.length ? `<div class="pcc-table-scroll"><table class="data-table"><thead><tr><th>Location / zona</th><th>Tipo / operación</th><th>Presupuesto original</th><th>Búsquedas</th></tr></thead><tbody>${data.groups.map(group => {
+        const criteria = group.criteria;
+        const places = [...criteria.locations.map(id => window.PccInventory.LOCATIONS.find(location => location.id === id)?.name || id), criteria.zone].filter(Boolean).join(" · ") || "Sin zona delimitada";
+        const budget = `${criteria.currency || "Sin moneda"} ${criteria.min ?? "—"} a ${criteria.max ?? "—"} · ${criteria.priceBasis === "sqm" ? "por m²" : "total"}${criteria.operation === "rent" ? " · " + ({ month: "mensual", day: "diario", year: "anual" }[criteria.rentPeriod] || "periodo por confirmar") : ""}`;
+        return `<tr><td>${escapeHtml(places)}</td><td>${escapeHtml(criteria.type || criteria.entity)} · ${escapeHtml({ sale: "Compra", rent: "Renta" }[criteria.operation] || "Sin operación delimitada")}</td><td>${escapeHtml(budget)}</td><td>${group.searches.length}<details><summary>Ver búsquedas</summary>${group.searches.map(search => `<p>${escapeHtml(search.name)} <small>ID ${escapeHtml(search.id)}</small></p>`).join("")}</details></td></tr>`;
+      }).join("")}</tbody></table></div>` : "<p>No hay grupos sin coincidencias con criterios completos.</p>"}${data.needsReview.length ? `<details><summary>Criterios pendientes de confirmar</summary>${data.needsReview.map(search => `<p><strong>${escapeHtml(search.name)}</strong>: ${escapeHtml(search.errors.join(" "))}</p>`).join("")}</details>` : ""}`;
+    } catch (error) { target.textContent = error.message; }
+    finally { setButtonLoading(button, false); }
+  });
   $("#campaignForm")?.addEventListener("submit", campaignSubmit);
   $("#campaignForm")?.addEventListener("input", renderCampaignEmailPreview);
   $("#campaignForm")?.addEventListener("change", renderCampaignEmailPreview);
@@ -12912,8 +13240,7 @@ function bindEvents() {
     const sellerAccess = event.target.closest("[data-seller-access]");
     if (sellerAccess) {
       event.preventDefault();
-      if (state.session) void showPanel();
-      else openAuth(sellerAccess.dataset.sellerAccess === "login" ? "login" : "register");
+      void openSellerAccess(sellerAccess.dataset.sellerAccess === "login" ? "login" : "register");
     }
 
     const detail = event.target.closest("[data-detail]");
@@ -13277,14 +13604,7 @@ async function loadPublicBuyerRequirements() {
 }
 
 async function init() {
-  const renderedLanguage = document.body.dataset.lang || (window.location.pathname.startsWith("/en") ? "en" : "es");
-  if (document.body.dataset.page !== "panel" && storedLanguage && storedLanguage !== renderedLanguage && document.body.dataset.alternateUrl) {
-    const alternateUrl = new URL(document.body.dataset.alternateUrl, window.location.origin);
-    alternateUrl.search = window.location.search;
-    alternateUrl.hash = window.location.hash;
-    window.location.replace(`${alternateUrl.pathname}${alternateUrl.search}${alternateUrl.hash}`);
-    return;
-  }
+  // Public URLs define their language; a saved preference only applies inside the panel.
   installImageFallbacks();
   installPasswordVisibilityToggles();
   initializePasswordStrengthMeters();

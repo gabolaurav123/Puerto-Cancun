@@ -1,0 +1,141 @@
+.pcc-comparison {
+  box-sizing: border-box;
+  --pcc-ink: #12343b;
+  --pcc-muted: #53696d;
+  --pcc-line: #cbd8d6;
+  color: var(--pcc-ink);
+  background: #fff;
+  border-block: 1px solid var(--pcc-line);
+  margin-block: 32px;
+  margin-inline: auto;
+  padding: 24px;
+  width: 100%;
+  max-width: 1320px;
+  min-width: 0;
+  font: 15px/1.5 system-ui, sans-serif;
+  letter-spacing: 0;
+  scroll-margin-top: 96px;
+}
+.pcc-comparison *, .pcc-comparison *::before, .pcc-comparison *::after { box-sizing: border-box; letter-spacing: 0; }
+.pcc-comparison[hidden], .pcc-comparison [hidden], .pcc-comparison-tray[hidden] { display: none !important; }
+.pcc-comparison-header, .pcc-comparison-toolbar, .pcc-comparison-column-top, .pcc-comparison-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.pcc-comparison-header { justify-content: space-between; gap: 16px; margin-bottom: 18px; }
+.pcc-comparison h2 { margin: 0 0 4px; font: 650 22px/1.25 system-ui, sans-serif; overflow-wrap: anywhere; }
+.pcc-comparison-count { color: var(--pcc-muted); font-variant-numeric: tabular-nums; }
+.pcc-comparison button, .pcc-comparison-actions a, .pcc-comparison-tray button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 44px;
+  padding: 9px 12px;
+  border: 1px solid #819b96;
+  border-radius: 4px;
+  background: #fff;
+  color: var(--pcc-ink);
+  font: 600 14px/1.35 system-ui, sans-serif;
+  text-align: center;
+  text-decoration: none;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  cursor: pointer;
+}
+.pcc-comparison button:hover, .pcc-comparison-actions a:hover, .pcc-comparison-tray button:hover { background: #edf5f1; }
+.pcc-comparison button:disabled { opacity: .55; cursor: default; }
+.pcc-comparison button[aria-pressed="true"] { background: #e1eee8; border-color: #236c50; }
+.pcc-comparison :is(button, a, select, input, [tabindex]):focus-visible, .pcc-comparison:focus-visible, .pcc-comparison-tray button:focus-visible { outline: 3px solid #956a00; outline-offset: 3px; }
+.pcc-comparison :is(svg, i[data-lucide]), .pcc-comparison-tray :is(svg, i[data-lucide]) { flex: 0 0 18px; width: 18px; height: 18px; }
+.pcc-comparison i[data-lucide]:empty, .pcc-comparison-tray i[data-lucide]:empty { display: none; }
+.pcc-comparison-picker { display: grid; grid-template-columns: 160px minmax(0, 530px); gap: 8px 16px; align-items: center; margin-bottom: 20px; }
+.pcc-comparison label { font-weight: 600; }
+.pcc-comparison select, .pcc-comparison input {
+  width: 100%;
+  min-width: 0;
+  min-height: 44px;
+  border: 1px solid #819b96;
+  border-radius: 4px;
+  background: #fff;
+  color: var(--pcc-ink);
+  padding: 10px;
+  font: 16px/1.3 system-ui, sans-serif;
+}
+.pcc-comparison-empty { border-top: 1px solid var(--pcc-line); padding-block: 16px; color: var(--pcc-muted); overflow-wrap: anywhere; }
+.pcc-comparison-empty button { margin-inline-start: 12px; }
+.pcc-comparison-empty p { margin-bottom: 0; }
+.pcc-comparison-scroll { width: 100%; max-width: 100%; overflow: auto; overscroll-behavior-inline: contain; border: 1px solid var(--pcc-line); }
+.pcc-comparison-table { border-collapse: separate; border-spacing: 0; table-layout: fixed; width: 100%; min-width: calc(154px + var(--pcc-columns) * 232px); margin: 0; }
+.pcc-comparison-table th, .pcc-comparison-table td { padding: 14px; text-align: left; vertical-align: top; border-right: 1px solid var(--pcc-line); border-bottom: 1px solid var(--pcc-line); overflow-wrap: anywhere; }
+.pcc-comparison-table th:first-child { width: 154px; background: #f0f5f3; font-weight: 650; position: sticky; left: 0; z-index: 1; }
+.pcc-comparison-table thead th:not(:first-child) { background: #fff; font-weight: 400; }
+.pcc-comparison-table tr > :last-child { border-right: 0; }
+.pcc-comparison-table tbody tr:last-child > * { border-bottom: 0; }
+.pcc-comparison-column-top { justify-content: space-between; min-height: 44px; font-weight: 650; margin-bottom: 10px; }
+.pcc-comparison button.pcc-comparison-icon { width: 44px; height: 44px; padding: 0; flex: 0 0 44px; }
+.pcc-comparison-icon svg + span { display: none; }
+.pcc-comparison-icon span { font-size: 24px; font-weight: 400; }
+.pcc-comparison-photo { display: block; width: 100%; aspect-ratio: 16 / 10; object-fit: cover; border-radius: 3px; background: #eef0ef; margin: 0 0 12px; }
+.pcc-comparison-no-photo { display: grid; place-items: center; color: var(--pcc-muted); text-align: center; font-size: 14px; padding: 12px; }
+.pcc-comparison-title { display: block; font-size: 17px; line-height: 1.35; font-weight: 650; color: var(--pcc-ink); text-decoration-thickness: 1px; text-underline-offset: 3px; margin-bottom: 14px; }
+.pcc-comparison-actions { align-items: stretch; }
+.pcc-comparison-actions > * { flex: 1 1 100%; }
+.pcc-comparison-match { margin-bottom: 10px; padding-left: 9px; border-left: 3px solid #39785a; }
+.pcc-comparison-match:last-child { margin-bottom: 0; }
+.pcc-comparison-match strong, .pcc-comparison-match span { display: block; }
+.pcc-comparison-match strong { font-size: 13px; font-weight: 650; }
+.pcc-comparison-match span { font-size: 13px; margin-top: 3px; }
+.pcc-comparison-match.is-incompatible { border-left-color: #9b631c; color: #62431b; }
+.pcc-comparison-status { min-height: 24px; margin: 14px 0 0; color: var(--pcc-ink); overflow-wrap: anywhere; }
+.pcc-comparison-share { margin-top: 16px; }
+.pcc-comparison-share label { display: block; margin-bottom: 6px; }
+.pcc-comparison-differences { display: flex; align-items: center; gap: 10px; min-height: 44px; margin-bottom: 16px; }
+.pcc-comparison .pcc-comparison-differences input { width: 22px; height: 22px; min-height: 22px; flex: 0 0 22px; accent-color: #236c50; }
+.pcc-comparison-saved { margin-top: 20px; padding-top: 12px; border-top: 1px solid var(--pcc-line); }
+.pcc-comparison-saved p { color: var(--pcc-muted); margin: 0 0 12px; overflow-wrap: anywhere; }
+.pcc-comparison-save-row { display: grid; grid-template-columns: 160px minmax(0, 1fr) minmax(180px, auto); align-items: center; gap: 8px 16px; margin-top: 12px; }
+.pcc-comparison-sr { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+.pcc-comparison-tray {
+  --pcc-ink: #12343b;
+  box-sizing: border-box;
+  position: fixed;
+  z-index: 45;
+  inset-inline: 16px;
+  bottom: calc(20px + env(safe-area-inset-bottom, 0px));
+  margin-inline: auto;
+  max-width: 420px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px;
+  border: 1px solid #819b96;
+  border-radius: 6px;
+  background: #fff;
+  color: var(--pcc-ink);
+  box-shadow: 0 4px 20px #12343b26;
+  font: 600 14px/1.35 system-ui, sans-serif;
+  letter-spacing: 0;
+}
+.pcc-comparison-tray * { box-sizing: border-box; letter-spacing: 0; }
+.pcc-comparison-tray-count { flex: 1 0 auto; padding-inline: 4px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.pcc-comparison-tray button { flex: 0 0 auto; }
+.pcc-comparison-tray [data-pcc-tray-action="open"] { background: #236c50; border-color: #236c50; color: #fff; }
+.pcc-comparison-tray [data-pcc-tray-action="open"]:hover { background: #19543d; }
+@media (max-width: 600px) {
+  .pcc-comparison-tray { inset-inline: 10px; bottom: calc(80px + env(safe-area-inset-bottom, 0px)); gap: 6px; padding: 6px; }
+  .pcc-comparison-tray button { padding-inline: 9px; }
+  .pcc-comparison { padding: 16px 8px; margin-block: 20px; }
+  .pcc-comparison h2 { font-size: 20px; }
+  .pcc-comparison-picker { grid-template-columns: minmax(0, 1fr); }
+  .pcc-comparison-save-row { grid-template-columns: minmax(0, 1fr); }
+  .pcc-comparison-table { min-width: calc(104px + var(--pcc-columns) * 180px); }
+  .pcc-comparison-table th:first-child { width: 104px; font-size: 13px; }
+  .pcc-comparison-table th, .pcc-comparison-table td { padding: 10px; }
+  .pcc-comparison-toolbar { width: 100%; }
+  .pcc-comparison-toolbar button { flex: 1; }
+}
+@media (prefers-reduced-motion: reduce) { .pcc-comparison * { scroll-behavior: auto; } }
+@media (forced-colors: active) { .pcc-comparison-match { border-left-color: CanvasText; color: CanvasText; } }

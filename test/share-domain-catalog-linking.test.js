@@ -64,8 +64,8 @@ test("la categoría de terrenos muestra todas las zonas e incorpora búsqueda in
     { ...base, id: "land-2", titleEs: "Terreno Holbox", titleEn: "Holbox land", type: "Terreno", zone: "Holbox", mls: "1002" },
     { ...base, id: "home-1", titleEs: "Casa", titleEn: "Home", type: "Casa", zone: "Puerto Cancun", mls: "1003" },
   ]);
-  assert.match(html, /2 propiedades disponibles/);
-  assert.match(html, /id="categoryKeywordSearch"/);
+  assert.match(html, /Encontramos 2 propiedades/);
+  assert.match(html, /type="search" name="q"/);
   assert.match(html, /data-category-search="[^"]*isla blanca/);
   assert.match(html, /data-category-search="[^"]*holbox/);
   assert.doesNotMatch(html, />Casa<\/a>/);

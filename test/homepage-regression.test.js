@@ -26,14 +26,16 @@ test("zonas y tipos no repiten una sola imagen", () => {
   assert.ok(new Set(images).size >= 4, "deben existir por lo menos cuatro imagenes distintas");
   assert.match(app, /const usedImages = new Set\(\)/);
   assert.match(app, /\.type-grid \.type-tile:nth-child\(3\)/);
-  assert.match(app, /\.zone-grid \.zone-card:nth-child\(3\)/);
+  assert.match(app, /PccInventory\.resolveLocation\(property\)/);
+  assert.match(index, /data-commercial-location="cancun-city"/);
 });
 
 test("el panel privado no se convierte en otra portada", () => {
   const app = read("app.js");
   const server = read("server.js");
   assert.match(app, /document\.body\.dataset\.page === "panel"[\s\S]*window\.location\.assign\("\/"\)/);
-  assert.match(server, /res\.redirect\(302, "\/\?auth=login"\)/);
+  assert.match(server, /new URLSearchParams\(\{ auth: "login" \}\)/);
+  assert.match(server, /res\.redirect\(302, `\/\?\$\{context\}`\)/);
   assert.match(server, /res\.set\("Cache-Control", "private, no-store"\)/);
   assert.match(server, /function renderAuthenticatedPanelEntry\(html, role\)/);
   assert.match(server, /id="siteShell" hidden/);
@@ -43,8 +45,8 @@ test("el panel privado no se convierte en otra portada", () => {
 test("el acceso conserva la accion al redirigir el idioma", () => {
   const app = read("app.js");
   const server = read("server.js");
-  assert.match(app, /alternateUrl\.search = window\.location\.search/);
-  assert.match(app, /alternateUrl\.hash = window\.location\.hash/);
+  assert.match(app, /window\.location\.assign\(alternate \? `\$\{alternate\}\$\{window\.location\.search\}\$\{window\.location\.hash\}`/);
+  assert.doesNotMatch(app, /if \(storedLanguage[^]*?window\.location\.replace/);
   assert.match(server, /function renderAuthEntry\(html, requestedTab\)/);
   assert.match(server, /html = renderAuthEntry\(html, req\.query\.auth\)/);
 });

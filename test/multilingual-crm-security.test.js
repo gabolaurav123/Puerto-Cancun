@@ -11,7 +11,8 @@ const serverSource = fs.readFileSync(path.join(root, "server.js"), "utf8");
 
 test("el idioma se guarda antes de navegar y tambien se controla desde los paneles", () => {
   assert.match(appSource, /localStorage\.setItem\(keys\.lang, nextLanguage\)/);
-  assert.match(appSource, /storedLanguage !== renderedLanguage/);
+  assert.doesNotMatch(appSource, /storedLanguage !== renderedLanguage/);
+  assert.match(appSource, /const initialLanguage = urlLanguage \|\| \(window\.location\.pathname === "\/panel" \? storedLanguage/);
   assert.match(indexSource, /id="panelLanguageToggle"/);
   assert.match(indexSource, /name="titleEn"/);
   assert.match(indexSource, /name="descriptionEn"/);

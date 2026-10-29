@@ -48,6 +48,7 @@ CREATE TABLE IF NOT EXISTS seller_requests (
   priority TEXT NOT NULL DEFAULT 'medium',
   admin_response TEXT,
   response_files JSONB NOT NULL DEFAULT '[]'::jsonb,
+  commercial_context JSONB NOT NULL DEFAULT '{}'::jsonb,
   internal_notes TEXT,
   assigned_to TEXT,
   next_action TEXT,
@@ -137,6 +138,7 @@ CREATE TABLE IF NOT EXISTS properties (
   description_es TEXT NOT NULL,
   description_en TEXT NOT NULL,
   development_data JSONB NOT NULL DEFAULT '{}'::jsonb,
+  catalog_data JSONB NOT NULL DEFAULT '{}'::jsonb,
   source_request_id TEXT UNIQUE,
   idempotency_key TEXT UNIQUE
 );

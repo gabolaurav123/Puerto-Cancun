@@ -22,7 +22,8 @@ test("authenticated admin HTML starts with only the dashboard visible", () => {
 
 test("the private panel keeps its route when the saved language is English", () => {
   const source = read("app.js");
-  assert.match(source, /document\.body\.dataset\.page !== "panel" && storedLanguage/);
+  assert.match(source, /window\.location\.pathname === "\/panel" \? storedLanguage/);
+  assert.doesNotMatch(source, /storedLanguage !== renderedLanguage/);
   assert.match(source, /applyTranslations\(\{ renderPanelContent: document\.body\.dataset\.page !== "panel" \}\)/);
   assert.match(source, /element\.id === "panelTitle"/);
 });
