@@ -178,10 +178,10 @@ test("las galerías descargan una imagen y variantes dimensionadas bajo demanda"
   assert.match(app, /IntersectionObserver/);
 });
 
-test("la portada limita el inventario y enlaza al catálogo completo", () => {
+test("la portada no renderiza destacadas y mantiene el acceso al catálogo completo", () => {
   const app = read("app.js");
   const index = read("index.html");
-  assert.match(app, /properties\.slice\(0, 6\)/);
-  assert.match(index, /id="homeCatalogCta"/);
-  assert.match(index, /id="homeCatalogLink" href="\/propiedades"/);
+  assert.match(app, /if \(isHome\) \{\s*grid\.innerHTML = ""/);
+  assert.match(index, /href="\/propiedades"[^>]*data-i18n="navSearch"/);
+  assert.match(index, /href="\/comprar-casa-cancun"[^>]*data-i18n="heroBuyCta"/);
 });

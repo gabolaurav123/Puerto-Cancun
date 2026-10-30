@@ -75,7 +75,7 @@ const translations = {
     heroKicker: "Propiedades de lujo en Cancún",
     heroTitle: "Compra o vende tu propiedad en Cancún",
     heroSubtitle:
-      "Te ayudamos a validar precios, preparar tu propiedad y encontrar compradores.\nTe acompañamos para tomar mejores decisiones inmobiliarias.",
+      "Te ayudamos a validar precios, preparar tu propiedad, encontrar compradores reales y tomar mejores decisiones inmobiliarias en Cancún.",
     heroSellCta: "Quiero vender mi propiedad",
     sellerOptionsEyebrow: "ELIGE CÓMO EMPEZAR",
     sellerOptionsTitle: "¿Cómo quieres vender tu propiedad?",
@@ -654,7 +654,7 @@ const translations = {
     heroKicker: "Luxury properties in Cancun",
     heroTitle: "Buy or sell your Cancun property",
     heroSubtitle:
-      "We help you validate prices, prepare your property and find buyers.\nWe guide you toward better real estate decisions.",
+      "We help you validate pricing, prepare your property, find real buyers, and make better real estate decisions in Cancun.",
     heroSellCta: "I want to sell my property",
     sellerOptionsEyebrow: "CHOOSE HOW TO START",
     sellerOptionsTitle: "How would you like to sell your property?",
@@ -2941,10 +2941,19 @@ async function retryPublicInventory() {
 function renderProperties() {
   const grid = $("#propertyGrid");
   if (!grid) return;
+  const isHome = document.body.dataset.page === "home";
+  const section = $("#properties");
+  if (section) section.hidden = isHome;
+  if (isHome) {
+    grid.innerHTML = "";
+    if ($("#homeCatalogCta")) $("#homeCatalogCta").hidden = true;
+    updateHomeEditorialImages();
+    refreshIcons();
+    return;
+  }
   syncFilterControls();
   updateActiveFilterSummary();
   renderCategoryPage();
-  const isHome = document.body.dataset.page === "home";
   const contract = window.PccInventory;
   if (!contract) {
     grid.innerHTML = `<p class="inventory-status" role="alert">${state.lang === "en" ? "Inventory search is unavailable. Reload the page to retry." : "La búsqueda de inventario no está disponible. Recarga la página para reintentar."}</p>`;
@@ -2970,34 +2979,19 @@ function renderProperties() {
   });
   const errors = [...new Set([...parsed.errors, ...guided.errors])];
   const properties = errors.length ? [] : contract.queryInventory(
-    state.properties.filter((property) => propertyMatches(property, parsed, guided) && (!isHome || property.featured)), parsed.query
+    state.properties.filter((property) => propertyMatches(property, parsed, guided)), parsed.query
   ).all;
-  if (isHome) properties.sort((a, b) => (a.catalogData?.homeOrder ?? 9999) - (b.catalogData?.homeOrder ?? 9999));
-  const displayedProperties = isHome ? properties.slice(0, 6) : properties;
   const guidedSearch = $("#guidedSearchForm");
   const propertyToolbar = $(".properties-section .property-toolbar");
   const propertyAlert = $("#propertyAlertForm");
-  if (guidedSearch) guidedSearch.hidden = isHome;
-  if (propertyToolbar) propertyToolbar.hidden = isHome;
-  if (propertyAlert) propertyAlert.hidden = isHome;
-  if (isHome) updateHomeEditorialImages();
+  if (guidedSearch) guidedSearch.hidden = false;
+  if (propertyToolbar) propertyToolbar.hidden = false;
+  if (propertyAlert) propertyAlert.hidden = false;
   const propertiesTitle = $("#propertiesTitle");
   const catalogCta = $("#homeCatalogCta");
-  if (propertiesTitle) propertiesTitle.textContent = isHome
-    ? state.lang === "en" ? "Featured properties" : "Propiedades destacadas"
-    : t("allProperties");
-  $("#resultCount").textContent = isHome && properties.length > displayedProperties.length
-    ? `${displayedProperties.length} ${state.lang === "en" ? "of" : "de"} ${properties.length} ${t("resultText")}`
-    : `${properties.length} ${t("resultText")}`;
-  if (catalogCta) {
-    catalogCta.hidden = !isHome || properties.length === 0;
-    $("#homeCatalogCtaTitle").textContent = state.lang === "en" ? "Explore the complete catalog" : "Explora el catálogo completo";
-    $("#homeCatalogCtaCopy").textContent = state.lang === "en"
-      ? "Browse every available property with dedicated filters and details."
-      : "Consulta todas las propiedades disponibles con sus filtros y detalles.";
-    $("#homeCatalogLink").textContent = state.lang === "en" ? "View all properties" : "Ver todas las propiedades";
-    $("#homeCatalogLink").href = state.lang === "en" ? "/en/properties" : "/propiedades";
-  }
+  if (propertiesTitle) propertiesTitle.textContent = t("allProperties");
+  $("#resultCount").textContent = `${properties.length} ${t("resultText")}`;
+  if (catalogCta) catalogCta.hidden = true;
 
   if (renderPublicInventoryStatus(grid)) return;
   if (errors.length) {
@@ -3013,7 +3007,7 @@ function renderProperties() {
     return;
   }
 
-  grid.innerHTML = displayedProperties
+  grid.innerHTML = properties
     .map((property) => {
       const createdDays = (Date.now() - Date.parse(property.createdAt)) / 86400000;
       const badges = [...(property.badges || [])].filter((badge) => !["premium", "verified"].includes(badge) && (badge !== "new" || (createdDays >= 0 && createdDays <= 30)));

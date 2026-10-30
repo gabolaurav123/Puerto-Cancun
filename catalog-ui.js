@@ -96,7 +96,15 @@
   for (const contact of window.PccContacts?.contacts || []) {
     document.querySelectorAll(`[data-business-contact="${contact.id}"]`).forEach((link) => {
       link.href = window.PccContacts.whatsappUrl(contact.id);
-      link.textContent = `${english ? contact.labelEn : contact.label} · WhatsApp ${contact.display}`;
+      const label = `${english ? contact.labelEn : contact.label} · WhatsApp`;
+      const labelNode = link.querySelector('[data-contact-label]');
+      const numberNode = link.querySelector('[data-contact-number]');
+      if (labelNode && numberNode) {
+        labelNode.textContent = label;
+        numberNode.textContent = contact.display;
+      } else {
+        link.textContent = `${label} ${contact.display}`;
+      }
     });
   }
 })();

@@ -6,12 +6,22 @@ const test = require("node:test");
 const root = path.join(__dirname, "..");
 const read = (file) => fs.readFileSync(path.join(root, file), "utf8");
 
-test("la portada mantiene titulo, seis propiedades y enlaces funcionales", () => {
+test("la portada restaura su jerarquia sin el bloque de destacadas y conserva sus enlaces", () => {
   const app = read("app.js");
   const index = read("index.html");
   const styles = read("styles.css");
-  assert.match(app, /properties\.slice\(0, 6\)/);
-  assert.match(app, /catalogCta\.hidden = !isHome \|\| properties\.length === 0/);
+  const catalogStyles = read("catalog.css");
+  assert.match(index, /class="properties-section home-only" id="properties" hidden/);
+  assert.match(app, /if \(section\) section\.hidden = isHome/);
+  assert.match(catalogStyles, /body\[data-page=home\] #properties \{ display: none; \}/);
+  assert.doesNotMatch(catalogStyles, /body\[data-page=home\] \.hero(?:\s|[.{-])/);
+  assert.match(index, /class="contact-strip home-only"/);
+  assert.match(index, /data-i18n="contactToday"/);
+  assert.match(index, /data-business-contact="mx"/);
+  assert.match(index, /data-business-contact="us"/);
+  assert.equal((index.match(/class="presale-feature"/g) || []).length, 1);
+  assert.ok(index.indexOf('class="presale-feature"') > index.indexOf('class="type-grid"'));
+  assert.ok(index.indexOf('class="presale-feature"') < index.indexOf('id="categoryPage"'));
   assert.match(index, /<a class="login-link" href="\/\?auth=login" id="loginOpen"/);
   assert.match(index, /id="whatsappButton"[\s\S]*href="https:\/\/wa\.me\/5219982166563/);
   assert.match(styles, /body\[data-page="home"\] \.hero h1[\s\S]*font-size: 4\.25rem/);

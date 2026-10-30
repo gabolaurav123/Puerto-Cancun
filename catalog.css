@@ -57,14 +57,10 @@ body[data-page=seo]:has([data-catalog-root]) .seo-page-content { padding-top: 24
 .catalog-experience .seo-property-image { aspect-ratio: 4 / 3; }
 .catalog-experience .seo-property-description { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
 .catalog-experience .seo-property-actions { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-top: auto; }
-body[data-page=home] .hero { min-height: 0; padding: 112px 24px 38px; }
-body[data-page=home] .hero-content { max-width: 1180px; width: 100%; margin: 0 auto; padding: 0; }
-body[data-page=home] .hero h1 { font-size: 3.25rem; line-height: 1.1; max-width: 920px; letter-spacing: 0; margin: 0 auto 18px; text-transform: none; }
-body[data-page=home] .hero-subtitle { max-width: 950px; font-size: 1.05rem; line-height: 1.6; white-space: pre-line; margin: 0 auto 22px; }
-body[data-page=home] .hero-actions { margin: 0 0 20px; gap: 10px; }
-body[data-page=home] .search-panel { max-width: 960px; margin: 0 auto; }
-.compact-business-contact { display: flex; justify-content: center; flex-wrap: wrap; gap: 12px 30px; padding: 14px 24px; border-bottom: 1px solid #d0dfe0; }
-.compact-business-contact a { font-size: .875rem; text-decoration: none; min-height: 28px; display: inline-flex; align-items: center; }
+/* Home inherits its approved hero and contact hierarchy from styles.css. */
+body[data-page=home] #properties { display: none; }
+body[data-page=home] .contact-numbers { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+body[data-page=home] [data-contact-number] { white-space: nowrap; }
 body[data-page=home] .zone-grid, body[data-page=home] .type-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 body[data-page=home] .zone-card { aspect-ratio: 1.6; min-height: 0; }
 body[data-page=home] .zone-card img { height: 100%; }
@@ -73,9 +69,6 @@ body[data-page=home] .zone-card img { height: 100%; }
 .zone-card [data-location-cover][hidden] { display: none; }
 body[data-page=home] .type-tile { min-width: 0; }
 body[data-page=home] .type-tile img { aspect-ratio: 1.6; height: auto; }
-body[data-page=home] .presale-section { padding: 0 0 28px; }
-body[data-page=home] .zones-band, body[data-page=home] .type-section { padding: 28px 0; }
-body[data-page=home] .properties-section { padding-top: 32px; }
 @media (min-width: 1366px) { .catalog-experience .seo-property-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); } .catalog-map-open .seo-property-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (max-width: 900px) {
   .catalog-filters { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -84,13 +77,11 @@ body[data-page=home] .properties-section { padding-top: 32px; }
   .catalog-map-open .catalog-results { display: block; }
   .catalog-map-open [data-catalog-list] { display: none; }
   body[data-page=home] .zone-grid, body[data-page=home] .type-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  body[data-page=home] .contact-numbers { grid-template-columns: minmax(0, 1fr); }
+  body[data-page=home] .contact-numbers a { padding-inline: 32px; }
+  body[data-page=home] [data-contact-label] { display: block; }
 }
 @media (max-width: 540px) {
-  body[data-page=home] .hero { padding: 88px 18px 30px; }
-  body[data-page=home] .hero h1 { font-size: 2rem; line-height: 1.14; }
-  body[data-page=home] .hero-subtitle { font-size: .95rem; }
-  body[data-page=home] .hero-actions { display: flex; flex-wrap: wrap; }
-  body[data-page=home] .hero-actions a { width: auto; flex: 1 1 140px; font-size: .8rem; min-height: 44px; padding: 10px; }
   .catalog-filters { padding: 12px 0; gap: 10px; }
   .catalog-experience .catalog-heading { font-size: 1.1rem; margin-bottom: 6px; }
   .catalog-conversation { margin: 0 0 4px; }

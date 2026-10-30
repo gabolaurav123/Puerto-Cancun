@@ -78,6 +78,7 @@ function ui({ rows = [], filters = {}, budget = 0, beds = 0, lang = "es", page =
   const nodes = new Map([
     ["#propertyGrid", { innerHTML: "" }], ["#resultCount", { textContent: "" }],
     ["#sortSelect", { value: sort }], ["#propertiesTitle", { textContent: "" }],
+    ["#properties", { hidden: true }],
   ]);
   const calls = { compareTray: 0, icons: 0 };
   const runtime = extract(app, [
@@ -383,14 +384,23 @@ test("I07: catalog rendering does not truncate query.all to the first 24 records
   assert.match(api.nodes.get("#resultCount").textContent, /^35 /);
 });
 
-test("home retains editorial order, six-item limit and public featured eligibility", () => {
+test("home removes featured inventory without changing records or the dedicated catalog", () => {
   const rows = Array.from({ length: 9 }, (_, index) => property({ id: `unit-${index}`, featured: true, catalogData: { homeOrder: 9 - index } }));
   rows.push(property({ id: "private", featured: true, isPublic: false, catalogData: { homeOrder: 0 } }));
   rows.push(property({ id: "not-featured", featured: false, catalogData: { homeOrder: 0 } }));
+  const before = plain(rows);
   const api = ui({ rows, page: "home" });
   api.renderProperties();
-  assert.deepEqual(api.ids(), ["unit-8", "unit-7", "unit-6", "unit-5", "unit-4", "unit-3"]);
-  assert.match(api.nodes.get("#resultCount").textContent, /^6 de 9 /);
+  assert.deepEqual(api.ids(), []);
+  assert.equal(api.nodes.get("#properties").hidden, true);
+  assert.equal(api.calls.compareTray, 0);
+  const catalog = ui({ rows, filters: { featured: true } });
+  catalog.renderProperties();
+  assert.equal(catalog.nodes.get("#properties").hidden, false);
+  assert.equal(catalog.ids().length, 9);
+  assert.ok(!catalog.ids().includes("private"));
+  assert.ok(!catalog.ids().includes("not-featured"));
+  assert.deepEqual(plain(rows), before);
 });
 
 test("invalid guided criteria render an error rather than a false zero-results message", () => {
