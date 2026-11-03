@@ -38,7 +38,7 @@ test("aproximadas redondeadas sin enlaces precisos ni metadatos internos", () =>
   const result = prepareItems([item({ locationPrecision: "approximate", googleMapsUrl: "https://maps.app.goo.gl/precise", address: "private address", latitude: "21.167891", longitude: "-86.812345" })]);
   assert.equal(result.items[0].latitude, 21.17);
   assert.equal(result.items[0].longitude, -86.81);
-  assert.equal(result.items[0].mapsUrl, "https://www.google.com/maps/search/?api=1&query=21.17,-86.81");
+  assert.equal(result.items[0].mapsUrl, undefined);
   assert.doesNotMatch(JSON.stringify(result), /167891|812345|precise|private address/);
 });
 
@@ -92,15 +92,15 @@ for (const url of ["javascript:alert(1)", "data:text/html,x", "//evil.example/x"
   test(`no acepta URL de ficha insegura: ${url}`, () => assert.equal(prepareItems([item({ url })], base).items[0].url, ""));
 }
 
-test("conserva ficha inglesa y enlace Google original permitido", () => {
+test("conserva la ficha inglesa y omite el enlace externo administrativo", () => {
   const result = prepareItems([item({ url: "/en/properties/unit-a", googleMapsUrl: "https://maps.app.goo.gl/example" })], base).items[0];
   assert.equal(result.url, "/en/properties/unit-a");
-  assert.equal(result.mapsUrl, "https://maps.app.goo.gl/example");
+  assert.equal(result.mapsUrl, undefined);
 });
 
-test("URL Google falsa usa solo coordenadas publicas", () => {
+test("ignora enlaces de mapas externos en el catálogo público", () => {
   const point = prepareItems([item({ googleMapsUrl: "https://maps.google.com.evil.example/secret" })]).items[0];
-  assert.match(point.mapsUrl, /^https:\/\/www.google.com\/maps\/search/);
+  assert.equal(point.mapsUrl, undefined);
 });
 
 test("preparacion y clusters no mutan datos originales", () => {

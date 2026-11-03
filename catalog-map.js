@@ -47,15 +47,21 @@
     return Number.isFinite(parsed) ? parsed : null;
   }
 
-  function safeUrl(value, base, google = false) {
+  function openStreetMapEmbed(latitude, longitude, showMarker = true) {
+    const lat = number(latitude), lon = number(longitude);
+    if (lat === null || lon === null || Math.abs(lat) > 90 || Math.abs(lon) > 180) return "";
+    const box = [Math.max(-180, lon - 0.016), Math.max(-90, lat - 0.012), Math.min(180, lon + 0.016), Math.min(90, lat + 0.012)];
+    const params = new URLSearchParams({ bbox: box.join(","), layer: "mapnik" });
+    if (showMarker) params.set("marker", lat + "," + lon);
+    return "https://www.openstreetmap.org/export/embed.html?" + params.toString();
+  }
+
+  function safeUrl(value, base) {
     if (typeof value !== "string" || !value.trim()) return "";
     try {
       const url = new URL(value, base);
       if (!["https:", "http:"].includes(url.protocol) || url.username || url.password) return "";
-      if (google) {
-        const host = url.hostname;
-        if (url.protocol !== "https:" || !((host === "www.google.com" || host === "google.com") && url.pathname.startsWith("/maps") || host === "maps.google.com" || host === "maps.app.goo.gl" || host === "goo.gl" && url.pathname.startsWith("/maps"))) return "";
-      } else if (url.origin !== new URL(base).origin) return "";
+      if (url.origin !== new URL(base).origin) return "";
       return value;
     } catch { return ""; }
   }
@@ -81,8 +87,6 @@
       else {
         item.latitude = precision === "exact" ? lat : Math.round(lat * 100) / 100;
         item.longitude = precision === "exact" ? lng : Math.round(lng * 100) / 100;
-        item.mapsUrl = precision === "exact" ? safeUrl(raw.googleMapsUrl || "", base, true) : "";
-        item.mapsUrl ||= `https://www.google.com/maps/search/?api=1&query=${item.latitude},${item.longitude}`;
       }
       const old = byId.get(id);
       if (!old) byId.set(id, item);
@@ -247,7 +251,6 @@
           propertyLink.addEventListener("mouseleave", clearHighlight);
           propertyLink.addEventListener("blur", clearHighlight);
           const precision = doc.createElement("small"); precision.textContent = item.precision === "exact" ? t("Ubicacion exacta publicada", "Published exact location") : t("Ubicacion aproximada, no es la direccion exacta", "Approximate location, not the exact address"); row.append(precision);
-          const mapsLink = doc.createElement("a"); mapsLink.href = item.mapsUrl; mapsLink.target = "_blank"; mapsLink.rel = "noopener noreferrer"; mapsLink.textContent = t("Abrir en Google Maps", "Open in Google Maps"); row.append(mapsLink);
         }
         marker.bindPopup(popup, { autoPan: false, maxWidth: 280 }).addTo(map);
         const icon = marker.getElement();
@@ -363,5 +366,5 @@
     else for (const controller of [...active]) controller.destroy();
   }
 
-  return { mount, open: mount, hide, dispose, prepareItems, clusterItems, serializeBounds };
+  return { mount, open: mount, hide, dispose, prepareItems, clusterItems, serializeBounds, openStreetMapEmbed };
 });

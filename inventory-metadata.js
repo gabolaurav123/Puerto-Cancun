@@ -35,8 +35,8 @@ function publicProperty(property) {
     clean.longitude = !hidden && clean.longitude !== null ? Math.round(clean.longitude * 100) / 100 : null;
     clean.address = "";
     clean.mapPlace = "";
-    clean.googleMapsUrl = !hidden && clean.latitude !== null && clean.longitude !== null ? `https://www.google.com/maps?q=${clean.latitude},${clean.longitude}` : "";
   }
+  clean.googleMapsUrl = "";
   delete clean.verifiedBy;
   delete clean.completeness;
   delete clean.qualityMissing;

@@ -86,7 +86,7 @@ function securityHeaders() {
         "font-src 'self' data: https:",
         "media-src 'self' blob: data:",
         "connect-src 'self' https://accounts.google.com https://www.googleapis.com https://nominatim.openstreetmap.org https://*.tile.openstreetmap.org",
-        "frame-src 'self' https://www.google.com https://accounts.google.com",
+        "frame-src 'self' https://www.google.com https://accounts.google.com https://www.openstreetmap.org",
         "worker-src 'self' blob:",
         "upgrade-insecure-requests",
       ].join("; "),

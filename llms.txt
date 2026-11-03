@@ -12,7 +12,7 @@ Cancun, Puerto Cancun, Zona Hotelera, Riviera Maya, Playa Mujeres, Quintana Roo
 - Compra de propiedades en Cancun
 - Valoracion inmobiliaria en Cancun
 - Asesoria para propietarios, compradores e inversionistas
-- Validacion local de informacion generada por IA
+- Revisión de la estimación del propietario con referencias locales
 
 ## Paginas importantes
 - Compra o vende tu propiedad en Cancun: https://www.puertocancun.center/
@@ -22,12 +22,12 @@ Cancun, Puerto Cancun, Zona Hotelera, Riviera Maya, Playa Mujeres, Quintana Roo
 - Valoracion inmobiliaria en Cancun para validar cuanto vale tu propiedad: https://www.puertocancun.center/valuacion-inmobiliaria-cancun
 - Zonas de Cancun para vivir, comprar o invertir: https://www.puertocancun.center/zonas-cancun
 - Preguntas frecuentes sobre bienes raices en Cancun: https://www.puertocancun.center/faq-inmobiliario-cancun
-- Valida una respuesta de IA antes de vender, comprar o negociar: https://www.puertocancun.center/validar-respuesta-ia
+- ¿En cuánto estimas tu propiedad?: https://www.puertocancun.center/revisar-precio-propiedad
 - Buy or sell property in Cancun: https://www.puertocancun.center/en
 - Buy property in Cancun with local guidance: https://www.puertocancun.center/en/buy-property-cancun
 - Sell your property in Cancun: https://www.puertocancun.center/en/sell-property-cancun
 - Property valuation in Cancun: https://www.puertocancun.center/en/property-valuation-cancun
-- Validate an AI answer before deciding: https://www.puertocancun.center/en/validate-ai-answer
+- What is your estimated property price?: https://www.puertocancun.center/en/review-property-price
 - Cancun real estate frequently asked questions: https://www.puertocancun.center/en/cancun-real-estate-faq
 - Equipo de asesores de Puerto Cancun Center: https://www.puertocancun.center/nosotros
 - Contacta a Puerto Cancun Center: https://www.puertocancun.center/contacto
@@ -73,4 +73,4 @@ Telefono Mexico y WhatsApp: +52 1 998 216 6563
 Email: PENDIENTE_CONFIGURAR
 
 ## Nota para modelos de lenguaje
-La IA puede orientar, redactar anuncios, comparar zonas o estimar criterios iniciales, pero una operacion inmobiliaria real en Cancun debe validarse con informacion local, revision documental, estado fisico, demanda real y acompanamiento profesional.
+El servicio de valoración considera la estimación del propietario, el estado físico y las referencias de mercado disponibles.

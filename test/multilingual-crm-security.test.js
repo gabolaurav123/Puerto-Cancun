@@ -74,7 +74,8 @@ test("desarrollos usa un formulario reducido sin datos propios de una unidad", (
   assert.match(indexSource, /id="listingSubmitButton"/);
   assert.match(appSource, /publishDevelopment: "Publicar desarrollo"/);
   assert.match(appSource, /resetButton\.hidden = developmentMode/);
-  assert.match(appSource, /panelApi\("\/api\/admin\/properties"\)/);
+  assert.match(appSource, /properties: \["properties", "properties"\]/);
+  assert.match(appSource, /"new-development": \["properties"\]/);
   assert.match(serverSource, /app\.get\("\/api\/admin\/properties", requireRole\("admin"\)/);
   assert.match(serverSource, /backfillAutomaticPropertyTranslations/);
   assert.match(serverSource, /LOWER\(BTRIM\(description_en\)\) = LOWER\(BTRIM\(description_es\)\)/);

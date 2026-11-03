@@ -23,6 +23,9 @@ test('public coordinates honor precision without mutating admin record', () => {
   assert.equal(publicProperty({ ...p, locationPrecision: 'hidden' }).googleMapsUrl, '');
   assert.equal(publicProperty({ ...p, locationPrecision: 'hidden' }).latitude, null);
   assert.equal(publicProperty({ ...p, locationPrecision: 'exact' }).latitude, p.latitude);
+  for (const locationPrecision of ['exact', 'approximate', 'hidden']) {
+    assert.equal(publicProperty({ ...p, locationPrecision, googleMapsUrl: 'https://maps.app.goo.gl/private' }).googleMapsUrl, '');
+  }
 });
 test('legacy alerts never guess missing monetary context or ignore unsupported constraints', () => {
   assert.ok(savedCatalogQuery({ maxPrice: 700000, currency: 'USD' }).errors.length);

@@ -2,9 +2,112 @@ const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const path = require("node:path");
 const test = require("node:test");
+const vm = require("node:vm");
 
 const root = path.join(__dirname, "..");
 const read = (file) => fs.readFileSync(path.join(root, file), "utf8");
+
+function adminResourceHarness() {
+  const app = read("app.js");
+  const loader = app.slice(app.indexOf("const adminResources ="), app.indexOf("async function loadPanelData()"));
+  const navigation = app.match(/async function loadActiveAdminSection\([^\n]+[\s\S]*?\n\}/)[0];
+  const state = { session: { id: "qa", role: "admin" }, adminSection: "dashboard", files: [], whatsapp: {} };
+  const calls = [], renders = [], notices = [];
+  const api = (route) => new Promise((resolve, reject) => calls.push({ route, resolve, reject }));
+  const actions = vm.runInNewContext(loader + "\n" + navigation + "\n({ readAdminResource, loadActiveAdminSection })", {
+    state, api, renderActiveAdminSection: (section) => renders.push(section), refreshIcons() {}, showToast: (message) => notices.push(message),
+  });
+  return { ...actions, state, calls, renders, notices };
+}
+
+test("Inicio usa solo sus recursos y una sección abandonada no vuelve a dibujar el panel", async () => {
+  const { state, calls, renders, notices, loadActiveAdminSection } = adminResourceHarness();
+  const dashboard = loadActiveAdminSection("dashboard");
+  assert.deepEqual(calls.map((call) => call.route).sort(), [
+    "stats", "properties", "requests", "guest-sale-requests", "leads", "tasks", "valuations", "whatsapp/overview", "notifications",
+  ].map((route) => "/api/admin/" + route).sort());
+  state.adminSection = "blog";
+  const blog = loadActiveAdminSection("blog");
+  const blogCall = calls.at(-1);
+  assert.equal(blogCall.route, "/api/admin/blog");
+  blogCall.resolve({ posts: [{ id: "post" }] });
+  await blog;
+  for (const call of calls.slice(0, -1)) call.resolve({});
+  await dashboard;
+  assert.deepEqual(renders, ["blog"]);
+  assert.deepEqual(notices, []);
+  assert.equal(state.blogPosts[0].id, "post");
+});
+
+test("se comparten lecturas por usuario, se ignoran respuestas obsoletas y se reintentan fallos", async () => {
+  const { state, calls, readAdminResource } = adminResourceHarness();
+  const old = readAdminResource("blog");
+  assert.equal(old, readAdminResource("blog"));
+  const fresh = readAdminResource("blog", null, true);
+  assert.notEqual(old, fresh);
+  calls[1].resolve({ posts: [{ id: "new" }] });
+  await fresh;
+  calls[0].resolve({ posts: [{ id: "old" }] });
+  await old;
+  assert.equal(state.blogPosts[0].id, "new");
+  assert.equal(readAdminResource("blog"), fresh);
+  const abandoned = readAdminResource("blog", null, true);
+  state.session = { id: "other", role: "admin" };
+  const failed = readAdminResource("blog");
+  calls[2].resolve({ posts: [{ id: "previous-user" }] });
+  await abandoned;
+  assert.equal(state.blogPosts[0].id, "new");
+  calls[3].reject(new Error("offline"));
+  await assert.rejects(failed, /offline/);
+  const retry = readAdminResource("blog");
+  calls[4].resolve({ posts: [{ id: "retried" }] });
+  await retry;
+  assert.equal(state.blogPosts[0].id, "retried");
+});
+
+test("los archivos de distintos ámbitos se combinan aunque respondan fuera de orden", async () => {
+  const { state, calls, readAdminResource } = adminResourceHarness();
+  const general = readAdminResource("generalFiles");
+  const property = readAdminResource("propertyFiles");
+  const development = readAdminResource("developmentFiles");
+  calls[2].resolve({ files: [{ id: "d", libraryScope: "development" }] });
+  calls[0].resolve({ files: [{ id: "g", libraryScope: "general" }] });
+  calls[1].resolve({ files: [{ id: "p", libraryScope: "property" }] });
+  await Promise.all([general, property, development]);
+  const update = readAdminResource("propertyFiles", null, true);
+  calls[3].resolve({ files: [{ id: "p2", libraryScope: "property" }] });
+  await update;
+  assert.deepEqual(Array.from(state.files, (file) => file.id).sort(), ["d", "g", "p2"]);
+});
+
+test("el acceso público y el vendedor conservan inventario y el administrador carga solo su colección privada", async () => {
+  const loader = read("app.js").match(/async function loadPublicData\(\)[\s\S]*?\n\}/)[0];
+  for (const [page, user, needsPublic, needsCovers] of [
+    ["panel", { id: "admin", role: "admin" }, false, false],
+    ["panel", { id: "seller", role: "seller" }, true, false],
+    ["panel", null, false, false],
+    ["home", { id: "admin", role: "admin" }, true, true],
+    ["catalog", null, true, true],
+  ]) {
+    const calls = [], rendered = [];
+    const state = { config: {}, platform: {} };
+    const api = async (route) => {
+      calls.push(route);
+      if (route === "/api/session") return { user, csrfToken: "csrf" };
+      if (route === "/api/properties") return { properties: [{ id: "public" }] };
+      return {};
+    };
+    await vm.runInNewContext(loader + "\nloadPublicData()", {
+      api, state, document: { body: { dataset: { page } } },
+      mountPublicComparison: () => rendered.push("compare"), hydrateLocationCovers: () => rendered.push("covers"),
+    });
+    assert.equal(calls.filter((route) => route === "/api/properties").length, Number(needsPublic));
+    assert.equal(state.session, user);
+    assert.equal(state.csrfToken, "csrf");
+    assert.equal(state.properties.length, Number(needsPublic));
+    assert.deepEqual(rendered, needsCovers ? ["compare", "covers"] : []);
+  }
+});
 
 test("el panel conserva los módulos disponibles cuando una API falla", () => {
   const source = read("app.js");
@@ -133,7 +236,8 @@ test("el administrador tiene auditoría y un criterio único de propiedades inco
   const app = read("app.js");
   assert.match(server, /app\.get\("\/api\/admin\/activity"/);
   assert.match(server, /unitItems\.filter\(\(property\) => !inventoryContract\.quality\(property\)\.complete\)/);
-  assert.match(app, /PccAdminInventory\.filterListings\(inventory, filters/);
+  assert.match(app, /inventoryModule\?\.currentSnapshot\(state\.properties\)\.records/);
+  assert.match(app, /inventoryModule\.selectRecords\(records, filters,/);
   assert.match(app, /data-admin-metric/);
 });
 

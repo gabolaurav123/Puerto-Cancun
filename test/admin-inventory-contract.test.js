@@ -200,7 +200,7 @@ if (!process.argv.includes("--serve")) {
     const source = fs.readFileSync(path.join(root, "admin-inventory-ui.js"), "utf8");
     assert.doesNotMatch(source, /XMLHttpRequest|localStorage|sessionStorage|\.properties\s*=|\.properties\.(push|splice)|method:\s*"(?:POST|PUT|PATCH|DELETE)"/);
     assert.match(source, /window\.fetch\(`\/api\/admin\/properties\/\$\{encodeURIComponent\(id\)\}\/verify`, \{ method: "GET"/);
-    assert.match(source, /ctx\.helpers\.setSection\(entity\);[\s\S]+ctx\.state\.adminListingFilters =/);
+    assert.match(source, /ctx\.helpers\.setSection\(entity, next\);[\s\S]+ctx\.state\.adminListingFilters = next/);
   });
 
   test("O34/O36/O37/O38 browser integration uses real renderers, exact cohorts and statistics navigation", { skip: !process.env.PCC_ADMIN_BROWSER_QA, timeout: 90000 }, async () => {
@@ -252,6 +252,9 @@ if (!process.argv.includes("--serve")) {
         renderStats(); renderAdminInsights(); setAdminSection("dashboard");
       ` });
       const rowIds = () => page.locator("#adminListings [data-pcc-listing-id]").evaluateAll((rows) => rows.map((row) => row.dataset.pccListingId).sort());
+      assert.equal(await page.locator("#pccInventoryDashboard table").count(), 0);
+      const detailToggle = page.locator('[data-pcc-lazy="dashboard-detail"] > summary');
+      await detailToggle.click();
       await page.waitForFunction(() => document.querySelector("#pccInventoryDashboard")?.textContent.includes("30 días"));
       await page.locator('#pccInventoryDashboard [data-pcc-query]').filter({ hasText: "4 nunca revisadas" }).click();
       assert.deepEqual(await rowIds(), ["unit-high", "unit-low", "unit-mxn", "unit-null"]);
@@ -260,11 +263,18 @@ if (!process.argv.includes("--serve")) {
         await page.setViewportSize({ width, height: 900 });
         await page.evaluate(() => { qa.setAdminSection("dashboard"); qa.nativeMetricCalls = 0; });
         await page.locator('#statsGrid [data-admin-metric="properties"]').click();
-        assert.equal(await page.evaluate(() => qa.state.adminSection), "dashboard");
-        assert.equal(await page.locator('[data-pcc-details="breakdown-properties"]').evaluate((node) => node.open), true);
+        assert.equal(await page.evaluate(() => qa.state.adminSection), "properties");
+        assert.equal((await rowIds()).length, 6);
+        await page.locator('[data-pcc-quality="incomplete"]').click();
+        assert.deepEqual(await rowIds(), ["missing", "missing-long", "unit-null"]);
+        assert.deepEqual(await page.evaluate(() => qa.state.adminListingFilters.ids.slice().sort()), await rowIds());
+        await page.locator('[data-pcc-quality="ready"]').click();
+        assert.deepEqual(await rowIds(), ["unit-high", "unit-low", "unit-mxn"]);
+        await page.evaluate(() => qa.setAdminSection("dashboard"));
         await page.locator('#statsGrid [data-admin-metric="developments"]').click();
-        assert.equal(await page.locator('[data-pcc-details="breakdown-developments"]').evaluate((node) => node.open), true);
-        await page.locator('#statsGrid [data-admin-metric="properties-without-cover"]').click();
+        assert.deepEqual(await rowIds(), ["project"]);
+        await page.evaluate(() => qa.setAdminSection("dashboard"));
+        await page.locator('#pccInventoryDashboard [data-pcc-query]').filter({ hasText: "2 sin portada" }).click();
         assert.deepEqual(await rowIds(), ["missing", "missing-long"]);
         assert.deepEqual(await page.evaluate(() => qa.state.adminListingFilters.ids.sort()), ["missing", "missing-long"]);
         await page.evaluate(() => qa.setAdminSection("dashboard"));
@@ -274,6 +284,12 @@ if (!process.argv.includes("--serve")) {
         await page.locator('[data-admin-section="statistics"]').click();
         assert.equal(await page.locator("#adminStatistics").isVisible(), true);
         assert.equal(await page.locator("#pccInventoryStatistics").count(), 1);
+        const prices = page.locator('[data-pcc-lazy="statistics-prices"]');
+        if (await prices.evaluate((node) => node.open)) await prices.locator("summary").click();
+        assert.equal(await prices.locator("table").count(), 0);
+        await prices.locator("summary").click();
+        await prices.locator("table").waitFor();
+        await prices.locator("summary").click();
         assert.equal(await page.locator("#adminOperationalStats .stat-card").count(), 8);
         assert.equal(await page.locator("#pccInventoryStatistics [data-pcc-query]").evaluateAll((buttons) => buttons.every((button) => {
           const query = JSON.parse(button.dataset.pccQuery);
@@ -300,7 +316,7 @@ if (!process.argv.includes("--serve")) {
       await page.locator('#adminInsights [data-admin-metric="pending-requests"]').click();
       assert.equal(await page.evaluate(() => qa.state.adminSection), "requests", "Unrelated metrics retain their native handler");
       await page.evaluate(() => { qa.state.properties = qa.state.properties.filter((p) => p.id !== "project"); qa.renderStats(); qa.renderAdminInsights(); qa.setAdminSection("dashboard"); });
-      await page.locator('#statsGrid [data-admin-metric="developments-without-cover"]').click();
+      await page.locator('#statsGrid [data-admin-metric="incomplete-developments"]').click();
       assert.deepEqual(await rowIds(), []);
       assert.deepEqual(await page.evaluate(() => qa.state.adminListingFilters.ids), []);
       assert.equal(await page.locator("#pccInventoryFilters").count(), 1);
@@ -323,7 +339,7 @@ if (process.argv.includes("--serve")) {
     let opened = null;
     let nativeMetricCalls = 0;
     const helpers = {
-      setSection(section) { window.qaState.adminSection = section; window.qaState.adminListingFilters = {}; renderListings(); },
+      setSection(section, filters) { window.qaState.adminSection = section; window.qaState.adminListingFilters = filters || {}; renderListings(); },
       renderListings,
       refreshIcons() {},
       openListing(id) { opened = id; },
@@ -345,6 +361,10 @@ if (process.argv.includes("--serve")) {
       step("Idempotent mount and safe escaping", () => {
         ui.mount(window.qaState, helpers); ui.mount(window.qaState, helpers);
         check(document.querySelectorAll("#pccInventoryDashboard").length === 1, "Duplicate dashboard");
+        const detail = document.querySelector('[data-pcc-lazy="dashboard-detail"]');
+        check(!detail.open && !detail.querySelector("table"), "Technical details open at startup");
+        detail.open = true;
+        detail.dispatchEvent(new Event("toggle"));
         check(!document.querySelector("#pccInventoryDashboard img"), "Unescaped title");
         check(!window.pccXss, "Markup executed");
       });
@@ -357,9 +377,9 @@ if (process.argv.includes("--serve")) {
           check(count === Number(leadingCount[1]), `Count mismatch: ${button.textContent}`);
         });
       });
-      step("Total metric opens intermediate breakdown without legacy callback", () => {
+      step("Total metric opens the exact property IDs without a second callback", () => {
         document.querySelector('[data-admin-metric="properties"]').click();
-        check(document.querySelector('[data-pcc-details="breakdown-properties"]').open, "No breakdown");
+        check(window.qaState.adminSection === "properties" && window.qaState.adminListingFilters.ids.length === 4, "Wrong total scope");
         check(nativeMetricCalls === 0, "Legacy click also ran");
       });
       step("Missing cover includes draft and opens exact IDs", () => {
@@ -408,6 +428,7 @@ if (process.argv.includes("--serve")) {
         renderListings();
         const detail = document.querySelector('[data-pcc-details="listing-review"]');
         detail.open = true;
+        detail.dispatchEvent(new Event("toggle"));
         check(detail.querySelectorAll("tbody tr").length === 20, "Wrong page size");
         detail.querySelector('[data-pcc-step="1"]').click();
         const next = document.querySelector('[data-pcc-details="listing-review"]');
@@ -424,7 +445,11 @@ if (process.argv.includes("--serve")) {
         const role = window.qaState.session.internalRole;
         window.qaState.session.internalRole = "viewer";
         ui.mount(window.qaState, helpers);
-        check([...document.querySelectorAll('[data-pcc-mode="edit"]')].every((button) => button.disabled), "Editable for viewer");
+        const detail = document.querySelector('[data-pcc-details="listing-review"]');
+        detail.open = true;
+        detail.dispatchEvent(new Event("toggle"));
+        const actions = [...detail.querySelectorAll('[data-pcc-mode="edit"]')];
+        check(actions.length && actions.every((button) => button.disabled), "Editable for viewer");
         window.qaState.session.internalRole = role;
       });
       window.qaState.adminSection = "dashboard";

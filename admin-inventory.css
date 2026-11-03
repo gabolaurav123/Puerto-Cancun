@@ -33,6 +33,17 @@
 .pcc-details { border-block-start: 1px solid var(--pcc-border); padding-block: 8px; }
 .pcc-details > summary { min-height: 36px; padding: 7px 2px; font-weight: 650; cursor: pointer; }
 .pcc-details[open] > summary { margin-bottom: 6px; }
+.pcc-secondary-details { display: flex; flex-wrap: wrap; gap: 4px 18px; }
+.pcc-secondary-details > details { border: 0; padding: 0; }
+.pcc-secondary-details > details[open] { flex: 1 1 100%; min-width: 0; }
+.pcc-secondary-details summary { color: var(--pcc-muted); font-size: 13px; }
+.pcc-list-pages { grid-column: 1 / -1; justify-content: center; }
+#adminCatalogsCard .catalog-top-search {
+  margin: 8px 0 16px; padding: 12px;
+  background: #f0f6f4; border: 1px solid #c7d9d4; border-radius: 10px;
+}
+#adminCatalogsCard .catalog-top-search input { width: 100%; min-height: 44px; }
+#adminListingsCard .pcc-row-status > strong { font-variant-numeric: tabular-nums; }
 .pcc-table-scroll { max-width: 100%; overflow-x: auto; overscroll-behavior-inline: contain; margin-block: 8px; }
 .pcc-table { border-collapse: collapse; width: 100%; font-size: 13px; table-layout: auto; }
 .pcc-table caption { padding: 0 0 10px; text-align: left; color: var(--pcc-muted); font-size: 12px; }

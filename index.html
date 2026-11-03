@@ -6,7 +6,7 @@
     <title>Compra y venta de propiedades en Cancún | Inmobiliaria en Cancún</title>
     <meta
       name="description"
-      content="Inmobiliaria en Cancún para comprar, vender, valorar e invertir en propiedades con estrategia local, datos e inteligencia artificial validada por asesores."
+      content="Compra, vende o solicita una valoración de tu propiedad en Cancún. Explora el inventario y consulta precios con un asesor local."
     />
     <link rel="canonical" href="https://www.puertocancun.center/" />
     <meta name="robots" content="index,follow,max-image-preview:large" />
@@ -15,7 +15,7 @@
     <meta property="og:title" content="Compra y venta de propiedades en Cancún | Inmobiliaria en Cancún" />
     <meta
       property="og:description"
-      content="Compra, venta y valoración inmobiliaria en Cancún con estrategia local, datos e inteligencia artificial validada por asesores."
+      content="Explora propiedades en Cancún y consulta su precio, ubicación y disponibilidad con un asesor local."
     />
     <meta property="og:url" content="https://www.puertocancun.center/" />
     <meta property="og:image" content="https://www.puertocancun.center/assets/og-puerto-cancun-center.webp" />
@@ -23,7 +23,7 @@
     <meta name="twitter:title" content="Compra y venta de propiedades en Cancún | Inmobiliaria en Cancún" />
     <meta
       name="twitter:description"
-      content="Inmobiliaria en Cancún para comprar, vender, valorar e invertir con criterio local e IA bien utilizada."
+      content="Inmobiliaria en Cancún para comprar, vender, valorar e invertir con asesoría local."
     />
     <meta name="twitter:image" content="https://www.puertocancun.center/assets/og-puerto-cancun-center.webp" />
     <link rel="icon" type="image/png" sizes="48x48" href="/favicon.png" />
@@ -187,18 +187,17 @@
           </div>
         </section>
 
-        <section class="ai-validation-home home-only" id="validar-ia" hidden>
+        <section class="ai-validation-home home-only" id="revisar-precio">
           <div class="content-wrap validation-grid">
             <div>
-              <p class="section-kicker" data-i18n="aiValidationKicker">Validacion de IA</p>
-              <h2 data-i18n="aiValidationTitle">ChatGPT ya te dio un precio o una estrategia?</h2>
-              <p data-i18n="aiValidationCopy">
-                Pega aqui el precio, descripcion o recomendacion que te dio la IA y te ayudamos a revisarlo desde el
-                mercado inmobiliario real de Cancun.
-              </p>
+              <p class="section-kicker" data-i18n="estimateKicker">Revisión de precio</p>
+              <h2 data-i18n="estimateTitle">¿Cuál es tu precio estimado?</h2>
+              <p data-i18n="estimateIntro">Cuéntanos cuánto crees que vale la propiedad y en qué zona se encuentra. Un asesor comparará tu estimación con propiedades similares y te explicará qué factores influyen en el precio.</p>
             </div>
+            <details class="owner-price-inquiry">
+              <summary data-i18n="shareEstimate">Compartir mi estimación</summary>
             <form class="lead-form seo-form" data-lead-form>
-              <input type="hidden" name="leadType" value="validacion-ia-home" />
+              <input type="hidden" name="leadType" value="validar-precio" />
               <div class="form-row">
                 <label>
                   <span data-i18n="firstName">Nombre</span>
@@ -232,12 +231,17 @@
                 <input name="propertyType" />
               </label>
               <label>
-                <span data-i18n="aiResponseField">Respuesta que te dio la IA</span>
-                <textarea name="aiResponse" rows="5"></textarea>
+                <span data-i18n="ownerEstimateLabel">Precio estimado</span>
+                <input name="ownerEstimate" type="number" min="0.01" step="0.01" inputmode="decimal" required />
               </label>
-              <button class="primary-button" type="submit" data-i18n="validateWithAdvisor">Validar con asesor local</button>
+              <label>
+                <span data-i18n="currency">Moneda</span>
+                <select name="currency" required><option>MXN</option><option>USD</option></select>
+              </label>
+              <button class="primary-button" type="submit" data-i18n="validateWithAdvisor">Consultar mi estimación</button>
               <p class="form-message" data-lead-message></p>
             </form>
+            </details>
           </div>
         </section>
 
@@ -640,7 +644,7 @@
             <a href="/terminos-y-condiciones" data-i18n="termsConditions">Términos y condiciones</a>
             <a href="/politica-de-cookies" data-i18n="cookiePolicy">Política de cookies</a>
             <h3 class="footer-location" data-i18n="location">Ubicacion</h3>
-            <a href="https://www.google.com/maps/search/?api=1&amp;query=Puerto%20Cancun%20Mall%2C%20Marina%20B.%2C%20oficina%2027%2C%20Zona%20Hotelera%2C%20Cancun%2077500%2C%20Q%20Roo%2C%20Mexico" target="_blank" rel="noopener"><p>Puerto Cancun Mall, Marina B., oficina 27<br />Zona Hotelera, Cancun 77500<br />Q Roo, Mexico.</p></a>
+            <p>Puerto Cancun Mall, Marina B., oficina 27<br />Zona Hotelera, Cancun 77500<br />Q Roo, Mexico.</p>
           </div>
         </div>
         <div class="content-wrap footer-note">
@@ -716,9 +720,9 @@
           </article>
           <article class="seller-action-card">
             <span>4</span>
-            <h3>Validar respuesta de IA</h3>
-            <p>Pega una recomendación de ChatGPT, Gemini o Claude para revisión local.</p>
-            <button class="text-button" type="button" data-seller-flow="ai_validation">Validar respuesta</button>
+            <h3 data-i18n="askAdvisorTitle">Consultar a un asesor</h3>
+            <p data-i18n="askAdvisorDescription">Describe una duda sobre la venta o la negociación. Un asesor revisará tu caso y te responderá aquí.</p>
+            <button class="text-button" type="button" data-seller-flow="advice" data-i18n="askAdvisorAction">Hacer una consulta</button>
           </article>
         </div>
         <aside class="seller-notification-drawer" id="sellerNotificationDrawer" hidden>
@@ -819,11 +823,11 @@
             </label>
             <label data-service-field="expectedPrice">
               <span id="sellerServicePriceLabel">Precio esperado</span>
-              <input name="expectedPrice" type="number" min="0" step="1000" />
+              <input name="expectedPrice" type="number" min="0.01" step="0.01" />
             </label>
-            <label class="span-2" data-service-field="aiResponse" hidden>
-              <span>Respuesta de ChatGPT, Gemini o Claude</span>
-              <textarea name="aiResponse" rows="7"></textarea>
+            <label data-service-field="currency">
+              <span data-i18n="currency">Moneda</span>
+              <select name="currency"><option>MXN</option><option>USD</option></select>
             </label>
             <label class="span-2">
               <span id="sellerServiceCommentLabel">Comentario o duda principal</span>
@@ -941,18 +945,14 @@
                       <i data-lucide="crosshair"></i>
                       <span data-i18n="useCurrentLocation">Usar mi ubicacion</span>
                     </button>
-                    <a class="ghost-button" href="https://www.google.com/maps/search/?api=1&query=Cancun%2C%20Quintana%20Roo" target="_blank" rel="noopener" data-open-map>
-                      <i data-lucide="map"></i>
-                      <span data-i18n="openGoogleMaps">Abrir Google Maps</span>
-                    </a>
+
                   </div>
                 </div>
                 <iframe
-                  title="Google Maps"
+                  title="Mapa de ubicación"
                   loading="lazy"
                   referrerpolicy="no-referrer-when-downgrade"
                   data-map-frame
-                  src="https://www.google.com/maps?q=Cancun%2C%20Quintana%20Roo&output=embed"
                 ></iframe>
                 <div class="interactive-map-canvas" data-map-canvas hidden aria-label="Selector interactivo de ubicación"></div>
                 <div class="form-row coordinate-row">
@@ -1035,44 +1035,67 @@
                 <img src="/assets/puerto-cancun-logo.png?v=20260711" width="640" height="640" alt="" />
                 <strong>Puerto Cancún Center</strong>
               </span>
-              <button class="icon-button" type="button" id="adminSidebarToggle" title="Contraer menu">
+              <button class="icon-button" type="button" id="adminSidebarToggle" title="Contraer menú" aria-controls="adminMenu">
                 <i data-lucide="menu"></i>
+                <span class="admin-menu-caption" data-i18n="adminMenuLabel">Menú</span>
               </button>
             </div>
-            <nav class="admin-sidebar-nav">
+            <nav class="admin-sidebar-nav" id="adminMenu" aria-label="Menú de administración">
+              <p class="admin-nav-label" data-i18n="navDaily">Mi jornada</p>
               <button type="button" data-admin-section="dashboard" class="active">
                 <i data-lucide="layout-dashboard"></i>
-                <span data-i18n="adminJumpDashboard">Dashboard</span>
+                <span data-i18n="adminJumpDashboard">Inicio</span>
               </button>
-              <button type="button" data-admin-section="intelligence">
-                <i data-lucide="brain-circuit"></i>
-                <span>Intelligence</span>
+              <button type="button" data-admin-section="tasks">
+                <i data-lucide="list-checks"></i>
+                <span data-i18n="adminJumpTasks">Tareas</span>
+                <b id="sidebarTaskBadge">0</b>
               </button>
               <button type="button" data-admin-section="copilot">
                 <i data-lucide="sparkles"></i>
                 <span>Copilot</span>
               </button>
+              <p class="admin-nav-label" data-i18n="navClients">Atención a clientes</p>
               <button type="button" data-admin-section="leads">
                 <i data-lucide="inbox"></i>
-                <span data-i18n="adminJumpLeads">Asesorias</span>
+                <span data-i18n="adminJumpLeads">Asesorías</span>
                 <b id="sidebarLeadBadge">0</b>
-              </button>
-              <button type="button" data-admin-section="visitor-leads">
-                <i data-lucide="user-search"></i>
-                <span data-i18n="visitorLeadsMenu">Leads</span>
               </button>
               <button type="button" data-admin-section="requests">
                 <i data-lucide="message-circle"></i>
-                <span data-i18n="adminJumpRequests">Solicitudes</span>
+                <span data-i18n="adminJumpRequests">Solicitudes de venta</span>
                 <b id="sidebarRequestBadge">0</b>
               </button>
               <div class="admin-sidebar-subnav">
                 <button type="button" data-admin-section-link="requests">Solicitudes de vendedores</button>
                 <button type="button" data-admin-section-link="guest-requests">Venta sin registro</button>
               </div>
+              <button type="button" data-admin-section="valuations">
+                <i data-lucide="badge-dollar-sign"></i>
+                <span data-i18n="adminJumpValuations">Valoraciones</span>
+                <b id="sidebarValuationBadge">0</b>
+              </button>
+              <button type="button" data-admin-section="contacts">
+                <i data-lucide="users"></i>
+                <span data-i18n="adminJumpContacts">CRM / Contactos</span>
+              </button>
+              <div class="admin-sidebar-subnav">
+                <button type="button" data-admin-section-link="contacts">Contactos y cuentas</button>
+                <button type="button" data-admin-section-link="roles">Cuentas registradas y accesos</button>
+                <button type="button" data-admin-section-link="guest-contacts">Contactos sin registrar</button>
+              </div>
+              <button type="button" data-admin-section="buyers">
+                <i data-lucide="user-search"></i>
+                <span data-i18n="adminJumpBuyers">Compradores</span>
+              </button>
+              <button type="button" data-admin-section="sellers">
+                <i data-lucide="handshake"></i>
+                <span data-i18n="adminJumpSellers">Vendedores</span>
+              </button>
+              <p class="admin-nav-label" data-i18n="navInventory">Inventario</p>
               <button type="button" data-admin-section="properties">
                 <i data-lucide="home"></i>
-                <span data-i18n="adminJumpListings">Publicaciones</span>
+                <span data-i18n="adminJumpListings">Propiedades</span>
               </button>
               <div class="admin-sidebar-subnav">
                 <button type="button" data-admin-section-link="properties">Inventario de propiedades</button>
@@ -1097,22 +1120,15 @@
                 <button type="button" data-admin-section-link="external-properties">Inventario externo</button>
                 <button type="button" data-admin-section-link="new-external-property">Nueva publicación externa</button>
               </div>
-              <button type="button" data-admin-section="contacts">
-                <i data-lucide="users"></i>
-                <span data-i18n="adminJumpContacts">CRM / Contactos</span>
+              <button type="button" data-admin-section="catalogs">
+                <i data-lucide="map-pin"></i>
+                <span data-i18n="adminJumpCatalogs">Catálogos</span>
               </button>
-              <div class="admin-sidebar-subnav">
-                <button type="button" data-admin-section-link="contacts">Contactos y cuentas</button>
-                <button type="button" data-admin-section-link="roles">Cuentas registradas y accesos</button>
-                <button type="button" data-admin-section-link="guest-contacts">Contactos sin registrar</button>
-              </div>
-              <button type="button" data-admin-section="mailing">
-                <i data-lucide="mail"></i>
-                <span>Mailing</span>
+              <button type="button" data-admin-section="files">
+                <i data-lucide="folder-open"></i>
+                <span data-i18n="adminJumpFiles">Archivos</span>
               </button>
-              <div class="admin-sidebar-subnav">
-                <button type="button" data-admin-section-link="mailing">Crear y enviar correos</button>
-              </div>
+              <p class="admin-nav-label" data-i18n="navOutreach">Comunicación</p>
               <button type="button" data-admin-section="whatsapp">
                 <i data-lucide="message-circle-more"></i>
                 <span>WhatsApp</span>
@@ -1121,23 +1137,13 @@
               <div class="admin-sidebar-subnav">
                 <button type="button" data-admin-section-link="whatsapp">Conexión, chatbot y chats</button>
               </div>
-              <button type="button" data-admin-section="valuations">
-                <i data-lucide="badge-dollar-sign"></i>
-                <span data-i18n="adminJumpValuations">Valoraciones</span>
-                <b id="sidebarValuationBadge">0</b>
+              <button type="button" data-admin-section="mailing">
+                <i data-lucide="mail"></i>
+                <span>Mailing</span>
               </button>
-              <button type="button" data-admin-section="buyers">
-                <i data-lucide="user-search"></i>
-                <span data-i18n="adminJumpBuyers">Compradores</span>
-              </button>
-              <button type="button" data-admin-section="sellers">
-                <i data-lucide="handshake"></i>
-                <span data-i18n="adminJumpSellers">Vendedores</span>
-              </button>
-              <button type="button" data-admin-section="catalogs">
-                <i data-lucide="map-pin"></i>
-                <span data-i18n="adminJumpCatalogs">Catálogos</span>
-              </button>
+              <div class="admin-sidebar-subnav">
+                <button type="button" data-admin-section-link="mailing">Crear y enviar correos</button>
+              </div>
               <button type="button" data-admin-section="marketing">
                 <i data-lucide="megaphone"></i>
                 <span data-i18n="adminJumpMarketing">Contenido promocional</span>
@@ -1159,6 +1165,11 @@
               <div class="admin-sidebar-subnav">
                 <button type="button" data-admin-section-link="pdf">Generar e historial</button>
               </div>
+              <p class="admin-nav-label" data-i18n="navControl">Análisis y administración</p>
+              <button type="button" data-admin-section="visitor-leads">
+                <i data-lucide="user-search"></i>
+                <span data-i18n="visitorLeadsMenu">Leads</span>
+              </button>
               <button type="button" data-admin-section="statistics">
                 <i data-lucide="chart-column"></i>
                 <span>Estadísticas</span>
@@ -1171,15 +1182,6 @@
               <button type="button" data-admin-section="integrations">
                 <i data-lucide="plug-zap"></i>
                 <span>Integraciones</span>
-              </button>
-              <button type="button" data-admin-section="tasks">
-                <i data-lucide="list-checks"></i>
-                <span data-i18n="adminJumpTasks">Tareas</span>
-                <b id="sidebarTaskBadge">0</b>
-              </button>
-              <button type="button" data-admin-section="files">
-                <i data-lucide="folder-open"></i>
-                <span data-i18n="adminJumpFiles">Archivos</span>
               </button>
               <button type="button" data-admin-section="settings">
                 <i data-lucide="settings"></i>
@@ -1204,6 +1206,13 @@
             <div class="admin-global-results" id="adminGlobalSearchResults"></div>
           </div>
         </section>
+        <section class="admin-start-guide" data-admin-section-panel="dashboard">
+          <p class="section-kicker" data-i18n="navDaily">Mi jornada</p>
+          <h2 data-i18n="homeAdminTitle">Resumen del día</h2>
+          <p data-i18n="homeAdminGuide">Empieza por las solicitudes que necesitan respuesta o revisa el inventario. Selecciona un indicador para abrir las fichas que forman ese total.</p>
+        </section>
+        <div class="admin-insights" id="adminInsights" data-admin-section-panel="dashboard"></div>
+        <h3 class="admin-home-inventory-title" data-admin-section-panel="dashboard" data-i18n="homeInventoryTitle">Tu inventario</h3>
         <div class="stats-grid" id="statsGrid" data-admin-section-panel="dashboard"></div>
         <section id="adminStatistics" class="pcc-statistics" data-admin-section-panel="statistics" aria-labelledby="adminStatisticsTitle" hidden>
           <h2 id="adminStatisticsTitle">Estadísticas</h2>
@@ -1215,13 +1224,13 @@
         </section>
         <div class="admin-command-bar" data-admin-section-panel="dashboard">
           <div>
-            <h2 data-i18n="adminWorkspaceTitle">Centro de control</h2>
-            <p data-i18n="adminWorkspaceCopy">Revisa solicitudes, publicaciones, precios, zonas y actividad desde un solo panel.</p>
+            <h2 data-i18n="adminWorkspaceTitle">Accesos rápidos</h2>
+            <p data-i18n="adminWorkspaceCopy">Elige una tarea para ir directamente al apartado correspondiente.</p>
           </div>
           <div class="admin-command-actions">
             <button class="ghost-button" type="button" data-admin-jump="adminRequestsCard">
               <i data-lucide="message-circle"></i>
-              <span data-i18n="adminJumpRequests">Solicitudes</span>
+              <span data-i18n="adminJumpRequests">Solicitudes de venta</span>
             </button>
             <button class="ghost-button" type="button" data-admin-jump="adminListingsCard">
               <i data-lucide="home"></i>
@@ -1247,7 +1256,7 @@
               <i data-lucide="file-down"></i>
               <span>Generar PDF</span>
             </button>
-            <button class="ghost-button" type="button" data-admin-jump="adminMarketingCard">
+            <button class="ghost-button" type="button" data-admin-jump="adminMailingCard">
               <i data-lucide="megaphone"></i>
               <span>Crear campaña</span>
             </button>
@@ -1257,18 +1266,10 @@
             </button>
           </div>
         </div>
-        <div class="admin-insights" id="adminInsights" data-admin-section-panel="dashboard"></div>
-        <article class="panel-card admin-intelligence-card" data-admin-section-panel="intelligence">
-          <div class="admin-module-heading">
-            <div><span class="eyebrow">OPERACIÓN EN TIEMPO REAL</span><h2>Puerto Cancún Intelligence</h2><p>Prioridades accionables calculadas con los datos actuales del negocio.</p></div>
-            <button class="ghost-button" type="button" id="refreshIntelligence"><i data-lucide="refresh-cw"></i> Actualizar</button>
-          </div>
-          <div class="intelligence-priorities" id="adminIntelligence"></div>
-        </article>
         <article class="panel-card admin-copilot-card" data-admin-section-panel="copilot">
           <div class="admin-module-heading">
             <div><span class="eyebrow">ASISTENTE INTERNO</span><h2>Puerto Cancún Copilot</h2><p>Guía de uso y consultas seguras sobre información real del negocio.</p></div>
-            <span class="copilot-context" id="copilotContextLabel">Contexto: Dashboard</span>
+            <span class="copilot-context" id="copilotContextLabel">Contexto: Inicio</span>
           </div>
           <div class="copilot-suggestions" id="copilotSuggestions">
             <button type="button" data-copilot-question="Soy nuevo, ¿cómo empiezo?">Soy nuevo, ¿cómo empiezo?</button>
@@ -1316,16 +1317,16 @@
           <div class="integration-health-grid" id="adminIntegrations"></div>
         </article>
         <article class="panel-card admin-leads-card" id="adminLeadsCard" data-admin-section-panel="leads">
-          <h2 data-i18n="adminLeadsTitle">Solicitudes de asesoria</h2>
+          <h2 data-i18n="adminLeadsTitle">Asesorías</h2>
+          <p class="admin-module-intro" data-i18n="adminLeadsHint">Aquí llegan las consultas sobre compras, visitas y precios. Abre la solicitud para leer qué necesita la persona, responderle y registrar el siguiente paso.</p>
           <div class="panel-card-subhead">
             <span id="adminLeadSummary"></span>
-            <span data-i18n="adminLeadsHint">Responde por WhatsApp o correo y marca cada solicitud como atendida.</span>
           </div>
           <div class="lead-filter-tabs">
             <button class="active" type="button" data-lead-filter="all" data-i18n="leadFilterAll">Todas</button>
             <button type="button" data-lead-filter="seller" data-i18n="leadFilterSeller">Vender</button>
             <button type="button" data-lead-filter="valuation" data-i18n="leadFilterValuation">Valoracion</button>
-            <button type="button" data-lead-filter="ai_validation" data-i18n="leadFilterAi">Validar IA</button>
+            <button type="button" data-lead-filter="ai_validation" data-i18n="leadFilterAi">Revisar precio</button>
             <button type="button" data-lead-filter="buyer" data-i18n="leadFilterBuyer">Compradores</button>
             <button type="button" data-lead-filter="property_contact" data-i18n="leadFilterProperty">Propiedad</button>
             <button type="button" data-lead-filter="whatsapp_help" data-i18n="leadFilterWhatsApp">WhatsApp / ayuda</button>
@@ -1541,7 +1542,7 @@
           <div class="admin-module-heading">
             <div>
               <h2 data-i18n="valuationTitle">Valoraciones inmobiliarias</h2>
-              <p data-i18n="valuationHint">Solicitudes y valoraciones manuales para revisar precio esperado, rango sugerido y respuesta profesional.</p>
+              <p data-i18n="valuationHint">Aquí se estima el valor de una propiedad. Registra el precio que espera el propietario, compáralo con inmuebles similares y guarda el rango que le explicarás.</p>
             </div>
           </div>
           <form id="valuationForm" class="valuation-form">
@@ -1650,29 +1651,29 @@
             </div>
             <button class="primary-button" type="button" id="catalogNewLocationButton"><i data-lucide="plus"></i> Agregar ubicación</button>
           </div>
+          <div class="catalog-toolbar catalog-top-search">
+            <label class="catalog-search">
+              <span>Buscar ubicación</span>
+              <div class="catalog-search-control">
+                <i data-lucide="search"></i>
+                <input id="catalogSearch" type="search" placeholder="Ej. Cancún, Puerto Cancún, Tulum..." autocomplete="off" />
+              </div>
+            </label>
+            <label class="catalog-mobile-filter">
+              <span>Nivel</span>
+              <select id="catalogTypeFilter">
+                <option value="">Todos</option>
+                <option value="state">Estados</option>
+                <option value="city">Municipios</option>
+                <option value="zone">Zonas</option>
+                <option value="neighborhood">Colonias</option>
+              </select>
+            </label>
+            <button class="ghost-button catalog-clear-button" type="button" id="clearCatalogSearch"><i data-lucide="x"></i> Limpiar</button>
+          </div>
           <div class="catalog-summary" id="catalogSummary" aria-label="Resumen del catálogo"></div>
           <div class="catalog-workspace">
             <section class="catalog-explorer" aria-label="Explorador de ubicaciones">
-              <div class="catalog-toolbar">
-                <label class="catalog-search">
-                  <span>Buscar en todo México</span>
-                  <div class="catalog-search-control">
-                    <i data-lucide="search"></i>
-                    <input id="catalogSearch" type="search" placeholder="Ej. Cancún, Puerto Cancún, Tulum..." autocomplete="off" />
-                  </div>
-                </label>
-                <label class="catalog-mobile-filter">
-                  <span>Nivel</span>
-                  <select id="catalogTypeFilter">
-                    <option value="">Todos</option>
-                    <option value="state">Estados</option>
-                    <option value="city">Municipios</option>
-                    <option value="zone">Zonas</option>
-                    <option value="neighborhood">Colonias</option>
-                  </select>
-                </label>
-                <button class="ghost-button catalog-clear-button" type="button" id="clearCatalogSearch"><i data-lucide="x"></i> Limpiar</button>
-              </div>
               <div class="catalog-level-tabs" id="catalogLevelTabs" aria-label="Filtrar por nivel"></div>
               <div class="catalog-results-heading">
                 <div>
@@ -1880,6 +1881,7 @@
           <p class="form-message" id="taskFormMessage"></p>
           <div class="lead-filter-tabs" id="taskFilters">
             <button class="active" type="button" data-task-filter="all">Todas</button>
+            <button type="button" data-task-filter="open" data-i18n="openTasksFilter">Abiertas</button>
             <button type="button" data-task-filter="today">Hoy</button>
             <button type="button" data-task-filter="overdue">Vencidas</button>
             <button type="button" data-task-filter="week">Esta semana</button>
@@ -2353,9 +2355,9 @@
                 <div class="map-picker" data-map-picker>
                   <div class="map-picker-copy">
                     <div><h3>Ubicación en mapa</h3><p>Busca una dirección o ajusta el punto para conservar una referencia precisa.</p></div>
-                    <div class="map-actions"><button class="ghost-button" type="button" data-geocode-address><i data-lucide="search"></i><span>Ubicar dirección</span></button><button class="ghost-button" type="button" data-use-current-location><i data-lucide="crosshair"></i><span>Usar mi ubicación</span></button><a class="ghost-button" href="https://www.google.com/maps/search/?api=1&query=Cancun%2C%20Quintana%20Roo" target="_blank" rel="noopener" data-open-map><i data-lucide="map"></i><span>Abrir Google Maps</span></a></div>
+                    <div class="map-actions"><button class="ghost-button" type="button" data-geocode-address><i data-lucide="search"></i><span>Ubicar dirección</span></button><button class="ghost-button" type="button" data-use-current-location><i data-lucide="crosshair"></i><span>Usar mi ubicación</span></button><a class="ghost-button" hidden target="_blank" rel="noopener" data-open-map><i data-lucide="map"></i><span>Abrir Google Maps</span></a></div>
                   </div>
-                  <iframe title="Google Maps" loading="lazy" referrerpolicy="no-referrer-when-downgrade" data-map-frame src="https://www.google.com/maps?q=Cancun%2C%20Quintana%20Roo&output=embed"></iframe>
+                  <iframe title="Mapa de ubicación" loading="lazy" referrerpolicy="no-referrer-when-downgrade" data-map-frame></iframe>
                   <div class="interactive-map-canvas" data-map-canvas hidden aria-label="Selector interactivo de ubicación"></div>
                   <div class="form-row coordinate-row"><label><span>Latitud</span><input name="latitude" type="number" step="any" min="-90" max="90" data-map-lat /></label><label><span>Longitud</span><input name="longitude" type="number" step="any" min="-180" max="180" data-map-lng /></label></div>
                   <input name="mapPlace" type="hidden" data-map-place />
@@ -2415,6 +2417,7 @@
         <div class="dashboard-grid admin-layout" id="adminOperationsGrid">
           <article class="panel-card admin-requests-card" id="adminRequestsCard" data-admin-section-panel="requests">
             <h2 data-i18n="adminRequestsTitle">Solicitudes de vendedores</h2>
+            <p class="admin-module-intro" data-i18n="adminRequestGuide">Son propiedades que un vendedor con cuenta envió para revisión. Abre «Responder» para pedir datos o enviarle un mensaje. Revisa las fotos y el precio antes de aprobar: si hay una foto, la aprobación puede publicar la ficha.</p>
             <div class="panel-card-subhead">
               <span id="adminRequestSummary"></span>
               <span data-i18n="adminScrollableHint">Desplaza dentro de esta lista para ver mas.</span>
@@ -2423,7 +2426,7 @@
           </article>
           <article class="panel-card admin-requests-card" id="adminGuestRequestsCard" data-admin-section-panel="guest-requests">
             <div class="admin-module-heading">
-              <div><span class="eyebrow">SIN CUENTA</span><h2>Solicitudes de venta sin registro</h2><p>Expedientes básicos para contactar al propietario y solicitar la información que falte.</p></div>
+              <div><span class="eyebrow">SIN CUENTA</span><h2>Solicitudes de venta sin registro</h2><p data-i18n="guestRequestGuide">Una persona sin cuenta envió los datos básicos de su propiedad. Revisa su medio de contacto, registra el seguimiento y solicita la información que falta para preparar la ficha.</p></div>
             </div>
             <div class="panel-card-subhead"><span id="adminGuestRequestSummary"></span><span>Estas solicitudes no se publican automáticamente.</span></div>
             <div class="request-list" id="adminGuestRequests"></div>
@@ -2597,18 +2600,17 @@
                       <i data-lucide="crosshair"></i>
                       <span data-i18n="useCurrentLocation">Usar mi ubicacion</span>
                     </button>
-                    <a class="ghost-button" href="https://www.google.com/maps/search/?api=1&query=Cancun%2C%20Quintana%20Roo" target="_blank" rel="noopener" data-open-map>
+                    <a class="ghost-button" hidden target="_blank" rel="noopener" data-open-map>
                       <i data-lucide="map"></i>
                       <span data-i18n="openGoogleMaps">Abrir Google Maps</span>
                     </a>
                   </div>
                 </div>
                 <iframe
-                  title="Google Maps"
+                  title="Mapa de ubicación"
                   loading="lazy"
                   referrerpolicy="no-referrer-when-downgrade"
                   data-map-frame
-                  src="https://www.google.com/maps?q=Cancun%2C%20Quintana%20Roo&output=embed"
                 ></iframe>
                 <div class="interactive-map-canvas" data-map-canvas hidden aria-label="Selector interactivo de ubicación"></div>
                 <div class="form-row coordinate-row">
@@ -2772,9 +2774,9 @@
             </form>
             <aside class="listing-side-panel">
               <article>
-                <span data-i18n="qualityScore">Calidad</span>
-                <strong id="listingQualityPreview">0%</strong>
-                <p data-i18n="propertyQualityMissing">Faltan</p>
+                <span>Completitud editorial</span>
+                <strong id="listingQualityPreview">—</strong>
+                <p id="listingQualityExplanation">El avance se calcula con los datos de la ficha guardada.</p>
               </article>
               <article>
                 <span data-i18n="adminQuickActions">Accesos rapidos</span>
@@ -3010,10 +3012,10 @@
                 <div class="map-actions">
                   <button class="ghost-button" type="button" data-geocode-address><i data-lucide="search"></i><span data-i18n="locateAddress">Ubicar dirección</span></button>
                   <button class="ghost-button" type="button" data-use-current-location><i data-lucide="crosshair"></i><span data-i18n="useCurrentLocation">Usar mi ubicación</span></button>
-                  <a class="ghost-button" href="https://www.google.com/maps/search/?api=1&query=Cancun%2C%20Quintana%20Roo" target="_blank" rel="noopener" data-open-map><i data-lucide="map"></i><span data-i18n="openGoogleMaps">Abrir Google Maps</span></a>
+
                 </div>
               </div>
-              <iframe title="Google Maps" loading="lazy" referrerpolicy="no-referrer-when-downgrade" data-map-frame src="https://www.google.com/maps?q=Cancun%2C%20Quintana%20Roo&output=embed"></iframe>
+              <iframe title="Mapa de ubicación" loading="lazy" referrerpolicy="no-referrer-when-downgrade" data-map-frame></iframe>
               <div class="interactive-map-canvas" data-map-canvas hidden aria-label="Selector interactivo de ubicación"></div>
               <div class="form-row coordinate-row">
                 <label><span data-i18n="latitudeField">Latitud</span><input name="latitude" type="number" step="any" min="-90" max="90" data-map-lat /></label>
