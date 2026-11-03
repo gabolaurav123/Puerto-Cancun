@@ -1,3 +1,4 @@
+[data-compare-id][hidden], #compareTray[hidden], html:not(.pcc-comparison-ready) [data-start-comparison] { display: none !important; }
 .pcc-comparison {
   box-sizing: border-box;
   --pcc-ink: #12343b;

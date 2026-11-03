@@ -38,8 +38,8 @@ function renderCatalog(page, properties, params, renderCards) {
   const typeEntries = [["", t("Todos los tipos", "All types")], ...inventory.TYPES.map((type, index) => [type, english ? ["Homes", "Apartments", "Land", "Commercial"][index] : type])];
   const operations = [["", t("Compra y renta", "Purchase and rent")], ["sale", t("Compra", "Purchase")], ["rent", t("Renta", "Rent")]];
   const modes = [["", t("Todas las modalidades", "All sales modes")], ["presale", t("Preventa", "Presale")], ["direct", t("Venta directa", "Direct sale")], ["resale", t("Reventa", "Resale")], ["unclassified", t("Por clasificar", "Unclassified")]];
-  const label = query.entity === "developments" ? t(total === 1 ? "desarrollo" : "desarrollos", total === 1 ? "development" : "developments") : t(total === 1 ? "propiedad" : "propiedades", total === 1 ? "property" : "properties");
-  const count = t(`Encontramos ${total} ${label}`, `We found ${total} ${label}`);
+  const label = query.entity === "developments" ? t(total === 1 ? "desarrollo" : "desarrollos", total === 1 ? "development" : "developments") : t(total === 1 ? "propiedad" : "propiedades", total === 1 ? "listing" : "listings");
+  const count = `${total} ${label}`;
   const context = [query.locations.map((id) => locationLabel(id, english)).join(", "), query.zone, typeEntries.find(([id]) => id && id === query.type)?.[1], operations.find(([id]) => id === query.operation)?.[1], query.modality && modes.find(([id]) => id === query.modality)?.[1], query.currency, query.max !== null ? `${t("hasta", "up to")} ${query.max}` : "", query.text].filter(Boolean).join(" · ");
   const contactMessage = t("Busco una propiedad: ", "I am looking for a property: ") + context;
   const sellerParams = new URLSearchParams({ location: query.locations.join(","), zone: query.zone, type: query.type, intent: "sell" });
@@ -64,7 +64,8 @@ function renderCatalog(page, properties, params, renderCards) {
     </div><p class="field-hint">${t("Venta directa indica entrega inmediata según la clasificación del negocio. Los registros antiguos sin modalidad permanecen por clasificar. Los precios no mezclan monedas, bases o periodos.", "Direct sale means immediate delivery according to the business classification. Legacy listings without a sales mode remain unclassified. Prices are not mixed across currencies, bases or periods.")}</p></details>
     <div class="catalog-filter-actions"><label class="catalog-featured"><input name="featured" type="checkbox" value="1"${query.featured ? " checked" : ""} /><span>${t("Solo destacadas", "Featured only")}</span></label>
     ${select("sort", t("Ordenar", "Sort"), [["recent", t("Más recientes", "Newest")], ["oldest", t("Más antiguas", "Oldest")], ["price-asc", t("Precio menor por moneda/base", "Lowest price by currency/basis")], ["price-desc", t("Precio mayor por moneda/base", "Highest price by currency/basis")], ["title", t("Título A–Z", "Title A–Z")]], query.sort)}
-    <button class="primary-button" type="submit">${t("Aplicar filtros", "Apply filters")}</button><a class="text-link" href="${path}">${t("Limpiar filtros", "Clear filters")}</a></div>
+    <button class="primary-button" type="submit">${t("Aplicar filtros", "Apply filters")}</button><a class="text-link" href="${path}">${t("Limpiar filtros", "Clear filters")}</a>
+    <button class="text-link" type="button" data-start-comparison>${t("Abrir comparador", "Open comparison")}</button></div>
   </form>`;
   const chips = [];
   for (const [key, value] of Object.entries({ q: query.text, location: query.locations.join(","), zone: query.zone, type: query.type, operation: query.operation, modality: query.modality, featured: query.featured ? "1" : "", development: query.development, currency: query.currency, min: query.min, max: query.max, beds: query.beds, rentPeriod: query.rentPeriod, priceBasis: query.priceBasisExplicit ? query.priceBasis : "" })) {

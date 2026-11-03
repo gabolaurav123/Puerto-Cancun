@@ -27,11 +27,11 @@
 .catalog-filter-actions { grid-column: 1 / -1; display: flex; align-items: end; gap: 14px; flex-wrap: wrap; }
 .catalog-filter-actions .text-link { align-self: center; }
 .catalog-result-bar { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 10px 0; }
-#categoryInventoryCount { font: 500 1.1rem/1.5 Arial, sans-serif; margin: 0; }
+#categoryInventoryCount { width: auto; flex: 0 1 auto; font: 500 1.1rem/1.5 Arial, sans-serif; margin: 0; }
 .catalog-active-filters { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
 .catalog-chip { display: inline-flex; gap: 12px; align-items: center; border: 1px solid #bcd2d4; padding: 7px 10px; border-radius: 4px; font-size: .85rem; text-decoration: none; background: #fff; }
 .catalog-chip span { font-size: 1.1rem; }
-.catalog-view-toggle { display: flex; border: 1px solid #bcd2d4; border-radius: 4px; overflow: hidden; }
+.catalog-view-toggle { display: flex; width: max-content; flex: 0 0 auto; border: 1px solid #bcd2d4; border-radius: 4px; overflow: hidden; }
 .catalog-view-toggle button { min-height: 44px; padding: 8px 12px; border: 0; border-radius: 0; color: #073540; background: #fff; }
 .catalog-view-toggle [aria-pressed=true] { background: #075562; color: #fff; }
 .catalog-request-status { min-height: 24px; font-size: .875rem; margin: 0 0 8px; }

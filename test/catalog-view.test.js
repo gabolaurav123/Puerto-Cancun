@@ -7,7 +7,7 @@ test('unmatched subarea and development remain selected instead of widening the 
   const html = renderCatalog(page, [], { zone: 'Merida', development: 'retired-development' }, () => '');
   assert.match(html, /<option value="Merida" selected>Merida \(sin coincidencias actuales\)<\/option>/);
   assert.match(html, /<option value="retired-development" selected>/);
-  assert.match(html, /Encontramos 0 propiedades/);
+  assert.match(html, /id="categoryInventoryCount" role="status">0 propiedades</);
 });
 
 test('retained options are escaped and comparison survives chips and native form submission', () => {

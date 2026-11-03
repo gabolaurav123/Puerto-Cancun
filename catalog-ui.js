@@ -88,7 +88,14 @@
   });
   document.addEventListener("click", (event) => {
     const link = event.target.closest(".catalog-pagination a, .catalog-chip, #catalogFilters a.text-link");
-    if (link && !event.ctrlKey && !event.metaKey && event.button === 0) { event.preventDefault(); navigate(link.href); return; }
+    if (link && !event.ctrlKey && !event.metaKey && event.button === 0) {
+      event.preventDefault();
+      const url = new URL(link.href);
+      const comparison = new URLSearchParams(location.search).get("compare");
+      if (comparison) url.searchParams.set("compare", comparison); else url.searchParams.delete("compare");
+      navigate(url.href);
+      return;
+    }
     const button = event.target.closest("[data-catalog-view]");
     if (button) {
       const container = root();
