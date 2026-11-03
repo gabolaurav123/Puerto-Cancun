@@ -68,68 +68,76 @@
           </div>
         </div>
 
+        <nav class="public-quick-nav" aria-label="Accesos rápidos" data-i18n-aria-label="navQuick">
+          <a href="/propiedades" data-i18n="navSearch">Buscar</a>
+          <a href="/propiedades/desarrollos-cancun" data-i18n="navDevelopments">Desarrollos</a>
+          <a href="/nosotros" data-i18n="navAbout">Nosotros</a>
+        </nav>
         <nav class="main-nav" id="mainNav" aria-label="Navegación principal" data-i18n-aria-label="publicNavLabel">
-          <details class="public-nav-group" name="site-navigation">
-            <summary data-i18n="navProperties">Propiedades</summary>
-            <div class="public-nav-popover">
-              <a class="public-nav-overview" href="/propiedades" data-i18n="navSearch">Ver todas las propiedades</a>
-              <div class="public-nav-columns">
-                <div>
-                  <p data-i18n="navPropertyType">Tipo de propiedad</p>
-                  <a href="/propiedades/casas-cancun" data-i18n="typeHouses">Casas</a>
-                  <a href="/propiedades/departamentos-cancun" data-i18n="typeCondos">Departamentos</a>
-                  <a href="/propiedades/terrenos-cancun" data-i18n="typeLand">Terrenos</a>
-                  <a href="/propiedades/comerciales-cancun" data-i18n="typeCommercial">Comercial</a>
-                </div>
-                <div>
-                  <p data-i18n="navExplore">Explorar</p>
-                  <a href="/propiedades/en-venta" data-i18n="navForSale">En venta</a>
-                  <a href="/propiedades-en-renta-cancun" data-i18n="typeRentals">Rentas</a>
-                  <a href="/propiedades/desarrollos-cancun" id="developmentsNavLink" data-i18n="navDevelopments">Desarrollos</a>
-                  <a href="/preventas-cancun" data-i18n="typePresales">Preventas</a>
-                  <a href="/propiedades/destacadas-cancun" data-i18n="navFeatured">Destacadas</a>
-                </div>
-              </div>
-            </div>
-          </details>
-          <details class="public-nav-group" name="site-navigation">
-            <summary data-i18n="featuredZones">Ubicaciones</summary>
-            <div class="public-nav-popover">
-              <a class="public-nav-overview" href="/zonas-cancun" data-i18n="menuAllZones">Ver todas las zonas</a>
-              <div class="public-nav-columns">
-                <div>
-                  <p data-i18n="navZones">Zonas</p>
-                  <a href="/propiedades/zona-hotelera" data-i18n="navHotelZone">Zona Hotelera</a>
-                  <a href="/propiedades/puerto-cancun">Puerto Cancún</a>
-                  <a href="/propiedades/cancun-city" data-i18n="navCancunCity">Ciudad de Cancún</a>
-                  <a href="/propiedades/fuera-de-cancun" data-i18n="navOutsideCancun">Fuera de Cancún</a>
-                </div>
-                <div>
-                  <p data-i18n="navInPuerto">En Puerto Cancún</p>
-                  <a href="/propiedades/puerto-cancun/casas" data-i18n="typeHouses">Casas</a>
-                  <a href="/propiedades/puerto-cancun/departamentos" data-i18n="typeCondos">Departamentos</a>
-                  <a href="/propiedades?location=puerto-cancun&amp;operation=rent" data-i18n="typeRentals">Rentas</a>
-                  <a href="/propiedades?location=puerto-cancun&amp;type=Terreno" data-i18n="typeLand">Terrenos</a>
-                  <a href="/propiedades?location=puerto-cancun&amp;operation=sale&amp;modality=presale" data-i18n="typePresales">Preventas</a>
+          <div class="public-nav-primary">
+            <a class="public-nav-search" href="/propiedades" data-i18n="navSearch">Buscar</a>
+            <a href="/propiedades/destacadas-cancun" data-i18n="navFeatured">Destacadas</a>
+            <details class="public-nav-group" name="site-navigation">
+              <summary data-i18n="navPropertyType">Tipo de propiedad</summary>
+              <div class="public-nav-popover">
+                <a class="public-nav-overview" href="/propiedades" data-i18n="navAllProperties">Ver todas las propiedades</a>
+                <div class="public-nav-columns">
+                  <div>
+                    <p data-i18n="navPropertyType">Tipo de propiedad</p>
+                    <a href="/propiedades/casas-cancun" data-i18n="typeHouses">Casas</a>
+                    <a href="/propiedades/departamentos-cancun" data-i18n="typeCondos">Departamentos</a>
+                    <a href="/propiedades/terrenos-cancun" data-i18n="typeLand">Terrenos</a>
+                    <a href="/propiedades/comerciales-cancun" data-i18n="typeCommercial">Comercial</a>
+                  </div>
+                  <div>
+                    <p data-i18n="navExplore">Explorar</p>
+                    <a href="/propiedades/en-venta" data-i18n="navForSale">En venta</a>
+                    <a href="/propiedades-en-renta-cancun" data-i18n="typeRentals">Rentas</a>
+                    <a href="/preventas-cancun" data-i18n="typePresales">Preventas</a>
+                  </div>
                 </div>
               </div>
-            </div>
-          </details>
-          <a href="/vender-casa-cancun" id="sellNavLink" data-open-seller-options data-i18n="navSell">Vender</a>
-          <details class="public-nav-group" name="site-navigation">
-            <summary data-i18n="navAdvice">Asesoría</summary>
-            <div class="public-nav-popover public-nav-advice">
-              <a class="public-nav-overview" href="/contacto" data-i18n="teamCta">Contactar al equipo</a>
-              <a href="/valuacion-inmobiliaria-cancun" data-i18n="valuationSaleName">Solicitar valoración</a>
-              <a href="/revisar-precio-propiedad" data-i18n="navPriceReview">Revisar mi precio</a>
-              <a href="/calculadora-hipotecaria" data-i18n="resourceMortgage">Calculadora hipotecaria</a>
-              <a href="/busquedas-clientes" data-i18n="resourceBuyerRequirements">Búsquedas de clientes</a>
-              <a href="/blog" data-i18n="resourceBlog">Blog</a>
-              <a href="/nosotros" id="aboutNavLink" data-i18n="navAbout">Nosotros</a>
-              <a class="public-nav-phone" href="tel:+5219982166563"><span data-i18n="navCall">Llamar</span> · 998-216-6563</a>
-            </div>
-          </details>
-          <a class="login-link" href="/?auth=login" id="loginOpen" data-i18n="navLogin">Iniciar sesión</a>
+            </details>
+            <details class="public-nav-group" name="site-navigation">
+              <summary data-i18n="navPuerto">Puerto Cancún</summary>
+              <div class="public-nav-popover public-nav-simple">
+                <a class="public-nav-overview" href="/propiedades/puerto-cancun" data-i18n="navInPuerto">En Puerto Cancún</a>
+                <a href="/propiedades/puerto-cancun/casas" data-i18n="typeHouses">Casas</a>
+                <a href="/propiedades/puerto-cancun/departamentos" data-i18n="typeCondos">Departamentos</a>
+                <a href="/propiedades?location=puerto-cancun&amp;operation=rent" data-i18n="typeRentals">Rentas</a>
+                <a href="/propiedades?location=puerto-cancun&amp;type=Terreno" data-i18n="typeLand">Terrenos</a>
+                <a href="/propiedades?location=puerto-cancun&amp;operation=sale&amp;modality=presale" data-i18n="typePresales">Preventas</a>
+              </div>
+            </details>
+            <details class="public-nav-group" name="site-navigation">
+              <summary data-i18n="featuredZones">Ubicaciones</summary>
+              <div class="public-nav-popover public-nav-simple">
+                <a class="public-nav-overview" href="/zonas-cancun" data-i18n="menuAllZones">Ver todas las zonas</a>
+                <a href="/propiedades/zona-hotelera" data-i18n="navHotelZone">Zona Hotelera</a>
+                <a href="/propiedades/puerto-cancun">Puerto Cancún</a>
+                <a href="/propiedades/cancun-city" data-i18n="navCancunCity">Ciudad de Cancún</a>
+                <a href="/propiedades/fuera-de-cancun" data-i18n="navOutsideCancun">Fuera de Cancún</a>
+              </div>
+            </details>
+            <a href="/propiedades/desarrollos-cancun" id="developmentsNavLink" data-i18n="navDevelopments">Desarrollos</a>
+            <a href="/nosotros" id="aboutNavLink" data-i18n="navAbout">Nosotros</a>
+            <a href="/vender-casa-cancun" id="sellNavLink" data-open-seller-options data-i18n="navSell">Vender</a>
+          </div>
+          <div class="public-nav-services">
+            <details class="public-nav-group" name="site-navigation">
+              <summary data-i18n="navResourcesAdvice">Recursos y asesoría</summary>
+              <div class="public-nav-popover public-nav-advice">
+                <a class="public-nav-overview" href="/contacto" data-i18n="teamCta">Contactar al equipo</a>
+                <a href="/valuacion-inmobiliaria-cancun" data-i18n="valuationSaleName">Solicitar valoración</a>
+                <a href="/revisar-precio-propiedad" data-i18n="navPriceReview">Revisar mi precio</a>
+                <a href="/calculadora-hipotecaria" data-i18n="resourceMortgage">Calculadora hipotecaria</a>
+                <a href="/busquedas-clientes" data-i18n="resourceBuyerRequirements">Búsquedas de clientes</a>
+                <a href="/blog" data-i18n="resourceBlog">Blog</a>
+              </div>
+            </details>
+            <a class="public-nav-call" href="tel:+5219982166563"><span aria-hidden="true" data-lucide="phone"></span>998-216-6563</a>
+            <a class="login-link" href="/?auth=login" id="loginOpen" data-i18n="navLogin">Iniciar sesión</a>
+          </div>
         </nav>
       </header>
 

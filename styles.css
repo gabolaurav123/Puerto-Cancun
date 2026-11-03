@@ -15699,7 +15699,16 @@ body[data-page="home"] .properties-section .property-card {
   }
 }
 
-/* Public navigation: four starting points, with the full directory one step away. */
+/* Public navigation */
+.public-quick-nav { display: none; }
+.public-nav-primary > a, .public-nav-services > a, .public-quick-nav > a {
+  display: inline-flex; align-items: center; color: inherit; font-weight: 700; text-decoration: none; text-transform: none;
+}
+.public-nav-primary > a, .public-nav-services > a, .public-nav-group > summary { white-space: nowrap; }
+.public-nav-primary > a:hover, .public-nav-services > a:hover, .public-quick-nav > a:hover { color: #f2d27a; }
+.main-header a:focus-visible, .main-header summary:focus-visible { outline: 2px solid #e9bf65; outline-offset: 2px; }
+.public-nav-call { gap: 6px; font-variant-numeric: tabular-nums; }
+.public-nav-call svg { width: 15px; height: 15px; }
 .public-nav-group { position: relative; min-width: 0; }
 .public-nav-group > summary {
   display: flex; align-items: center; gap: .55em; min-height: 44px;
@@ -15711,6 +15720,7 @@ body[data-page="home"] .properties-section .property-card {
   content: ""; width: .4em; height: .4em; border: solid currentColor;
   border-width: 0 1.5px 1.5px 0; transform: translateY(-.12em) rotate(45deg);
 }
+.public-nav-group[open] { z-index: 3; }
 .public-nav-group[open] > summary { color: #f2d27a; }
 .public-nav-group[open] > summary::after { transform: translateY(.13em) rotate(225deg); }
 .public-nav-group > summary:focus-visible, .public-nav-popover a:focus-visible {
@@ -15731,25 +15741,68 @@ body[data-page="home"] .properties-section .property-card {
 .public-nav-overview::after { content: "→" / ""; margin-inline-start: auto; padding-inline-start: 12px; }
 .public-nav-columns { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 8px; padding-top: 7px; }
 .public-nav-columns p { margin: 8px 10px 3px; color: #596e70; font-size: .73rem; font-weight: 700; }
-.public-nav-advice { width: 252px; inset-inline-start: auto; inset-inline-end: 0; }
-.public-nav-phone { border-top: 1px solid #dce6e2; margin-top: 5px; gap: 4px; }
+.public-nav-simple, .public-nav-advice { width: 252px; }
+.public-nav-advice { inset-inline-start: auto; inset-inline-end: 0; }
 .local-advice-layout { display: grid; align-items: center; grid-template-columns: minmax(0,1.35fr) minmax(0,1fr); gap: clamp(24px,5vw,76px); }
 .team-statement .local-price-advice { padding: 20px 24px; border-inline-start: 3px solid #b99550; background: #f6f7f2; }
 .local-price-advice h3 { margin: 0 0 8px; font-size: clamp(1.24rem,2vw,1.55rem); color: #073d46; }
 .team-statement .local-price-advice p { margin: 0 0 12px; font-size: .96rem; line-height: 1.5; }
 .local-price-advice .text-link { display: inline-block; text-underline-offset: .2em; }
 @media (min-width:1181px) {
-  .main-header .main-nav, .main-header.is-sticky .main-nav {
-    justify-content: flex-end; gap: clamp(18px,2.1vw,34px); font-size: .89rem;
+  .main-header, .main-header.is-sticky {
+    --header-gutter: max(24px, calc((100% - 1320px) / 2));
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: clamp(16px, 2vw, 32px);
+    padding: 5px var(--header-gutter) 7px;
   }
-  .main-header, .main-header.is-sticky { padding-inline: max(24px, calc((100% - 1320px) / 2)); }
+  .main-header .main-nav, .main-header.is-sticky .main-nav {
+    display: flex; flex-direction: column; align-items: stretch; gap: 0; font-size: .9rem;
+  }
+  .public-nav-primary, .public-nav-services {
+    display: flex; align-items: center; justify-content: flex-end;
+  }
+  .public-nav-primary { gap: clamp(15px,1.6vw,28px); }
+  .public-nav-primary > a, .public-nav-primary > details > summary { min-height: 44px; }
+  .public-nav-services {
+    gap: 18px; padding-inline-end: 80px; border-top: 1px solid #ffffff26;
+    color: #dbe8e6; font-size: .79rem;
+  }
+  .public-nav-services > a, .public-nav-services > details > summary {
+    min-height: 34px; color: inherit; font-weight: 600;
+  }
+  .main-header .public-nav-services .login-link {
+    min-height: 30px !important; padding: 3px 10px !important; border-color: #ffffff70 !important;
+  }
+  .main-header .header-tools {
+    position: absolute; grid-area: auto; z-index: 1; inset-inline-end: var(--header-gutter); bottom: 7px;
+  }
+  .main-header .language-toggle { min-height: 34px; padding: 4px 8px; }
+  .public-nav-services .public-nav-call { color: #f2d27a; }
 }
 @media (max-width:1180px) {
-  .main-header .main-nav.open { display: flex; height: calc(100dvh - 70px); overscroll-behavior: contain; }
-  .main-nav > .public-nav-group, .main-nav > a { flex: 0 0 auto; }
-  .public-nav-group > summary { min-height: 50px; padding: 10px; justify-content: space-between; font-size: 1rem; border-bottom: 1px solid #ffffff26; }
+  .public-quick-nav {
+    display: flex; align-items: stretch; justify-content: center; border-top: 1px solid #ffffff24;
+    margin-top: 5px; gap: clamp(8px,4vw,32px);
+  }
+  .public-quick-nav > a { justify-content: center; min-height: 44px; padding: 0 6px; font-size: .87rem; }
+  .main-header .main-nav.open {
+    display: flex; height: calc(100dvh - 100%); overscroll-behavior: contain;
+    padding-bottom: max(20px, env(safe-area-inset-bottom));
+  }
+  .public-nav-primary, .public-nav-services { flex: 0 0 auto; width: 100%; }
+  .public-nav-primary > a, .public-nav-services > a, .public-nav-group > summary {
+    width: 100%; min-height: 46px; padding: 8px 10px; font-size: 1rem; border-bottom: 1px solid #ffffff26;
+  }
+  .public-nav-group > summary { justify-content: space-between; }
+  .public-nav-services { margin-top: 8px; }
+  .public-nav-services .login-link { width: auto; margin: 8px 0; }
   .public-nav-popover { position: static; width: 100%; margin: 4px 0 8px; box-shadow: none; }
   .public-nav-popover a { min-height: 44px; }
+  .property-page-heading { --public-header-offset: 143px; }
+}
+@media (max-width:700px) {
+  .property-page-heading { --public-header-offset: 132px; }
+  body[data-page="home"] .hero { padding-top: 142px; }
 }
 @media (max-width:700px) {
   .local-advice-layout { grid-template-columns: minmax(0,1fr); gap: 20px; }

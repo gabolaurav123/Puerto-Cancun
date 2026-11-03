@@ -69,3 +69,33 @@ test("el blog nace con articulos editoriales bilingues publicados", () => {
   assert.match(server, /post-elegir-zona-cancun/);
   assert.match(server, /VALUES[\s\S]*'published', 'Puerto Cancun Center'/);
 });
+
+test("la ficha ofrece el Blog únicamente si hay artículos publicados en su idioma", async (t) => {
+  const { app } = require("../server");
+  const { Pool } = require("pg");
+  let hasEnglish = false;
+  let now = Date.now();
+  t.mock.method(Date, "now", () => now);
+  t.mock.method(Pool.prototype, "query", async (sql, params) => {
+    if (sql.includes("FROM blog_posts")) return { rows: [{ available: params[0] === "es" || hasEnglish }] };
+    if (sql.includes("FROM properties p WHERE p.is_public")) {
+      return { rows: [{ id: "test-blog-nav", slug: "test-blog-nav", type: "Casa", is_public: true, status: "active", title_es: "Casa", title_en: "House" }] };
+    }
+    return { rows: [] };
+  });
+  const server = app.listen(0, "127.0.0.1");
+  t.after(() => new Promise(resolve => server.close(resolve)));
+  await new Promise(resolve => server.once("listening", resolve));
+  const menu = async (path) => {
+    const res = await fetch(`http://127.0.0.1:${server.address().port}${path}`);
+    assert.equal(res.status, 200);
+    const html = await res.text();
+    assert.match(html, /data-page="property"/);
+    return html.match(/<a\s+href="(\/[^"]*blog)"[^>]*data-i18n="resourceBlog"/)?.[1];
+  };
+  assert.equal(await menu("/propiedades/test-blog-nav"), "/blog");
+  assert.equal(await menu("/en/properties/test-blog-nav"), undefined);
+  hasEnglish = true;
+  now += 61_000;
+  assert.equal(await menu("/en/properties/test-blog-nav"), "/en/blog");
+});

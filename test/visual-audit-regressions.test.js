@@ -58,6 +58,16 @@ test('full SEO pages keep their heading below the menu and the count beside the 
       assert.ok((await heading.boundingBox()).y >= menu.y + menu.height, `${pathname} at ${width}px`);
       if (pathname !== '/propiedades/casas-cancun') continue;
       assert.equal(await heading.innerText(), 'Casas en Cancún');
+      const directNav = page.locator(width <= 1180 ? '.public-quick-nav' : '.public-nav-primary');
+      for (const [label, href] of [
+        ['Buscar', '/propiedades'],
+        ['Desarrollos', '/propiedades/desarrollos-cancun'],
+        ['Nosotros', '/nosotros'],
+      ]) {
+        const link = directNav.getByRole('link', { name: label, exact: true });
+        assert.ok(await link.isVisible(), `${label} at ${width}px`);
+        assert.equal(await link.getAttribute('href'), href);
+      }
       const count = await page.locator('#categoryInventoryCount').boundingBox();
       const views = await page.locator('.catalog-view-toggle').boundingBox();
       assert.ok(count.y < views.y + views.height && views.y < count.y + count.height, `result controls at ${width}px`);
