@@ -67,6 +67,13 @@ test("source-based summaries cannot exceed the editorial attribution budget", ()
   assert.throws(() => validateArticle(article, sources, "2026-11-03"), { code: "BLOG_SOURCE_TOO_LONG" });
 });
 
+test("an unused new source cannot disguise a previously covered daily edition", () => {
+  const article = candidate();
+  article.sources.push({ title: "Otra novedad oficial", url: "https://qroo.gob.mx/otra-novedad", publishedAt: "2026-11-03" });
+  assert.throws(() => validateArticle(article, article.sources, "2026-11-03", sources.map(source => source.url)), { code: "BLOG_DUPLICATE_NEWS" });
+  assert.throws(() => validateArticle(article, article.sources, "2026-11-03"), { code: "BLOG_UNUSED_SOURCE" });
+});
+
 test("generation requires completed web research and validates structured bilingual output", async () => {
   const requests = [];
   const replies = [

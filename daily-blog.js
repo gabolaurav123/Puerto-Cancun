@@ -60,7 +60,6 @@ function validateArticle(candidate, observedSources, day, previousUrls = []) {
     return { id: index + 1, url, title: cleanText(source.title, 5, 240), publishedAt: date };
   });
   if (sources.length < 2 || sources.length > 6 || new Set(sources.map(source => source.url)).size !== sources.length) throw invalid("BLOG_UNVERIFIED_SOURCE");
-  if (sources.every(source => previous.has(source.url))) throw invalid("BLOG_DUPLICATE_NEWS");
   if (!Array.isArray(candidate.sections) || candidate.sections.length < 2 || candidate.sections.length > 5) throw invalid("BLOG_INVALID_CONTENT");
   const wordCounts = { es: new Map(), en: new Map() };
   const sections = candidate.sections.map(section => {
@@ -79,6 +78,9 @@ function validateArticle(candidate, observedSources, day, previousUrls = []) {
     }
     return normalized;
   });
+  const citedIds = new Set(sections.flatMap(section => section.sourceIds));
+  if (sources.filter(source => citedIds.has(source.id)).every(source => previous.has(source.url))) throw invalid("BLOG_DUPLICATE_NEWS");
+  if (citedIds.size !== sources.length) throw invalid("BLOG_UNUSED_SOURCE");
   const article = { sources };
   for (const suffix of ["Es", "En"]) {
     article[`title${suffix}`] = cleanText(candidate[`title${suffix}`], 15, 180);
