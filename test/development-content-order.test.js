@@ -31,7 +31,7 @@ for (const lang of ["es", "en"]) {
   test(`development linked properties precede the visit form (${lang})`, () => {
     const { html } = renderPropertyPage(development, lang, [unit]);
     const relatedIndex = html.indexOf('<section class="similar-properties">');
-    const leadIndex = html.indexOf('<section class="property-lead">');
+    const leadIndex = html.indexOf('<section class="property-lead"');
     assert.ok(relatedIndex > html.indexOf('class="property-long-description"'));
     assert.ok(leadIndex > relatedIndex);
     const cards = html.slice(relatedIndex, leadIndex);
@@ -51,7 +51,7 @@ for (const lang of ["es", "en"]) {
 
   test(`ordinary property recommendations retain their existing order (${lang})`, () => {
     const { html } = renderPropertyPage(unit, lang, [{ ...unit, id: "other-unit", slug: "other-unit" }]);
-    const leadIndex = html.indexOf('<section class="property-lead">');
+    const leadIndex = html.indexOf('<section class="property-lead"');
     const relatedIndex = html.indexOf('<section class="similar-properties">');
     assert.ok(leadIndex > 0);
     assert.ok(relatedIndex > leadIndex);

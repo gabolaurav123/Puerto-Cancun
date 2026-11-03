@@ -10730,6 +10730,9 @@ body:has(.listing-publish-dialog[open]) { overflow: hidden; }
   background: #126144; border-color: #126144; color: #fff; box-shadow: none; text-align: center;
 }
 .property-contact-actions .property-whatsapp:hover { background: #0c4b34; }
+.property-page-summary .property-contact-cta { width: 100%; min-height: 48px; text-align: center; }
+.property-lead { scroll-margin-top: calc(var(--public-header-height, 115px) + 20px); }
+.property-lead:focus-visible { outline: 2px solid var(--gold); outline-offset: 4px; }
 .property-page-overview .property-facts { margin: .7rem 0; }
 .property-page-information { min-width: 0; }
 .area-guide .zone-info-card { display: flex; flex-direction: column; align-items: stretch; }
