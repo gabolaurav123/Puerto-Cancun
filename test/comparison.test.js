@@ -225,7 +225,7 @@ test("only differences uses semantic values, retains warnings and leaves listing
 });
 
 const browserModule = process.env.PCC_PLAYWRIGHT_MODULE;
-test("public entry points show comparison only after consent or a shared URL", { skip: !browserModule, timeout: 60000 }, async (t) => {
+test("public entry points show comparison only when opened explicitly or through a shared URL", { skip: !browserModule, timeout: 60000 }, async (t) => {
   const { chromium } = require(browserModule);
   const seo = require("../seo-pages");
   const root = path.resolve(__dirname, "..");
