@@ -2900,13 +2900,13 @@ function hasCategoryFilter() {
 
 function categoryTitle() {
   if (state.filters.featured) return t("featuredProperties");
-  if (state.filters.type === "Casa") return state.lang === "en" ? "Homes in Cancun" : "Casas en Cancun";
-  if (state.filters.type === "Departamento") return state.lang === "en" ? "Condos in Cancun" : "Departamentos en Cancun";
-  if (state.filters.type === "Terreno") return state.lang === "en" ? "Land in Cancun" : "Terrenos en Cancun";
-  if (state.filters.type === "Comercial") return state.lang === "en" ? "Commercial properties in Cancun" : "Propiedades comerciales en Cancun";
-  if (state.filters.type === "Preventa") return state.lang === "en" ? "Presales in Cancun" : "Pre-ventas en Cancun";
-  if (state.filters.type === "Desarrollo") return state.lang === "en" ? "Developments in Cancun" : "Desarrollos en Cancun";
-  if (state.filters.operation === "rent") return state.lang === "en" ? "Cancun rentals" : "Cancun rentas";
+  if (state.filters.type === "Casa") return state.lang === "en" ? "Homes in Cancun" : "Casas en Cancún";
+  if (state.filters.type === "Departamento") return state.lang === "en" ? "Condos in Cancun" : "Departamentos en Cancún";
+  if (state.filters.type === "Terreno") return state.lang === "en" ? "Land in Cancun" : "Terrenos en Cancún";
+  if (state.filters.type === "Comercial") return state.lang === "en" ? "Commercial properties in Cancun" : "Propiedades comerciales en Cancún";
+  if (state.filters.type === "Preventa") return state.lang === "en" ? "Presales in Cancun" : "Preventas en Cancún";
+  if (state.filters.type === "Desarrollo") return state.lang === "en" ? "Developments in Cancun" : "Desarrollos en Cancún";
+  if (state.filters.operation === "rent") return state.lang === "en" ? "Cancun rentals" : "Propiedades en renta en Cancún";
   if (state.filters.operation === "sale") return state.lang === "en" ? "Properties for sale in Cancun" : "Propiedades en venta en Cancun";
   if (state.filters.zone) return state.lang === "en" ? `Properties in ${state.filters.zone}` : `Propiedades en ${state.filters.zone}`;
   return t("allProperties");
@@ -2916,17 +2916,17 @@ function categoryIntro() {
   if (state.filters.operation === "rent") {
     return state.lang === "en"
       ? "Review condos and homes for rent in Puerto Cancun, the Hotel Zone, Riviera Maya, and Playa Mujeres."
-      : "Revisa departamentos y casas en renta en Puerto Cancun, Zona Hotelera, Riviera Maya y Playa Mujeres.";
+      : "Revisa departamentos y casas en renta en Puerto Cancún, Zona Hotelera, Riviera Maya y Playa Mujeres.";
   }
   if (state.filters.type === "Preventa") {
     return state.lang === "en"
       ? "Presale opportunities with curated developments, payment plans, delivery context, and advisor follow-up."
-      : "Oportunidades en pre-venta con desarrollos seleccionados, esquemas de pago, contexto de entrega y seguimiento de asesores.";
+      : "Consulta los planes de pago y las fechas de entrega de los desarrollos en preventa.";
   }
   if (state.filters.type) {
     return state.lang === "en"
       ? `Available ${displayType(state.filters.type).toLowerCase()} with current prices, area details, images, and direct advisor contact.`
-      : `${displayType(state.filters.type)} disponibles con precios actuales, datos de superficie, imagenes y contacto directo con asesores.`;
+      : "Consulta el precio, la superficie y las fotos de cada inmueble, o contacta a un asesor.";
   }
   if (state.filters.zone) {
     return state.lang === "en"
@@ -2936,7 +2936,7 @@ function categoryIntro() {
   if (state.filters.featured) {
     return state.lang === "en"
       ? "Selected listings from the current inventory. Review each property's location, views and details."
-      : "Oportunidades seleccionadas del inventario actual por ubicacion, vistas o valor destacado.";
+      : "Propiedades destacadas por su ubicación, sus vistas o sus características.";
   }
   return "";
 }
@@ -3040,6 +3040,7 @@ async function retryPublicInventory() {
   } catch {
     state.publicInventoryStatus = "error";
   }
+  mountPublicComparison(state.properties);
   renderProperties();
 }
 
@@ -3160,7 +3161,7 @@ function renderProperties() {
             <div class="property-actions">
               <a class="mini-button primary" href="${escapeHtml(propertyUrl || `/propiedades/${property.slug || property.id}`)}">${escapeHtml(state.lang === "en" ? "View property" : "Ver propiedad")}</a>
               <button class="mini-button" type="button" data-detail="${escapeHtml(property.id)}"><i data-lucide="search"></i><span>${escapeHtml(state.lang === "en" ? "Quick view" : "Vista rápida")}</span></button>
-              <button class="mini-button" type="button" data-compare-id="${escapeHtml(property.id)}" aria-pressed="${isCompared}" aria-label="${escapeHtml(compareLabel)}"><i data-lucide="git-compare-arrows" aria-hidden="true"></i><span>${state.lang === "en" ? "Compare" : "Comparar"}</span></button>
+              <button class="mini-button" type="button" hidden data-compare-id="${escapeHtml(property.id)}" aria-pressed="${isCompared}" aria-label="${escapeHtml(compareLabel)}"><i data-lucide="git-compare-arrows" aria-hidden="true"></i><span>${state.lang === "en" ? "Compare" : "Comparar"}</span></button>
               <button class="mini-button" type="button" data-tour="${escapeHtml(property.id)}"><i data-lucide="calendar-days"></i><span>${escapeHtml(state.lang === "en" ? "Request a tour" : "Solicitar visita")}</span></button>
               <button class="mini-button whatsapp-card-button" type="button" data-contact="${escapeHtml(property.id)}"><i data-lucide="message-circle"></i><span>${escapeHtml(t("contactWhatsApp"))}</span></button>
             </div>
@@ -3230,6 +3231,7 @@ function renderCompareTray() {
     return;
   }
   if (!tray) return;
+  if (!new URLSearchParams(window.location.search).has("compare")) { tray.hidden = true; return; }
   const properties = state.compare
     .map((id) => state.properties.find((property) => property.id === id))
     .filter(Boolean);
@@ -8660,13 +8662,17 @@ function hydrateLocationCovers(properties) {
   });
 }
 
-function mountPublicComparison(publicProperties) {
+function mountPublicComparison(publicProperties, requested = false) {
   if (!window.PccComparison || window.location.pathname === "/panel") return;
+  const ready = state.publicInventoryStatus === "ready";
+  document.documentElement.classList.toggle("pcc-comparison-ready", ready);
+  if (!ready) return;
   if (window.pccComparison) {
     window.pccComparison.updateProperties(publicProperties);
     return;
   }
   const hasLink = new URLSearchParams(location.search).has("compare");
+  if (!hasLink && !requested) return;
   window.pccComparison = window.PccComparison.mount({
     properties: publicProperties,
     ...(!hasLink ? { ids: state.compare } : {}),
@@ -12318,6 +12324,20 @@ function initializePropertyGallery() {
 }
 
 function bindEvents() {
+  document.addEventListener("click", (event) => {
+    if (!event.target.closest("[data-start-comparison]")) return;
+    mountPublicComparison(state.properties, true);
+    window.pccComparison?.open();
+  });
+  window.addEventListener("popstate", () => {
+    if (window.location.pathname === "/panel") return;
+    if (new URLSearchParams(location.search).has("compare")) {
+      if (!window.pccComparison) mountPublicComparison(state.properties);
+    } else if (window.pccComparison) {
+      window.pccComparison.destroy();
+      window.pccComparison = null;
+    }
+  });
   document.addEventListener("click", async (event) => {
     const link = event.target.closest('a[href^="/api/admin/documents/"][href$="/download"], a[href^="/api/seller/documents/"][href$="/download"]');
     if (!link) return;

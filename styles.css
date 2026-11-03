@@ -13350,6 +13350,19 @@ body[data-page="home"] .hero h1 {
 }
 
 /* Secondary public pages */
+body[data-page="seo"]:has(.seo-page-hero) .main-header {
+  position: sticky;
+}
+
+body[data-page="seo"] .seo-page-hero {
+  min-height: 0;
+  padding: clamp(16px, 2.5vw, 32px) 0;
+}
+
+body[data-page="seo"] .seo-page-hero :is(.breadcrumbs, .seo-eyebrow) { margin: 0 0 8px; }
+body[data-page="seo"] .seo-page-hero h1 { margin: 0 0 8px; font-size: clamp(1.65rem, 3vw, 2.7rem); line-height: 1.15; }
+body[data-page="seo"] .seo-page-hero p:not(.seo-eyebrow) { margin: 0 0 12px; }
+
 .seo-page-hero {
   min-height: 450px;
   padding: 156px 0 66px;

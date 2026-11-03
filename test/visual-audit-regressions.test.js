@@ -34,9 +34,35 @@ test('category filtering keeps the main heading and live count synchronized in b
 test('server-rendered inventory exposes a stable heading target without changing card order', () => {
   const property = { id: 'audit-test', titleEs: 'Terreno', type: 'Terreno', status: 'active', isPublic: true, operation: 'sale', images: [] };
   const html = renderCategoryPage(getPageByPath('/propiedades/terrenos-cancun'), [property]);
-  assert.match(html, /id="categoryInventoryCount" role="status">Encontramos 1 propiedad/);
+  assert.match(html, /id="categoryInventoryCount" role="status">1 propiedad</);
   assert.ok(html.indexOf('catalogFilters') < html.indexOf('categoryInventoryCount'));
   assert.ok(html.indexOf('categoryInventoryCount') < html.indexOf('data-category-property='));
+});
+
+test('full SEO pages keep their heading below the menu and the count beside the view switch', {
+  skip: process.env.PCC_LAYOUT_BROWSER !== '1' || !process.env.PCC_TEST_BASE,
+}, async (t) => {
+  const base = new URL(process.env.PCC_TEST_BASE);
+  assert.ok(['localhost', '127.0.0.1'].includes(base.hostname));
+  const { chromium } = require('playwright');
+  const browser = await chromium.launch({ executablePath: process.env.PCC_LAYOUT_CHROMIUM });
+  t.after(() => browser.close());
+  const page = await browser.newPage();
+  await page.route('**/*', route => new URL(route.request().url()).origin === base.origin ? route.continue() : route.abort());
+  for (const width of [320, 390, 1440, 1905]) {
+    await page.setViewportSize({ width, height: 900 });
+    for (const pathname of ['/propiedades/casas-cancun', '/zonas-cancun', '/valuacion-inmobiliaria-cancun']) {
+      assert.equal((await page.goto(new URL(pathname, base).href)).status(), 200);
+      const heading = page.locator('.seo-page h1');
+      const menu = await page.locator('#mainHeader').boundingBox();
+      assert.ok((await heading.boundingBox()).y >= menu.y + menu.height, `${pathname} at ${width}px`);
+      if (pathname !== '/propiedades/casas-cancun') continue;
+      assert.equal(await heading.innerText(), 'Casas en Cancún');
+      const count = await page.locator('#categoryInventoryCount').boundingBox();
+      const views = await page.locator('.catalog-view-toggle').boundingBox();
+      assert.ok(count.y < views.y + views.height && views.y < count.y + count.height, `result controls at ${width}px`);
+    }
+  }
 });
 
 test('loading and connection errors are not presented as an empty inventory', () => {
@@ -64,7 +90,7 @@ test('inventory retry prevents duplicate requests and recovers without changing 
   const state = { publicInventoryStatus: 'error', properties: [], session: { id: 'admin' }, filters: { text: 'Lagos' } };
   let resolve;
   let calls = 0;
-  const api = runtime(['retryPublicInventory'], { state, renderProperties() {}, api: async path => {
+  const api = runtime(['retryPublicInventory'], { state, renderProperties() {}, mountPublicComparison() {}, api: async path => {
     assert.equal(path, '/api/properties');
     calls++;
     return new Promise(done => { resolve = done; });
@@ -78,7 +104,7 @@ test('inventory retry prevents duplicate requests and recovers without changing 
   assert.equal(state.properties[0].id, 'loaded');
   assert.deepEqual(state.session, { id: 'admin' });
   assert.deepEqual(state.filters, { text: 'Lagos' });
-  const failing = runtime(['retryPublicInventory'], { state, renderProperties() {}, api: async () => { throw new Error('offline'); } });
+  const failing = runtime(['retryPublicInventory'], { state, renderProperties() {}, mountPublicComparison() {}, api: async () => { throw new Error('offline'); } });
   await failing.retryPublicInventory();
   assert.equal(state.publicInventoryStatus, 'error');
   assert.equal(state.properties[0].id, 'loaded');

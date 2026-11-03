@@ -44,14 +44,10 @@ async function run(name, fn) { try { await fn(); report.checks.push({ name, pass
         if (name === 'catalog') {
           const first = page.locator('[data-category-property]').first();
           await first.scrollIntoViewIfNeeded();
-          await run(`Catalog ${width}px price and comparison control do not overlap`, async () => {
+          await run(`Catalog ${width}px shows the price without comparison controls by default`, async () => {
             const price = await first.locator('.seo-property-price').boundingBox();
-            const compare = await first.locator('[data-compare-id]').boundingBox();
-            assert.ok(price && compare, 'both controls are rendered');
-            const intersects = price.x < compare.x + compare.width && price.x + price.width > compare.x
-              && price.y < compare.y + compare.height && price.y + price.height > compare.y;
-            assert.equal(intersects, false);
-            assert.ok(compare.height >= 44, 'touch target remains accessible');
+            assert.ok(price, 'price is rendered');
+            assert.equal(await first.locator('[data-compare-id]').isVisible(), false);
           });
           await page.screenshot({ path: path.join(output, `catalog-${width}-first-card.png`) });
         }
@@ -122,6 +118,9 @@ async function run(name, fn) { try { await fn(); report.checks.push({ name, pass
       await page.goto(base + '/propiedades', { waitUntil: 'networkidle' });
       const buttons = page.locator('[data-compare-id]');
       assert.ok(await buttons.count() >= 2);
+      assert.equal(await buttons.first().isVisible(), false);
+      await page.locator('.catalog-filter-panel > summary').click();
+      await page.locator('[data-start-comparison]').click();
       await buttons.nth(0).click(); await buttons.nth(1).click();
       assert.equal(await page.locator('.pcc-comparison-table thead th').count(), 3);
       const compared = new URL(page.url()).searchParams.get('compare');

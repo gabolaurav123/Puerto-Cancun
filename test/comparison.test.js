@@ -225,6 +225,68 @@ test("only differences uses semantic values, retains warnings and leaves listing
 });
 
 const browserModule = process.env.PCC_PLAYWRIGHT_MODULE;
+test("public entry points show comparison only after consent or a shared URL", { skip: !browserModule, timeout: 60000 }, async (t) => {
+  const { chromium } = require(browserModule);
+  const seo = require("../seo-pages");
+  const root = path.resolve(__dirname, "..");
+  const template = fs.readFileSync(path.join(root, "index.html"), "utf8");
+  const records = [...Array.from({ length: 27 }, (_, i) => property("unit-" + i)),
+    property("project", { publicationSection: "developments", type: "Desarrollo" })];
+  const origin = "http://127.0.0.1:31897";
+  const browser = await chromium.launch({ headless: true, ...(process.env.PCC_BROWSER_CHANNEL ? { channel: process.env.PCC_BROWSER_CHANNEL } : {}) });
+  t.after(() => browser.close());
+  const context = await browser.newContext({ serviceWorkers: "block" });
+  await context.addInitScript(() => { if (!localStorage.getItem("pcc.compare")) localStorage.setItem("pcc.compare", '["unit-0"]'); });
+  await context.route("**/*", async (route) => {
+    const url = new URL(route.request().url());
+    if (url.origin !== origin) return route.abort();
+    if (url.pathname.startsWith("/api/")) {
+      const response = { "/api/properties": { properties: records }, "/api/session": { user: null }, "/api/location-options": { options: [] } };
+      return route.fulfill({ json: response[url.pathname] || {} });
+    }
+    const en = url.pathname.startsWith("/en/"), lang = en ? "en" : "es";
+    const detail = records.find(p => ["/propiedades/", "/en/properties/"].some(prefix => url.pathname === prefix + p.slug));
+    const page = seo.getPageByPath(url.pathname);
+    if (detail || page?.path === "/" || page?.category) {
+      const bodyPage = detail ? "property" : page.category ? "seo" : "home";
+      const content = detail ? seo.renderPropertyPage(detail, lang, records.slice(1, 4)).html
+        : page.category ? seo.renderCategoryPage(page, records, Object.fromEntries(url.searchParams)) : "";
+      return route.fulfill({ contentType: "text/html; charset=utf-8", body: template.replace('data-page="home"', 'data-page="' + bodyPage + '"')
+        .replace('<html lang="es">', '<html lang="' + lang + '">').replace("<!-- SEO_PAGE_CONTENT -->", () => content) });
+    }
+    const file = path.resolve(root, "." + url.pathname);
+    if (file.startsWith(root + path.sep) && fs.existsSync(file) && fs.statSync(file).isFile()) return route.fulfill({ path: file });
+    return route.fulfill({ status: 404, body: "" });
+  });
+  const page = await context.newPage();
+  const errors = [];
+  page.on("pageerror", (error) => errors.push(error.message));
+  for (const width of [390, 1440]) {
+    await page.setViewportSize({ width, height: 900 });
+    for (const entry of ["/", "/propiedades", "/propiedades/desarrollos-cancun", "/propiedades/residencia-unit-0", "/en/properties/residencia-project"]) {
+      await page.goto(origin + entry);
+      await page.waitForFunction(() => document.documentElement.classList.contains("pcc-comparison-ready"));
+      assert.equal(await page.locator('[data-compare-id]:visible, #compareTray:visible, [data-start-comparison]:visible').count(), 0, entry);
+      assert.equal(await page.locator(".pcc-comparison, .pcc-comparison-tray").count(), 0);
+      assert.equal(new URL(page.url()).searchParams.has("compare"), false);
+    }
+  }
+  await page.goto(origin + "/propiedades");
+  await page.locator(".catalog-filter-panel > summary").click();
+  await page.locator("[data-start-comparison]").press("Enter");
+  await page.locator("#pcc-comparison-add").selectOption("unit-1");
+  assert.deepEqual(await page.evaluate(() => window.pccComparison.getState().ids), ["unit-0", "unit-1"]);
+  const shared = await page.evaluate(() => window.pccComparison.shareUrl());
+  assert.equal(shared, origin + "/propiedades?compare=unit-0,unit-1");
+  await page.locator(".catalog-pagination a").nth(1).click();
+  await page.waitForURL(url => url.searchParams.get("page") === "2" && url.searchParams.get("compare") === "unit-0,unit-1");
+  assert.ok(await page.locator('[data-catalog-list] [data-compare-id]:visible').count() > 0);
+  await page.goto(shared);
+  await page.locator(".pcc-comparison-table").waitFor();
+  assert.equal(await page.locator(".pcc-comparison-table thead th").count(), 3);
+  assert.deepEqual(errors, []);
+});
+
 test("browser: mobile, keyboard, URLs, privacy, lifecycle, favorites and CTA", { skip: !browserModule, timeout: 90000 }, async (t) => {
   const { chromium } = require(browserModule);
   const repo = path.resolve(__dirname, "..");

@@ -332,7 +332,8 @@
       if (destroyed) return;
       host.lang = lang;
       doc.querySelectorAll("[data-compare-id]").forEach((button) => {
-        if (!originalControls.has(button)) originalControls.set(button, { pressed: button.getAttribute("aria-pressed"), disabled: button.getAttribute("aria-disabled") });
+        if (!originalControls.has(button)) originalControls.set(button, { hidden: button.hidden, pressed: button.getAttribute("aria-pressed"), disabled: button.getAttribute("aria-disabled") });
+        button.hidden = false;
         const id = button.getAttribute("data-compare-id");
         button.setAttribute("aria-pressed", String(ids.includes(id)));
         button.setAttribute("aria-disabled", String(!index.has(id) || (ids.length === MAX && !ids.includes(id))));
@@ -526,8 +527,11 @@
         host.removeEventListener("click", click); host.removeEventListener("change", change); host.removeEventListener("error", imageError, true);
         tray.removeEventListener("click", trayClick);
         doc.removeEventListener("click", externalClick); win.removeEventListener("popstate", popstate); win.removeEventListener("storage", storage);
-        for (const [control, values] of originalControls) for (const [name, value] of [["aria-pressed", values.pressed], ["aria-disabled", values.disabled]]) {
-          if (value === null) control.removeAttribute(name); else control.setAttribute(name, value);
+        for (const [control, values] of originalControls) {
+          control.hidden = values.hidden;
+          for (const [name, value] of [["aria-pressed", values.pressed], ["aria-disabled", values.disabled]]) {
+            if (value === null) control.removeAttribute(name); else control.setAttribute(name, value);
+          }
         }
         originalControls.clear(); host.remove(); tray.remove(); if (mounted.get(doc) === controller) mounted.delete(doc);
       },
