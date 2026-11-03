@@ -30,3 +30,14 @@ test('effective category criteria are exposed to conversational search without U
   const html = renderCatalog({ lang: 'es', category: { zone: 'Puerto Canc\u00fan' } }, [], {}, () => '');
   assert.match(html, /data-catalog-query="[^"]*location=puerto-cancun/);
 });
+
+test('compact search submits the complete filter form and presents localized locations', () => {
+  for (const [lang, label, city] of [['es', 'Ubicaciones', 'Ciudad de Cancún'], ['en', 'Locations', 'Cancun City']]) {
+    const html = renderCatalog({ lang, category: { location: 'cancun-city' } }, [], { q: 'Marina' }, () => '');
+    assert.match(html, /name="q" form="catalogFilters" value="Marina"/);
+    assert.match(html, /type="submit" form="catalogFilters"/);
+    assert.match(html, /<details class="catalog-filter-panel"><summary>/);
+    assert.ok(html.includes('<legend>' + label + '</legend>'));
+    assert.ok(html.includes('value="cancun-city" checked /><span>' + city + '</span>'));
+  }
+});

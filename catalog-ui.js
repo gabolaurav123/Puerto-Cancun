@@ -26,7 +26,8 @@
     const container = root();
     if (!container) { window.location.assign(url); return; }
     const status = container.querySelector(".catalog-request-status");
-    const selection = document.activeElement?.name === preserveField ? document.activeElement.selectionStart : null;
+    const focused = preserveField && document.activeElement?.name === preserveField ? document.activeElement : null;
+    const selection = focused?.type === "search" ? focused.selectionStart : null;
     status.textContent = t("Buscando propiedades…", "Searching listings…");
     container.setAttribute("aria-busy", "true");
     try {
@@ -36,6 +37,11 @@
       const replacement = parsed.querySelector("[data-catalog-root]");
       if (!replacement) throw new Error("catalog-markup");
       if (id !== sequence) return;
+      const mapOpen = container.classList.contains("catalog-map-open");
+      for (const selector of [".catalog-filter-panel", ".catalog-advanced"]) {
+        const next = replacement.querySelector(selector);
+        if (next && container.querySelector(selector)?.open && preserveField) next.open = true;
+      }
       window.PccCatalogMap?.dispose(container);
       container.replaceWith(replacement);
       document.title = parsed.title;
@@ -45,8 +51,10 @@
       const alternate = parsed.body.dataset.alternateUrl;
       if (alternate) document.body.dataset.alternateUrl = alternate;
       if (push) history.pushState({ catalog: true }, "", url);
-      if (preserveField) {
-        const input = replacement.querySelector(`[name="${CSS.escape(preserveField)}"]`);
+      if (mapOpen) window.PccCatalogMap?.open(replacement);
+      if (focused) {
+        const controls = replacement.querySelectorAll(`[name="${CSS.escape(preserveField)}"]`);
+        const input = focused.type === "checkbox" ? [...controls].find(control => control.value === focused.value) : controls[0];
         input?.focus({ preventScroll: true });
         if (selection !== null && input?.type === "search") input.setSelectionRange(selection, selection);
       }
@@ -65,7 +73,7 @@
     event.preventDefault(); clearTimeout(debounce); navigate(formUrl(event.target));
   });
   document.addEventListener("input", (event) => {
-    if (!event.target.closest("#catalogFilters") || event.target.name !== "q") return;
+    if (event.target.form?.id !== "catalogFilters" || event.target.name !== "q") return;
     clearTimeout(debounce);
     // Invalidate immediately, not after the debounce, so an older request cannot replace new typing.
     sequence += 1; request?.abort();

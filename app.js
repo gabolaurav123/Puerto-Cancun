@@ -75,13 +75,25 @@ const fallbackIcons = {
 const translations = {
   es: {
     currencyLabel: "Seleccione una moneda:",
-    navSearch: "Buscar",
+    navSearch: "Ver todas las propiedades",
+    publicNavLabel: "Navegación principal",
+    navProperties: "Propiedades",
+    navExplore: "Explorar",
+    navForSale: "En venta",
+    navHotelZone: "Zona Hotelera",
+    navCancunCity: "Ciudad de Cancún",
+    navOutsideCancun: "Fuera de Cancún",
+    navInPuerto: "En Puerto Cancún",
+    navAdvice: "Asesoría",
+    navPriceReview: "Revisar mi precio",
+    navCall: "Llamar",
+    localPriceCopy: "Si ya tienes una cifra en mente, un asesor la comparará con propiedades similares en tu zona.",
     navFeatured: "Destacadas",
     navPropertyType: "Tipo de propiedad",
     menuAllSale: "Ver todo en venta",
     typeHouses: "Casas",
     typeLand: "Terrenos",
-    typePresales: "Pre-ventas",
+    typePresales: "Preventas",
     typeRentals: "Rentas",
     typeCondos: "Departamentos",
     typeCommercial: "Comercial",
@@ -114,6 +126,7 @@ const translations = {
     guidedSaleBenefitProgress: "Guarda avances sin perder lo que ya capturaste.",
     guidedSaleBenefitPanel: "Consulta solicitudes y seguimiento en tu panel de vendedor.",
     valuationSaleName: "Solicitar valoración",
+    valuationOptionalDetails: "Añadir datos opcionales",
     valuationSaleSummary: "Valida el precio antes de preparar la publicación.",
     guestSaleEyebrow: "VENTA SIN REGISTRO",
     guestSaleTitle: "Envíanos los datos esenciales",
@@ -157,7 +170,7 @@ const translations = {
     resourceValuation: "Valoración inmobiliaria",
     resourceFaq: "Preguntas frecuentes",
     resourceZones: "Zonas de Cancún",
-    featuredZones: "Locations",
+    featuredZones: "Ubicaciones",
     allZones: "Todas las zonas",
     zonePresales: "Preventas | Presales",
     welcomeTitle: "Bienvenido a Puerto Cancún Center!",
@@ -208,9 +221,9 @@ const translations = {
     activeFilters: "Filtro activo",
     requestInfo: "Solicitar informacion",
     moreProperties: "Ver más propiedades",
-    teamTitle: "Equipo de asesores de Puerto Cancún Center",
+    teamTitle: "Habla con un asesor local",
     teamKicker: "Asesoría local",
-    teamCopy: "Un solo equipo para revisar inventario, preparar publicaciones, dar seguimiento a solicitudes y coordinar el contacto entre compradores y propietarios.",
+    teamCopy: "Te ayudamos a elegir una zona, preparar una visita o dar el siguiente paso para vender.",
     teamCta: "Contactar al equipo",
     trustSignalsLabel: "Señales de confianza",
     trustInventoryTitle: "Inventario revisado",
@@ -663,7 +676,19 @@ const translations = {
   },
   en: {
     currencyLabel: "Select currency:",
-    navSearch: "Search",
+    navSearch: "View all properties",
+    publicNavLabel: "Main navigation",
+    navProperties: "Properties",
+    navExplore: "Explore",
+    navForSale: "For sale",
+    navHotelZone: "Hotel Zone",
+    navCancunCity: "Cancun City",
+    navOutsideCancun: "Outside Cancun",
+    navInPuerto: "In Puerto Cancun",
+    navAdvice: "Local advice",
+    navPriceReview: "Review my price",
+    navCall: "Call",
+    localPriceCopy: "If you have a price in mind, an advisor can compare it with similar properties in your area.",
     navFeatured: "Featured",
     navPropertyType: "Property type",
     menuAllSale: "View all for sale",
@@ -702,6 +727,7 @@ const translations = {
     guidedSaleBenefitProgress: "Save your progress without losing completed information.",
     guidedSaleBenefitPanel: "Review requests and follow-up from your seller dashboard.",
     valuationSaleName: "Request valuation",
+    valuationOptionalDetails: "Add optional details",
     valuationSaleSummary: "Validate the price before preparing the listing.",
     guestSaleEyebrow: "NO-ACCOUNT SALE",
     guestSaleTitle: "Send us the essential details",
@@ -795,9 +821,9 @@ const translations = {
     activeFilters: "Active filter",
     requestInfo: "Request information",
     moreProperties: "See more properties",
-    teamTitle: "Meet the Puerto Cancun Center team",
+    teamTitle: "Talk to a local advisor",
     teamKicker: "Local advisory",
-    teamCopy: "One team to review inventory, prepare listings, follow up on requests, and coordinate contact between buyers and property owners.",
+    teamCopy: "We can help you choose an area, arrange a viewing, or take the next step toward selling.",
     teamCta: "Contact the team",
     trustSignalsLabel: "Trust signals",
     trustInventoryTitle: "Reviewed inventory",
@@ -2056,14 +2082,7 @@ async function initializeGoogleMaps() {
 }
 
 async function initializeLeaflet() {
-  if (!document.getElementById("leafletStyles")) {
-    const link = document.createElement("link");
-    link.id = "leafletStyles";
-    link.rel = "stylesheet";
-    link.href = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.css";
-    document.head.append(link);
-  }
-  if (!window.L) await scriptOnce("https://unpkg.com/leaflet@1.9.4/dist/leaflet.js", "leafletScript");
+  await window.PccCatalogMap.loadLeaflet(document);
 }
 
 async function enhanceLeafletMapPicker(picker) {
@@ -3987,24 +4006,37 @@ function openSellerFlow(flow) {
   if (!form || !card) return;
   form.reset();
   form.flow.value = flow;
-  const priceField = form.querySelector('[data-service-field="expectedPrice"]');
-  priceField.hidden = flow === "advice";
-  const currencyField = form.querySelector('[data-service-field="currency"]');
-  currencyField.hidden = priceField.hidden;
-  form.elements.currency.disabled = priceField.hidden;
+  const optionalDetails = form.querySelector(".valuation-options");
+  const optionalFields = optionalDetails.querySelector(".valuation-options-body");
+  const priceFields = form.querySelector("[data-service-price]");
+  const comment = form.querySelector("[data-service-comment]");
+  optionalDetails.open = false;
+  if (flow === "price_validation") optionalDetails.before(priceFields);
+  else optionalFields.append(priceFields);
+  if (flow === "advice") optionalDetails.before(comment);
+  else optionalFields.append(comment);
+  priceFields.hidden = flow === "advice";
+  form.elements.expectedPrice.disabled = priceFields.hidden;
+  form.elements.expectedPrice.required = flow === "price_validation";
+  form.elements.currency.disabled = priceFields.hidden;
+  form.elements.zone.required = flow !== "advice";
   form.elements.comments.required = flow === "advice";
   const config = (state.lang === "en" ? {
-    valuation: ["Request a valuation", "Share the property details so an advisor can prepare a price range and suggest next steps.", "Expected price"],
+    valuation: ["Request a valuation", "Tell us the neighbourhood. An advisor will follow up using the contact details in your account.", "Your estimated price"],
     price_validation: ["Review my price", "An advisor will compare your estimate with similar listings.", "Your estimated price"],
     advice: ["Ask an advisor", "Tell us your question and include any property details that will help your advisor.", ""],
   } : {
-    valuation: ["Solicitar valoración", "Comparte los datos principales para que un asesor prepare un rango y próximos pasos.", "Precio esperado"],
+    valuation: ["Solicitar valoración", "Indica la zona. Un asesor te responderá por el medio de contacto de tu cuenta.", "Tu precio estimado"],
     price_validation: ["Validar precio con asesor", "Revisaremos si tu precio parece bajo, competitivo o alto frente al inventario interno.", "Precio que quieres validar"],
     advice: ["Consultar a un asesor", "Escribe tu pregunta y comparte los datos de la propiedad que ayuden a entender tu caso.", ""],
   })[flow];
   $("#sellerServiceTitle").textContent = config[0];
   $("#sellerServiceHint").textContent = config[1];
   $("#sellerServicePriceLabel").textContent = config[2];
+  $("#sellerServiceCommentLabel").textContent = flow === "advice"
+    ? (state.lang === "en" ? "Your question" : "Tu pregunta")
+    : (state.lang === "en" ? "Comments" : "Comentarios");
+  setFormMessage($("#sellerServiceMessage"), "");
   setSellerSection("service-form");
   card.hidden = false;
   refreshLocationSelects();
@@ -4015,14 +4047,14 @@ async function sellerServiceSubmit(event) {
   event.preventDefault();
   const form = event.currentTarget;
   const button = form.querySelector('[type="submit"]');
-  setButtonLoading(button, true, "Enviando...");
+  setButtonLoading(button, true, state.lang === "en" ? "Sending..." : "Enviando...");
   try {
     const body = Object.fromEntries(new FormData(form).entries());
     await api("/api/seller/service-requests", { method: "POST", body });
     form.reset();
     $("#sellerServiceCard").hidden = true;
     await renderPanel();
-    showToast("Solicitud enviada al equipo de asesores.");
+    showToast(state.lang === "en" ? "Your request was sent to the advisory team." : "Solicitud enviada al equipo de asesores.");
   } catch (error) {
     setFormMessage($("#sellerServiceMessage"), error.message, true);
     showToast(error.message, "error");
@@ -9527,7 +9559,7 @@ function updateHeaderVisibility() {
   const atTop = current < 24;
   const scrollingDown = current > lastScrollY;
   header.classList.toggle("is-sticky", !atTop);
-  header.classList.toggle("is-hidden", !atTop && scrollingDown && current > 220 && !$("#mainNav").classList.contains("open"));
+  header.classList.toggle("is-hidden", !atTop && scrollingDown && current > 220 && !$("#mainNav").classList.contains("open") && !$("#mainNav details[open]"));
   document.body.classList.toggle("at-top", atTop);
   lastScrollY = current;
 }
@@ -9608,7 +9640,7 @@ function applyTranslations({ renderPanelContent = true } = {}) {
   if ($("#heroSellButton")) $("#heroSellButton").href = state.lang === "en" ? "/en/sell-property-cancun" : "/vender-casa-cancun";
   if ($("#sellCtaButton")) $("#sellCtaButton").href = state.lang === "en" ? "/en/sell-property-cancun" : "/vender-casa-cancun";
   $$('[data-valuation-option]').forEach((link) => {
-    link.href = state.lang === "en" ? "/en/property-valuation-cancun" : "/valuacion-inmobiliaria-cancun";
+    link.href = (state.lang === "en" ? "/en/property-valuation-cancun" : "/valuacion-inmobiliaria-cancun") + "#valuation-form";
   });
   renderReleaseInfo();
   const privatePage = document.body.dataset.page === "panel";
@@ -12136,6 +12168,7 @@ function openGeneralWhatsApp(event) {
 
 function closeMobileNav() {
   $("#mainNav").classList.remove("open");
+  $("#mainNav").querySelectorAll?.(".public-nav-group[open]").forEach((group) => { group.open = false; });
   $("#menuToggle")?.setAttribute("aria-expanded", "false");
 }
 
@@ -12309,10 +12342,24 @@ function bindEvents() {
   $("#menuToggle").addEventListener("click", () => {
     const open = $("#mainNav").classList.toggle("open");
     $("#menuToggle").setAttribute("aria-expanded", String(open));
+    if (!open) closeMobileNav();
     updateHeaderVisibility();
   });
+  const collapseNavGroups = () => $$("#mainNav details[open]").forEach((group) => { group.open = false; });
+  for (const action of ["pointerdown", "focusin"]) {
+    document.addEventListener(action, (event) => {
+      if (!event.target.closest?.("#mainHeader")) collapseNavGroups();
+    });
+  }
   $("#mainNav")?.addEventListener("keydown", (event) => {
-    if (event.key !== "Escape" || !$("#mainNav").classList.contains("open")) return;
+    if (event.key !== "Escape") return;
+    const group = $("#mainNav details[open]");
+    if (group) {
+      collapseNavGroups();
+      group.querySelector("summary").focus();
+      return;
+    }
+    if (!$("#mainNav").classList.contains("open")) return;
     closeMobileNav();
     $("#menuToggle").focus();
   });
@@ -12981,7 +13028,7 @@ function bindEvents() {
     try {
       const data = await api("/api/admin/demand-gaps");
       if (state.session?.id !== userId) return;
-      target.innerHTML = `<p>${data.analyzed} búsquedas revisadas · ${data.unmatched} sin coincidencias · ${data.needsReview.length} con criterios por confirmar.</p><p>Máximo ${data.scannedLimit} búsquedas recientes. No son compradores confirmados ni visitas anónimas.</p>${data.groups.length ? `<div class="pcc-table-scroll"><table class="data-table"><thead><tr><th>Location / zona</th><th>Tipo / operación</th><th>Presupuesto original</th><th>Búsquedas</th></tr></thead><tbody>${data.groups.map(group => {
+      target.innerHTML = `<p>${data.analyzed} búsquedas revisadas · ${data.unmatched} sin coincidencias · ${data.needsReview.length} con criterios por confirmar.</p><p>Máximo ${data.scannedLimit} búsquedas recientes. No son compradores confirmados ni visitas anónimas.</p>${data.groups.length ? `<div class="pcc-table-scroll"><table class="data-table"><thead><tr><th>Ubicación / zona</th><th>Tipo / operación</th><th>Presupuesto original</th><th>Búsquedas</th></tr></thead><tbody>${data.groups.map(group => {
         const criteria = group.criteria;
         const places = [...criteria.locations.map(id => window.PccInventory.LOCATIONS.find(location => location.id === id)?.name || id), criteria.zone].filter(Boolean).join(" · ") || "Sin zona delimitada";
         const budget = `${criteria.currency || "Sin moneda"} ${criteria.min ?? "—"} a ${criteria.max ?? "—"} · ${criteria.priceBasis === "sqm" ? "por m²" : "total"}${criteria.operation === "rent" ? " · " + ({ month: "mensual", day: "diario", year: "anual" }[criteria.rentPeriod] || "periodo por confirmar") : ""}`;

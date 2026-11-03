@@ -176,6 +176,10 @@ test("browser: mapa real, privacidad, teclado, bbox, filtros, fallos y ciclo de 
   const server = http.createServer((req, res) => {
     if (req.url === "/catalog-map.js") { res.setHeader("Content-Type", "application/javascript"); res.end(script); }
     else if (req.url === "/catalog.css") { res.setHeader("Content-Type", "text/css"); res.end(css); }
+    else if (["/assets/leaflet-1.9.4/leaflet.js", "/assets/leaflet-1.9.4/leaflet.css"].includes(req.url)) {
+      res.setHeader("Content-Type", req.url.endsWith(".js") ? "application/javascript" : "text/css");
+      res.end(fs.readFileSync(path.join(rootPath, req.url)));
+    }
     else { res.setHeader("Content-Type", "text/html; charset=utf-8"); res.end(html); }
   });
   await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
@@ -186,6 +190,10 @@ test("browser: mapa real, privacidad, teclado, bbox, filtros, fallos y ciclo de 
   const url = `http://127.0.0.1:${server.address().port}`;
   const errors = []; page.on("pageerror", (e) => errors.push(e.message));
   await page.goto(url);
+  await page.evaluate(async () => {
+    const L = await PccCatalogMap.loadLeaflet(document);
+    L.Map.addInitHook(function () { window.catalogMapUnderTest = this; });
+  });
   assert.equal(await page.evaluate(() => start()), "ready");
   assert.equal(await page.evaluate(() => PccCatalogMap.mount(document.querySelector('[data-catalog-root]')) === ctrl), true);
   assert.equal(await page.locator(".leaflet-container").count(), 1);
@@ -204,7 +212,16 @@ test("browser: mapa real, privacidad, teclado, bbox, filtros, fallos y ciclo de 
   assert.equal(await page.locator("[data-category-property='fixture-a']").getAttribute("class"), "map-highlight");
   await page.keyboard.press("Escape");
   assert.equal(await page.evaluate(() => document.activeElement.classList.contains("pcc-catalog-map-pin")), true);
-  await page.locator(".leaflet-control-zoom-in").click();
+  const zoomLevel = () => page.evaluate(() => catalogMapUnderTest.getZoom());
+  const initialZoom = await zoomLevel();
+  await page.getByRole("button", { name: "Acercar mapa" }).click();
+  await page.waitForFunction(z => catalogMapUnderTest.getZoom() === z + 1, initialZoom);
+  await page.getByRole("button", { name: "Alejar mapa" }).click();
+  await page.waitForFunction(z => catalogMapUnderTest.getZoom() === z, initialZoom);
+  await page.locator(".catalog-map-canvas").hover({ position: { x: 130, y: 100 } });
+  await page.mouse.wheel(0, -160);
+  await page.waitForFunction(z => catalogMapUnderTest.getZoom() > z, initialZoom);
+  assert.equal(await page.evaluate(() => catalogMapUnderTest.touchZoom.enabled()), true);
   assert.equal(await page.evaluate(() => submissions.length), 0);
   assert.equal(await page.locator('[name="bounds"]').count(), 0);
   await page.locator("[data-catalog-search-area]").click();
@@ -232,11 +249,11 @@ test("browser: mapa real, privacidad, teclado, bbox, filtros, fallos y ciclo de 
   assert.equal(await page.locator(".leaflet-container").count(), 0);
 
   await page.goto(url);
-  await page.route("**/leaflet@1.9.4/**", (route) => route.abort());
+  await page.route("**/assets/leaflet-1.9.4/**", (route) => route.abort());
   assert.equal(await page.evaluate(() => start()), "error");
   assert.equal(await page.locator("[data-catalog-list]").isVisible(), true);
   assert.equal(await page.locator("[data-catalog-search-area]").isDisabled(), true);
-  await page.unroute("**/leaflet@1.9.4/**");
+  await page.unroute("**/assets/leaflet-1.9.4/**");
   await page.getByRole("button", { name: "Reintentar mapa" }).click();
   assert.equal(await page.evaluate(() => ctrl.ready), "ready");
 

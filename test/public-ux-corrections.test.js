@@ -49,6 +49,12 @@ test("las publicaciones usan carrusel y no muestran fecha de modificación", () 
 
   assert.match(spanish, /USD \$1,000,000/);
   assert.match(english, /USD \$1,000,000/);
+  for (const html of [spanish, english]) {
+    assert.equal((html.match(/<h1[ >]/g) || []).length, 1);
+    assert.equal((html.match(/USD \$1,000,000/g) || []).length, 1);
+    assert.doesNotMatch(html, /class="seo-page-hero"/);
+    assert.match(html, /class="property-page-overview"/);
+  }
   assert.doesNotMatch(spanish, /Ultima verificacion|Última verificación|property-verified/);
   assert.doesNotMatch(english, /Last verified|property-verified/);
   assert.doesNotMatch(spanish, /class="last-updated"/);
@@ -64,6 +70,22 @@ test("las publicaciones usan carrusel y no muestran fecha de modificación", () 
   assert.ok(spanish.indexOf("property-whatsapp") < spanish.indexOf("property-long-description"));
   assert.ok(spanish.indexOf("property-long-description") < spanish.indexOf("property-amenities"));
   assert.ok(spanish.indexOf("property-amenities") < spanish.indexOf("property-location-map"));
+});
+
+test("la guía de zonas ofrece las nueve tarjetas y su catálogo en cada idioma", () => {
+  for (const [path, en] of [["/zonas-cancun", false], ["/en/cancun-areas", true]]) {
+    const html = renderSeoPage(path);
+    const cards = [...html.matchAll(/<article class="zone-info-card">([\s\S]*?)<\/article>/g)];
+    assert.equal(cards.length, 9);
+    for (const [, card] of cards) {
+      assert.equal((card.match(/<dt>/g) || []).length, 5);
+      assert.equal((card.match(/<dd>/g) || []).length, 5);
+      assert.match(card, en ? /Buyer profile/ : /Perfil del comprador/);
+      const link = card.match(/<a class="mini-button primary" href="([^"]+)"/)?.[1];
+      assert.ok(link.startsWith(en ? "/en/properties" : "/propiedades"));
+      assert.ok(link.includes("?q=") || link.split("/").length === (en ? 4 : 3));
+    }
+  }
 });
 
 test("el mapa de la ficha respeta la visibilidad y no dirige a Google Maps en ES ni EN", () => {
@@ -95,7 +117,9 @@ test("la navegación explica cómo vender y presenta un Nosotros completo", () =
   assert.match(indexSource, /id="aboutNavLink"/);
   assert.match(indexSource, /href="\/vender-casa-cancun" id="sellNavLink"/);
   assert.doesNotMatch(indexSource, /class="ai-home-section/);
-  assert.match(indexSource, /class="ai-validation-home/);
+  assert.doesNotMatch(indexSource, /class="ai-validation-home/);
+  const adviceSection = indexSource.match(/<section class="team-section home-only">[\s\S]*?<\/section>/)[0];
+  assert.match(adviceSection, /¿Cuál es tu precio estimado\?[\s\S]*href="\/revisar-precio-propiedad"/);
   assert.doesNotMatch(indexSource, /class="audience-section home-only"/);
   assert.match(sellingPage, /Regístrate y anuncia con nosotros/);
   assert.match(sellingPage, /data-seller-access="register"/);
