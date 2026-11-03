@@ -26,7 +26,8 @@
     const container = root();
     if (!container) { window.location.assign(url); return; }
     const status = container.querySelector(".catalog-request-status");
-    const selection = document.activeElement?.name === preserveField ? document.activeElement.selectionStart : null;
+    const focused = preserveField && document.activeElement?.name === preserveField ? document.activeElement : null;
+    const selection = focused?.type === "search" ? focused.selectionStart : null;
     status.textContent = t("Buscando propiedades…", "Searching listings…");
     container.setAttribute("aria-busy", "true");
     try {
@@ -51,8 +52,9 @@
       if (alternate) document.body.dataset.alternateUrl = alternate;
       if (push) history.pushState({ catalog: true }, "", url);
       if (mapOpen) window.PccCatalogMap?.open(replacement);
-      if (preserveField) {
-        const input = replacement.querySelector(`[name="${CSS.escape(preserveField)}"]`);
+      if (focused) {
+        const controls = replacement.querySelectorAll(`[name="${CSS.escape(preserveField)}"]`);
+        const input = focused.type === "checkbox" ? [...controls].find(control => control.value === focused.value) : controls[0];
         input?.focus({ preventScroll: true });
         if (selection !== null && input?.type === "search") input.setSelectionRange(selection, selection);
       }

@@ -80,19 +80,23 @@ function renderCatalog(page, properties, params, renderCards) {
     const withoutArea = retainComparison(inventory.toSearchParams(query)); withoutArea.delete("bounds"); withoutArea.delete("page");
     chips.push(`<a class="catalog-chip" href="${path}?${escape(withoutArea)}">${t("Quitar área del mapa", "Remove map area")} <span aria-hidden="true">×</span></a>`);
   }
-  const mapItems = result.all.filter(p => p.latitude !== null && p.latitude !== undefined && p.longitude !== null && p.longitude !== undefined && p.locationPrecision !== "hidden").map((p) => ({ id: p.id, latitude: p.latitude, longitude: p.longitude, title: english ? p.titleEn || p.titleEs : p.titleEs, url: english ? p.urlEn : p.urlEs, approximate: p.locationPrecision !== "exact", locationPrecision: p.locationPrecision }));
+  const mapItems = result.all.map((p) => ({
+    id: p.id, title: english ? p.titleEn || p.titleEs : p.titleEs, url: english ? p.urlEn : p.urlEs,
+    locationPrecision: p.locationPrecision, approximate: p.locationPrecision !== "exact",
+    ...(p.locationPrecision === "hidden" ? {} : { latitude: p.latitude, longitude: p.longitude }),
+  }));
   return `<section id="category-inventory" class="category-inventory catalog-experience" data-catalog-root data-catalog-query="${escape(inventory.toSearchParams(query))}" data-catalog-map-total="${total}">
     <div class="catalog-controls"><div class="catalog-search-row">
       <input type="search" name="q" form="catalogFilters" value="${escape(query.text)}" aria-label="${t("Buscar por zona, desarrollo, título o MLS", "Search by area, development, title or MLS")}" placeholder="${t("Zona, desarrollo, título o MLS", "Area, development, title or MLS")}" autocomplete="off" />
       <button type="submit" form="catalogFilters" class="primary-button">${t("Buscar", "Search")}</button>
     </div>
-    <details class="catalog-filter-panel"><summary>${t("Filtros", "Filters")}</summary>${form}</details>
+    <details class="catalog-filter-panel"${result.errors.length ? " open" : ""}><summary>${t("Filtros", "Filters")}</summary>${form}</details>
     <details class="catalog-conversation"><summary>${t("Búsqueda guiada", "Guided search")}</summary><form data-catalog-assistant><label>${t("Describe lo que buscas", "Describe what you are looking for")}<input name="query" maxlength="600" required placeholder="${t("Departamento en Puerto Cancún hasta 700 mil USD para comprar", "Buy an apartment in Puerto Cancun under USD 700,000")}" /></label><button type="submit" class="primary-button">${t("Buscar", "Search")}</button><div data-search-status aria-live="polite"></div></form></details></div>
     <div class="catalog-active-filters">${chips.join("")}</div>
     <div class="catalog-result-bar"><p id="categoryInventoryCount" role="status">${escape(count)}</p><div class="catalog-view-toggle" role="group" aria-label="${t("Vista", "View")}"><button type="button" data-catalog-view="list" aria-pressed="true">${t("Lista", "List")}</button><button type="button" data-catalog-view="map" aria-pressed="false">${t("Mapa", "Map")}</button></div></div>
     <p class="catalog-request-status" aria-live="polite"></p>
     ${result.errors.length ? `<div class="catalog-errors" role="alert"><h3>${t("Revisa los filtros", "Review filters")}</h3><ul>${result.errors.map((error) => `<li>${escape(error)}</li>`).join("")}</ul></div>` : ""}
-    <div class="catalog-results"><div data-catalog-list>${result.errors.length ? "" : renderCards(result.items, page.lang)}${pagination}</div><div data-catalog-map hidden><div class="catalog-map-canvas" role="region" aria-label="${t("Mapa de resultados", "Results map")}"></div><p>${escape(t(`${mapItems.length} de ${total} resultados tienen coordenadas. Las ubicaciones aproximadas no representan la dirección exacta.`, `${mapItems.length} of ${total} results have coordinates. Approximate locations do not represent exact addresses.`))}</p><p class="catalog-map-status" role="status"></p></div></div>
+    <div class="catalog-results"><div data-catalog-list>${result.errors.length ? "" : renderCards(result.items, page.lang)}${pagination}</div><div data-catalog-map hidden><div class="catalog-map-canvas" role="region" aria-label="${t("Mapa de resultados", "Results map")}"></div><p class="catalog-map-status" role="status"></p></div></div>
     ${callToActions}<script type="application/json" data-catalog-map-data>${JSON.stringify(mapItems).replace(/</g, "\\u003c")}</script></section>`;
 }
 
