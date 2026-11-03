@@ -277,8 +277,16 @@ if (!process.argv.includes("--serve")) {
         await page.locator('#pccInventoryDashboard [data-pcc-query]').filter({ hasText: "2 sin portada" }).click();
         assert.deepEqual(await rowIds(), ["missing", "missing-long"]);
         assert.deepEqual(await page.evaluate(() => qa.state.adminListingFilters.ids.sort()), ["missing", "missing-long"]);
+        const badge = page.locator('[data-pcc-listing-id="missing"] [data-pcc-incomplete="properties"]');
+        assert.match(await badge.getAttribute("aria-label"), /88%.*todas las propiedades incompletas/);
+        await badge.press("Enter");
+        assert.deepEqual(await rowIds(), ["missing", "missing-long", "unit-null"]);
+        assert.deepEqual(await page.evaluate(() => qa.state.adminListingFilters.ids.slice().sort()), await rowIds());
+        assert.equal(await page.evaluate(() => document.activeElement.dataset.pccQuality), "incomplete");
+        assert.equal(await page.locator('[data-pcc-listing-id="missing"] [data-pcc-field="images"]').isEnabled(), true);
         await page.evaluate(() => qa.setAdminSection("dashboard"));
         await page.locator('#adminInsights [data-admin-metric="incomplete-developments"]').click();
+        await page.locator('[data-pcc-listing-id="project"] [data-pcc-incomplete="developments"]').press("Space");
         assert.deepEqual(await rowIds(), ["project"]);
         assert.equal(await page.evaluate(() => qa.nativeMetricCalls), 0, "No legacy reset after inventory metrics");
         await page.locator('[data-admin-section="statistics"]').click();
@@ -310,6 +318,23 @@ if (!process.argv.includes("--serve")) {
         const order = await page.locator("#adminListings [data-pcc-listing-id]").evaluateAll((rows) => rows.map((row) => row.dataset.pccListingId));
         assert.deepEqual(order, ["unit-mxn", "unit-high", "unit-low", "unit-null"]);
         assert.equal(await page.locator(".pcc-price-group-heading").count(), 2);
+        const listTop = () => page.locator("#adminListings").evaluate(el => el.getBoundingClientRect().top + scrollY);
+        for (const name of ["listing-prices", "listing-review"]) {
+          const trigger = page.locator(`[data-pcc-report="${name}"]`);
+          const position = await listTop();
+          await trigger.focus(); await page.keyboard.press("Enter");
+          const dialog = page.locator("#pccListingReport:modal");
+          await dialog.waitFor();
+          assert.match(await dialog.locator("[data-report-scope]").innerText(), /4 en la selección/);
+          assert.ok(Math.abs(await listTop() - position) < 2, "Opening a report must not push the inventory down");
+          if (name === "listing-review") {
+            await dialog.getByRole("checkbox").uncheck();
+            assert.equal(await dialog.locator("tbody tr").count(), 4);
+          } else assert.ok(await dialog.locator("table").count());
+          await page.keyboard.press("Escape");
+          await page.waitForFunction(name => document.activeElement?.dataset.pccReport === name, name);
+          assert.deepEqual(await rowIds(), order.slice().sort());
+        }
       }
       assert.deepEqual(await page.evaluate(() => qa.state.properties), items, "No inventory mutations during navigation or sorting");
       await page.evaluate(() => qa.setAdminSection("dashboard"));
@@ -409,12 +434,14 @@ if (process.argv.includes("--serve")) {
         const record = document.querySelector('#pccInventoryDashboard [data-pcc-open="test-missing"][data-pcc-mode="edit"]');
         record.click(); check(opened === "test-missing", "Wrong immutable ID");
       });
-      step("Rerender preserves expanded details", () => {
-        const detail = document.querySelector('[data-pcc-details="listing-prices"]');
-        detail.open = true;
+      step("The price report opens separately and follows the selected records on refresh", () => {
+        document.querySelector('[data-pcc-report="listing-prices"]').click();
+        const detail = document.querySelector("#pccListingReport");
+        check(detail.open && !detail.closest("#pccInventoryFilters"), "Report expands the inventory list");
         window.qaState.adminListingFilters.featured = false;
         renderListings();
-        check(document.querySelector('[data-pcc-details="listing-prices"]').open, "Collapsed on rerender");
+        check(detail.open && detail.querySelector("h2").textContent.includes("Precios"), "Report lost on refresh");
+        detail.close();
       });
       step("References do not create records and no input data was mutated", () => {
         check(JSON.stringify(window.qaState.properties) === original, "Inventory mutated");
@@ -426,28 +453,27 @@ if (process.argv.includes("--serve")) {
         window.qaState.properties = Array.from({ length: 41 }, (_, index) => ({ ...saved[0], id: `page-${index}`, images: [] }));
         window.qaState.adminListingFilters = { status: "all" };
         renderListings();
-        const detail = document.querySelector('[data-pcc-details="listing-review"]');
-        detail.open = true;
-        detail.dispatchEvent(new Event("toggle"));
+        document.querySelector('[data-pcc-report="listing-review"]').click();
+        const detail = document.querySelector("#pccListingReport");
         check(detail.querySelectorAll("tbody tr").length === 20, "Wrong page size");
         detail.querySelector('[data-pcc-step="1"]').click();
-        const next = document.querySelector('[data-pcc-details="listing-review"]');
+        const next = document.querySelector("#pccListingReport");
         check(next.querySelector("tbody code").textContent === "page-20", "Pagination skipped or duplicated a page");
         window.qaState.adminListingFilters.search = "does-not-exist";
         renderListings();
-        check(!document.querySelector('#pccInventoryFilters tbody'), "Stale rows after empty results");
+        check(!detail.querySelector("tbody") && !document.querySelector('#pccInventoryFilters tbody'), "Stale rows after empty results");
         check(document.querySelector('#pccInventoryFilters .pcc-scope').textContent.includes("0 propiedades"), "Incorrect empty count");
         window.qaState.properties = saved;
         window.qaState.adminListingFilters = {};
+        detail.close();
         renderListings();
       });
       step("Read-only viewers cannot open edit actions", () => {
         const role = window.qaState.session.internalRole;
         window.qaState.session.internalRole = "viewer";
         ui.mount(window.qaState, helpers);
-        const detail = document.querySelector('[data-pcc-details="listing-review"]');
-        detail.open = true;
-        detail.dispatchEvent(new Event("toggle"));
+        document.querySelector('[data-pcc-report="listing-review"]').click();
+        const detail = document.querySelector("#pccListingReport");
         const actions = [...detail.querySelectorAll('[data-pcc-mode="edit"]')];
         check(actions.length && actions.every((button) => button.disabled), "Editable for viewer");
         window.qaState.session.internalRole = role;

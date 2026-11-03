@@ -286,7 +286,7 @@
     const price = priceOf(p);
     const checks = [
       ["title", "Título", Boolean(title)],
-      ["zone", "Location por clasificar", Boolean(resolveLocation(p).id)],
+      ["zone", "Ubicación por clasificar", Boolean(resolveLocation(p).id)],
       ["images", "Imagen de portada", hasCover],
       ["description", "Descripción comercial", description.length >= 80 && !isPlaceholder(description)],
     ];

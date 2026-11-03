@@ -38,6 +38,23 @@ test("la ficha ofrece video si existe y reserva el pie de foto para la galería 
 });
 
 const base = process.env.PCC_TEST_BASE;
+test("el acceso principal a revisión conserva su idioma antes de ejecutar JavaScript", { skip: !base }, async () => {
+  assert.ok(["127.0.0.1", "localhost"].includes(new URL(base).hostname));
+  for (const [home, destination, label] of [
+    ["/", "/revisar-precio-propiedad", "Revisar mi estimación"],
+    ["/en", "/en/review-property-price", "Review my estimate"],
+  ]) {
+    const html = await (await fetch(base + home)).text();
+    const button = html.match(/href="([^"]+)" data-i18n="heroPriceReviewCta">([^<]+)<\/a>/);
+    assert.ok(button);
+    assert.equal(button[1], destination);
+    assert.equal(button[2], label);
+    const target = await fetch(base + button[1]);
+    assert.equal(target.status, 200);
+    assert.match(await target.text(), /name="leadType" value="validar-precio"/);
+  }
+});
+
 test("la valoración conserva la moneda original y un importe antiguo sin moneda", { skip: !base }, async () => {
   assert.ok(["127.0.0.1", "localhost"].includes(new URL(base).hostname));
   let cookie = "", csrf = "";

@@ -17,7 +17,7 @@
   const ENTITIES = { properties: "Propiedades", developments: "Desarrollos" };
   const STATES = { active: "Activa", featured: "Destacada", draft: "Borrador", pending: "Pendiente", disabled: "Deshabilitada", sold: "Vendida", rented: "Rentada", archived: "Archivada" };
   const ACTIONS = { title: "Agregar t\u00edtulo", zone: "Asignar ubicación", images: "Agregar portada", description: "Completar descripci\u00f3n", type: "Revisar tipo", operation: "Revisar operaci\u00f3n", price: "Revisar precio y moneda", lot: "Revisar terreno", area: "Revisar superficie" };
-  const FORM_FIELDS = { title: "title", zone: "zone", images: "imageFile", description: "description", type: "type", operation: "operation", price: "price", lot: "lot", area: "area" };
+  const FORM_FIELDS = { title: "title", zone: "zone", images: "imageFile", description: "description", type: "type", operation: "operation", price: "price", lot: "lot", area: "area", rentPeriod: "rentPeriod", commercialization: "salesModality" };
   const PAGE_SIZE = 20;
   const escape = (value) => String(value ?? "").replace(/[&<>"']/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[char]));
   const icon = (name) => `<i data-lucide="${name}" aria-hidden="true"></i>`;
@@ -125,6 +125,11 @@
       if (!search) return true;
       return api.fold([p.id, titleOf(p), p.titleEn, p.zone, p.city, p.state, p.neighborhood, p.address, p.mapPlace, p.type, p.operation, p.status, p.mls, p.descriptionEs, p.descriptionEn, ...(Array.isArray(p.keywords) ? p.keywords : [])].join(" ")).includes(search);
     });
+  }
+
+  function qualitySelection(records, entity, quality) {
+    const filters = { status: "all", quality, qualityCohort: true };
+    return { ...filters, ids: selectRecords(records, filters, entity).map((record) => record.id) };
   }
 
   // Optional shared predicate for the host's native rows; preserves input order.
@@ -267,6 +272,9 @@
   }
 
   function disclosure(name, label) {
+    if (name === "listing-prices" || name === "listing-review") {
+      return `<button type="button" class="pcc-action" aria-haspopup="dialog" data-pcc-report="${name}">${icon(name === "listing-prices" ? "chart-column" : "list-checks")}${label}</button>`;
+    }
     return `<details class="pcc-details" data-pcc-details="${name}" data-pcc-lazy="${name}"><summary>${label}</summary><div></div></details>`;
   }
 
@@ -289,7 +297,7 @@
     if (element._pccHTML === html) return;
     const open = new Set([...element.querySelectorAll("details[open][data-pcc-details]")].map((node) => node.dataset.pccDetails));
     const focused = element.contains(element.ownerDocument.activeElement) ? element.ownerDocument.activeElement : null;
-    const focusKey = focused ? ["data-pcc-filter", "data-pcc-quality", "data-pcc-pending", "data-pcc-page", "data-pcc-step"].filter((key) => focused.hasAttribute(key)).map((key) => [key, focused.getAttribute(key)]) : [];
+    const focusKey = focused ? ["data-pcc-filter", "data-pcc-quality", "data-pcc-pending", "data-pcc-page", "data-pcc-step", "data-pcc-report"].filter((key) => focused.hasAttribute(key)).map((key) => [key, focused.getAttribute(key)]) : [];
     element.innerHTML = html;
     element._pccHTML = html;
     element.querySelectorAll("details[data-pcc-details]").forEach((node) => { node.open = open.has(node.dataset.pccDetails); });
@@ -342,6 +350,42 @@
     else updateHTML(content, renderReconciliation(ctx, records, scope));
   }
 
+  function renderListingReport(ctx, dialog) {
+    const prices = dialog.dataset.report === "listing-prices";
+    const records = ctx.selected || [];
+    dialog.querySelector("h2").textContent = prices ? "Precios del resultado" : "Conciliación del inventario";
+    dialog.querySelector("[data-report-scope]").textContent = `${ENTITIES[ctx.state.adminSection]} · ${records.length} en la selección actual`;
+    updateHTML(dialog.querySelector("[data-report-body]"), prices ? renderPrices(records) : renderReconciliation(ctx, records, "listings"));
+  }
+
+  function openListingReport(ctx, trigger) {
+    let dialog = ctx.document.getElementById("pccListingReport");
+    if (!dialog) {
+      dialog = ctx.document.createElement("dialog");
+      dialog.id = "pccListingReport";
+      dialog.className = "pcc-inventory pcc-report-dialog";
+      dialog.setAttribute("aria-labelledby", "pccReportTitle");
+      dialog.innerHTML = '<header><div><h2 id="pccReportTitle"></h2><p data-report-scope></p></div><form method="dialog"><button class="pcc-action" autofocus>Cerrar</button></form></header><div data-report-body></div>';
+      ctx.document.body.append(dialog);
+      bind(ctx, dialog);
+      dialog.addEventListener("close", () => {
+        if (dialog.open) return;
+        updateHTML(dialog.querySelector("[data-report-body]"), "");
+        if (dialog.dataset.returnFocus === "true") ctx.document.querySelector(`#pccInventoryFilters [data-pcc-report="${dialog.dataset.report}"]`)?.focus({ preventScroll: true });
+      });
+    }
+    dialog.dataset.report = trigger.dataset.pccReport;
+    dialog.dataset.returnFocus = "true";
+    renderListingReport(ctx, dialog);
+    dialog.showModal();
+  }
+
+  function refreshReportContent(ctx, control) {
+    const dialog = control.closest("#pccListingReport");
+    if (dialog) renderListingReport(ctx, dialog);
+    else fillDisclosure(ctx, control.closest("details[data-pcc-lazy]"));
+  }
+
   function bind(ctx, root) {
     ctx.boundRoots ||= new WeakSet();
     if (ctx.boundRoots.has(root)) return;
@@ -356,14 +400,16 @@
         const scope = control.dataset.pccPending;
         ctx.ui[`${scope}Pending`] = control.checked;
         ctx.ui[`${scope}Page`] = 1;
-        fillDisclosure(ctx, control.closest("details[data-pcc-lazy]"));
+        refreshReportContent(ctx, control);
       } else if (ctx.helpers.renderListings) {
         ctx.state.adminListingFilters = { ...ctx.state.adminListingFilters, [control.dataset.pccFilter]: control.type === "checkbox" ? control.checked : control.value };
         refresh(ctx);
       }
     });
     root.addEventListener("click", (event) => {
-      const button = event.target.closest("[data-pcc-quality], [data-pcc-query], [data-pcc-open], [data-pcc-page], [data-pcc-clear-ids], [data-pcc-policy-retry]");
+      const trigger = event.target.closest("[data-pcc-report]");
+      if (trigger && root.contains(trigger)) { openListingReport(ctx, trigger); return; }
+      const button = event.target.closest("[data-pcc-quality], [data-pcc-incomplete], [data-pcc-query], [data-pcc-open], [data-pcc-page], [data-pcc-clear-ids], [data-pcc-policy-retry]");
       if (!button || button.disabled || !root.contains(button)) return;
       if (button.hasAttribute("data-pcc-policy-retry")) {
         loadAvailabilityPolicy(ctx, true);
@@ -373,11 +419,14 @@
         ctx.state.adminListingFilters = filters;
         refresh(ctx);
         root.querySelector('[data-pcc-quality=""]')?.focus({ preventScroll: true });
+      } else if (button.hasAttribute("data-pcc-incomplete")) {
+        const entity = button.dataset.pccIncomplete;
+        applyQuery(ctx, entity, qualitySelection(ctx.snapshot.records, entity, "incomplete"));
+        ctx.document.querySelector('#pccInventoryFilters [data-pcc-quality="incomplete"]')?.focus({ preventScroll: true });
       } else if (button.hasAttribute("data-pcc-quality")) {
         const filters = { ...ctx.state.adminListingFilters, quality: button.dataset.pccQuality };
         if (filters.qualityCohort) {
-          const records = selectRecords(ctx.snapshot.records, { status: "all", quality: filters.quality }, ctx.state.adminSection);
-          filters.ids = records.map((record) => record.id);
+          filters.ids = qualitySelection(ctx.snapshot.records, ctx.state.adminSection, filters.quality).ids;
         }
         ctx.state.adminListingFilters = filters;
         refresh(ctx);
@@ -387,17 +436,23 @@
       } else if (button.hasAttribute("data-pcc-page")) {
         const key = `${button.dataset.pccPage}Page`;
         ctx.ui[key] = (ctx.ui[key] || 1) + Number(button.dataset.pccStep);
-        fillDisclosure(ctx, button.closest("details[data-pcc-lazy]"));
+        refreshReportContent(ctx, button);
       } else {
         const record = ctx.snapshot.records.find((r) => String(r.id) === button.dataset.pccOpen);
         if (!record) return;
+        const report = button.closest("#pccListingReport");
+        if (report?.open) { report.dataset.returnFocus = "false"; report.close(); }
         if (button.dataset.pccMode === "focus") {
           ctx.state.adminListingFilters = {};
           ctx.helpers.focusListing?.(record.id);
         } else if (editable(ctx)) {
           ctx.helpers.openListing?.(record.id);
           const field = FORM_FIELDS[button.dataset.pccField];
-          if (field) ctx.document.querySelector(`#listingForm [name="${field}"]`)?.focus({ preventScroll: false });
+          const control = field && ctx.document.querySelector(`#listingForm [name="${field}"]`);
+          if (control) {
+            for (let detail = control.closest("details"); detail; detail = detail.parentElement?.closest("details")) detail.open = true;
+            control.focus();
+          }
         }
       }
     });
@@ -428,7 +483,10 @@
         if (["draft", "archived"].includes(record.status)) verification.disabled = true;
       }
       const q = record.quality;
-      updateHTML(diagnosis, `<div class="pcc-row-status"><strong>${q.complete ? "Completa" : "Incompleta"} · ${q.score}%</strong><span>${q.fulfilled} de ${q.required} requisitos editoriales cumplidos</span><span>${escape(locationName(record.location.id))}</span></div>${q.missingFields.length ? `<ul class="pcc-missing">${q.missingFields.map((item) => `<li>${openButton(ctx, record, ACTIONS[item.field] || item.label, item.field)}</li>`).join("")}</ul>` : '<small>Sin faltantes editoriales; no implica disponibilidad verificada.</small>'}${needsReview(record) ? `<p class="pcc-review-note"><strong>Datos por revisar:</strong> ${escape([...q.issues.map((issue) => issue.reason), record.duplicateMlsIds.length ? `MLS compartido (${record.duplicateMlsIds.length} IDs distintos)` : ""].filter(Boolean).join(". "))}</p>` : ""}`);
+      const allIncomplete = record.entity === "developments" ? "Ver todos los desarrollos incompletos" : "Ver todas las propiedades incompletas";
+      const badge = q.complete ? `<strong>Completa · ${q.score}%</strong>` :
+        `<button type="button" class="pcc-action pcc-quality-link" data-pcc-incomplete="${record.entity}" aria-label="Incompleta · ${q.score}%. ${allIncomplete}" title="${allIncomplete}" ${ctx.helpers.setSection && ctx.helpers.renderListings ? "" : "disabled"}><strong>Incompleta · ${q.score}%</strong>${icon("arrow-right")}</button>`;
+      updateHTML(diagnosis, `<div class="pcc-row-status">${badge}<span>${q.fulfilled} de ${q.required} requisitos editoriales cumplidos</span><span>${escape(locationName(record.location.id))}</span></div>${q.missingFields.length ? `<ul class="pcc-missing">${q.missingFields.map((item) => `<li>${openButton(ctx, record, ACTIONS[item.field] || item.label, item.field)}</li>`).join("")}</ul>` : '<small>Sin faltantes editoriales; no implica disponibilidad verificada.</small>'}${needsReview(record) ? `<p class="pcc-review-note"><strong>Datos por revisar:</strong> ${escape([...q.issues.map((issue) => issue.reason), record.duplicateMlsIds.length ? `MLS compartido (${record.duplicateMlsIds.length} IDs distintos)` : ""].filter(Boolean).join(". "))}</p>` : ""}`);
       let freshness = diagnosis.querySelector("[data-pcc-availability]");
       if (!freshness) { freshness = ctx.document.createElement("p"); freshness.dataset.pccAvailability = ""; diagnosis.append(freshness); }
       freshness.textContent = availability(record.property, ctx.reviewPolicy).label;
@@ -520,6 +578,11 @@
       if (option.value === "price_desc") option.textContent = "Precio por grupo: mayor a menor";
     }
     if (controls && !controls.hidden) annotateRows(ctx);
+    const report = document.getElementById("pccListingReport");
+    if (report?.open) {
+      if (controls && !controls.hidden) renderListingReport(ctx, report);
+      else { report.dataset.returnFocus = "false"; report.close(); }
+    }
     if (state.adminSection === "dashboard") bindMetrics(ctx);
     document.querySelectorAll("[data-pcc-lazy][open]").forEach((details) => {
       if (!details.closest("[hidden]")) fillDisclosure(ctx, details);
@@ -528,5 +591,5 @@
     return { mounted: Boolean(dashboard || catalog || controls), total: ctx.snapshot.total, matched: ctx.selected?.length || 0, version: ctx.snapshot.version };
   }
 
-  return { mount, snapshot, currentSnapshot, filterListings, selectRecords, priceGroups, priceGroupOf, sortListingsByPrice, availability };
+  return { mount, snapshot, currentSnapshot, filterListings, selectRecords, qualitySelection, priceGroups, priceGroupOf, sortListingsByPrice, availability };
 });
