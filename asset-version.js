@@ -8,10 +8,10 @@ const path = require("node:path");
 const RUNTIME_FILES = Object.freeze([
   "admin-inventory-ui.js", "admin-inventory.css", "admin-quality-query.js",
   "ai-prompts.js", "app.js", "asset-version.js", "auth-utils.js",
-  "catalog-assistant.js", "catalog-map.js", "catalog-search.js", "catalog-ui.js",
+  "blog-list-view.js", "catalog-assistant.js", "catalog-map.js", "catalog-search.js", "catalog-ui.js",
   "catalog-view.js", "catalog.css", "comparison-ui.js", "comparison.css",
-  "completion-utils.js", "contact-config.js", "csv-utils.js", "demand-analysis.js",
-  "external-property-utils.js", "feature-registry.js", "index.html",
+  "completion-utils.js", "contact-config.js", "csv-utils.js", "daily-blog.js", "demand-analysis.js",
+  "development-cover-publish.js", "development-cover-recovery.js", "external-property-utils.js", "exchange-rate.js", "exchange-rate-view.js", "feature-registry.js", "index.html",
   "intelligence-utils.js", "inventory-contract.js", "inventory-metadata.js",
   "location-catalog.js", "pdf-property-sheet.js", "pdf-retention.js",
   "photo-analysis.js", "platform-utils.js", "saved-catalog-search.js",

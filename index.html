@@ -71,9 +71,9 @@
         </div>
 
         <nav class="public-quick-nav" aria-label="Accesos rápidos" data-i18n-aria-label="navQuick">
-          <a href="/propiedades" data-i18n="navSearch">Buscar</a>
+          <a href="/zonas-cancun" data-i18n="footerCommunities">Comunidades</a>
           <a href="/propiedades/desarrollos-cancun" data-i18n="navDevelopments">Desarrollos</a>
-          <a href="/nosotros" data-i18n="navAbout">Nosotros</a>
+          <a href="/propiedades/destacadas-cancun" data-i18n="navFeatured">Destacadas</a>
         </nav>
         <nav class="main-nav" id="mainNav" aria-label="Navegación principal" data-i18n-aria-label="publicNavLabel">
           <div class="public-nav-primary">
@@ -112,17 +112,16 @@
               </div>
             </details>
             <details class="public-nav-group" name="site-navigation">
-              <summary data-i18n="featuredZones">Ubicaciones</summary>
-              <div class="public-nav-popover public-nav-simple">
+              <summary data-i18n="footerCommunities">Comunidades</summary>
+              <div class="public-nav-popover public-nav-communities">
                 <a class="public-nav-overview" href="/zonas-cancun" data-i18n="menuAllZones">Ver todas las zonas</a>
-                <a href="/propiedades/zona-hotelera" data-i18n="navHotelZone">Zona Hotelera</a>
-                <a href="/propiedades/puerto-cancun">Puerto Cancún</a>
-                <a href="/propiedades/cancun-city" data-i18n="navCancunCity">Ciudad de Cancún</a>
-                <a href="/propiedades/fuera-de-cancun" data-i18n="navOutsideCancun">Fuera de Cancún</a>
+                <a href="/propiedades/zona-hotelera"><strong data-i18n="navHotelZone">Zona Hotelera</strong><small data-i18n="navHotelZoneDescription">Zona Hotelera, Costa Mujeres y Punta Sam</small></a>
+                <a href="/propiedades/puerto-cancun"><strong>Puerto Cancún</strong><small data-i18n="navPuertoDescription">Marina, canales y comunidades residenciales</small></a>
+                <a href="/propiedades/cancun-city"><strong data-i18n="navCancunCity">Ciudad de Cancún</strong><small data-i18n="navCityDescription">Centro, Huayacán y corredor Colosio</small></a>
+                <a href="/propiedades/fuera-de-cancun"><strong data-i18n="navOutsideCancun">Fuera de Cancún</strong><small data-i18n="navOutsideDescription">Riviera Maya y otros destinos</small></a>
               </div>
             </details>
             <a href="/propiedades/desarrollos-cancun" id="developmentsNavLink" data-i18n="navDevelopments">Desarrollos</a>
-            <a href="/nosotros" id="aboutNavLink" data-i18n="navAbout">Nosotros</a>
             <a href="/vender-casa-cancun" id="sellNavLink" data-open-seller-options data-i18n="navSell">Vender</a>
           </div>
           <div class="public-nav-services">
@@ -574,6 +573,7 @@
             <a href="/propiedades/cancun-centro">Cancun Centro</a>
             <a href="/propiedades/riviera-maya">Riviera Maya</a>
             <a href="/propiedades/playa-mujeres">Punta Sam / Playa Mujeres</a>
+            <a href="/propiedades/fuera-de-cancun" data-i18n="navOutsideCancun">Fuera de Cancún</a>
           </div>
           <div>
             <h3 data-i18n="footerBuy">Compra de propiedad</h3>
@@ -604,10 +604,7 @@
           </div>
         </div>
         <div class="content-wrap footer-note">
-          <p data-i18n="legalCopy">
-            Cada inmueble conserva la moneda original definida en su publicación, USD o MXN. Cualquier conversión
-            se entrega únicamente como referencia vigente y puede solicitarse a un asesor.
-          </p>
+          <div class="exchange-rate-panel" data-exchange-rate aria-live="polite"><strong>Tipo de cambio USD / MXN</strong><span>Consultando cotización…</span></div>
           <p>© 2026 Puerto Cancún Center. <span data-i18n="rights">Todos los derechos reservados.</span> <small id="appRelease" class="app-release"></small></p>
         </div>
       </footer>
@@ -2099,6 +2096,10 @@
               <p>Publica guías, novedades del mercado y contenidos bilingües para compradores y propietarios.</p>
             </div>
           </div>
+          <section class="blog-automation-panel" aria-labelledby="dailyBlogHeading">
+            <div><h3 id="dailyBlogHeading">Noticias del día</h3><p>Una nota diaria sobre Cancún, Riviera Maya, turismo y proyectos, con fuentes consultadas. Cada publicación se conserva en el blog.</p><p id="dailyBlogStatus" role="status">Consultando programación…</p></div>
+            <button class="ghost-button" type="button" id="refreshDailyBlog">Actualizar estado</button>
+          </section>
           <div class="module-split blog-workspace">
             <form id="blogForm" class="module-form-grid">
               <input name="id" type="hidden" />
@@ -2399,6 +2400,14 @@
 
           <article class="panel-card admin-listings-card" id="adminListingsCard" data-admin-section-panel="properties new-property developments new-development">
             <h2 id="adminListingsTitle" data-i18n="manageListings">Administrar publicaciones</h2>
+            <details class="development-cover-import" data-admin-listing-view="developments">
+              <summary>Importar portadas revisadas</summary>
+              <p>Agrega imágenes verificadas a desarrollos sin portada. Revisa las fichas del lote antes de guardar; los datos y fotografías existentes se conservan.</p>
+              <label class="file-field"><span>Archivo de portadas revisadas</span><input type="file" id="developmentCoverFile" accept="application/json,.json" /></label>
+              <div id="developmentCoverPreview" class="development-cover-preview"></div>
+              <button type="button" class="primary-button" id="applyDevelopmentCovers" disabled>Guardar portadas y aplicar publicación</button>
+              <p class="form-message" id="developmentCoverMessage" role="status"></p>
+            </details>
             <div class="listing-workspace" data-admin-listing-view="new-property new-development">
             <form id="listingForm" class="stacked-form">
               <input type="hidden" name="id" />
@@ -3290,6 +3299,7 @@
     <script src="/inventory-contract.js?v=20261029.1"></script>
     <script src="/csv-utils.js?v=20261029.1"></script>
     <script src="/contact-config.js?v=20261029.1"></script>
+    <script src="/exchange-rate-view.js?v=20261103.1"></script>
     <script src="/admin-inventory-ui.js?v=20261029.1"></script>
     <script src="/comparison-ui.js?v=20261029.1"></script>
     <script src="/catalog-map.js?v=20261029.1"></script>

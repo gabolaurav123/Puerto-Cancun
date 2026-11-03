@@ -114,7 +114,10 @@ test("la navegación explica cómo vender y presenta un Nosotros completo", () =
   const sellingPage = renderSeoPage("/vender-casa-cancun");
   const aboutPage = renderSeoPage("/nosotros");
 
-  assert.match(indexSource, /id="aboutNavLink"/);
+  const header = indexSource.match(/<header[\s\S]*?<\/header>/)[0];
+  const footer = indexSource.match(/<footer[\s\S]*?<\/footer>/)[0];
+  assert.doesNotMatch(header, /href="\/nosotros"/);
+  assert.match(footer, /href="\/nosotros"/);
   assert.match(indexSource, /href="\/vender-casa-cancun" id="sellNavLink"/);
   assert.doesNotMatch(indexSource, /class="ai-home-section/);
   assert.doesNotMatch(indexSource, /class="ai-validation-home/);
