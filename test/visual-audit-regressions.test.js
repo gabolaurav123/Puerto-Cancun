@@ -60,9 +60,9 @@ test('full SEO pages keep their heading below the menu and the count beside the 
       assert.equal(await heading.innerText(), 'Casas en Cancún');
       const directNav = page.locator(width <= 1180 ? '.public-quick-nav' : '.public-nav-primary');
       for (const [label, href] of [
-        ['Buscar', '/propiedades'],
+        ...(width <= 1180 ? [['Comunidades', '/zonas-cancun']] : [['Buscar', '/propiedades']]),
         ['Desarrollos', '/propiedades/desarrollos-cancun'],
-        ['Nosotros', '/nosotros'],
+        ['Destacadas', '/propiedades/destacadas-cancun'],
       ]) {
         const link = directNav.getByRole('link', { name: label, exact: true });
         assert.ok(await link.isVisible(), `${label} at ${width}px`);

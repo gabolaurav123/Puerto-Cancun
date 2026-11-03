@@ -86,6 +86,10 @@ const translations = {
     navHotelZone: "Zona Hotelera",
     navCancunCity: "Ciudad de Cancún",
     navOutsideCancun: "Fuera de Cancún",
+    navHotelZoneDescription: "Zona Hotelera, Costa Mujeres y Punta Sam",
+    navPuertoDescription: "Marina, canales y comunidades residenciales",
+    navCityDescription: "Centro, Huayacán y corredor Colosio",
+    navOutsideDescription: "Riviera Maya y otros destinos",
     navInPuerto: "En Puerto Cancún",
     navAdvice: "Asesoría",
     navPriceReview: "Revisar mi precio",
@@ -250,8 +254,6 @@ const translations = {
     saleProperty: "Venta de propiedad",
     aboutPuerto: "Sobre Puerto Cancún Center",
     location: "Ubicación",
-    legalCopy:
-      "Cada inmueble conserva la moneda original definida en su publicación, USD o MXN. Cualquier conversión se entrega únicamente como referencia vigente y puede solicitarse a un asesor.",
     rights: "Todos los derechos reservados.",
     privacyNotice: "Aviso de privacidad",
     termsConditions: "Términos y condiciones",
@@ -692,6 +694,10 @@ const translations = {
     navHotelZone: "Hotel Zone",
     navCancunCity: "Cancun City",
     navOutsideCancun: "Outside Cancun",
+    navHotelZoneDescription: "Hotel Zone, Costa Mujeres and Punta Sam",
+    navPuertoDescription: "Marina, canals and residential communities",
+    navCityDescription: "Downtown, Huayacan and the Colosio corridor",
+    navOutsideDescription: "Riviera Maya and other destinations",
     navInPuerto: "In Puerto Cancun",
     navAdvice: "Local advice",
     navPriceReview: "Review my price",
@@ -854,8 +860,6 @@ const translations = {
     saleProperty: "Property sale",
     aboutPuerto: "About Puerto Cancun Center",
     location: "Location",
-    legalCopy:
-      "Each property keeps the original currency defined in its listing, USD or MXN. Any conversion is provided only as a current reference and may be requested from an advisor.",
     rights: "All rights reserved.",
     privacyNotice: "Privacy notice",
     termsConditions: "Terms and conditions",
@@ -1367,7 +1371,7 @@ const state = {
   adminListingFilters: { search: "", type: "", zone: "", operation: "", status: "", quality: "", missingCover: false },
   catalogFilters: { search: "", type: "" },
   sidebarCollapsed: false,
-  config: { googleClientId: "", googleMapsApiKey: "", exchangeRate: 18.5 },
+  config: { googleClientId: "", googleMapsApiKey: "", exchangeRate: null, currencyExchange: null },
   googleReady: false,
   stats: {
     properties: 0,
@@ -4249,6 +4253,9 @@ function leadPayloadLabel(key) {
     usedAi: "Uso de IA",
     goal: "Objetivo",
     purchaseDate: "Fecha estimada",
+    developmentName: state.lang === "en" ? "Development" : "Desarrollo",
+    developmentIntent: state.lang === "en" ? "Request" : "Solicitud",
+    comments: state.lang === "en" ? "Comments" : "Comentarios",
   };
   return labels[key] || key.replace(/([A-Z])/g, " $1").replace(/^./, (letter) => letter.toUpperCase());
 }
@@ -4258,7 +4265,8 @@ function renderLeadPayload(lead) {
   const entries = Object.entries(payload).filter(([, value]) => value !== undefined && value !== null && String(value).trim() !== "");
   if (!entries.length) return "";
   const rows = entries.map(([key, value]) => {
-    const text = Array.isArray(value) ? value.join(", ") : typeof value === "object" ? JSON.stringify(value) : String(value);
+    const intentLabels = state.lang === "en" ? { buy: "Buy", rent: "Rent", sell: "Sell", let: "List for rent" } : { buy: "Comprar", rent: "Rentar", sell: "Vender", let: "Poner en renta" };
+    const text = key === "developmentIntent" && intentLabels[value] ? intentLabels[value] : Array.isArray(value) ? value.join(", ") : typeof value === "object" ? JSON.stringify(value) : String(value);
     const isLong = text.length > 160;
     return `
       <div>
@@ -6861,6 +6869,7 @@ function populateSelect(select, items, label, value = "id", emptyLabel = "Selecc
 function renderAdminBlogPosts() {
   const list = $("#adminBlogPosts");
   if (!list) return;
+  if (!$("#dailyBlogStatus")?.dataset.loaded) void loadDailyBlogStatus();
   const search = normalizeSearchText($("#blogAdminSearch")?.value || "");
   const posts = state.blogPosts.filter((post) =>
     !search || normalizeSearchText(`${post.titleEs} ${post.titleEn} ${post.slug}`).includes(search)
@@ -6883,6 +6892,58 @@ function renderAdminBlogPosts() {
       `).join("")
     : `<p class="empty-state">No hay artículos que coincidan con la búsqueda.</p>`;
   refreshIcons();
+}
+
+async function previewDevelopmentCovers() {
+  const file = $("#developmentCoverFile")?.files?.[0];
+  const button = $("#applyDevelopmentCovers");
+  state.developmentCoverBatch = [];
+  button.disabled = true;
+  $("#developmentCoverPreview").replaceChildren();
+  try {
+    if (!file) return;
+    if (file.size > 16 * 1024 * 1024) throw new Error("El archivo debe ser menor a 16 MB.");
+    const { items } = JSON.parse(await file.text());
+    if (!Array.isArray(items) || !items.length || items.length > 10 || items.some(item => !/^data:image\/webp;base64,[A-Za-z0-9+/]+=*$/.test(item.imageDataUrl || "") || typeof item.publish !== "boolean")) throw new Error("Selecciona un lote válido de 1 a 10 portadas WebP revisadas.");
+    $("#developmentCoverPreview").innerHTML = items.map(item => {
+      const record = state.properties.find(property => property.id === item.id);
+      if (!record || record.publicationSection !== "developments") throw new Error("El lote contiene un desarrollo que no está en este inventario.");
+      return `<article><img src="${item.imageDataUrl}" alt="${escapeHtml(record.titleEs)}" /><strong>${escapeHtml(record.titleEs)}</strong><span>${item.publish ? "Se publicará con esta portada" : "Sólo se agregará la portada"}</span></article>`;
+    }).join("");
+    state.developmentCoverBatch = items;
+    button.disabled = false;
+    setFormMessage($("#developmentCoverMessage"), `${items.length} portadas listas para revisar.`);
+  } catch (error) { setFormMessage($("#developmentCoverMessage"), error.message, true); }
+}
+
+async function applyDevelopmentCovers() {
+  const button = $("#applyDevelopmentCovers");
+  if (!state.developmentCoverBatch?.length) return;
+  try {
+    setButtonLoading(button, true, "Guardando portadas…");
+    const data = await api("/api/admin/development-recovery/apply", { method: "POST", body: { items: state.developmentCoverBatch }, timeoutMs: 60000, retry: false });
+    state.developmentCoverBatch = [];
+    $("#developmentCoverFile").value = "";
+    $("#developmentCoverPreview").replaceChildren();
+    setFormMessage($("#developmentCoverMessage"), `${data.results.length} portadas guardadas correctamente.`);
+    await readAdminResource("properties", undefined, true);
+    renderAdminListings();
+  } catch (error) { setFormMessage($("#developmentCoverMessage"), error.message, true); }
+  finally { setButtonLoading(button, false); button.disabled = !state.developmentCoverBatch?.length; }
+}
+
+async function loadDailyBlogStatus() {
+  const status = $("#dailyBlogStatus");
+  if (!status || status.dataset.loading) return;
+  status.dataset.loading = "true";
+  try {
+    const data = await api("/api/admin/blog-automation");
+    const labels = { published: "Publicado", running: "Preparando la nota", skipped: "Sin novedades verificadas; se reintentará", failed: "No se pudo completar la nota; se reintentará" };
+    const latest = data.runs?.[0];
+    status.textContent = !data.configured ? "Falta configurar la conexión editorial en Integraciones." : !data.enabled ? "Publicación automática desactivada." : `Programado diariamente a las ${String(data.hour).padStart(2, "0")}:00 (hora de Cancún).${latest ? ` Último resultado: ${labels[latest.status] || latest.status} · ${String(latest.run_date).slice(0, 10)}.` : " La primera publicación está pendiente."}`;
+    status.dataset.loaded = "true";
+  } catch { status.textContent = "No se pudo consultar la programación. Pulsa Actualizar estado."; }
+  finally { delete status.dataset.loading; }
 }
 
 function clearBlogPreviewObjectUrls() {
@@ -8666,6 +8727,7 @@ async function loadPublicData() {
   state.csrfToken = sessionData.csrfToken || state.csrfToken;
   state.locationOptions = locationData.options || [];
   state.config = configData || state.config;
+  renderCurrencyExchange();
   state.platform = configData?.platform || state.platform;
   if (!panelPage) {
     mountPublicComparison(state.properties);
@@ -9685,7 +9747,6 @@ function applyTranslations({ renderPanelContent = true } = {}) {
   if (panelLanguageLabel) panelLanguageLabel.textContent = state.lang === "es" ? "English" : "Español";
   $$('[data-password-visibility]').forEach(updatePasswordVisibilityButton);
   updateLocalizedLinks();
-  if ($("#aboutNavLink")) $("#aboutNavLink").href = state.lang === "en" ? "/en/about" : "/nosotros";
   if ($("#sellNavLink")) $("#sellNavLink").href = state.lang === "en" ? "/en/sell-property-cancun" : "/vender-casa-cancun";
   if ($("#heroSellButton")) $("#heroSellButton").href = state.lang === "en" ? "/en/sell-property-cancun" : "/vender-casa-cancun";
   if ($("#sellCtaButton")) $("#sellCtaButton").href = state.lang === "en" ? "/en/sell-property-cancun" : "/vender-casa-cancun";
@@ -9693,6 +9754,7 @@ function applyTranslations({ renderPanelContent = true } = {}) {
     link.href = (state.lang === "en" ? "/en/property-valuation-cancun" : "/valuacion-inmobiliaria-cancun") + "#valuation-form";
   });
   renderReleaseInfo();
+  renderCurrencyExchange();
   const privatePage = document.body.dataset.page === "panel";
   if (!privatePage) {
     refreshLocationSelects();
@@ -13220,6 +13282,9 @@ function bindEvents() {
   $("#translateBlogPost")?.addEventListener("click", () => void translateBlogPost());
   $("#resetBlogForm")?.addEventListener("click", resetBlogForm);
   $("#blogAdminSearch")?.addEventListener("input", renderAdminBlogPosts);
+  $("#refreshDailyBlog")?.addEventListener("click", loadDailyBlogStatus);
+  $("#developmentCoverFile")?.addEventListener("change", previewDevelopmentCovers);
+  $("#applyDevelopmentCovers")?.addEventListener("click", applyDevelopmentCovers);
   $("#aiToolForm")?.addEventListener("submit", aiToolSubmit);
   $$('[data-ai-category]').forEach((button) => button.addEventListener("click", () => setAiToolCategory(button.dataset.aiCategory)));
   $$('[data-ai-tool]').forEach((button) => button.addEventListener("click", () => selectAiTool(button)));
@@ -13905,9 +13970,14 @@ function initializeMortgageCalculator() {
   calculate();
 }
 
+function renderCurrencyExchange() {
+  if (!window.PccExchangeRate || !state.config.currencyExchange) return;
+  $$("[data-exchange-rate]").forEach(element => { element.innerHTML = window.PccExchangeRate.render(state.config.currencyExchange, state.lang); });
+}
+
 async function loadPublicBlog() {
   const list = $("#publicBlogList");
-  if (!list) return;
+  if (!list || list.dataset.serverRendered === "true") return;
   try {
     const data = await api(`/api/blog?lang=${encodeURIComponent(state.lang)}`);
     list.innerHTML = data.posts?.length

@@ -104,6 +104,12 @@ El servidor crea automáticamente las tablas necesarias y carga propiedades de e
 
 Las campañas preparan y registran mensajes; no realizan envío masivo sin un proveedor autorizado. La generación para Instagram usa la Responses API cuando `OPENAI_API_KEY` está configurada y vuelve a un borrador local si OpenAI no está disponible. `OPENAI_MODEL` utiliza `gpt-5-mini` por defecto para equilibrar calidad, latencia y costo. Los resultados requieren aprobación humana.
 
+El blog diario publica una edición en español e inglés a las 08:00 de Cancún y conserva el archivo completo con paginación. Se activa en producción con `OPENAI_API_KEY`; `DAILY_BLOG_ENABLED=false` lo detiene y `DAILY_BLOG_HOUR` permite cambiar la hora. Investiga fuentes oficiales, enlaza las referencias y evita publicar cuando faltan noticias verificables. Guarda el estado de cada día en PostgreSQL, con una publicación como máximo y hasta tres intentos separados por cuatro horas. El panel de Blog y noticias muestra la programación y el último resultado. La generación editorial automática está separada de las campañas y mensajes.
+
+La cotización USD/MXN se actualiza cada hora desde Banco de México vía Frankfurter, con fecha de publicación y fuente visibles. Ante un fallo conserva la última cotización fechada; no utiliza el antiguo valor manual como dato actual. La moneda original de las fichas se mantiene.
+
+Para portadas recuperadas, `scripts/audit-development-covers.cjs` prepara candidatos desde las referencias originales del inventario sin publicar. El importador del panel acepta lotes revisados de hasta diez imágenes; conserva los datos del desarrollo, exige la fecha original de edición y no sobrescribe fotografías existentes ni registros archivados. Cada cambio registra la fuente y una versión administrativa.
+
 `INSTAGRAM_OAUTH_URL` puede apuntar al flujo OAuth administrado por Meta y `INSTAGRAM_PROFILE_URL` al perfil que se abrirá desde Marketing. Las credenciales de Instagram nunca se envían al navegador. Google OAuth, Google Maps, WhatsApp e IndexNow se habilitan mediante sus respectivas variables.
 
 ## Flujos administrativos principales

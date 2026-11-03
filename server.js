@@ -14,6 +14,11 @@ const sharp = require("sharp");
 const { drawPropertyPdf, preparePropertyPdfImages } = require("./pdf-property-sheet");
 const { createWhatsappService, normalizeBotSettings } = require("./whatsapp-service");
 const { Pool } = require("pg");
+const { createExchangeRateService } = require("./exchange-rate");
+const { render: renderExchangeRate } = require("./exchange-rate-view");
+const { ensureDailyBlogSchema, createDailyBlogService, renderBlogParagraph, renderBlogSources } = require("./daily-blog");
+const { blogListQuery, paginateBlogRows, renderBlogList } = require("./blog-list-view");
+const { applyDevelopmentCoverBatch } = require("./development-cover-publish");
 const { buildLocationSeedOptions, reconcileLocationSeedOptions } = require("./location-catalog");
 const packageMetadata = require("./package.json");
 const { ensureMigrationTable, recordMigration, runMigration } = require("./db/migrations");
@@ -78,6 +83,7 @@ const {
 } = require("./seo-pages");
 
 const app = express();
+const exchangeRateService = createExchangeRateService({ query });
 const port = Number(process.env.PORT || 3000);
 const siteUrl = process.env.PUBLIC_SITE_URL || process.env.SITE_URL || DEFAULT_SITE_URL;
 const publicShareDomain = String(process.env.PUBLIC_SHARE_DOMAIN || "https://pic.estate").trim().replace(/\/+$/, "");
@@ -106,6 +112,7 @@ const publicStaticFiles = new Set([
   "/styles.css",
   "/inventory-contract.js",
   "/contact-config.js",
+  "/exchange-rate-view.js",
   "/csv-utils.js",
   "/catalog-ui.js",
   "/catalog-map.js",
@@ -132,6 +139,7 @@ const pool = new Pool({
   statement_timeout: 30000,
   query_timeout: 35000,
 });
+const dailyBlogService = createDailyBlogService({ pool, onPublish: invalidatePublishedBlogCache });
 const databaseRuntimeState = {
   ready: false,
   initializing: false,
@@ -881,6 +889,8 @@ function toBlogPost(row, includeContent = true) {
     updatedAt: row.updated_at,
     urlEs: `/blog/${row.slug}`,
     urlEn: `/en/blog/${row.slug}`,
+    sources: safeJsonArray(row.source_links),
+    automationDate: row.automation_date,
   };
   if (includeContent) {
     post.contentEs = row.content_es || "";
@@ -3025,6 +3035,7 @@ async function initDatabase() {
       );
     `);
     await client.query("ALTER TABLE blog_posts ADD COLUMN IF NOT EXISTS content_images JSONB NOT NULL DEFAULT '[]'::jsonb");
+    await ensureDailyBlogSchema(client);
     await client.query(`
       CREATE TABLE IF NOT EXISTS app_settings (
         key TEXT PRIMARY KEY,
@@ -3677,18 +3688,12 @@ app.get("/ready", async (_req, res) => {
 });
 
 app.get("/api/config", async (_req, res) => {
-  let exchangeRate = 18.5;
-  try {
-    const result = await query("SELECT value FROM app_settings WHERE key = 'site'");
-    const configuredRate = Number(result.rows[0]?.value?.exchangeRate);
-    if (Number.isFinite(configuredRate) && configuredRate > 0) exchangeRate = configuredRate;
-  } catch {
-    // Public navigation can keep working with the documented fallback rate while the database reconnects.
-  }
+  const currencyExchange = exchangeRateService.getSnapshot();
   res.json({
     googleClientId,
     googleMapsApiKey,
-    exchangeRate,
+    exchangeRate: currencyExchange.rate,
+    currencyExchange,
     platform: { ...releaseInfo, assetVersion: staticAssetVersion, ...publicDatabaseState() },
     publicSiteUrl: siteUrl,
     businessAddress: "Puerto Cancun Mall, Marina B., oficina 27, Zona Hotelera, Cancun 77500, Q Roo, Mexico.",
@@ -3697,19 +3702,11 @@ app.get("/api/config", async (_req, res) => {
 
 app.get("/api/blog", async (req, res, next) => {
   try {
-    const limit = Math.max(1, Math.min(60, Number(req.query.limit || 24)));
     const lang = req.query.lang === "en" ? "en" : "es";
-    const result = await query(
-      `SELECT id, slug, title_es, title_en, excerpt_es, excerpt_en, cover_image, status,
-              author_name, seo_title, seo_description, published_at, created_at, updated_at
-       FROM blog_posts
-       WHERE status = 'published'
-         AND ($2::text = 'es' OR (NULLIF(BTRIM(title_en), '') IS NOT NULL AND NULLIF(BTRIM(content_en), '') IS NOT NULL))
-       ORDER BY published_at DESC NULLS LAST, updated_at DESC
-       LIMIT $1`,
-      [limit, lang]
-    );
-    res.json({ posts: result.rows.map((row) => toBlogPost(row, false)) });
+    const listingQuery = blogListQuery({ lang, page: req.query.page, limit: req.query.limit || 24 });
+    const result = await query(listingQuery.text, listingQuery.values);
+    const listing = paginateBlogRows(result.rows, listingQuery.pagination);
+    res.json({ posts: listing.rows.map(row => toBlogPost(row, false)), pagination: listing.pagination });
   } catch (error) {
     next(error);
   }
@@ -5145,12 +5142,23 @@ app.post("/api/leads", async (req, res, next) => {
   try {
     await client.query("BEGIN");
     const body = req.body || {};
-    const leadType = String(body.leadType || "general").trim().slice(0, 80);
+    let leadType = String(body.leadType || "general").trim().slice(0, 80);
+    const developmentInquiry = leadType === "contacto-desarrollo";
+    if (developmentInquiry) {
+      const intentTypes = { buy: "comprador-desarrollo", rent: "contacto-desarrollo-renta", sell: "vendedor-desarrollo", let: "vendedor-desarrollo-renta" };
+      const development = await client.query("SELECT id, title_es FROM properties WHERE id = $1 AND publication_section = 'developments' AND is_public = TRUE AND status = ANY($2::text[])", [String(body.propertyId || "").trim(), Array.from(PUBLIC_PROPERTY_STATUSES)]);
+      if (typeof body.developmentIntent !== "string" || !Object.hasOwn(intentTypes, body.developmentIntent) || !development.rows.length || !String(body.name || "").trim()) {
+        await client.query("ROLLBACK");
+        return res.status(400).json({ error: String(body.sourcePath || "").startsWith("/en/") ? "Choose an option and enter your name for this development." : "Elige una opción e indica tu nombre para consultar este desarrollo." });
+      }
+      leadType = intentTypes[body.developmentIntent];
+      body.developmentName = development.rows[0].title_es;
+    }
     const category = inferLeadCategory(leadType);
     const valuationInquiry = category === "valuation" || leadType.toLowerCase().includes("validar-precio");
     const suppliedName = String(body.name || body.firstName || "").trim();
     const name = suppliedName || (valuationInquiry ? "Propietario" : "Visitante web");
-    const replyTo = valuationInquiry ? String(body.contact || "").trim() : "";
+    const replyTo = valuationInquiry || developmentInquiry ? String(body.contact || "").trim() : "";
     const rawPhone = String(body.whatsapp || body.phone || (replyTo.includes("@") ? "" : replyTo)).trim();
     const phone = rawPhone ? normalizePhone(rawPhone) : "";
     const email = String(body.email || (replyTo.includes("@") ? replyTo : "")).trim().toLowerCase() || null;
@@ -5175,12 +5183,12 @@ app.post("/api/leads", async (req, res, next) => {
       return;
     }
 
-    if (valuationInquiry && !phone && !email && !rawPhone) {
+    if ((valuationInquiry || developmentInquiry) && !phone && !email && !rawPhone) {
       await client.query("ROLLBACK");
       res.status(400).json({ error: sourcePath?.startsWith("/en/") ? "Enter an email address or WhatsApp number." : "Indica un correo o número de WhatsApp." });
       return;
     }
-    if ((rawPhone && (!phone || (valuationInquiry && !/^[+\d().\s-]+$/.test(rawPhone)))) || (email && !isValidEmail(email))) {
+    if ((rawPhone && (!phone || ((valuationInquiry || developmentInquiry) && !/^[+\d().\s-]+$/.test(rawPhone)))) || (email && !isValidEmail(email))) {
       await client.query("ROLLBACK");
       res.status(400).json({ error: sourcePath?.startsWith("/en/") ? "Check the email or phone number before sending." : "Revisa el teléfono o correo antes de enviar la solicitud." });
       return;
@@ -5209,9 +5217,10 @@ app.post("/api/leads", async (req, res, next) => {
       `SELECT * FROM lead_requests
        WHERE lead_type = $1
          AND (($2::text IS NOT NULL AND lower(email) = lower($2)) OR ($3::text <> '' AND phone = $3))
+         AND ($4::boolean = FALSE OR property_id = $5)
          AND created_at > NOW() - INTERVAL '90 seconds'
        ORDER BY created_at DESC LIMIT 1`,
-      [leadType, email, phone]
+      [leadType, email, phone, developmentInquiry, propertyId]
     );
     if (duplicate.rows[0]) {
       await client.query("COMMIT");
@@ -10107,6 +10116,34 @@ app.get("/api/admin/developments", requireRole("admin"), async (_req, res, next)
   }
 });
 
+app.get("/api/admin/development-recovery/sources", requireRole("admin"), async (_req, res, next) => {
+  try {
+    const result = await query("SELECT id, title_es, title_en, status, is_public, updated_at, images, image, development_data->'importSource' AS source FROM properties WHERE publication_section = 'developments' ORDER BY title_es");
+    res.set("Cache-Control", "no-store").json({ developments: result.rows.map(row => ({
+      id: row.id, titleEs: row.title_es, titleEn: row.title_en, status: row.status,
+      isPublic: row.is_public, updatedAt: row.updated_at,
+      images: publicMediaUrls(mergeLegacyImages(row.images, row.image), "properties", row.id), source: row.source || null,
+    })) });
+  } catch (error) { next(error); }
+});
+
+app.post("/api/admin/development-recovery/apply", requireRole("admin"), async (req, res, next) => {
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+    const results = await applyDevelopmentCoverBatch(client, req.body?.items);
+    for (const item of results) {
+      await client.query("INSERT INTO property_versions (id, property_id, changed_by, change_type, changed_fields, snapshot) VALUES ($1,$2,$3,'cover_recovery',$4::jsonb,$5::jsonb)", [uuid("version"), item.id, req.session.user.id, JSON.stringify({ imageCount: 1, status: item.status, isPublic: item.isPublic }), JSON.stringify({ sourcePageUrl: item.sourcePageUrl, sourceImageUrl: item.sourceImageUrl, sha256: item.sha256 })]);
+    }
+    await client.query("COMMIT");
+    invalidatePublicPropertyCache();
+    res.json({ results });
+  } catch (error) {
+    await client.query("ROLLBACK").catch(() => {});
+    next(error);
+  } finally { client.release(); }
+});
+
 async function extractBrochureWithAi(text, fallback) {
   if (!process.env.OPENAI_API_KEY) return { data: fallback, provider: "pdf-parse", model: null };
   const model = process.env.OPENAI_MODEL || "gpt-5-mini";
@@ -10441,6 +10478,20 @@ app.get("/api/admin/blog", requireRole("admin"), async (_req, res, next) => {
   } catch (error) {
     next(error);
   }
+});
+
+app.get("/api/admin/blog-automation", requireRole("admin"), async (_req, res, next) => {
+  try { res.set("Cache-Control", "no-store").json(await dailyBlogService.getStatus()); }
+  catch (error) { next(error); }
+});
+
+app.post("/api/admin/blog-automation/run", requireRole("admin"), async (_req, res, next) => {
+  try {
+    const status = await dailyBlogService.getStatus();
+    if (!status.enabled || !status.configured) return res.status(503).json({ error: "La publicación diaria no está configurada en el servicio." });
+    void dailyBlogService.run({ manual: true });
+    res.status(202).json({ status: "scheduled" });
+  } catch (error) { next(error); }
 });
 
 app.post("/api/admin/blog", requireRole("admin"), async (req, res, next) => {
@@ -11957,6 +12008,7 @@ function replaceMetaTag(html, pattern, replacement) {
 
 function decoratePublicHtml({ page, seo, pageContent = "", bodyPage = "seo", noindex = false, includePrivatePanel = false, showBlog = true }) {
   let html = fs.readFileSync(indexPath, "utf8");
+  html = html.replace(/(<div class="exchange-rate-panel" data-exchange-rate[^>]*>)[\s\S]*?<\/div>/, (_match, opening) => opening + renderExchangeRate(exchangeRateService.getSnapshot(), seo.lang) + "</div>");
   if (bodyPage !== "home") {
     html = html.replace(/\s*<link rel="preload" as="image" href="\/assets\/cancun-hotel-zone-hero-[^"]+"[^>]*>/g, "");
   }
@@ -11977,6 +12029,7 @@ function decoratePublicHtml({ page, seo, pageContent = "", bodyPage = "seo", noi
   const assetVersion = encodeURIComponent(staticAssetVersion);
   html = html.replace(/styles\.css\?v=[^"']+/g, `styles.css?v=${assetVersion}`);
   html = html.replace(/app\.js\?v=[^"']+/g, `app.js?v=${assetVersion}`);
+  html = html.replace(/exchange-rate-view\.js\?v=[^"']+/g, `exchange-rate-view.js?v=${assetVersion}`);
   html = html.replace(/(catalog\.css|catalog-ui\.js|catalog-map\.js|catalog-assistant\.js|admin-inventory-ui\.js|admin-inventory\.css|comparison-ui\.js|comparison\.css|inventory-contract\.js|contact-config\.js|csv-utils\.js)\?v=[^"']+/g, `$1?v=${assetVersion}`);
   const alternateUrl = absoluteUrl(seo.alternate || "/", siteUrl);
   const spanishUrl = seo.lang === "en" ? alternateUrl : seo.canonical;
@@ -12042,6 +12095,12 @@ async function renderPublicHtml(requestPath, noindex = false, params = {}) {
   let pageContent = isHome ? "" : renderSeoPage(page.path);
   if (page.category) {
     pageContent = renderCategoryPage(page, await getPublicProperties(), params);
+  }
+  if (["/blog", "/en/blog"].includes(page.path)) {
+    const listingQuery = blogListQuery({ lang: page.lang, page: params.page, limit: 24 });
+    const result = await query(listingQuery.text, listingQuery.values);
+    const listing = paginateBlogRows(result.rows, listingQuery.pagination);
+    pageContent = pageContent.replace(/<section class="public-blog-grid" id="publicBlogList">[\s\S]*?<\/section>/, renderBlogList(listing.rows.map(row => toBlogPost(row, false)), page.lang, listing.pagination));
   }
   return decoratePublicHtml({
     page,
@@ -12125,8 +12184,9 @@ if (indexNowKey) {
 
 app.get("/sitemap.xml", async (_req, res, next) => {
   try {
+    const blog = await query("SELECT slug, updated_at, (NULLIF(BTRIM(title_en), '') IS NOT NULL AND NULLIF(BTRIM(content_en), '') IS NOT NULL) AS has_english FROM blog_posts WHERE status = 'published' ORDER BY published_at DESC");
     res.type("application/xml").send(
-      sitemapXml(siteUrl, await getPublicProperties(), { includeBlog: await hasPublishedBlogPosts() })
+      sitemapXml(siteUrl, await getPublicProperties(), { includeBlog: await hasPublishedBlogPosts(), blogPosts: blog.rows.map(row => ({ slug: row.slug, updatedAt: row.updated_at, hasEnglish: row.has_english })) })
     );
   } catch (error) {
     next(error);
@@ -12162,7 +12222,7 @@ app.get(["/blog", "/en/blog"], async (req, res, next) => {
       res.status(404).send(await renderNotFoundHtml(req.path));
       return;
     }
-    const html = await renderPublicHtml(req.path);
+    const html = await renderPublicHtml(req.path, false, req.query);
     res.set("Cache-Control", "public, max-age=0, must-revalidate");
     res.send(html);
   } catch (error) {
@@ -12207,7 +12267,7 @@ app.get(["/blog/:slug", "/en/blog/:slug"], async (req, res, next) => {
     const imageInterval = Math.max(1, Math.ceil(textBlocks.length / Math.max(1, contentImages.length + 1)));
     let imageIndex = 0;
     const paragraphs = textBlocks.map((paragraph, index) => {
-      let block = `<p>${escapeHtml(paragraph)}</p>`;
+      let block = renderBlogParagraph(paragraph, post.sources);
       if ((index + 1) % imageInterval === 0 && imageIndex < contentImages.length) {
         block += `<figure class="blog-content-figure"><img src="${escapeHtml(contentImages[imageIndex])}?w=1440" alt="${escapeHtml(`${title} - ${lang === "en" ? "article image" : "imagen del artículo"} ${imageIndex + 1}`)}" loading="lazy" /><figcaption>${escapeHtml(lang === "en" ? "Editorial image" : "Imagen editorial")}</figcaption></figure>`;
         imageIndex += 1;
@@ -12215,7 +12275,7 @@ app.get(["/blog/:slug", "/en/blog/:slug"], async (req, res, next) => {
       return block;
     }).join("");
     const remainingImages = contentImages.slice(imageIndex).map((image, index) => `<figure class="blog-content-figure"><img src="${escapeHtml(image)}?w=1440" alt="${escapeHtml(`${title} - ${lang === "en" ? "article image" : "imagen del artículo"} ${imageIndex + index + 1}`)}" loading="lazy" /></figure>`).join("");
-    const article = `<article class="blog-post-public">${post.coverImage ? `<img class="blog-post-cover" src="${escapeHtml(post.coverImage)}" alt="${escapeHtml(title)}" />` : ""}<div class="blog-post-body"><span class="seo-eyebrow">${escapeHtml(post.authorName || "Puerto Cancun Center")}</span>${paragraphs}${remainingImages}<a class="primary-button" href="${lang === "en" ? "/en/contact" : "/contacto"}">${lang === "en" ? "Talk to an advisor" : "Hablar con un asesor"}</a></div></article>`;
+    const article = `<article class="blog-post-public">${post.coverImage ? `<img class="blog-post-cover" src="${escapeHtml(post.coverImage)}" alt="${escapeHtml(title)}" />` : ""}<div class="blog-post-body"><span class="seo-eyebrow">${escapeHtml(post.authorName || "Puerto Cancun Center")} · ${escapeHtml(new Date(post.publishedAt || post.updatedAt).toLocaleDateString(lang === "en" ? "en-US" : "es-MX", { timeZone: "America/Cancun", year: "numeric", month: "long", day: "numeric" }))}</span>${paragraphs}${remainingImages}${renderBlogSources(post.sources, lang)}<a class="primary-button" href="${lang === "en" ? "/en/contact" : "/contacto"}">${lang === "en" ? "Talk to an advisor" : "Hablar con un asesor"}</a></div></article>`;
     const pageContent = baseHtml.replace(/<section class="public-blog-grid" id="publicBlogList">[\s\S]*?<\/section>/, article);
     const seo = {
       ...renderSeoHead(page, siteUrl),
@@ -12382,6 +12442,8 @@ async function initializeDatabaseWithRetry() {
     databaseRuntimeState.lastErrorCode = "";
     databaseRuntimeState.lastReadyAt = new Date().toISOString();
     console.log("PostgreSQL schema and seed data are ready.");
+    void exchangeRateService.start();
+    dailyBlogService.start();
     if (!documentRetentionTimer) {
       void cleanExpiredDocuments();
       documentRetentionTimer = setInterval(() => void cleanExpiredDocuments(), 60_000);
@@ -12408,6 +12470,8 @@ function installShutdownHandlers(server) {
     if (shuttingDown) return;
     shuttingDown = true;
     console.log(`[shutdown] ${signal} received; stopping HTTP and database connections.`);
+    exchangeRateService.stop();
+    dailyBlogService.stop();
     if (documentRetentionTimer) clearInterval(documentRetentionTimer);
     documentRetentionTimer = null;
     if (databaseRetryTimer) {
