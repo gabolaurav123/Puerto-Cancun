@@ -165,17 +165,32 @@ test("T20: return context deep-clones filters/pagination and restores focus and 
 });
 
 function returnRuntime({ dirty = true, confirmed = true, saved = true, saving = false, video = false } = {}) {
-  const state = { session: { id: "admin" } };
+  const state = { session: { id: "admin" }, properties: [
+    { id: "one", publicationSection: "developments" }, { id: "two", publicationSection: "developments", status: "archived" },
+    { id: "property", publicationSection: "properties" },
+  ] };
   const form = { dataset: { dirty: String(dirty), saving: String(saving), draftGeneration: "one" } };
-  let saves = 0, returns = 0, confirmations = 0;
+  let saves = 0, returns = 0, confirmations = 0, destination;
   const api = runtime(["returnToAdminListings"], {
     state, $: (selector) => selector === "#listingForm" ? form : {},
     confirmAction: async () => { confirmations++; return confirmed; }, formField: () => ({ files: video ? [{}] : [] }),
     saveListingProgress: async () => { saves++; return saved; }, showToast() {}, listingFormIsDevelopment: () => true,
-    restoreListingReturnContext: (section) => { assert.equal(section, "developments"); returns++; return true; },
+    window: { PccAdminInventory: require("../admin-inventory-ui") },
+    restoreListingReturnContext: (section, filters) => { assert.equal(section, "developments"); destination = filters; returns++; return true; },
   });
-  return { ...api, form, stats: () => ({ saves, returns, confirmations }) };
+  return { ...api, form, destination: () => destination, stats: () => ({ saves, returns, confirmations }) };
 }
+
+test("el porcentaje del editor respeta cambios pendientes y abre todas las incompletas de la misma entidad", async () => {
+  const canceled = returnRuntime({ confirmed: false });
+  assert.equal(await canceled.returnToAdminListings(true), false);
+  assert.equal(canceled.form.dataset.dirty, "true");
+  assert.equal(canceled.destination(), undefined);
+  const confirmed = returnRuntime();
+  assert.equal(await confirmed.returnToAdminListings(true), true);
+  assert.deepEqual(confirmed.stats(), { saves: 1, returns: 1, confirmations: 1 });
+  assert.deepEqual(plain(confirmed.destination()), { status: "all", quality: "incomplete", qualityCohort: true, ids: ["one", "two"] });
+});
 
 test("T20/T21: back confirms unpublished changes, waits for draft success and stays on failure", async () => {
   for (const [options, expected, stats] of [[{ confirmed: false }, false, { saves: 0, returns: 0, confirmations: 1 }], [{ saved: false }, false, { saves: 1, returns: 0, confirmations: 1 }], [{}, true, { saves: 1, returns: 1, confirmations: 1 }], [{ dirty: false }, true, { saves: 0, returns: 1, confirmations: 0 }], [{ saving: true }, false, { saves: 0, returns: 0, confirmations: 0 }], [{ video: true }, false, { saves: 0, returns: 0, confirmations: 1 }]]) {

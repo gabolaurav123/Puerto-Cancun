@@ -11953,6 +11953,10 @@ function replaceMetaTag(html, pattern, replacement) {
 
 function decoratePublicHtml({ page, seo, pageContent = "", bodyPage = "seo", noindex = false, includePrivatePanel = false, showBlog = true }) {
   let html = fs.readFileSync(indexPath, "utf8");
+  if (bodyPage === "home" && seo.lang === "en") {
+    const review = getPageByPath("/en/review-property-price");
+    html = html.replace(/href="[^"]+" data-i18n="heroPriceReviewCta">[^<]*/, `href="${review.path}" data-i18n="heroPriceReviewCta">${escapeHtml(review.cta)}`);
+  }
   if (!includePrivatePanel) {
     html = html.replace(/<!-- PRIVATE_PANEL_START -->[\s\S]*?<!-- PRIVATE_PANEL_END -->/, "");
   }

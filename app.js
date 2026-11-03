@@ -132,7 +132,7 @@ const translations = {
     guestConsent: "Acepto el aviso de privacidad y que un asesor me contacte sobre esta solicitud.",
     back: "Volver",
     heroBuyCta: "Quiero comprar en Cancún",
-    heroValuationCta: "Validar precio con asesor",
+    heroPriceReviewCta: "Revisar mi estimación",
     searchPlaceholder: "Zona, desarrollo, departamento, casa, terreno, renta o venta",
     searchButton: "Buscar",
     contactToday: "Contáctanos Hoy",
@@ -720,7 +720,7 @@ const translations = {
     guestConsent: "I accept the privacy notice and agree to be contacted by an advisor about this request.",
     back: "Back",
     heroBuyCta: "I want to buy in Cancun",
-    heroValuationCta: "Validate price with an advisor",
+    heroPriceReviewCta: "Review my estimate",
     searchPlaceholder: "Area, development, apartment, house, land, rent or sale",
     searchButton: "Search",
     contactToday: "Contact Us Today",
@@ -9100,11 +9100,11 @@ function captureListingReturnContext(section) {
   window.history.pushState({ ...window.history.state, pccListingEditor: true }, "");
 }
 
-function restoreListingReturnContext(fallback = "properties") {
+function restoreListingReturnContext(fallback = "properties", listingFilters) {
   const saved = state.listingReturnContext;
-  const context = saved?.userId === state.session?.id ? saved : null;
+  const context = !listingFilters && saved?.userId === state.session?.id ? saved : null;
   const section = context?.section || fallback;
-  setAdminSection(section);
+  setAdminSection(section, listingFilters);
   if (state.adminSection !== section) return false;
   if (context) {
     state.adminListingFilters = structuredClone(context.filters);
@@ -9123,12 +9123,13 @@ function restoreListingReturnContext(fallback = "properties") {
       window.scrollTo({ top: context.scrollY, left: context.scrollX, behavior: "instant" });
     });
   }
+  if (listingFilters?.quality === "incomplete") $("#pccInventoryFilters [data-pcc-quality='incomplete']")?.focus({ preventScroll: true });
   state.listingReturnContext = null;
   if (window.history.state?.pccListingEditor) window.history.replaceState({ ...window.history.state, pccListingEditor: false }, "");
   return true;
 }
 
-async function returnToAdminListings() {
+async function returnToAdminListings(showIncomplete = false) {
   const form = $("#listingForm");
   if (!form || form.dataset.returning === "true") return false;
   if (form.dataset.saving === "true" || form.dataset.savingDraft === "true" || form.dataset.processingImages === "true" || $("#listingPublishDialog")?.open) {
@@ -9147,7 +9148,10 @@ async function returnToAdminListings() {
     }
     if (state.session?.id !== userId || form.dataset.draftGeneration !== generation) return false;
     form.dataset.dirty = "false";
-    return restoreListingReturnContext(listingFormIsDevelopment(form) ? "developments" : "properties");
+    const section = listingFormIsDevelopment(form) ? "developments" : "properties";
+    const inventory = showIncomplete && window.PccAdminInventory;
+    const filters = inventory ? inventory.qualitySelection(inventory.currentSnapshot(state.properties).records, section, "incomplete") : undefined;
+    return restoreListingReturnContext(section, filters);
   } finally { form.dataset.returning = "false"; }
 }
 
@@ -9556,6 +9560,7 @@ const localizedRoutes = {
   "/contacto": "/en/contact",
   "/vender-casa-cancun": "/en/sell-property-cancun",
   "/valuacion-inmobiliaria-cancun": "/en/property-valuation-cancun",
+  "/revisar-precio-propiedad": "/en/review-property-price",
   "/faq-inmobiliario-cancun": "/en/cancun-real-estate-faq",
   "/calculadora-hipotecaria": "/en/mortgage-calculator",
   "/blog": "/en/blog",
@@ -10933,10 +10938,21 @@ function setListingQualityPreview(property) {
   if (!score) return;
   const quality = property && window.PccInventory?.quality(property);
   score.textContent = quality ? `${quality.score}%` : "—";
+  if (quality && !quality.complete && window.PccAdminInventory) {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "pcc-quality-link";
+    const development = window.PccInventory.entityOf(property) === "developments";
+    const label = development ? "Ver todos los desarrollos incompletos" : "Ver todas las propiedades incompletas";
+    button.setAttribute("aria-label", `${quality.score}%. ${label}`);
+    button.title = label;
+    button.textContent = score.textContent;
+    button.addEventListener("click", () => void returnToAdminListings(true));
+    score.replaceChildren(button);
+  }
   if (copy) copy.textContent = quality
     ? `${quality.fulfilled} de ${quality.required} requisitos cumplidos en la ficha guardada.${quality.complete ? "" : ` Falta: ${quality.missing.join(", ")}.`}`
     : "El avance se calcula con los datos de la ficha guardada.";
-
 }
 
 function renderImagePreview(preview, images, interactive = false, metadata = []) {
