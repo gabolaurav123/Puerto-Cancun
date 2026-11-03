@@ -21,6 +21,10 @@
     .pcc-catalog-map-toolbar { display:flex;flex-wrap:wrap;gap:8px;margin:0 0 10px; }
     .pcc-catalog-map-toolbar button { min-height:44px;max-width:100%;padding:8px 14px;border:1px solid #075562;border-radius:4px;background:#fff;color:#073540;font:inherit;white-space:normal; }
     .pcc-catalog-map-toolbar button:disabled { opacity:.55; }
+    .pcc-catalog-map-toolbar button[aria-pressed=true] { background:#075562;color:#fff; }
+    .pcc-catalog-map-gesture-hint { margin:0 0 8px;font-size:.875rem;line-height:1.45; }
+    .pcc-catalog-map-mounted .catalog-map-canvas.is-page-scroll { touch-action:pan-y pinch-zoom; }
+    .pcc-catalog-map-mounted .catalog-map-canvas.is-map-interactive { touch-action:none; }
     .pcc-catalog-map-mounted :focus-visible { outline:3px solid #ae8c42;outline-offset:3px; }
     .pcc-catalog-map-pin { display:grid;place-items:center;background:#075562;color:#fff;border:2px solid white;border-radius:50%;font:700 15px Arial,sans-serif;box-shadow:0 2px 6px #0005; }
     .pcc-catalog-map-pin.is-approximate { border-style:dashed;background:#644b19; }
@@ -36,7 +40,7 @@
       .pcc-catalog-map-mounted.catalog-map-open .catalog-results { display:flex;flex-direction:column;gap:16px; }
       .pcc-catalog-map-mounted.catalog-map-open [data-catalog-map] { order:0;min-width:0; }
       .pcc-catalog-map-mounted.catalog-map-open [data-catalog-list] { display:block;order:1;min-width:0; }
-      .pcc-catalog-map-mounted .catalog-map-canvas { height:400px; }
+      .pcc-catalog-map-mounted .catalog-map-canvas { height:clamp(200px,60svh,400px);min-height:200px; }
     }
   `;
 
@@ -181,6 +185,8 @@
     const form = root.querySelector("form#catalogFilters, form[data-catalog-filters]");
     const created = [], listeners = [], markedCards = new Set();
     let map, markers = [], observer, resize, destroyed = false, failedTiles = false;
+    const touchDevice = win.matchMedia?.("(pointer: coarse)").matches || win.navigator.maxTouchPoints > 0;
+    let gesturesEnabled = !touchDevice;
     const make = (tag, className, parent) => { const element = doc.createElement(tag); element.className = className; parent.append(element); created.push(element); return element; };
     const listen = (element, event, fn) => { element.addEventListener(event, fn); listeners.push(() => element.removeEventListener(event, fn)); };
     if (!doc.getElementById("pccCatalogMapStyles")) {
@@ -195,14 +201,33 @@
     holder.insertBefore(toolbar, canvas);
     const search = make("button", "", toolbar); search.type = "button"; search.disabled = true;
     search.setAttribute("data-catalog-search-area", ""); search.textContent = t("Buscar esta \u00e1rea", "Search this area");
+    const gestures = make("button", "", toolbar); gestures.type = "button"; gestures.hidden = !touchDevice; gestures.disabled = true;
+    gestures.setAttribute("data-catalog-map-gestures", "");
+    const gestureHint = make("p", "pcc-catalog-map-gesture-hint", holder); gestureHint.hidden = !touchDevice;
+    holder.insertBefore(gestureHint, canvas);
     const retry = make("button", "", toolbar); retry.type = "button"; retry.hidden = true; retry.textContent = t("Reintentar mapa", "Retry map");
     const summary = make("p", "pcc-catalog-map-summary", holder);
     const details = make("details", "pcc-catalog-map-missing", holder);
     const missingHeading = make("summary", "", details);
     const missingList = make("ul", "", details);
 
+    function updateGestures() {
+      if (!touchDevice) return;
+      gestures.disabled = !map;
+      gestures.setAttribute("aria-pressed", String(gesturesEnabled));
+      gestures.textContent = gesturesEnabled ? t("Desplazar página", "Scroll page") : t("Mover mapa", "Move map");
+      gestureHint.textContent = gesturesEnabled ? t("Arrastra para mover y pellizca para ampliar. Pulsa «Desplazar página» para salir.", "Drag to move and pinch to zoom. Select “Scroll page” to exit.") : t("Desliza para seguir por la página. Usa +/− o activa «Mover mapa» para explorar.", "Swipe to scroll the page. Use +/− or select “Move map” to explore.");
+      canvas.classList.toggle("is-page-scroll", !gesturesEnabled);
+      canvas.classList.toggle("is-map-interactive", gesturesEnabled);
+      for (const handler of [map?.dragging, map?.touchZoom, map?.doubleClickZoom, map?.scrollWheelZoom]) {
+        if (handler) gesturesEnabled ? handler.enable() : handler.disable();
+      }
+    }
+    updateGestures();
+
     function removeMap() {
       map?.remove(); map = null; markers = [];
+      gestures.disabled = true;
       for (const [name, value] of Object.entries(canvasAttributes)) {
         if (value === null) canvas.removeAttribute(name);
         else canvas.setAttribute(name, value);
@@ -295,6 +320,7 @@
           zoomControl: false, scrollWheelZoom: true, touchZoom: true, doubleClickZoom: true,
           keyboard: true, zoomAnimation: false, minZoom: 2, maxZoom: 19,
         });
+        updateGestures();
         L.control.zoom({
           zoomInTitle: t("Acercar mapa", "Zoom in"),
           zoomOutTitle: t("Alejar mapa", "Zoom out"),
@@ -331,6 +357,7 @@
       },
       hide() {
         if (destroyed) return;
+        if (touchDevice) { gesturesEnabled = false; updateGestures(); }
         holder.hidden = true; root.classList.remove("catalog-map-open"); clearHighlight();
         root.querySelectorAll("[data-catalog-view]").forEach((button) => button.setAttribute("aria-pressed", String(button.getAttribute("data-catalog-view") === "list")));
       },
@@ -350,6 +377,12 @@
       input.value = bounds; input.disabled = false;
       // No local filtering, fetch, replacement, URL synthesis or other form edits.
       form.requestSubmit();
+    });
+    listen(gestures, "click", () => { gesturesEnabled = !gesturesEnabled; updateGestures(); });
+    listen(canvas, "keydown", (event) => {
+      if (touchDevice && gesturesEnabled && event.key === "Escape") {
+        gesturesEnabled = false; updateGestures(); gestures.focus();
+      }
     });
     listen(retry, "click", () => { controller.ready = start(); });
     const reveal = (event) => {

@@ -166,7 +166,10 @@ test('image fallback repairs early failures, preserves loaded photos and never l
     }
     getAttribute(name) { return this[name]; }
     removeAttribute(name) { delete this[name]; }
-    matches(selector) { return selector === '[data-location-cover]' && this.dataset.locationCover !== undefined; }
+    matches(selector) {
+      return selector === '[data-location-cover]' && this.dataset.locationCover !== undefined
+        || selector === '.leaflet-tile' && this.isMapTile;
+    }
     closest() { return null; }
   }
   const failed = new Image('https://example.test/failed.jpg', true, 0);
@@ -175,12 +178,14 @@ test('image fallback repairs early failures, preserves loaded photos and never l
   const localPreview = new Image('blob:local-photo', true, 0);
   const locationCover = new Image('https://example.test/location.jpg', true, 0);
   locationCover.dataset.locationCover = '';
+  const mapTile = new Image('https://tile.openstreetmap.org/12/1/1.png', true, 0);
+  mapTile.isMapTile = true;
   let listener;
   const api = runtime(['installImageFallbacks'], {
     HTMLImageElement: Image, fallbackImage: '/assets/fallback.webp',
     document: {
       addEventListener(type, fn, capture) { assert.equal(type, 'error'); assert.equal(capture, true); listener = fn; },
-      querySelectorAll: () => [failed, loaded, pending, localPreview, locationCover],
+      querySelectorAll: () => [failed, loaded, pending, localPreview, locationCover, mapTile],
     },
   });
   api.installImageFallbacks();
@@ -191,6 +196,9 @@ test('image fallback repairs early failures, preserves loaded photos and never l
   assert.equal(localPreview.src, 'blob:local-photo');
   assert.equal(locationCover.hidden, true);
   assert.equal(locationCover.src, 'https://example.test/location.jpg', 'never replace a Location photo with an unrelated property');
+  listener({ target: mapTile });
+  assert.equal(mapTile.src, 'https://tile.openstreetmap.org/12/1/1.png', 'a failed map tile must not become a property photo');
+  assert.equal(mapTile.dataset.fallbackApplied, undefined);
   listener({ target: pending });
   assert.equal(pending.src, '/assets/fallback.webp');
   pending.src = '/assets/replacement.webp';

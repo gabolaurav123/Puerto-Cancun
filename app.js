@@ -149,7 +149,8 @@ const translations = {
     back: "Volver",
     heroBuyCta: "Quiero comprar en Cancún",
     heroPriceReviewCta: "Revisar mi estimación",
-    searchPlaceholder: "Zona, desarrollo, departamento, casa, terreno, renta o venta",
+    searchPlaceholder: "Zona o propiedad",
+    homeSearchLabel: "Busca una propiedad",
     searchButton: "Buscar",
     contactToday: "Contáctanos Hoy",
     operationType: "Tipo de operación",
@@ -262,12 +263,12 @@ const translations = {
     backToSite: "Volver al sitio",
     logout: "Cerrar sesión",
     sellerRequestTitle: "Enviar solicitud de venta",
-    sellerGuideTitle: "Guia rapida para vender",
+    sellerGuideTitle: "Guía rápida para vender",
     sellerGuideCopy:
-      "Completa los datos principales, agrega una imagen clara y deja un mensaje para que el equipo pueda pedirte mas informacion antes de publicar.",
-    sellerHelpTitle: "Necesitas asesoria para llenar el formulario?",
-    sellerHelpCopy: "Un asesor puede ayudarte a preparar la informacion, fotos y ubicacion antes de enviar la solicitud.",
-    sellerHelpCta: "Solicitar guia por WhatsApp",
+      "Completa los datos principales, agrega una imagen clara y deja un mensaje para que el equipo pueda pedirte más información antes de publicar.",
+    sellerHelpTitle: "¿Necesitas asesoría para llenar el formulario?",
+    sellerHelpCopy: "Un asesor puede ayudarte a preparar la información, fotos y ubicación antes de enviar la solicitud.",
+    sellerHelpCta: "Solicitar guía por WhatsApp",
     sellerContactTitle: "Datos de contacto para esta solicitud",
     propertyTitle: "Título de la propiedad",
     propertyTitleEs: "Título de la propiedad en español",
@@ -371,8 +372,8 @@ const translations = {
     sendRecovery: "Enviar enlace de recuperación",
     resetPassword: "Crear nueva contraseña",
     cookieBannerTitle: "Tu privacidad importa",
-    cookieBannerCopy: "Usamos cookies esenciales para seguridad, sesión e idioma. Las mediciones opcionales solo se activan con tu autorización.",
-    cookieLearnMore: "Conocer la política de cookies",
+    cookieBannerCopy: "Usamos cookies para tu sesión. Tú eliges si permites medir las visitas.",
+    cookieLearnMore: "Política de cookies",
     cookieEssential: "Solo esenciales",
     cookieAccept: "Aceptar medición",
     updateExistingPassword: "¿Ya tenías cuenta? Actualizar contraseña",
@@ -753,7 +754,8 @@ const translations = {
     back: "Back",
     heroBuyCta: "I want to buy in Cancun",
     heroPriceReviewCta: "Review my estimate",
-    searchPlaceholder: "Area, development, apartment, house, land, rent or sale",
+    searchPlaceholder: "Area or property",
+    homeSearchLabel: "Find a property",
     searchButton: "Search",
     contactToday: "Contact Us Today",
     operationType: "Operation type",
@@ -972,8 +974,8 @@ const translations = {
     sendRecovery: "Send recovery link",
     resetPassword: "Create new password",
     cookieBannerTitle: "Your privacy matters",
-    cookieBannerCopy: "We use essential cookies for security, sessions, and language. Optional measurement starts only with your consent.",
-    cookieLearnMore: "Read the cookie policy",
+    cookieBannerCopy: "We use cookies for your session. You choose whether to allow visit measurement.",
+    cookieLearnMore: "Cookie policy",
     cookieEssential: "Essential only",
     cookieAccept: "Accept measurement",
     updateExistingPassword: "Already have an account? Update password",
@@ -2004,6 +2006,7 @@ function googleMapsSearchUrl(query) {
 
 function updateMapPicker(picker) {
   if (!picker) return;
+  if (picker.closest("#guestSaleModal[hidden]")) return;
   const form = picker.closest("form");
   const query = mapQueryFromForm(form);
   const frame = picker.querySelector("[data-map-frame]");
@@ -2236,6 +2239,7 @@ async function enhanceMapPicker(picker) {
 
 function bindMapPickers() {
   $$("[data-map-picker]").forEach((picker) => {
+    if (picker.closest("#guestSaleModal[hidden]")) return;
     if (!picker.querySelector("[data-map-search]")) {
       const search = document.createElement("div");
       search.className = "map-location-search";
@@ -3191,7 +3195,9 @@ async function toggleFavorite(id) {
   renderProperties();
   void trackAnalyticsEvent(wasSaved ? "favorite_removed" : "favorite_added", property);
   if (state.session?.role !== "seller") {
-    showToast(wasSaved ? "Propiedad eliminada de favoritos." : "Favorito guardado en este dispositivo. Inicia sesión para conservarlo en tu cuenta.");
+    showToast(state.lang === "en"
+      ? (wasSaved ? "Property removed from favorites." : "Favorite saved on this device. Sign in to keep it in your account.")
+      : (wasSaved ? "Propiedad eliminada de favoritos." : "Favorito guardado en este dispositivo. Inicia sesión para conservarlo en tu cuenta."));
     return;
   }
   try {
@@ -3202,7 +3208,9 @@ async function toggleFavorite(id) {
         ? [property, ...state.favoriteProperties]
         : state.favoriteProperties;
     renderSellerFavorites();
-    showToast(wasSaved ? "Propiedad eliminada de tu cuenta." : "Propiedad guardada en tu cuenta.");
+    showToast(state.lang === "en"
+      ? (wasSaved ? "Property removed from your account." : "Property saved to your account.")
+      : (wasSaved ? "Propiedad eliminada de tu cuenta." : "Propiedad guardada en tu cuenta."));
   } catch (error) {
     state.favorites = wasSaved
       ? [...state.favorites, id]
@@ -3890,6 +3898,7 @@ function openGuestSale() {
   resetGuestSaleForm();
   $("#guestSaleModal").hidden = false;
   document.body.classList.add("modal-open");
+  bindMapPickers();
   $("#guestSaleForm [name=title]")?.focus();
   refreshIcons();
 }
@@ -3995,7 +4004,12 @@ async function tourRequestSubmit(event) {
 function setSellerSection(section = "sale") {
   const available = new Set(["sale", "requests", "favorites", "searches", "tours", "services", "service-form"]);
   state.sellerSection = available.has(section) ? section : "sale";
-  $$('[data-seller-section]').forEach((button) => button.classList.toggle("active", button.dataset.sellerSection === state.sellerSection));
+  $$('[data-seller-section]').forEach((button) => {
+    const active = button.dataset.sellerSection === (state.sellerSection === "service-form" ? "services" : state.sellerSection);
+    button.classList.toggle("active", active);
+    if (active) button.setAttribute("aria-current", "page");
+    else button.removeAttribute("aria-current");
+  });
   $$('[data-seller-panel-section]').forEach((panel) => {
     panel.hidden = panel.dataset.sellerPanelSection !== state.sellerSection;
   });
@@ -5295,6 +5309,14 @@ function renderAdminListings() {
     return entity === (developmentInventory ? "developments" : "properties");
   });
   const filters = state.adminListingFilters;
+  const filterSummary = $("#adminListingFiltersSummary");
+  if (filterSummary) {
+    const active = [filters.type, filters.zone, filters.operation, filters.status].filter(Boolean).length;
+    const sorted = state.adminListingSort && state.adminListingSort !== "created_desc";
+    const count = active + Number(Boolean(sorted));
+    const label = state.lang === "en" ? "Filters and sorting" : "Filtros y orden";
+    filterSummary.textContent = `${label}${count ? ` · ${count} ${state.lang === "en" ? "active" : count === 1 ? "activo" : "activos"}` : ""}`;
+  }
   const search = normalizeSearchText(filters.search);
   const matchingIds = records && new Set(inventoryModule.selectRecords(records, filters, developmentInventory ? "developments" : "properties").map((record) => record.id));
   const properties = matchingIds
@@ -9564,6 +9586,17 @@ function updateAuthNav() {
   loginButton.setAttribute("href", "/panel");
 }
 
+function observePublicHeaderHeight() {
+  const header = $("#mainHeader");
+  if (!header) return;
+  const update = () => {
+    document.documentElement.style.setProperty("--public-header-height", `${header.offsetHeight}px`);
+  };
+  update();
+  if (window.ResizeObserver) new ResizeObserver(update).observe(header);
+  else window.addEventListener("resize", update, { passive: true });
+}
+
 function updateHeaderVisibility() {
   const header = $("#mainHeader");
   if (!header || document.body.classList.contains("panel-open")) return;
@@ -9701,6 +9734,21 @@ function refreshIcons() {
 }
 
 let authReturnFocus = null;
+
+function containDialogFocus(event, dialog) {
+  if (event.key !== "Tab") return;
+  const controls = [...dialog.querySelectorAll('a[href], button, input, select, textarea, [tabindex="0"]')]
+    .filter(element => !element.disabled && element.getClientRects().length && getComputedStyle(element).visibility !== "hidden");
+  const first = controls[0];
+  const last = controls.at(-1);
+  if (first && event.shiftKey && (document.activeElement === first || !dialog.contains(document.activeElement))) {
+    event.preventDefault();
+    last.focus();
+  } else if (last && !event.shiftKey && (document.activeElement === last || !dialog.contains(document.activeElement))) {
+    event.preventDefault();
+    first.focus();
+  }
+}
 function openAuth(tab = "login") {
   rememberSellerContext();
   authReturnFocus = $("#mainNav").classList.contains("open") ? $("#menuToggle") : document.activeElement;
@@ -9728,6 +9776,8 @@ function closeAuth() {
   $("#registerMessage").classList.remove("error");
   $("#googleAuthMessage").classList.remove("error");
   $("#passwordUpdateMessage").classList.remove("error");
+  if (authReturnFocus?.getClientRects().length) authReturnFocus.focus({ preventScroll: true });
+  authReturnFocus = null;
 }
 
 function switchAuthTab(tab) {
@@ -9845,7 +9895,7 @@ function installImageFallbacks() {
       image.closest('[data-commercial-location]')?.classList.remove('has-location-cover');
       return;
     }
-    if (!(image instanceof HTMLImageElement) || image.dataset.fallbackApplied === "true") return;
+    if (!(image instanceof HTMLImageElement) || image.matches('.leaflet-tile') || image.dataset.fallbackApplied === "true") return;
     if (!/^https?:\/\//i.test(image.currentSrc || image.src)) return;
     image.dataset.fallbackApplied = "true";
     image.removeAttribute("srcset");
@@ -12207,10 +12257,18 @@ function initializePropertyGallery() {
   const modalCounter = modal.querySelector("[data-gallery-modal-counter]");
   let activeIndex = 0;
   let zoom = 1;
+  let panX = 0;
+  let panY = 0;
+  let ignoreClickUntil = 0;
+  const modalStage = modal.querySelector(".property-gallery-modal-stage");
 
   const normalizeIndex = (index) => (index + slides.length) % slides.length;
   const loadDeferredImage = (image) => {
     if (!image?.dataset.gallerySrc) return;
+    if (image.dataset.gallerySrcset) {
+      image.srcset = image.dataset.gallerySrcset;
+      delete image.dataset.gallerySrcset;
+    }
     image.src = image.dataset.gallerySrc;
     delete image.dataset.gallerySrc;
   };
@@ -12229,10 +12287,24 @@ function initializePropertyGallery() {
     }, { rootMargin: "160px" });
     $$('[data-gallery-go] img[data-gallery-src]').forEach((image) => thumbnailObserver.observe(image));
   }
+  const applyZoom = () => {
+    const ratio = modalImage.naturalWidth / modalImage.naturalHeight || 1;
+    const width = Math.min(modalStage.clientWidth, modalStage.clientHeight * ratio);
+    const height = width / ratio;
+    const limitX = Math.max(0, (width * zoom - modalStage.clientWidth) / 2);
+    const limitY = Math.max(0, (height * zoom - modalStage.clientHeight) / 2);
+    panX = Math.max(-limitX, Math.min(limitX, panX));
+    panY = Math.max(-limitY, Math.min(limitY, panY));
+    modalImage.style.transform = `translate(${panX}px, ${panY}px) scale(${zoom})`;
+    modalImage.dataset.zoom = String(zoom);
+    modalStage.style.touchAction = zoom > 1 ? "none" : "pan-y pinch-zoom";
+    modalStage.style.cursor = zoom > 1 ? "grab" : "";
+  };
   const resetZoom = () => {
     zoom = 1;
-    modalImage.style.transform = "scale(1)";
-    modalImage.dataset.zoom = "1";
+    panX = 0;
+    panY = 0;
+    applyZoom();
   };
   const showImage = (index) => {
     activeIndex = normalizeIndex(index);
@@ -12249,8 +12321,8 @@ function initializePropertyGallery() {
     if (mainCounter) mainCounter.textContent = current;
     if (modalCounter) modalCounter.textContent = current;
     const image = slides[activeIndex]?.querySelector("img");
-    if (image && modalImage) {
-      modalImage.src = image.currentSrc || image.src;
+    if (image && modalImage && !modal.hidden) {
+      modalImage.src = image.src;
       modalImage.alt = image.alt;
     }
     const caption = modal.querySelector("[data-gallery-caption]");
@@ -12261,8 +12333,8 @@ function initializePropertyGallery() {
   };
   const move = (direction) => showImage(activeIndex + direction);
   const openGallery = () => {
-    showImage(activeIndex);
     modal.hidden = false;
+    showImage(activeIndex);
     document.body.classList.add("modal-open");
     modal.querySelector("[data-close-property-gallery]")?.focus();
   };
@@ -12273,6 +12345,7 @@ function initializePropertyGallery() {
     carousel.querySelector("[data-open-property-gallery]")?.focus();
   };
   const handleGalleryAction = (event) => {
+    if (Date.now() < ignoreClickUntil) { event.preventDefault(); return; }
     const target = event.target;
     if (target.closest("[data-gallery-previous]")) move(-1);
     else if (target.closest("[data-gallery-next]")) move(1);
@@ -12287,14 +12360,12 @@ function initializePropertyGallery() {
     }
     if (event.target.closest("[data-gallery-zoom-in]")) {
       zoom = Math.min(3, zoom + 0.5);
-      modalImage.style.transform = `scale(${zoom})`;
-      modalImage.dataset.zoom = String(zoom);
+      applyZoom();
       return;
     }
     if (event.target.closest("[data-gallery-zoom-out]")) {
       zoom = Math.max(1, zoom - 0.5);
-      modalImage.style.transform = `scale(${zoom})`;
-      modalImage.dataset.zoom = String(zoom);
+      applyZoom();
       return;
     }
     if (event.target.closest("[data-gallery-zoom-reset]")) {
@@ -12305,34 +12376,51 @@ function initializePropertyGallery() {
   });
   const bindSwipe = (element) => {
     if (!element) return;
-    let startX = null;
+    let gesture = null;
     element.addEventListener("pointerdown", (event) => {
-      startX = event.clientX;
+      if (event.button !== 0 || event.target.closest("button")) return;
+      gesture = { id: event.pointerId, x: event.clientX, y: event.clientY, panX, panY };
+      if (zoom > 1) element.setPointerCapture(event.pointerId);
+    });
+    element.addEventListener("pointermove", (event) => {
+      if (!gesture || gesture.id !== event.pointerId || zoom === 1) return;
+      panX = gesture.panX + event.clientX - gesture.x;
+      panY = gesture.panY + event.clientY - gesture.y;
+      applyZoom();
     });
     element.addEventListener("pointerup", (event) => {
-      if (startX === null || zoom > 1) return;
-      const distance = event.clientX - startX;
-      startX = null;
-      if (Math.abs(distance) > 45) move(distance > 0 ? -1 : 1);
+      if (!gesture || gesture.id !== event.pointerId) return;
+      const dx = event.clientX - gesture.x;
+      const dy = event.clientY - gesture.y;
+      gesture = null;
+      if (Math.hypot(dx, dy) > 10) ignoreClickUntil = Date.now() + 350;
+      if (zoom === 1 && Math.abs(dx) > 45 && Math.abs(dx) > Math.abs(dy) * 1.3) move(dx > 0 ? -1 : 1);
     });
-    element.addEventListener("pointercancel", () => {
-      startX = null;
-    });
+    element.addEventListener("pointercancel", () => { gesture = null; });
   };
   bindSwipe(carousel.querySelector(".property-gallery-stage"));
   bindSwipe(modal.querySelector(".property-gallery-modal-stage"));
   document.addEventListener("keydown", (event) => {
     if (modal.hidden) return;
+    containDialogFocus(event, modal);
+    if (["Escape", "ArrowLeft", "ArrowRight", "+", "=", "-"].includes(event.key)) event.preventDefault();
     if (event.key === "Escape") closeGallery();
     if (event.key === "ArrowLeft") move(-1);
     if (event.key === "ArrowRight") move(1);
     if (event.key === "+" || event.key === "=") modal.querySelector("[data-gallery-zoom-in]")?.click();
     if (event.key === "-") modal.querySelector("[data-gallery-zoom-out]")?.click();
   });
+  window.addEventListener("resize", () => { if (!modal.hidden) resetZoom(); });
   showImage(0);
 }
 
 function bindEvents() {
+  const compactPanelDetails = [$("#adminListingAdvancedFilters"), $("#sellerPanel .seller-help-card-top")].filter(Boolean);
+  if (compactPanelDetails.length) {
+    const compactPanel = window.matchMedia("(max-width: 980px)");
+    compactPanelDetails.forEach((details) => { details.open = !compactPanel.matches; });
+    compactPanel.addEventListener("change", (event) => { compactPanelDetails.forEach((details) => { details.open = !event.matches; }); });
+  }
   document.addEventListener("click", (event) => {
     if (!event.target.closest("[data-start-comparison]")) return;
     mountPublicComparison(state.properties, true);
@@ -12467,8 +12555,11 @@ function bindEvents() {
   });
   $("#authClose").addEventListener("click", () => {
     closeAuth();
-    if (authReturnFocus?.getClientRects().length) authReturnFocus.focus({ preventScroll: true });
-    authReturnFocus = null;
+  });
+  document.addEventListener("keydown", (event) => {
+    if ($("#authModal").hidden) return;
+    if (event.key === "Escape") { event.preventDefault(); closeAuth(); }
+    else containDialogFocus(event, $("#authModal"));
   });
   // Only the explicit close control dismisses authentication; errors and backdrop taps keep inputs.
   $("#propertyDetailClose").addEventListener("click", closePropertyDetail);
@@ -13408,6 +13499,13 @@ function bindEvents() {
     state.sidebarCollapsed = !state.sidebarCollapsed;
     updateAdminShell();
   });
+  $("#adminSidebar")?.addEventListener("keydown", (event) => {
+    if (event.key !== "Escape" || window.innerWidth > 980 || state.sidebarCollapsed) return;
+    event.preventDefault();
+    state.sidebarCollapsed = true;
+    updateAdminShell();
+    $("#adminSidebarToggle")?.focus();
+  });
 
   $$("[data-lead-filter]").forEach((button) => {
     button.addEventListener("click", () => {
@@ -13830,6 +13928,7 @@ async function loadPublicBuyerRequirements() {
 
 async function init() {
   // Public URLs define their language; a saved preference only applies inside the panel.
+  observePublicHeaderHeight();
   installImageFallbacks();
   installPasswordVisibilityToggles();
   initializePasswordStrengthMeters();

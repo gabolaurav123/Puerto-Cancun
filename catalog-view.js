@@ -34,7 +34,7 @@ function renderCatalog(page, properties, params, renderCards) {
   };
   const comparison = String(params.compare || "").slice(0, 500);
   const retainComparison = (search) => { if (comparison) search.set("compare", comparison); return search; };
-  const number = (name, label, value) => `<label><span>${escape(label)}</span><input type="number" name="${name}" min="0" step="any" value="${escape(value ?? "")}" /></label>`;
+  const number = (name, label, value) => `<label><span>${escape(label)}</span><input type="number" name="${name}" min="0" step="any" inputmode="${name === "beds" ? "numeric" : "decimal"}" value="${escape(value ?? "")}" /></label>`;
   const typeEntries = [["", t("Todos los tipos", "All types")], ...inventory.TYPES.map((type, index) => [type, english ? ["Homes", "Apartments", "Land", "Commercial"][index] : type])];
   const operations = [["", t("Compra y renta", "Purchase and rent")], ["sale", t("Compra", "Purchase")], ["rent", t("Renta", "Rent")]];
   const modes = [["", t("Todas las modalidades", "All sales modes")], ["presale", t("Preventa", "Presale")], ["direct", t("Venta directa", "Direct sale")], ["resale", t("Reventa", "Resale")], ["unclassified", t("Por clasificar", "Unclassified")]];
@@ -76,7 +76,12 @@ function renderCatalog(page, properties, params, renderCards) {
     const labels = { type: typeEntries.find(([id]) => id === value)?.[1], operation: operations.find(([id]) => id === value)?.[1], modality: modes.find(([id]) => id === value)?.[1], featured: t("Destacadas", "Featured"), location: query.locations.map((id) => locationLabel(id, english)).join(", ") };
     chips.push(`<a href="${path}?${escape(params)}" class="catalog-chip" aria-label="${escape(t("Quitar", "Remove") + " " + (labels[key] || value))}">${escape(labels[key] || value)} <span aria-hidden="true">×</span></a>`);
   }
-  const pagination = result.pages > 1 ? `<nav class="catalog-pagination" aria-label="${t("Páginas del catálogo", "Catalog pages")}">${Array.from({ length: result.pages }, (_, index) => { const params = retainComparison(inventory.toSearchParams({ ...query, page: index + 1 })); return `<a class="${result.page === index + 1 ? "is-active" : ""}"${result.page === index + 1 ? ' aria-current="page"' : ""} href="${path}?${escape(params)}">${index + 1}</a>`; }).join("")}</nav>` : "";
+  const pageLink = (number, text = number, ariaLabel = t(`Página ${number}`, `Page ${number}`)) => {
+    const params = retainComparison(inventory.toSearchParams({ ...query, page: number }));
+    return `<a class="${result.page === number ? "is-active" : ""}"${result.page === number ? ' aria-current="page"' : ""} aria-label="${escape(ariaLabel)}" href="${path}?${escape(params)}">${text}</a>`;
+  };
+  const pageNumbers = [...new Set([1, result.page - 1, result.page, result.page + 1, result.pages])].filter(number => number > 0 && number <= result.pages).sort((a, b) => a - b);
+  const pagination = result.pages > 1 ? `<nav class="catalog-pagination" aria-label="${t("Páginas del catálogo", "Catalog pages")}">${result.page > 1 ? pageLink(result.page - 1, "‹", t("Página anterior", "Previous page")) : ""}${pageNumbers.map((number, index) => `${index && number - pageNumbers[index - 1] > 1 ? '<span aria-hidden="true">…</span>' : ""}${pageLink(number)}`).join("")}${result.page < result.pages ? pageLink(result.page + 1, "›", t("Página siguiente", "Next page")) : ""}</nav>` : "";
   if (query.bounds) {
     const withoutArea = retainComparison(inventory.toSearchParams(query)); withoutArea.delete("bounds"); withoutArea.delete("page");
     chips.push(`<a class="catalog-chip" href="${path}?${escape(withoutArea)}">${t("Quitar área del mapa", "Remove map area")} <span aria-hidden="true">×</span></a>`);

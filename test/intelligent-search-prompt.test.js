@@ -6,11 +6,11 @@ const app = fs.readFileSync(require.resolve('../app.js'), 'utf8');
 const html = fs.readFileSync(require.resolve('../index.html'), 'utf8');
 const css = fs.readFileSync(require.resolve('../styles.css'), 'utf8');
 
-test('intelligent search describes zones, developments, property types and operations in both languages', () => {
-  assert.match(app, /searchPlaceholder: "Zona, desarrollo, departamento, casa, terreno, renta o venta"/);
-  assert.match(app, /searchPlaceholder: "Area, development, apartment, house, land, rent or sale"/);
+test('search uses a short area or property prompt in both languages', () => {
+  assert.match(app, /searchPlaceholder: "Zona o propiedad"/);
+  assert.match(app, /searchPlaceholder: "Area or property"/);
   assert.doesNotMatch(app, /searchPlaceholder: "(?:Ciudad, dirección, código postal|City, address, zip code)"/);
-  assert.match(html, /id="searchInput"[^>]*placeholder="Zona, desarrollo, departamento, casa, terreno, renta o venta"/);
+  assert.match(html, /id="searchInput"[^>]*placeholder="Zona o propiedad"/);
 });
 
 test('the prompt can wrap without changing the search input or covering typed text', () => {

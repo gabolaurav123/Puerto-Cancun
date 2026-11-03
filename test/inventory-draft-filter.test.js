@@ -36,6 +36,29 @@ function inventoryRuntime(section = 'developments') {
   return { ...api, state, nodes, ids, iconRefreshes };
 }
 
+test('folded mobile filters expose applied criteria after every render and clear', () => {
+  const api = inventoryRuntime('properties');
+  const summary = { textContent: '' };
+  api.nodes.set('#adminListingFiltersSummary', summary);
+  api.renderAdminListings();
+  assert.equal(summary.textContent, 'Filtros y orden');
+  api.state.adminListingFilters.operation = 'sale';
+  api.renderAdminListings();
+  assert.equal(summary.textContent, 'Filtros y orden · 1 activo');
+  api.state.adminListingFilters.status = 'draft';
+  api.state.adminListingSort = 'title_asc';
+  api.renderAdminListings();
+  assert.equal(summary.textContent, 'Filtros y orden · 3 activos');
+  assert.deepEqual(api.ids(), ['properties-draft']);
+  api.state.lang = 'en';
+  api.renderAdminListings();
+  assert.equal(summary.textContent, 'Filters and sorting · 3 active');
+  api.state.adminListingFilters = emptyFilters();
+  api.state.adminListingSort = 'created_desc';
+  api.renderAdminListings();
+  assert.equal(summary.textContent, 'Filters and sorting');
+});
+
 for (const section of ['properties', 'developments']) {
   test(`${section}: share icons are initialized after every inventory render`, () => {
     const api = inventoryRuntime(section);

@@ -41,3 +41,23 @@ test('compact search submits the complete filter form and presents localized loc
     assert.ok(html.includes('value="cancun-city" checked /><span>' + city + '</span>'));
   }
 });
+
+test('large catalogs retain adjacent pages and endpoints without printing every page', () => {
+  const rows = Array.from({ length: 2400 }, (_, index) => ({ id: `fixture-${index}`, status: 'active', currency: 'USD', price: 1000000, operation: 'sale', zone: 'Puerto Cancún' }));
+  for (const lang of ['es', 'en']) {
+    const html = renderCatalog({ lang, category: {} }, rows, { page: '50', currency: 'USD', location: 'puerto-cancun', compare: 'fixture-0,fixture-1' }, () => '');
+    const pagination = html.match(/<nav class="catalog-pagination"[^]*?<\/nav>/)[0];
+    const links = [...pagination.matchAll(/<a [^]*?href="([^"]+)">/g)];
+    assert.equal(links.length, 7);
+    for (const [, href] of links) {
+      const params = new URL(href.replace(/&amp;/g, '&'), 'https://example.test').searchParams;
+      assert.equal(params.get('currency'), 'USD');
+      assert.equal(params.get('location'), 'puerto-cancun');
+      assert.equal(params.get('compare'), 'fixture-0,fixture-1');
+    }
+    assert.match(pagination, /page=1(?:&amp;|\")/);
+    assert.match(pagination, /page=100(?:&amp;|\")/);
+    assert.match(pagination, /aria-current="page"/);
+    assert.ok(pagination.includes(lang === 'en' ? 'Previous page' : 'Página anterior'));
+  }
+});
