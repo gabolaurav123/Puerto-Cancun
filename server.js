@@ -11968,6 +11968,8 @@ function decoratePublicHtml({ page, seo, pageContent = "", bodyPage = "seo", noi
     html = html
       .replace(/<a\s+href="\/blog"[^>]*>[\s\S]*?<\/a>/g, "")
       .replace(/<a\s+href="\/en\/blog"[^>]*>[\s\S]*?<\/a>/g, "");
+  } else if (seo.lang === "en") {
+    html = html.replace(/href="\/blog"/g, 'href="/en/blog"');
   }
   const assetVersion = encodeURIComponent(staticAssetVersion);
   html = html.replace(/styles\.css\?v=[^"']+/g, `styles.css?v=${assetVersion}`);
@@ -12260,7 +12262,7 @@ app.get(["/propiedades/:slug", "/en/properties/:slug"], async (req, res, next) =
       seo,
       pageContent: rendered.html,
       bodyPage: "property",
-      showBlog: await hasPublishedBlogPosts(),
+      showBlog: await hasPublishedBlogPosts(lang),
     }));
   } catch (error) {
     next(error);

@@ -75,7 +75,10 @@ const fallbackIcons = {
 const translations = {
   es: {
     currencyLabel: "Seleccione una moneda:",
-    navSearch: "Ver todas las propiedades",
+    navSearch: "Buscar",
+    navAllProperties: "Ver todas las propiedades",
+    navQuick: "Accesos rápidos",
+    navResourcesAdvice: "Recursos y asesoría",
     publicNavLabel: "Navegación principal",
     navProperties: "Propiedades",
     navExplore: "Explorar",
@@ -676,7 +679,10 @@ const translations = {
   },
   en: {
     currencyLabel: "Select currency:",
-    navSearch: "View all properties",
+    navSearch: "Search",
+    navAllProperties: "View all properties",
+    navQuick: "Quick links",
+    navResourcesAdvice: "Resources and advice",
     publicNavLabel: "Main navigation",
     navProperties: "Properties",
     navExplore: "Explore",
@@ -9694,12 +9700,15 @@ function refreshIcons() {
   });
 }
 
+let authReturnFocus = null;
 function openAuth(tab = "login") {
   rememberSellerContext();
+  authReturnFocus = $("#mainNav").classList.contains("open") ? $("#menuToggle") : document.activeElement;
   closeMobileNav();
   $("#authModal").hidden = false;
   document.body.classList.add("modal-open");
   switchAuthTab(tab);
+  $("#authClose").focus({ preventScroll: true });
   if (state.platform?.databaseStatus && state.platform.databaseReady !== true) {
     setFormMessage(tab === "register" ? $("#registerMessage") : $("#loginMessage"), t("loginUnavailable"), true);
   }
@@ -12371,7 +12380,7 @@ function bindEvents() {
       if (!event.target.closest?.("#mainHeader")) collapseNavGroups();
     });
   }
-  $("#mainNav")?.addEventListener("keydown", (event) => {
+  $("#mainHeader")?.addEventListener("keydown", (event) => {
     if (event.key !== "Escape") return;
     const group = $("#mainNav details[open]");
     if (group) {
@@ -12456,7 +12465,11 @@ function bindEvents() {
     if (state.session) window.location.assign("/panel");
     else openAuth("login");
   });
-  $("#authClose").addEventListener("click", closeAuth);
+  $("#authClose").addEventListener("click", () => {
+    closeAuth();
+    if (authReturnFocus?.getClientRects().length) authReturnFocus.focus({ preventScroll: true });
+    authReturnFocus = null;
+  });
   // Only the explicit close control dismisses authentication; errors and backdrop taps keep inputs.
   $("#propertyDetailClose").addEventListener("click", closePropertyDetail);
   $("#propertyDetailModal").addEventListener("click", (event) => {
