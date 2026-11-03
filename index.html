@@ -62,78 +62,74 @@
 
           <div class="header-tools">
             <button class="language-toggle" type="button" id="languageToggle">English</button>
-            <button class="menu-toggle" type="button" id="menuToggle" aria-label="Menu" aria-controls="mainNav" aria-expanded="false">
+            <button class="menu-toggle" type="button" id="menuToggle" aria-label="Navegación principal" data-i18n-aria-label="publicNavLabel" aria-controls="mainNav" aria-expanded="false">
               <i data-lucide="menu"></i>
             </button>
           </div>
         </div>
 
-        <nav class="main-nav" id="mainNav" aria-label="Main navigation">
-          <a href="/propiedades" data-i18n="navSearch">Buscar</a>
-          <a href="/propiedades/destacadas-cancun" data-i18n="navFeatured">Destacadas</a>
-
-          <div class="nav-item has-menu">
-            <button type="button" data-i18n="navPropertyType">Tipo de propiedad</button>
-            <div class="nav-menu wide-menu">
-              <a href="/propiedades/en-venta" data-i18n="menuAllSale">Ver todo en venta</a>
-              <div class="menu-columns">
+        <nav class="main-nav" id="mainNav" aria-label="Navegación principal" data-i18n-aria-label="publicNavLabel">
+          <details class="public-nav-group" name="site-navigation">
+            <summary data-i18n="navProperties">Propiedades</summary>
+            <div class="public-nav-popover">
+              <a class="public-nav-overview" href="/propiedades" data-i18n="navSearch">Ver todas las propiedades</a>
+              <div class="public-nav-columns">
                 <div>
+                  <p data-i18n="navPropertyType">Tipo de propiedad</p>
                   <a href="/propiedades/casas-cancun" data-i18n="typeHouses">Casas</a>
+                  <a href="/propiedades/departamentos-cancun" data-i18n="typeCondos">Departamentos</a>
                   <a href="/propiedades/terrenos-cancun" data-i18n="typeLand">Terrenos</a>
-                  <a href="/preventas-cancun" data-i18n="typePresales">Pre-ventas</a>
-                  <a href="/propiedades-en-renta-cancun" data-i18n="typeRentals">Rentas</a>
+                  <a href="/propiedades/comerciales-cancun" data-i18n="typeCommercial">Comercial</a>
                 </div>
                 <div>
-                  <a href="/propiedades/departamentos-cancun" data-i18n="typeCondos">Departamentos</a>
-                  <a href="/propiedades/comerciales-cancun" data-i18n="typeCommercial">Comercial</a>
-                  <a href="/propiedades/desarrollos-cancun" data-i18n="typeDevelopments">Desarrollos</a>
+                  <p data-i18n="navExplore">Explorar</p>
+                  <a href="/propiedades/en-venta" data-i18n="navForSale">En venta</a>
+                  <a href="/propiedades-en-renta-cancun" data-i18n="typeRentals">Rentas</a>
+                  <a href="/propiedades/desarrollos-cancun" id="developmentsNavLink" data-i18n="navDevelopments">Desarrollos</a>
+                  <a href="/preventas-cancun" data-i18n="typePresales">Preventas</a>
                   <a href="/propiedades/destacadas-cancun" data-i18n="navFeatured">Destacadas</a>
                 </div>
               </div>
             </div>
-          </div>
-
-          <div class="nav-item has-menu">
-            <button type="button" data-i18n="navPuerto">Puerto Cancun</button>
-            <div class="nav-menu">
-              <a href="/propiedades/puerto-cancun/casas" data-i18n="typeHouses">Casas</a>
-              <a href="/propiedades/puerto-cancun/departamentos" data-i18n="typeCondos">Departamentos</a>
-              <a href="/propiedades?location=puerto-cancun&amp;operation=rent" data-i18n="typeRentals">Rentas</a>
-              <a href="/propiedades?location=puerto-cancun&amp;type=Terreno" data-i18n="typeLand">Terrenos</a>
-              <a href="/propiedades?location=puerto-cancun&amp;operation=sale&amp;modality=presale" data-i18n="typePresales">Preventas</a>
-            </div>
-          </div>
-
-          <div class="nav-item has-menu">
-            <button type="button" data-i18n="navZones">Zonas</button>
-            <div class="nav-menu wide-menu">
-              <a href="/zonas-cancun" data-i18n="menuAllZones">Ver todas las zonas</a>
-              <div class="menu-columns">
+          </details>
+          <details class="public-nav-group" name="site-navigation">
+            <summary data-i18n="featuredZones">Ubicaciones</summary>
+            <div class="public-nav-popover">
+              <a class="public-nav-overview" href="/zonas-cancun" data-i18n="menuAllZones">Ver todas las zonas</a>
+              <div class="public-nav-columns">
                 <div>
-                  <a href="/propiedades/zona-hotelera">Zona Hotelera (ZH)</a>
+                  <p data-i18n="navZones">Zonas</p>
+                  <a href="/propiedades/zona-hotelera" data-i18n="navHotelZone">Zona Hotelera</a>
                   <a href="/propiedades/puerto-cancun">Puerto Cancún</a>
+                  <a href="/propiedades/cancun-city" data-i18n="navCancunCity">Ciudad de Cancún</a>
+                  <a href="/propiedades/fuera-de-cancun" data-i18n="navOutsideCancun">Fuera de Cancún</a>
                 </div>
                 <div>
-                  <a href="/propiedades/cancun-city">Cancún City</a>
-                  <a href="/propiedades/fuera-de-cancun">Fuera de Cancún</a>
+                  <p data-i18n="navInPuerto">En Puerto Cancún</p>
+                  <a href="/propiedades/puerto-cancun/casas" data-i18n="typeHouses">Casas</a>
+                  <a href="/propiedades/puerto-cancun/departamentos" data-i18n="typeCondos">Departamentos</a>
+                  <a href="/propiedades?location=puerto-cancun&amp;operation=rent" data-i18n="typeRentals">Rentas</a>
+                  <a href="/propiedades?location=puerto-cancun&amp;type=Terreno" data-i18n="typeLand">Terrenos</a>
+                  <a href="/propiedades?location=puerto-cancun&amp;operation=sale&amp;modality=presale" data-i18n="typePresales">Preventas</a>
                 </div>
               </div>
             </div>
-          </div>
-
-          <a href="/propiedades/desarrollos-cancun" id="developmentsNavLink" data-i18n="navDevelopments">Desarrollos</a>
-          <div class="nav-item has-menu">
-            <button type="button" data-i18n="navResources">Recursos</button>
-            <div class="nav-menu">
-              <a href="/calculadora-hipotecaria" data-i18n="resourceMortgage">Calculadora hipotecaria</a>
-              <a href="/blog" data-i18n="resourceBlog">Blog</a>
-              <a href="/busquedas-clientes" data-i18n="resourceBuyerRequirements">Búsquedas de clientes</a>
-            </div>
-          </div>
-          <a href="/nosotros" id="aboutNavLink" data-i18n="navAbout">Nosotros</a>
+          </details>
           <a href="/vender-casa-cancun" id="sellNavLink" data-open-seller-options data-i18n="navSell">Vender</a>
-          <a class="login-link" href="/?auth=login" id="loginOpen" data-i18n="navLogin">Iniciar sesion</a>
-          <a class="phone-link" href="tel:+5219982166563">998-216-6563</a>
+          <details class="public-nav-group" name="site-navigation">
+            <summary data-i18n="navAdvice">Asesoría</summary>
+            <div class="public-nav-popover public-nav-advice">
+              <a class="public-nav-overview" href="/contacto" data-i18n="teamCta">Contactar al equipo</a>
+              <a href="/valuacion-inmobiliaria-cancun" data-i18n="valuationSaleName">Solicitar valoración</a>
+              <a href="/revisar-precio-propiedad" data-i18n="navPriceReview">Revisar mi precio</a>
+              <a href="/calculadora-hipotecaria" data-i18n="resourceMortgage">Calculadora hipotecaria</a>
+              <a href="/busquedas-clientes" data-i18n="resourceBuyerRequirements">Búsquedas de clientes</a>
+              <a href="/blog" data-i18n="resourceBlog">Blog</a>
+              <a href="/nosotros" id="aboutNavLink" data-i18n="navAbout">Nosotros</a>
+              <a class="public-nav-phone" href="tel:+5219982166563"><span data-i18n="navCall">Llamar</span> · 998-216-6563</a>
+            </div>
+          </details>
+          <a class="login-link" href="/?auth=login" id="loginOpen" data-i18n="navLogin">Iniciar sesión</a>
         </nav>
       </header>
 
@@ -154,7 +150,6 @@
             <div class="hero-actions">
               <a class="accent-button" href="/vender-casa-cancun" id="heroSellButton" data-open-seller-options data-i18n="heroSellCta">Quiero vender mi propiedad</a>
               <a class="outline-button" href="/comprar-casa-cancun" data-i18n="heroBuyCta">Quiero comprar en Cancun</a>
-              <a class="outline-button" href="/revisar-precio-propiedad" data-i18n="heroPriceReviewCta">Revisar mi estimación</a>
             </div>
             <form class="search-panel" id="searchForm">
               <span class="intelligent-search-label"><i data-lucide="sparkles"></i> Búsqueda inteligente</span>
@@ -184,64 +179,6 @@
           <div class="contact-numbers">
             <a href="https://wa.me/5219982166563" target="_blank" rel="noopener" data-business-contact="mx"><span data-contact-label>México · WhatsApp</span> <span data-contact-number>+52 1 998 216 6563</span></a>
             <a href="https://wa.me/19562518956" target="_blank" rel="noopener" data-business-contact="us"><span data-contact-label>USA · WhatsApp</span> <span data-contact-number>+1 956 251 8956</span></a>
-          </div>
-        </section>
-
-        <section class="ai-validation-home home-only" id="revisar-precio">
-          <div class="content-wrap validation-grid">
-            <div>
-              <p class="section-kicker" data-i18n="estimateKicker">Revisión de precio</p>
-              <h2 data-i18n="estimateTitle">¿Cuál es tu precio estimado?</h2>
-              <p data-i18n="estimateIntro">Cuéntanos cuánto crees que vale la propiedad y en qué zona se encuentra. Un asesor comparará tu estimación con propiedades similares y te explicará qué factores influyen en el precio.</p>
-            </div>
-            <details class="owner-price-inquiry">
-              <summary data-i18n="shareEstimate">Compartir mi estimación</summary>
-            <form class="lead-form seo-form" data-lead-form>
-              <input type="hidden" name="leadType" value="validar-precio" />
-              <div class="form-row">
-                <label>
-                  <span data-i18n="firstName">Nombre</span>
-                  <input name="name" required />
-                </label>
-                <label>
-                  <span>WhatsApp</span>
-                  <input name="whatsapp" type="tel" required />
-                </label>
-                <label>
-                  <span data-i18n="email">Direccion de correo</span>
-                  <input name="email" type="email" required />
-                </label>
-              </div>
-              <div class="form-row">
-                <label>
-                  <span data-i18n="operationType">Tipo de operacion</span>
-                  <select name="operationType">
-                    <option data-i18n="sellOperation">Vender</option>
-                    <option data-i18n="buyOperation">Comprar</option>
-                    <option data-i18n="investOperation">Invertir</option>
-                  </select>
-                </label>
-                <label>
-                  <span data-i18n="zone">Zona</span>
-                  <input name="zone" />
-                </label>
-              </div>
-              <label>
-                <span data-i18n="propertyType">Tipo de propiedad</span>
-                <input name="propertyType" />
-              </label>
-              <label>
-                <span data-i18n="ownerEstimateLabel">Precio estimado</span>
-                <input name="ownerEstimate" type="number" min="0.01" step="0.01" inputmode="decimal" required />
-              </label>
-              <label>
-                <span data-i18n="currency">Moneda</span>
-                <select name="currency" required><option>MXN</option><option>USD</option></select>
-              </label>
-              <button class="primary-button" type="submit" data-i18n="validateWithAdvisor">Consultar mi estimación</button>
-              <p class="form-message" data-lead-message></p>
-            </form>
-            </details>
           </div>
         </section>
 
@@ -278,7 +215,7 @@
         <section class="zones-band home-only" id="zones">
           <div class="content-wrap">
             <div class="section-heading inverse">
-              <h2 data-i18n="featuredZones">Locations</h2>
+              <h2 data-i18n="featuredZones">Ubicaciones</h2>
               <a class="outline-button" href="/zonas-cancun">
                 <span data-i18n="allZones">Todas las zonas</span>
                 <i data-lucide="arrow-right"></i>
@@ -298,12 +235,12 @@
               <a class="zone-card" href="/propiedades/cancun-city" data-commercial-location="cancun-city">
                 <img data-location-cover alt="" width="900" height="600" loading="lazy" hidden />
                 <i class="location-cover-placeholder" data-lucide="map-pin" aria-hidden="true"></i>
-                <span>Cancún City</span>
+                <span data-i18n="navCancunCity">Ciudad de Cancún</span>
               </a>
               <a class="zone-card" href="/propiedades/fuera-de-cancun" data-commercial-location="fuera-de-cancun">
                 <img data-location-cover alt="" width="900" height="600" loading="lazy" hidden />
                 <i class="location-cover-placeholder" data-lucide="map-pin" aria-hidden="true"></i>
-                <span>Fuera de Cancún</span>
+                <span data-i18n="navOutsideCancun">Fuera de Cancún</span>
               </a>
             </div>
           </div>
@@ -557,10 +494,19 @@
         <section class="team-section home-only">
           <div class="content-wrap">
             <div class="team-statement">
-              <p class="section-kicker" data-i18n="teamKicker">Asesoria local</p>
-              <h2 data-i18n="teamTitle">Equipo de asesores de Puerto Cancún Center</h2>
-              <p data-i18n="teamCopy">Un solo equipo para revisar inventario, preparar publicaciones, dar seguimiento a solicitudes y coordinar el contacto entre compradores y propietarios.</p>
-              <a class="outline-dark-button" href="/contacto" data-i18n="teamCta">Contactar al equipo</a>
+              <p class="section-kicker" data-i18n="teamKicker">Asesoría local</p>
+              <div class="local-advice-layout">
+                <div>
+                  <h2 data-i18n="teamTitle">Habla con un asesor local</h2>
+                  <p data-i18n="teamCopy">Te ayudamos a elegir una zona, preparar una visita o dar el siguiente paso para vender.</p>
+                  <a class="outline-dark-button" href="/contacto" data-i18n="teamCta">Contactar al equipo</a>
+                </div>
+                <aside class="local-price-advice" id="revisar-precio" aria-labelledby="advicePriceTitle">
+                  <h3 id="advicePriceTitle" data-i18n="estimateTitle">¿Cuál es tu precio estimado?</h3>
+                  <p data-i18n="localPriceCopy">Si ya tienes una cifra en mente, un asesor la comparará con propiedades similares en tu zona.</p>
+                  <a class="text-link" href="/revisar-precio-propiedad" data-i18n="heroPriceReviewCta">Revisar mi estimación</a>
+                </aside>
+              </div>
             </div>
             <div class="trust-signal-grid" aria-label="Señales de confianza" data-i18n-aria-label="trustSignalsLabel">
               <article>
@@ -795,47 +741,55 @@
           </div>
           <form id="sellerServiceForm" class="module-form-grid">
             <input type="hidden" name="flow" value="valuation" />
-            <label>
-              <span>Zona</span>
-              <select name="zone" data-location-select="zone" required></select>
-            </label>
-            <label>
-              <span>Tipo de propiedad</span>
-              <select name="propertyType" required>
-                <option>Casa</option>
-                <option>Departamento</option>
-                <option>Terreno</option>
-                <option>Comercial</option>
-                <option>Preventa</option>
-              </select>
-            </label>
-            <label>
-              <span>M² de construcción</span>
-              <input name="area" type="number" min="0" />
-            </label>
-            <label>
-              <span>Recámaras</span>
-              <input name="bedrooms" type="number" min="0" />
-            </label>
-            <label>
-              <span>Baños</span>
-              <input name="bathrooms" type="number" min="0" />
-            </label>
-            <label data-service-field="expectedPrice">
-              <span id="sellerServicePriceLabel">Precio esperado</span>
-              <input name="expectedPrice" type="number" min="0.01" step="0.01" />
-            </label>
-            <label data-service-field="currency">
-              <span data-i18n="currency">Moneda</span>
-              <select name="currency"><option>MXN</option><option>USD</option></select>
-            </label>
             <label class="span-2">
-              <span id="sellerServiceCommentLabel">Comentario o duda principal</span>
-              <textarea name="comments" rows="4"></textarea>
+              <span data-i18n="zone">Zona</span>
+              <input name="zone" data-location-select="zone" maxlength="140" required />
             </label>
+            <details class="valuation-options span-2">
+              <summary data-i18n="valuationOptionalDetails">Añadir datos opcionales</summary>
+              <div class="valuation-options-body">
+                <label>
+                  <span data-i18n="propertyType">Tipo de propiedad</span>
+                  <select name="propertyType">
+                    <option value="" data-i18n="optionalLocation">Sin seleccionar</option>
+                    <option value="Casa" data-i18n="typeHouses">Casas</option>
+                    <option value="Departamento" data-i18n="typeCondos">Departamentos</option>
+                    <option value="Terreno" data-i18n="typeLand">Terrenos</option>
+                    <option value="Comercial" data-i18n="typeCommercial">Comercial</option>
+                    <option value="Preventa" data-i18n="typePresales">Preventas</option>
+                  </select>
+                </label>
+                <label>
+                  <span data-i18n="area">M² de construcción</span>
+                  <input name="area" type="number" min="0" />
+                </label>
+                <label>
+                  <span data-i18n="bedrooms">Recámaras</span>
+                  <input name="bedrooms" type="number" min="0" />
+                </label>
+                <label>
+                  <span data-i18n="bathrooms">Baños</span>
+                  <input name="bathrooms" type="number" min="0" />
+                </label>
+                <div class="form-row" data-service-price>
+                  <label data-service-field="expectedPrice">
+                    <span id="sellerServicePriceLabel">Precio esperado</span>
+                    <input name="expectedPrice" type="number" min="0.01" step="0.01" />
+                  </label>
+                  <label data-service-field="currency">
+                    <span data-i18n="currency">Moneda</span>
+                    <select name="currency"><option>MXN</option><option>USD</option></select>
+                  </label>
+                </div>
+                <label class="span-2" data-service-comment>
+                  <span id="sellerServiceCommentLabel">Comentario o duda principal</span>
+                  <textarea name="comments" rows="4"></textarea>
+                </label>
+              </div>
+            </details>
             <div class="form-actions span-2">
-              <button class="primary-button" type="submit">Enviar al asesor</button>
-              <button class="ghost-button" type="button" data-seller-help>Necesito ayuda por WhatsApp</button>
+              <button class="primary-button" type="submit" data-i18n="sendRequest">Enviar solicitud</button>
+              <button class="ghost-button" type="button" data-seller-help data-i18n="sellerHelpCta">Solicitar guía por WhatsApp</button>
             </div>
           </form>
           <p class="form-message" id="sellerServiceMessage"></p>
@@ -2547,7 +2501,7 @@
               <details class="listing-commercial-classification" open>
                 <summary>Clasificación comercial y publicación</summary>
                 <div class="form-row">
-                  <label><span>Location comercial</span><select name="commercialLocationId"><option value="">Según subzona documentada / pendiente de revisar</option><option value="zona-hotelera">Zona Hotelera (ZH)</option><option value="puerto-cancun">Puerto Cancún</option><option value="cancun-city">Cancún City</option><option value="fuera-de-cancun">Fuera de Cancún</option></select></label>
+                  <label><span>Ubicación comercial</span><select name="commercialLocationId"><option value="">Según subzona documentada / pendiente de revisar</option><option value="zona-hotelera">Zona Hotelera (ZH)</option><option value="puerto-cancun">Puerto Cancún</option><option value="cancun-city">Cancún City</option><option value="fuera-de-cancun">Fuera de Cancún</option></select></label>
                   <label><span>Modalidad de venta</span><select name="salesModality"><option value="unclassified">Por clasificar</option><option value="presale">Preventa</option><option value="direct">Venta directa / entrega inmediata</option><option value="resale">Reventa</option></select></label>
                   <label data-property-only><span>Periodo si es renta</span><select name="rentPeriod"><option value="unclassified">Por confirmar / no aplica</option><option value="month">Mensual</option><option value="day">Diario</option><option value="year">Anual</option></select></label>
                 </div>
@@ -2978,7 +2932,7 @@
               <span data-i18n="guidedSaleBenefitPanel">Consulta solicitudes y seguimiento en tu panel de vendedor.</span>
             </span>
           </button>
-          <a class="seller-option-card" href="/valuacion-inmobiliaria-cancun" data-valuation-option>
+          <a class="seller-option-card" href="/valuacion-inmobiliaria-cancun#valuation-form" data-valuation-option>
             <i data-lucide="badge-dollar-sign"></i><strong data-i18n="valuationSaleName">Solicitar valoración</strong>
             <span data-i18n="valuationSaleSummary">Valida el precio antes de preparar la publicación.</span>
           </a>

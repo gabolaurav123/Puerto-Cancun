@@ -9,6 +9,16 @@ function categoryDefaults(filter = {}) {
   return { ...filter, ...(location ? { location, zone: "" } : {}), entity: filter.publicationSection || "properties" };
 }
 
+function locationLabel(id, english) {
+  const labels = {
+    "zona-hotelera": ["Zona Hotelera (ZH)", "Hotel Zone (ZH)"],
+    "puerto-cancun": ["Puerto Cancún", "Puerto Cancun"],
+    "cancun-city": ["Ciudad de Cancún", "Cancun City"],
+    "fuera-de-cancun": ["Fuera de Cancún", "Outside Cancun"],
+  };
+  return labels[id]?.[english ? 1 : 0] || id;
+}
+
 function renderCatalog(page, properties, params, renderCards) {
   const english = page.lang === "en";
   const t = (es, en) => english ? en : es;
@@ -30,7 +40,7 @@ function renderCatalog(page, properties, params, renderCards) {
   const modes = [["", t("Todas las modalidades", "All sales modes")], ["presale", t("Preventa", "Presale")], ["direct", t("Venta directa", "Direct sale")], ["resale", t("Reventa", "Resale")], ["unclassified", t("Por clasificar", "Unclassified")]];
   const label = query.entity === "developments" ? t(total === 1 ? "desarrollo" : "desarrollos", total === 1 ? "development" : "developments") : t(total === 1 ? "propiedad" : "propiedades", total === 1 ? "property" : "properties");
   const count = t(`Encontramos ${total} ${label}`, `We found ${total} ${label}`);
-  const context = [query.locations.map((id) => inventory.LOCATIONS.find((item) => item.id === id)?.name).join(", "), query.zone, query.type, operations.find(([id]) => id === query.operation)?.[1], query.modality && modes.find(([id]) => id === query.modality)?.[1], query.currency, query.max !== null ? `${t("hasta", "up to")} ${query.max}` : "", query.text].filter(Boolean).join(" · ");
+  const context = [query.locations.map((id) => locationLabel(id, english)).join(", "), query.zone, typeEntries.find(([id]) => id && id === query.type)?.[1], operations.find(([id]) => id === query.operation)?.[1], query.modality && modes.find(([id]) => id === query.modality)?.[1], query.currency, query.max !== null ? `${t("hasta", "up to")} ${query.max}` : "", query.text].filter(Boolean).join(" · ");
   const contactMessage = t("Busco una propiedad: ", "I am looking for a property: ") + context;
   const sellerParams = new URLSearchParams({ location: query.locations.join(","), zone: query.zone, type: query.type, intent: "sell" });
   const callToActions = `<div class="catalog-demand"><p>${escape(t(total ? "¿Necesitas otras opciones o tienes una propiedad en esta zona?" : "Todavía no hay coincidencias con estos criterios. Podemos ayudarte a buscar o publicar aquí.", total ? "Need other options or own a property in this area?" : "There are no matches for these criteria yet. We can help you search or list here."))}</p><div><a class="primary-button" href="${escape(whatsappUrl("mx", contactMessage))}" target="_blank" rel="noopener">${t("Busco una propiedad aquí", "Find a property here")}</a><a class="outline-dark-button" href="${english ? "/en/sell-property-cancun" : "/vender-casa-cancun"}?${escape(sellerParams)}">${t("Quiero vender aquí", "Sell a property here")}</a></div></div>`;
@@ -38,11 +48,10 @@ function renderCatalog(page, properties, params, renderCards) {
   const advancedOpen = query.modality || query.currency || query.priceBasisExplicit || query.rentPeriod || query.min !== null || query.max !== null || query.zone || query.development || query.beds !== null;
   const form = `<form id="catalogFilters" class="catalog-filters" method="get" action="${path}">
     ${query.bounds ? `<input type="hidden" name="bounds" value="${escape(query.bounds.join(","))}" />` : ""}${comparison ? `<input type="hidden" name="compare" value="${escape(comparison)}" />` : ""}
-    <label class="catalog-keyword"><span>${t("Buscar por zona, desarrollo, título o MLS", "Search area, development, title or MLS")}</span><input type="search" name="q" value="${escape(query.text)}" placeholder="${t("Escribe palabras clave", "Enter keywords")}" autocomplete="off" /></label>
     ${select("entity", t("Inventario", "Inventory"), [["properties", t("Propiedades", "Properties")], ["developments", t("Desarrollos", "Developments")]], query.entity)}
     ${select("type", t("Tipo", "Type"), typeEntries, query.type)}
     ${select("operation", t("Operación", "Operation"), operations, query.operation)}
-    <fieldset class="catalog-locations"><legend>Locations</legend>${inventory.LOCATIONS.map((location) => `<label><input type="checkbox" name="location" value="${location.id}"${query.locations.includes(location.id) ? " checked" : ""} /><span>${escape(location.name)}</span></label>`).join("")}</fieldset>
+    <fieldset class="catalog-locations"><legend>${t("Ubicaciones", "Locations")}</legend>${inventory.LOCATIONS.map((location) => `<label><input type="checkbox" name="location" value="${location.id}"${query.locations.includes(location.id) ? " checked" : ""} /><span>${escape(locationLabel(location.id, english))}</span></label>`).join("")}</fieldset>
     <details class="catalog-advanced"${advancedOpen ? " open" : ""}><summary>${t("Precio, modalidad y más filtros", "Price, sales mode and more filters")}</summary><div class="catalog-advanced-fields">
       ${select("modality", t("Modalidad de venta", "Sales mode"), modes, query.modality)}
       ${select("currency", t("Moneda original", "Original currency"), [["", t("Todas", "All")], ["USD", "USD"], ["MXN", "MXN"]], query.currency)}
@@ -63,7 +72,7 @@ function renderCatalog(page, properties, params, renderCards) {
     const params = retainComparison(inventory.toSearchParams(query)); params.delete(key); params.delete("page");
     if (key === "operation") { params.delete("modality"); params.delete("min"); params.delete("max"); params.delete("rentPeriod"); }
     if (key === "currency") { params.delete("min"); params.delete("max"); }
-    const labels = { operation: operations.find(([id]) => id === value)?.[1], modality: modes.find(([id]) => id === value)?.[1], featured: t("Destacadas", "Featured"), location: query.locations.map((id) => inventory.LOCATIONS.find((item) => item.id === id)?.name || id).join(", ") };
+    const labels = { type: typeEntries.find(([id]) => id === value)?.[1], operation: operations.find(([id]) => id === value)?.[1], modality: modes.find(([id]) => id === value)?.[1], featured: t("Destacadas", "Featured"), location: query.locations.map((id) => locationLabel(id, english)).join(", ") };
     chips.push(`<a href="${path}?${escape(params)}" class="catalog-chip" aria-label="${escape(t("Quitar", "Remove") + " " + (labels[key] || value))}">${escape(labels[key] || value)} <span aria-hidden="true">×</span></a>`);
   }
   const pagination = result.pages > 1 ? `<nav class="catalog-pagination" aria-label="${t("Páginas del catálogo", "Catalog pages")}">${Array.from({ length: result.pages }, (_, index) => { const params = retainComparison(inventory.toSearchParams({ ...query, page: index + 1 })); return `<a class="${result.page === index + 1 ? "is-active" : ""}"${result.page === index + 1 ? ' aria-current="page"' : ""} href="${path}?${escape(params)}">${index + 1}</a>`; }).join("")}</nav>` : "";
@@ -73,8 +82,12 @@ function renderCatalog(page, properties, params, renderCards) {
   }
   const mapItems = result.all.filter(p => p.latitude !== null && p.latitude !== undefined && p.longitude !== null && p.longitude !== undefined && p.locationPrecision !== "hidden").map((p) => ({ id: p.id, latitude: p.latitude, longitude: p.longitude, title: english ? p.titleEn || p.titleEs : p.titleEs, url: english ? p.urlEn : p.urlEs, approximate: p.locationPrecision !== "exact", locationPrecision: p.locationPrecision }));
   return `<section id="category-inventory" class="category-inventory catalog-experience" data-catalog-root data-catalog-query="${escape(inventory.toSearchParams(query))}" data-catalog-map-total="${total}">
-    <h2 class="catalog-heading">${t("Resultados de tu búsqueda", "Your search results")}</h2>
-    <details class="catalog-conversation"><summary>${t("Búsqueda inteligente", "Smart search")}</summary><form data-catalog-assistant><label>${t("Describe lo que buscas", "Describe what you are looking for")}<input name="query" maxlength="600" required placeholder="${t("Departamento en Puerto Cancún hasta 700 mil USD para comprar", "Buy an apartment in Puerto Cancun under USD 700,000")}" /></label><button type="submit" class="primary-button">${t("Buscar", "Search")}</button><div data-search-status aria-live="polite"></div></form></details>${form}
+    <div class="catalog-controls"><div class="catalog-search-row">
+      <input type="search" name="q" form="catalogFilters" value="${escape(query.text)}" aria-label="${t("Buscar por zona, desarrollo, título o MLS", "Search by area, development, title or MLS")}" placeholder="${t("Zona, desarrollo, título o MLS", "Area, development, title or MLS")}" autocomplete="off" />
+      <button type="submit" form="catalogFilters" class="primary-button">${t("Buscar", "Search")}</button>
+    </div>
+    <details class="catalog-filter-panel"><summary>${t("Filtros", "Filters")}</summary>${form}</details>
+    <details class="catalog-conversation"><summary>${t("Búsqueda guiada", "Guided search")}</summary><form data-catalog-assistant><label>${t("Describe lo que buscas", "Describe what you are looking for")}<input name="query" maxlength="600" required placeholder="${t("Departamento en Puerto Cancún hasta 700 mil USD para comprar", "Buy an apartment in Puerto Cancun under USD 700,000")}" /></label><button type="submit" class="primary-button">${t("Buscar", "Search")}</button><div data-search-status aria-live="polite"></div></form></details></div>
     <div class="catalog-active-filters">${chips.join("")}</div>
     <div class="catalog-result-bar"><p id="categoryInventoryCount" role="status">${escape(count)}</p><div class="catalog-view-toggle" role="group" aria-label="${t("Vista", "View")}"><button type="button" data-catalog-view="list" aria-pressed="true">${t("Lista", "List")}</button><button type="button" data-catalog-view="map" aria-pressed="false">${t("Mapa", "Map")}</button></div></div>
     <p class="catalog-request-status" aria-live="polite"></p>
@@ -89,7 +102,7 @@ function catalogPresentation(page, params = {}) {
   const english = page.lang === "en";
   const types = english ? { Casa: "Homes", Departamento: "Apartments", Terreno: "Land", Comercial: "Commercial properties" } : { Casa: "Casas", Departamento: "Departamentos", Terreno: "Terrenos", Comercial: "Propiedades comerciales" };
   const entity = query.entity === "developments" ? (english ? "Developments" : "Desarrollos") : (types[query.type] || (english ? "Properties" : "Propiedades"));
-  const locations = query.locations.map(id => inventory.LOCATIONS.find(item => item.id === id)?.name).filter(Boolean);
+  const locations = query.locations.map(id => locationLabel(id, english));
   const h1 = [entity, ...locations, query.zone].filter(Boolean).join(" · ");
   const intro = query.entity === "developments" ? (english ? "Published projects. Individual units are listed separately." : "Proyectos publicados. Las unidades individuales se consultan por separado.") : query.operation === "sale" ? (english ? "Properties for purchase, excluding rental listings." : "Opciones de compra, sin mezclar ofertas de renta.") : query.operation === "rent" ? (english ? "Rental properties, retaining each listing's original price and rental period." : "Opciones de renta, conservando moneda y periodo de cada publicación.") : (english ? "Published properties for purchase and rent. Choose your criteria to narrow the results." : "Propiedades publicadas para compra y renta. Selecciona tus criterios para acotar los resultados.");
   return { ...page, h1, intro, eyebrow: entity, title: `${h1} | Puerto Cancun Center`, description: intro };

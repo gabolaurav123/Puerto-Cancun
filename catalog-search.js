@@ -4,6 +4,7 @@ const { fold } = require("./intelligence-utils");
 const inventory = require("./inventory-contract");
 
 const FILTER_KEYS = ["entity", "text", "locations", "bounds", "zone", "type", "operation", "modality", "currency", "min", "max", "beds", "development", "featured", "priceBasis", "priceBasisExplicit", "rentPeriod"];
+const SUBAREA_CHOICE = "Elige una sola subzona o confirma que quieres buscar en todas las ubicaciones seleccionadas.";
 const MESSAGES = [
   ["input_type", "La consulta debe ser texto.", "The search must be text."],
   ["input_length", "La consulta supera 600 caracteres; acortala sin omitir los limites obligatorios.", "The search exceeds 600 characters; shorten it without dropping required limits."],
@@ -18,7 +19,7 @@ const MESSAGES = [
   ["name_conflict", "El nombre coincide con varios desarrollos o unidades; elige una identidad antes de buscar.", "The name matches multiple developments or units; choose an identity before searching."],
   ["development_identity", "El desarrollo no tiene un identificador de relacion verificable; confirma su selector.", "The development has no verifiable relationship ID; confirm its selector."],
   ["name_entity", "El nombre pertenece a una unidad, no a un desarrollo; confirma la entidad.", "The name belongs to a unit, not a development; confirm the entity."],
-  ["subzone_union", "La union de subzonas no cabe en zone (campo unico). Locations conserva los grupos propuestos; elige una subzona o confirma ampliar a los grupos completos antes de consultar.", "A union of subareas cannot fit in the single zone field. Locations retains the proposed groups; choose one subarea or explicitly confirm expanding to the full groups before searching."],
+  ["subzone_union", SUBAREA_CHOICE, "Choose one subarea or confirm that you want to search all the selected areas."],
   ["zone_alias", "Hay varios alias de esa subzona en el catalogo; confirma una zona exacta antes de consultar.", "The catalog has multiple aliases for this subarea; confirm an exact zone before searching."],
   ["colosio", "Colosio requiere confirmar la ciudad: Cancun o Playa del Carmen.", "Confirm the city for Colosio: Cancun or Playa del Carmen."],
   ["cancun", "Cancun no identifica una unica Location; elige Zona Hotelera, Puerto Cancun o Cancun City.", "Cancun does not identify one Location; choose Hotel Zone, Puerto Cancun or Cancun City."],
@@ -374,7 +375,7 @@ function interpretCatalogSearch(input, previous = {}, options = {}) {
       const sameZone = restrictive.length === 1 && oldZone && fold(oldZone) === fold(restrictive[0].zone);
       const multiple = places.length > 1 || (addLocations && oldLocations.length > 0 && !sameZone);
       if (multiple && (restrictive.length || (addLocations && oldZone))) {
-        warn("La union de subzonas no cabe en zone (campo unico). Locations conserva los grupos propuestos; elige una subzona o confirma ampliar a los grupos completos antes de consultar.");
+        warn(SUBAREA_CHOICE);
       } else if (restrictive.length === 1) {
         const place = restrictive[0];
         if (place.zone) {

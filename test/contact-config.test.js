@@ -63,7 +63,7 @@ test("property and development WhatsApp links retain localized title and canonic
       const html = seo.renderPropertyPage(item, lang).html;
       const links = whatsappLinks(html);
       const title = lang === "en" ? item.titleEn : item.titleEs;
-      assert.ok(links.length >= 3);
+      assert.equal(links.length, contacts.contacts.length, "Each country has one contextual link in the listing");
       for (const contact of contacts.contacts) assert.ok(links.some(({ url }) => url.pathname === `/${contact.number}`));
       for (const { url } of links) {
         const message = url.searchParams.get("text");

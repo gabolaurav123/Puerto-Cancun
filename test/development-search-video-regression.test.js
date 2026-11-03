@@ -60,7 +60,7 @@ test("el desarrollo administra enlaces, traducciones de imágenes y video sin ca
   assert.match(schema, /CREATE TABLE IF NOT EXISTS property_videos/);
   assert.match(server, /app\.get\("\/media\/properties\/:id\/video"/);
   assert.match(server, /express\.raw\(\{ type: \["video\/mp4", "video\/webm"\]/);
-  assert.match(seo, /\$\{videoSection\}\$\{gallery\}/);
+  assert.match(seo, /\$\{gallery\}\$\{summary\}<\/div>\$\{videoSection\}/);
   assert.match(seo, /Propiedades disponibles en este desarrollo/);
   assert.match(server, /item\.developmentId === developmentId/);
 });

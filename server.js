@@ -5146,10 +5146,14 @@ app.post("/api/leads", async (req, res, next) => {
     await client.query("BEGIN");
     const body = req.body || {};
     const leadType = String(body.leadType || "general").trim().slice(0, 80);
-    const name = String(body.name || body.firstName || "Visitante web").trim();
-    const rawPhone = String(body.whatsapp || body.phone || "").trim();
+    const category = inferLeadCategory(leadType);
+    const valuationInquiry = category === "valuation" || leadType.toLowerCase().includes("validar-precio");
+    const suppliedName = String(body.name || body.firstName || "").trim();
+    const name = suppliedName || (valuationInquiry ? "Propietario" : "Visitante web");
+    const replyTo = valuationInquiry ? String(body.contact || "").trim() : "";
+    const rawPhone = String(body.whatsapp || body.phone || (replyTo.includes("@") ? "" : replyTo)).trim();
     const phone = rawPhone ? normalizePhone(rawPhone) : "";
-    const email = String(body.email || "").trim().toLowerCase() || null;
+    const email = String(body.email || (replyTo.includes("@") ? replyTo : "")).trim().toLowerCase() || null;
     const sourcePath = String(body.sourcePath || "").trim().slice(0, 220) || null;
     const propertyId = String(body.propertyId || "").trim() || null;
     const consent = body.consent === true || body.consent === "true" || body.consent === "on";
@@ -5171,14 +5175,14 @@ app.post("/api/leads", async (req, res, next) => {
       return;
     }
 
-    if (!name && !phone && !email) {
+    if (valuationInquiry && !phone && !email && !rawPhone) {
       await client.query("ROLLBACK");
-      res.status(400).json({ error: "Agrega al menos un dato de contacto." });
+      res.status(400).json({ error: sourcePath?.startsWith("/en/") ? "Enter an email address or WhatsApp number." : "Indica un correo o número de WhatsApp." });
       return;
     }
-    if ((rawPhone && !phone) || (email && !isValidEmail(email))) {
+    if ((rawPhone && (!phone || (valuationInquiry && !/^[+\d().\s-]+$/.test(rawPhone)))) || (email && !isValidEmail(email))) {
       await client.query("ROLLBACK");
-      res.status(400).json({ error: "Revisa el teléfono o correo antes de enviar la solicitud." });
+      res.status(400).json({ error: sourcePath?.startsWith("/en/") ? "Check the email or phone number before sending." : "Revisa el teléfono o correo antes de enviar la solicitud." });
       return;
     }
 
@@ -5186,6 +5190,7 @@ app.post("/api/leads", async (req, res, next) => {
     delete payload.leadType;
     delete payload.name;
     delete payload.firstName;
+    delete payload.contact;
     delete payload.whatsapp;
     delete payload.phone;
     delete payload.email;
@@ -5210,14 +5215,14 @@ app.post("/api/leads", async (req, res, next) => {
     );
     if (duplicate.rows[0]) {
       await client.query("COMMIT");
-      res.status(200).json({ lead: toLead(duplicate.rows[0]), duplicate: true });
+      res.status(200).json({ lead: valuationInquiry ? { id: duplicate.rows[0].id } : toLead(duplicate.rows[0]), duplicate: true });
       return;
     }
 
     const leadScore = leadScoreFromData({ leadType, phone, email, payload, propertyId });
     const priority = leadScore === "premium" ? "premium" : leadScore === "hot" ? "high" : "medium";
     const contact = await upsertContact(client, {
-      name,
+      name: suppliedName,
       email,
       phone,
       contactType: contactTypeFromLead(leadType),
@@ -5236,8 +5241,7 @@ app.post("/api/leads", async (req, res, next) => {
        RETURNING *`,
       [uuid("lead"), leadType, name, phone || null, email, sourcePath, propertyId, contact?.id || null, JSON.stringify(payload), priority, leadScore]
     );
-    const category = inferLeadCategory(leadType);
-    if (category === "valuation" || leadType.toLowerCase().includes("validar-precio")) {
+    if (valuationInquiry) {
       const expectedPrice = numericOrNull(payload.ownerEstimate || payload.expectedPrice || payload.budgetOrPrice);
       await client.query(
         `INSERT INTO valuations

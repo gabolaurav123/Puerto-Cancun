@@ -36,6 +36,11 @@
       const replacement = parsed.querySelector("[data-catalog-root]");
       if (!replacement) throw new Error("catalog-markup");
       if (id !== sequence) return;
+      const mapOpen = container.classList.contains("catalog-map-open");
+      for (const selector of [".catalog-filter-panel", ".catalog-advanced"]) {
+        const next = replacement.querySelector(selector);
+        if (next && container.querySelector(selector)?.open && preserveField) next.open = true;
+      }
       window.PccCatalogMap?.dispose(container);
       container.replaceWith(replacement);
       document.title = parsed.title;
@@ -45,6 +50,7 @@
       const alternate = parsed.body.dataset.alternateUrl;
       if (alternate) document.body.dataset.alternateUrl = alternate;
       if (push) history.pushState({ catalog: true }, "", url);
+      if (mapOpen) window.PccCatalogMap?.open(replacement);
       if (preserveField) {
         const input = replacement.querySelector(`[name="${CSS.escape(preserveField)}"]`);
         input?.focus({ preventScroll: true });
@@ -65,7 +71,7 @@
     event.preventDefault(); clearTimeout(debounce); navigate(formUrl(event.target));
   });
   document.addEventListener("input", (event) => {
-    if (!event.target.closest("#catalogFilters") || event.target.name !== "q") return;
+    if (event.target.form?.id !== "catalogFilters" || event.target.name !== "q") return;
     clearTimeout(debounce);
     // Invalidate immediately, not after the debounce, so an older request cannot replace new typing.
     sequence += 1; request?.abort();

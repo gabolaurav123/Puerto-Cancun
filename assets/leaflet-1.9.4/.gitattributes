@@ -1,0 +1,3 @@
+# Keep the upstream distribution byte-for-byte for browser integrity verification.
+leaflet.css -text -diff
+leaflet.js -text -diff

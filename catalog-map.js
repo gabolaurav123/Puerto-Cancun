@@ -9,8 +9,8 @@
   const active = new Set();
   const loaders = new WeakMap();
   const ASSETS = {
-    css: "https://unpkg.com/leaflet@1.9.4/dist/leaflet.css",
-    js: "https://unpkg.com/leaflet@1.9.4/dist/leaflet.js",
+    css: "/assets/leaflet-1.9.4/leaflet.css",
+    js: "/assets/leaflet-1.9.4/leaflet.js",
     cssHash: "sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=",
     jsHash: "sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=",
   };
@@ -291,7 +291,14 @@
         }
         const L = await loadLeaflet(doc);
         if (destroyed || !root.isConnected) return "destroyed";
-        map = L.map(canvas, { scrollWheelZoom: false, keyboard: true });
+        map = L.map(canvas, {
+          zoomControl: false, scrollWheelZoom: true, touchZoom: true, doubleClickZoom: true,
+          keyboard: true, zoomAnimation: false, minZoom: 2, maxZoom: 19,
+        });
+        L.control.zoom({
+          zoomInTitle: t("Acercar mapa", "Zoom in"),
+          zoomOutTitle: t("Alejar mapa", "Zoom out"),
+        }).addTo(map);
         const tileUrl = root.getAttribute("data-catalog-tile-url") || DEFAULT_TILES;
         const attribution = tileUrl === DEFAULT_TILES ? ATTRIBUTION : root.getAttribute("data-catalog-tile-attribution");
         if (!/^https:\/\//.test(tileUrl) || !attribution) throw new Error("tile-configuration");
@@ -366,5 +373,5 @@
     else for (const controller of [...active]) controller.destroy();
   }
 
-  return { mount, open: mount, hide, dispose, prepareItems, clusterItems, serializeBounds, openStreetMapEmbed };
+  return { mount, open: mount, hide, dispose, prepareItems, clusterItems, serializeBounds, openStreetMapEmbed, loadLeaflet };
 });
