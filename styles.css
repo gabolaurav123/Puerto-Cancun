@@ -13675,6 +13675,41 @@ body[data-page="seo"] .seo-page-hero p:not(.seo-eyebrow) { margin: 0 0 12px; }
 
 .admin-nav-label:first-child { margin-top: 0; padding-top: 2px; border: 0; }
 .sidebar-collapsed .admin-nav-label, .admin-menu-caption { display: none; }
+.admin-expand-caption { display: none; }
+/* Compact desktop navigation keeps its names; grouped options expand on selection. */
+@media (min-width: 981px) {
+  #adminPanel.sidebar-collapsed .admin-shell { grid-template-columns: 200px minmax(0, 1fr); }
+  #adminPanel.sidebar-collapsed .admin-sidebar-brand { padding: 10px; justify-content: center; }
+  #adminPanel.sidebar-collapsed .admin-sidebar-identity { display: none; }
+  #adminPanel.sidebar-collapsed #adminSidebarToggle {
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+    width: 100%; min-height: 44px; height: auto; padding: 8px;
+  }
+  #adminPanel.sidebar-collapsed .admin-expand-caption { display: inline; font-size: .8rem; font-weight: 600; }
+  #adminPanel.sidebar-collapsed .admin-sidebar-nav { padding: 6px; gap: 3px; max-height: calc(100dvh - 96px); }
+  #adminPanel.sidebar-collapsed .admin-sidebar-nav > button {
+    display: grid; grid-template-columns: 20px minmax(0, 1fr) auto;
+    justify-items: stretch; align-items: center; gap: 7px;
+    min-width: 0; min-height: 48px; padding: 9px 7px;
+    text-align: left; font-size: .8125rem; line-height: 1.4;
+  }
+  #adminPanel.sidebar-collapsed .admin-sidebar-nav > button > span {
+    display: block; min-width: 0; white-space: normal; overflow-wrap: normal;
+  }
+  #adminPanel.sidebar-collapsed .admin-sidebar-nav > button > :is(i, svg) {
+    width: 20px; height: 20px; justify-self: center;
+  }
+  #adminPanel.sidebar-collapsed .admin-sidebar-nav > button > b {
+    justify-self: end; min-width: 22px; margin: 0; padding: 2px 5px; line-height: 1.4;
+  }
+  #adminPanel.sidebar-collapsed .admin-sidebar-nav > button:has(+ .admin-sidebar-subnav) { padding-right: 20px; }
+  #adminPanel.sidebar-collapsed .admin-sidebar-nav > button:has(+ .admin-sidebar-subnav)::after {
+    content: "›"; right: 6px; font-size: 1.15rem;
+  }
+  #adminPanel.sidebar-collapsed .admin-nav-label + button { margin-top: 6px; }
+  #adminPanel.sidebar-collapsed .admin-nav-label:first-child + button { margin-top: 0; }
+  #adminSidebar button:focus-visible { outline: 2px solid var(--gold-light); outline-offset: -2px; }
+}
 .admin-start-guide { padding: 3px 0 0; }
 .admin-start-guide + .admin-insights { margin-block: 18px 16px; }
 .admin-home-inventory-title { margin: 0 0 8px; color: var(--blue-900); }

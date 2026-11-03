@@ -418,6 +418,7 @@ const translations = {
     adminJumpPrompts: "Herramientas IA",
     adminJumpLeads: "Asesorías",
     adminMenuLabel: "Menú",
+    adminExpandMenu: "Ampliar menú",
     navDaily: "Mi jornada",
     navClients: "Atención a clientes",
     navInventory: "Inventario",
@@ -1020,6 +1021,7 @@ const translations = {
     adminJumpPrompts: "AI tools",
     adminJumpLeads: "Client inquiries",
     adminMenuLabel: "Menu",
+    adminExpandMenu: "Expand menu",
     navDaily: "My day",
     navClients: "Client services",
     navInventory: "Inventory",
@@ -8971,7 +8973,10 @@ function updateAdminShell() {
     const active = isCurrent || (subnav?.matches(".admin-sidebar-subnav") && Array.from(subnav.querySelectorAll("[data-admin-section-link]")).some(item => !item.hidden && item.dataset.adminSectionLink === section));
     button.classList.toggle("active", active);
     const label = button.querySelector("span")?.textContent.trim();
-    if (label) button.setAttribute("aria-label", label);
+    if (label) {
+      button.setAttribute("aria-label", label);
+      button.setAttribute("title", label);
+    }
     const badge = button.querySelector("b[id]");
     if (badge) button.setAttribute("aria-describedby", badge.id);
     if (isCurrent) button.setAttribute("aria-current", "page");
@@ -9012,7 +9017,7 @@ function updateAdminShell() {
       || childSections.includes(section)
       || (parent?.dataset.adminSection === "properties" && section === "new-property")
       || (parent?.dataset.adminSection === "developments" && section === "new-development");
-    const open = belongsToSection && subnav.dataset.userCollapsed !== "true";
+    const open = !state.sidebarCollapsed && belongsToSection && subnav.dataset.userCollapsed !== "true";
     subnav.classList.toggle("is-open", open);
     subnav.inert = !open;
     subnav.querySelectorAll("[data-admin-section-link]").forEach(item => {
@@ -13469,9 +13474,14 @@ function bindEvents() {
   $$("[data-admin-section]").forEach((button) => {
     button.addEventListener("click", () => {
       const subnav = button.nextElementSibling?.matches(".admin-sidebar-subnav") ? button.nextElementSibling : null;
+      const revealSubmenu = subnav && state.sidebarCollapsed && window.innerWidth > 980;
       if (subnav) {
         const isOpen = subnav.classList.contains("is-open");
-        subnav.dataset.userCollapsed = state.adminSection === button.dataset.adminSection && isOpen ? "true" : "false";
+        subnav.dataset.userCollapsed = !revealSubmenu && state.adminSection === button.dataset.adminSection && isOpen ? "true" : "false";
+      }
+      if (revealSubmenu) {
+        state.sidebarCollapsed = false;
+        updateAdminShell();
       }
       if (!subnav && window.innerWidth <= 980) state.sidebarCollapsed = true;
       setAdminSection(button.dataset.adminSection);
