@@ -658,8 +658,8 @@ function normalizePriority(value, fallback = "medium") {
 
 function inferLeadCategory(leadType) {
   const value = String(leadType || "").toLowerCase();
-  if (value.includes("valuacion")) return "valuation";
-  if (value.includes("validacion") || value.includes("ia")) return "ai_validation";
+  if (value === "valuation" || value.includes("valuacion")) return "valuation";
+  if (["validar-precio", "price_validation", "ai_validation"].includes(value) || value.includes("validacion")) return "ai_validation";
   if (value.includes("comprador") || value.includes("buyer")) return "buyer";
   if (value.includes("vendedor") || value.includes("seller") || value.includes("venta")) return "seller";
   if (value.includes("propiedad") || value.includes("contacto")) return "property_contact";
@@ -965,7 +965,7 @@ function toProperty(row) {
     parentDevelopment,
     developmentImages,
     hasVideo: Boolean(row.video_record),
-    videoUrl: row.video_record ? `/media/properties/${encodeURIComponent(row.id)}/video` : "",
+    videoUrl: row.video_record ? `/media/properties/${encodeURIComponent(row.id)}/video?v=${encodeURIComponent(row.video_record.updatedAt)}` : "",
     videoMimeType: row.video_record?.contentType || "",
     videoSize: Number(row.video_record?.size || 0),
     sourceRequestId: row.source_request_id,
@@ -982,6 +982,10 @@ function numericOrNull(value) {
   return Number.isFinite(number) ? number : null;
 }
 
+function ownerPriceCurrency(price, currency) {
+  return price !== null && ["MXN", "USD"].includes(currency) ? currency : null;
+}
+
 function toValuation(row) {
   return {
     id: row.id,
@@ -994,6 +998,7 @@ function toValuation(row) {
     zone: row.zone || "",
     propertyType: row.property_type || "",
     expectedPrice: row.expected_price === null ? null : Number(row.expected_price || 0),
+    expectedCurrency: ["MXN", "USD"].includes(row.expected_currency) ? row.expected_currency : null,
     suggestedPrice: row.suggested_price === null ? null : Number(row.suggested_price || 0),
     lowRange: row.low_range === null ? null : Number(row.low_range || 0),
     highRange: row.high_range === null ? null : Number(row.high_range || 0),
@@ -1008,6 +1013,7 @@ function toValuation(row) {
 function valuationFromLead(row) {
   const lead = toLead(row);
   const payload = lead.payload || {};
+  const expectedPrice = numericOrNull(payload.ownerEstimate || payload.expectedPrice || payload.priceToValidate || payload.budgetOrPrice);
   return {
     id: `lead-${lead.id}`,
     requestId: lead.id,
@@ -1018,12 +1024,13 @@ function valuationFromLead(row) {
     email: lead.email || "",
     zone: payload.zone || "",
     propertyType: payload.propertyType || "",
-    expectedPrice: numericOrNull(payload.budgetOrPrice || payload.ownerEstimate || payload.expectedPrice),
+    expectedPrice,
+    expectedCurrency: ownerPriceCurrency(expectedPrice, payload.currency),
     suggestedPrice: null,
     lowRange: null,
     highRange: null,
     confidenceLevel: "pending",
-    comments: payload.aiResponse || payload.aiMessage || payload.message || "",
+    comments: payload.comments || payload.message || payload.aiResponse || payload.aiMessage || "",
     status: lead.status === "contacted" ? "in_analysis" : "new",
     source: "lead_request",
     leadScore: lead.leadScore,
@@ -1339,9 +1346,9 @@ function addPdfField(document, label, value) {
   document.moveDown(0.45);
 }
 
-function formatPdfMoney(value, currency = "USD") {
+function formatPdfMoney(value, currency = "USD", maximumFractionDigits = 0) {
   const number = Number(value || 0);
-  return number ? `${currency} ${new Intl.NumberFormat("es-MX", { maximumFractionDigits: 0 }).format(number)}` : "Precio a consultar";
+  return number ? `${currency} ${new Intl.NumberFormat("es-MX", { maximumFractionDigits }).format(number)}` : "Precio a consultar";
 }
 
 function toRequest(row) {
@@ -3136,6 +3143,16 @@ async function initDatabase() {
     await client.query("ALTER TABLE valuations ADD COLUMN IF NOT EXISTS property_id TEXT");
     await client.query("ALTER TABLE valuations ADD COLUMN IF NOT EXISTS confidence_level TEXT NOT NULL DEFAULT 'manual'");
     await client.query("ALTER TABLE valuations ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()");
+    await runMigration(client, {
+      id: "owner-valuation-currency-v1",
+      description: "Conservar la moneda indicada por el propietario",
+      up: async (migrationClient) => {
+        await migrationClient.query("ALTER TABLE valuations ADD COLUMN IF NOT EXISTS expected_currency TEXT CHECK (expected_currency IN ('MXN', 'USD'))");
+        await migrationClient.query(`UPDATE valuations v SET expected_currency = l.payload->>'currency'
+          FROM lead_requests l WHERE v.request_id = l.id AND v.expected_currency IS NULL
+          AND v.expected_price IS NOT NULL AND l.payload->>'currency' IN ('MXN', 'USD')`);
+      },
+    });
     await client.query("ALTER TABLE tasks ADD COLUMN IF NOT EXISTS priority TEXT NOT NULL DEFAULT 'medium'");
     await client.query("ALTER TABLE tasks ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()");
     await client.query("ALTER TABLE property_matches ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()");
@@ -3837,16 +3854,16 @@ app.get("/media/external-properties/:id/:index", requireRole("admin"), async (re
 app.get("/media/properties/:id/video", async (req, res, next) => {
   try {
     const result = await query(
-      `SELECT p.id, p.is_public, p.status, v.content_type, v.filename, v.data, v.size_bytes, v.updated_at
+      `SELECT p.id, p.is_public, p.status, p.type, p.publication_section, v.content_type, v.data, v.updated_at
        FROM property_videos v
        JOIN properties p ON p.id = v.property_id
        WHERE v.property_id = $1`,
       [req.params.id]
     );
     const video = result.rows[0];
-    const canViewPrivate = req.session.user?.role === "admin";
-    if (!video || (!canViewPrivate && (!video.is_public || !PUBLIC_PROPERTY_STATUSES.has(video.status)))) {
-      res.status(404).end();
+    const isPublic = video?.is_public && PUBLIC_PROPERTY_STATUSES.has(video.status) && inventoryContract.isPublic(video);
+    if (!video || (!isPublic && req.session.user?.role !== "admin")) {
+      res.status(404).set("Cache-Control", "private, no-store").end();
       return;
     }
     const data = Buffer.isBuffer(video.data) ? video.data : Buffer.from(video.data || []);
@@ -3857,13 +3874,16 @@ app.get("/media/properties/:id/video", async (req, res, next) => {
     let status = 200;
     if (range) {
       const match = range.match(/^bytes=(\d*)-(\d*)$/);
-      if (!match) {
+      if (!match || (!match[1] && !match[2])) {
         res.status(416).set("Content-Range", `bytes */${size}`).end();
         return;
       }
-      if (match[1]) start = Number(match[1]);
-      if (match[2]) end = Number(match[2]);
-      if (!match[1] && match[2]) start = Math.max(0, size - Number(match[2]));
+      if (match[1]) {
+        start = Number(match[1]);
+        if (match[2]) end = Number(match[2]);
+      } else {
+        start = Math.max(0, size - Number(match[2]));
+      }
       if (!Number.isInteger(start) || !Number.isInteger(end) || start < 0 || end < start || start >= size) {
         res.status(416).set("Content-Range", `bytes */${size}`).end();
         return;
@@ -3876,7 +3896,7 @@ app.get("/media/properties/:id/video", async (req, res, next) => {
       "Accept-Ranges": "bytes",
       "Content-Type": video.content_type,
       "Content-Length": String(body.length),
-      "Cache-Control": "public, max-age=86400, stale-while-revalidate=604800",
+      "Cache-Control": isPublic ? "private, no-cache" : "private, no-store",
       ETag: `W/\"${video.id}-video-${new Date(video.updated_at || 0).getTime()}-${size}\"`,
       ...(status === 206 ? { "Content-Range": `bytes ${start}-${end}/${size}` } : {}),
     });
@@ -5218,11 +5238,12 @@ app.post("/api/leads", async (req, res, next) => {
     );
     const category = inferLeadCategory(leadType);
     if (category === "valuation" || leadType.toLowerCase().includes("validar-precio")) {
+      const expectedPrice = numericOrNull(payload.ownerEstimate || payload.expectedPrice || payload.budgetOrPrice);
       await client.query(
         `INSERT INTO valuations
-          (id, request_id, contact_id, property_id, owner_name, phone, email, zone, property_type, expected_price, comments, status)
+          (id, request_id, contact_id, property_id, owner_name, phone, email, zone, property_type, expected_price, comments, status, expected_currency)
          VALUES
-          ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, 'new')`,
+          ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, 'new', $12)`,
         [
           uuid("val"),
           result.rows[0].id,
@@ -5233,8 +5254,9 @@ app.post("/api/leads", async (req, res, next) => {
           email,
           payload.zone || "",
           payload.propertyType || "",
-          numericOrNull(payload.budgetOrPrice || payload.ownerEstimate || payload.expectedPrice),
+          expectedPrice,
           payload.aiResponse || payload.aiMessage || payload.message || "",
+          ownerPriceCurrency(expectedPrice, payload.currency),
         ]
       );
     }
@@ -5810,16 +5832,21 @@ app.post("/api/seller/service-requests", requireRole("seller"), async (req, res,
   try {
     await client.query("BEGIN");
     const flow = String(req.body.flow || "").trim();
-    if (!["valuation", "price_validation", "ai_validation"].includes(flow)) {
+    if (!["valuation", "price_validation", "advice", "ai_validation"].includes(flow)) {
       await client.query("ROLLBACK");
       res.status(400).json({ error: "Selecciona un tipo de solicitud válido." });
       return;
+    }
+    if (flow === "advice" && !String(req.body.comments || "").trim()) {
+      await client.query("ROLLBACK");
+      return res.status(400).json({ error: "Escribe la pregunta que quieres enviar a tu asesor." });
     }
     const payload = {
       ...req.body,
       sellerAccountId: req.session.user.id,
     };
     delete payload.flow;
+    const expectedPrice = numericOrNull(payload.expectedPrice || payload.priceToValidate);
     const contact = await upsertContact(client, {
       name: req.session.user.name,
       email: req.session.user.email,
@@ -5828,7 +5855,7 @@ app.post("/api/seller/service-requests", requireRole("seller"), async (req, res,
       source: "seller_panel",
       preferredZones: payload.zone ? [payload.zone] : [],
       propertyType: payload.propertyType || "",
-      budgetMax: numericOrNull(payload.expectedPrice || payload.priceToValidate),
+      budgetMax: expectedPrice,
       leadScore: "hot",
     });
     const result = await client.query(
@@ -5846,11 +5873,11 @@ app.post("/api/seller/service-requests", requireRole("seller"), async (req, res,
         JSON.stringify(payload),
       ]
     );
-    if (flow === "valuation") {
+    if (flow === "valuation" || flow === "price_validation") {
       await client.query(
         `INSERT INTO valuations
-          (id, request_id, contact_id, owner_name, phone, email, zone, property_type, expected_price, comments, status)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 'new')`,
+          (id, request_id, contact_id, owner_name, phone, email, zone, property_type, expected_price, expected_currency, comments, status)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, 'new')`,
         [
           uuid("val"),
           result.rows[0].id,
@@ -5860,7 +5887,8 @@ app.post("/api/seller/service-requests", requireRole("seller"), async (req, res,
           req.session.user.email || null,
           String(payload.zone || ""),
           String(payload.propertyType || ""),
-          numericOrNull(payload.expectedPrice),
+          expectedPrice,
+          ownerPriceCurrency(expectedPrice, payload.currency),
           String(payload.comments || ""),
         ]
       );
@@ -5870,7 +5898,7 @@ app.post("/api/seller/service-requests", requireRole("seller"), async (req, res,
        VALUES ($1, 'seller_service_request', $2, $3, 'lead_request', $4)`,
       [
         uuid("notif"),
-        flow === "valuation" ? "Nueva valoración" : flow === "price_validation" ? "Nueva validación de precio" : "Nueva validación de IA",
+        flow === "valuation" ? "Nueva valoración" : flow === "price_validation" ? "Nueva revisión de precio" : "Nueva consulta de un propietario",
         `${req.session.user.name} envió una solicitud desde su panel.`,
         result.rows[0].id,
       ]
@@ -6856,7 +6884,7 @@ app.get("/api/admin/valuations", requireRole("admin"), async (_req, res, next) =
       query(
         `SELECT l.*
          FROM lead_requests l
-         WHERE (l.lead_type ILIKE '%valuacion%' OR l.lead_type ILIKE '%validar-precio%')
+         WHERE (l.lead_type ILIKE '%valuacion%' OR l.lead_type ILIKE '%validar-precio%' OR l.lead_type IN ('valuation', 'price_validation'))
            AND NOT EXISTS (SELECT 1 FROM valuations v WHERE v.request_id = l.id)
          ORDER BY l.created_at DESC
          LIMIT 100`
@@ -9703,7 +9731,9 @@ app.post("/api/admin/documents/generate", requireRole("admin"), async (req, res,
       document.fillColor("#003f5c").font("Times-Bold").fontSize(22).text(`Valoración para ${entity.ownerName}`);
       document.moveDown(0.6);
       addPdfField(document, "Zona / tipo", `${entity.zone || "Sin zona"} · ${entity.propertyType || "Sin tipo"}`);
-      addPdfField(document, "Precio esperado", formatPdfMoney(entity.expectedPrice));
+      addPdfField(document, "Precio esperado", entity.expectedPrice && !entity.expectedCurrency
+        ? `${new Intl.NumberFormat("es-MX").format(entity.expectedPrice)} (moneda sin indicar)`
+        : formatPdfMoney(entity.expectedPrice, entity.expectedCurrency, 2));
       addPdfField(document, "Precio sugerido", formatPdfMoney(entity.suggestedPrice));
       addPdfField(document, "Rango estimado", `${formatPdfMoney(entity.lowRange)} - ${formatPdfMoney(entity.highRange)}`);
       addPdfField(document, "Nivel de confianza", entity.confidenceLevel);
@@ -12098,11 +12128,10 @@ app.get("/ai-summary.json", (_req, res) => {
   res.json(aiSummary(siteUrl));
 });
 
-app.get("/prompts-inmobiliarios-cancun", (_req, res) => {
-  res.redirect(301, "/validar-respuesta-ia");
-});
-
 const legacyRedirects = {
+  "/prompts-inmobiliarios-cancun": "/revisar-precio-propiedad",
+  "/validar-respuesta-ia": "/revisar-precio-propiedad",
+  "/en/validate-ai-answer": "/en/review-property-price",
   "/about": "/nosotros",
   "/contact": "/contacto",
   "/properties": "/propiedades",

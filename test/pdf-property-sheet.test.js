@@ -11,9 +11,11 @@ async function imageDataUrl(color) {
   return `data:image/png;base64,${buffer.toString("base64")}`;
 }
 
-function buildPdf(property, images, brandMode) {
+function buildPdf(property, images, brandMode, drawnText = []) {
   return new Promise((resolve, reject) => {
     const document = new PDFDocument({ size: "A4", margin: 48, compress: false });
+    const text = document.text.bind(document);
+    document.text = (value, ...args) => { drawnText.push(String(value)); return text(value, ...args); };
     const chunks = [];
     document.on("data", (chunk) => chunks.push(chunk));
     document.on("error", reject);
@@ -63,11 +65,14 @@ test("genera las fichas institucional y neutra en una página", async () => {
     lot: 250.75,
     mls: "TEST-001",
     amenities: ["Alberca", "Marina", "Gimnasio", "Seguridad 24/7", "Spa", "Terraza", "Elevador"],
+    imageMetadata: [{ descriptionEs: "Pie exclusivo de galería", descriptionEn: "Gallery-only caption" }],
     descriptionEs: "Propiedad de prueba con superficie decimal, distribución funcional, acabados residenciales y espacios amplios. ".repeat(24),
   };
 
-  const brandedPdf = await buildPdf(property, brandedImages, "branded");
-  const neutralPdf = await buildPdf(property, neutralImages, "neutral");
+  const drawnText = [];
+  const brandedPdf = await buildPdf(property, brandedImages, "branded", drawnText);
+  const neutralPdf = await buildPdf(property, neutralImages, "neutral", drawnText);
+  assert.doesNotMatch(drawnText.join("\n"), /Pie exclusivo de galería|Gallery-only caption/);
   const brandedPageCount = (brandedPdf.toString("latin1").match(/\/Type \/Page\b/g) || []).length;
   const neutralPageCount = (neutralPdf.toString("latin1").match(/\/Type \/Page\b/g) || []).length;
 

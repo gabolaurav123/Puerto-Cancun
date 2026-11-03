@@ -66,6 +66,25 @@ test("las publicaciones usan carrusel y no muestran fecha de modificación", () 
   assert.ok(spanish.indexOf("property-amenities") < spanish.indexOf("property-location-map"));
 });
 
+test("el mapa de la ficha respeta la visibilidad y no dirige a Google Maps en ES ni EN", () => {
+  const property = {
+    id: "muestra", slug: "muestra", titleEs: "Muestra", titleEn: "Sample",
+    zone: "Puerto Cancún", latitude: 21.16, longitude: -86.81,
+    googleMapsUrl: "https://maps.app.goo.gl/private-location",
+  };
+  for (const lang of ["es", "en"]) {
+    const withCoordinates = renderPropertyPage(property, lang).html;
+    assert.match(withCoordinates, /src="https:\/\/www\.openstreetmap\.org\/export\/embed\.html\?[^" ]*marker=21\.16%2C-86\.81/);
+    const withoutCoordinates = renderPropertyPage({ ...property, latitude: null, longitude: null }, lang).html;
+    assert.match(withoutCoordinates, /data-show-area-map="Puerto Cancún"/);
+    assert.doesNotMatch(withoutCoordinates, /www\.openstreetmap\.org\/export\/embed/);
+    const hidden = renderPropertyPage({ ...property, locationPrecision: "hidden" }, lang).html;
+    assert.doesNotMatch(hidden, /property-location-map|data-show-area-map/);
+    const office = renderSeoPage(lang === "es" ? "/contacto" : "/en/contact");
+    assert.doesNotMatch([withCoordinates, withoutCoordinates, hidden, office].join("\n"), /(?:href|src)="https?:\/\/[^" ]*(?:google\.com\/maps|maps\.google\.|maps\.app\.goo\.gl)/i);
+  }
+});
+
 test("la navegación explica cómo vender y presenta un Nosotros completo", () => {
   const indexSource = fs.readFileSync(path.join(root, "index.html"), "utf8");
   const appSource = fs.readFileSync(path.join(root, "app.js"), "utf8");

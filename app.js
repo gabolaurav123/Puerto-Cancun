@@ -20,6 +20,32 @@ const fallbackImage =
   "/assets/cancun-hotel-zone-hero-1280.webp";
 
 const fallbackIcons = {
+  pencil: '<path d="m4 15 11-11 5 5L9 20l-6 1zM13 6l5 5"/>',
+  eye: '<path d="M2 12c3-5 6-7 10-7s7 2 10 7c-3 5-6 7-10 7s-7-2-10-7z"/><circle cx="12" cy="12" r="3"/>',
+  "eye-off": '<path d="M2 3l20 18M3 10l-1 2c3 5 6 7 10 7 1 0 3 0 4-1m-5-13h1c4 0 7 2 10 7l-2 3"/>',
+  "trash-2": '<path d="M3 6h18M9 6V3h6v3M6 8l1 13h10l1-13m-8 3v6m4-6v6"/>',
+  "corner-down-right": '<path d="M5 3v9a3 3 0 0 0 3 3h12m-5-5 5 5-5 5"/>',
+  "messages-square": '<path d="M3 3h14v11H8l-5 4zM19 8h2v13l-5-3h-6v-2"/>',
+  layers: '<path d="m2 8 10-5 10 5-10 5zM2 12l10 5 10-5M2 16l10 5 10-5"/>',
+  bell: '<path d="M4 17h16l-2-3V9a6 6 0 0 0-12 0v5zM10 20c1 2 3 2 4 0"/>',
+  "list-checks": '<path d="m3 7 2 2 3-4m3 2h10M3 16l2 2 3-4m3 2h10"/>',
+  sparkles: '<path d="m10 3 2 6 6 2-6 2-2 6-2-6-6-2 6-2zM19 2v4m-2-2h4"/>',
+  "file-warning": '<path d="M14 2H5v20h14V7zM14 2v5h5M12 10v5m0 3h.01"/>',
+  "building-2": '<path d="M2 21h20M5 21V4h9v17m0-12h5v12M8 8h3m-3 4h3m-3 4h3"/>',
+  handshake: '<path d="m2 9 4-4 4 1 3-2 8 6-3 7-4 3-7-4zM10 6 7 10l2 2 4-3 5 4"/>',
+  "hand-coins": '<path d="M2 16h4l3-3h4a2 2 0 0 1 0 4h-3m-5 1 6 3 10-6M18 9a3 3 0 1 0 0-6 3 3 0 0 0 0 6z"/>',
+  "user-search": '<circle cx="9" cy="7" r="3"/><path d="M2 21v-2a7 7 0 0 1 11-6"/><circle cx="17" cy="16" r="3"/><path d="m19 18 3 3"/>',
+  "user-plus": '<circle cx="9" cy="7" r="3"/><path d="M2 21v-2a7 7 0 0 1 14 0v2m2-11h5m-2.5-2.5v5"/>',
+  "user-cog": '<circle cx="9" cy="7" r="3"/><path d="M2 21v-2a7 7 0 0 1 10-6"/><circle cx="18" cy="17" r="3"/><path d="M18 12v2m0 6v2m-5-5h2m6 0h2"/>',
+  "file-down": '<path d="M14 2H5v20h14V7zM14 2v5h5m-7 3v8m-3-3 3 3 3-3"/>',
+  "folder-open": '<path d="M3 18V5h6l2 3h9v3M2 20h17l3-9H5z"/>',
+  "file-text": '<path d="M14 2H5v20h14V7zM14 2v5h5M8 12h8m-8 4h6"/>',
+  megaphone: '<path d="m3 9 8-1 9-5v16l-9-5-8-1zm4 5 2 7h3l-2-6"/>',
+  newspaper: '<path d="M3 4h15v16H5a2 2 0 0 1-2-2zm15 5h3v9a2 2 0 0 1-3 2M6 8h8m-8 4h4m-4 4h8"/>',
+  "chart-column": '<path d="M3 3v18h19M7 17v-5m5 5V6m5 11V9"/>',
+  "plug-zap": '<path d="m12 5 4 4m1-9 4 4M7 9l8 8m-7-6-2 2a4 4 0 0 0 6 6l2-2m-7 2-4 4"/>',
+  settings: '<circle cx="12" cy="12" r="4"/><path d="M9 3h6l1 3 3 1 2 5-2 5-3 1-1 3H9l-1-3-3-1-2-5 2-5 3-1z"/>',
+  "shield-check": '<path d="m12 2 8 3v6c0 5-4 9-8 11-4-2-8-6-8-11V5zM8 11l3 3 5-6"/>',
   "arrow-left": '<path d="M19 12H5"></path><path d="m12 19-7-7 7-7"></path>',
   "arrow-right": '<path d="M5 12h14"></path><path d="m12 5 7 7-7 7"></path>',
   "badge-dollar-sign":
@@ -110,23 +136,12 @@ const translations = {
     searchPlaceholder: "Zona, desarrollo, departamento, casa, terreno, renta o venta",
     searchButton: "Buscar",
     contactToday: "Contáctanos Hoy",
-    aiHomeKicker: "IA + criterio local",
-    aiHomeTitle: "Usa la IA para informarte. Usa un asesor local para decidir bien.",
-    aiHomeCopy:
-      "Hoy muchos propietarios y compradores usan ChatGPT, Gemini o Claude para estimar precios, crear anuncios o comparar zonas. Eso puede ser útil, pero una operación real en Cancún depende de factores que la IA no siempre puede validar: documentación, demanda por zona, estado físico, negociación, perfil del comprador, tiempos de cierre y condiciones reales del mercado.",
-    aiHomeCta: "Validar mi decisión con un asesor local",
-    aiNoteTitle: "La IA orienta. Cancún confirma.",
-    aiNoteCopy: "Convertimos la información de la IA en una estrategia inmobiliaria revisada con criterio local.",
-    aiValidationKicker: "Validación de IA",
-    aiValidationTitle: "ChatGPT ya te dio un precio o una estrategia?",
-    aiValidationCopy:
-      "Pega aquí el precio, descripción o recomendación que te dio la IA y te ayudamos a revisarlo desde el mercado inmobiliario real de Cancún.",
     operationType: "Tipo de operación",
     sellOperation: "Vender",
     buyOperation: "Comprar",
     investOperation: "Invertir",
-    aiResponseField: "Respuesta que te dio la IA",
-    validateWithAdvisor: "Validar con asesor local",
+    aiResponseField: "Referencia anterior",
+    validateWithAdvisor: "Consultar mi estimación",
     sellerAudienceTitle: "Para propietarios que quieren vender mejor",
     sellerAudienceCopy:
       "Te ayudamos a definir un precio competitivo, preparar tu propiedad, crear una estrategia de difusión y negociar con compradores.",
@@ -377,15 +392,35 @@ const translations = {
     sellerPanelSubtitle: "Envía solicitudes de venta y revisa el estado de cada propiedad.",
     adminPanelTitle: "Panel administrativo",
     adminPanelSubtitle: "Revisa solicitudes, analiza actividad y administra las publicaciones del sitio.",
-    adminWorkspaceTitle: "Centro de control",
-    adminWorkspaceCopy: "Revisa solicitudes, publicaciones, precios, zonas y actividad desde un solo panel.",
-    adminJumpRequests: "Solicitudes",
-    adminJumpListings: "Publicaciones",
+    adminWorkspaceTitle: "Accesos rápidos",
+    adminWorkspaceCopy: "Elige una tarea para ir directamente al apartado correspondiente.",
+    adminJumpRequests: "Solicitudes de venta",
+    adminJumpListings: "Propiedades",
     adminJumpCatalogs: "Catálogos",
     adminJumpNew: "Nueva propiedad",
     adminJumpPrompts: "Herramientas IA",
-    adminJumpLeads: "Asesorias",
-    adminJumpDashboard: "Dashboard",
+    adminJumpLeads: "Asesorías",
+    adminMenuLabel: "Menú",
+    navDaily: "Mi jornada",
+    navClients: "Atención a clientes",
+    navInventory: "Inventario",
+    navOutreach: "Comunicación",
+    navControl: "Análisis y administración",
+    homeAdminTitle: "Resumen del día",
+    homeInventoryTitle: "Tu inventario",
+    openTasksFilter: "Abiertas",
+    askAdvisorTitle: "Consultar a un asesor",
+    askAdvisorDescription: "Describe una duda sobre la venta o la negociación. Un asesor revisará tu caso y te responderá aquí.",
+    askAdvisorAction: "Hacer una consulta",
+    homeAdminGuide: "Empieza por las solicitudes que necesitan respuesta o revisa el inventario. Selecciona un indicador para abrir las fichas que forman ese total.",
+    adminRequestGuide: "Son propiedades que un vendedor con cuenta envió para revisión. Abre «Responder» para pedir datos o enviarle un mensaje. Revisa las fotos y el precio antes de aprobar: si hay una foto, la aprobación puede publicar la ficha.",
+    guestRequestGuide: "Una persona sin cuenta envió los datos básicos de su propiedad. Revisa su medio de contacto, registra el seguimiento y solicita la información que falta para preparar la ficha.",
+    estimateKicker: "Revisión de precio",
+    estimateTitle: "¿Cuál es tu precio estimado?",
+    estimateIntro: "Cuéntanos cuánto crees que vale la propiedad y en qué zona se encuentra. Un asesor comparará tu estimación con propiedades similares y te explicará qué factores influyen en el precio.",
+    ownerEstimateLabel: "Precio estimado",
+    shareEstimate: "Compartir mi estimación",
+    adminJumpDashboard: "Inicio",
     adminJumpContacts: "CRM / Contactos",
     adminJumpValuations: "Valoraciones",
     adminJumpBuyers: "Compradores",
@@ -407,7 +442,7 @@ const translations = {
     leadCenterTitle: "Centro de Leads",
     leadCenterHint: "Bandeja amplia con prioridad, score, datos de contacto y siguiente accion sugerida.",
     valuationTitle: "Valoraciones inmobiliarias",
-    valuationHint: "Solicitudes y valoraciones manuales para revisar precio esperado, rango sugerido y respuesta profesional.",
+    valuationHint: "Aquí se estima el valor de una propiedad. Registra el precio que espera el propietario, compáralo con inmuebles similares y guarda el rango que le explicarás.",
     noValuations: "No hay valoraciones pendientes.",
     createValuation: "Crear valoración manual",
     suggestedPrice: "Precio sugerido",
@@ -491,14 +526,14 @@ const translations = {
     adminPromptLibraryCopy:
       "Usa estos textos como apoyo interno para valorar, redactar y revisar propiedades antes de publicar. No son una sección pública.",
     adminPromptsEmpty: "No hay herramientas internas configuradas.",
-    adminLeadsTitle: "Solicitudes de asesoria",
+    adminLeadsTitle: "Asesorías",
     adminLeadSummary: "solicitudes de asesoria",
-    adminLeadsHint: "Responde por WhatsApp o correo y marca cada solicitud como atendida.",
+    adminLeadsHint: "Aquí llegan las consultas sobre compras, visitas y precios. Abre la solicitud para leer qué necesita la persona, responderle y registrar el siguiente paso.",
     adminNoLeads: "No hay solicitudes de asesoria.",
     leadFilterAll: "Todas",
     leadFilterSeller: "Vender",
     leadFilterValuation: "Valoracion",
-    leadFilterAi: "Validar IA",
+    leadFilterAi: "Revisar precio",
     leadFilterBuyer: "Compradores",
     leadFilterProperty: "Propiedad",
     leadFilterWhatsApp: "WhatsApp / ayuda",
@@ -586,7 +621,7 @@ const translations = {
     leadStatusContacted: "Atendida",
     leadStatusClosed: "Cerrada",
     leadTypeGeneral: "General",
-    leadTypeAiValidation: "Validacion de IA",
+    leadTypeAiValidation: "Revisión de precio",
     leadTypeValuation: "Valoracion",
     leadTypeBuyer: "Compra",
     leadTypeSeller: "Venta",
@@ -689,23 +724,12 @@ const translations = {
     searchPlaceholder: "Area, development, apartment, house, land, rent or sale",
     searchButton: "Search",
     contactToday: "Contact Us Today",
-    aiHomeKicker: "AI + local judgment",
-    aiHomeTitle: "Use AI to get informed. Use a local advisor to decide well.",
-    aiHomeCopy:
-      "Many owners and buyers now use ChatGPT, Gemini, or Claude to estimate prices, create listings, or compare areas. That can help, but a real Cancun transaction depends on factors AI cannot always validate: documents, area demand, physical condition, negotiation, buyer profile, closing timing, and real market conditions.",
-    aiHomeCta: "Validate my decision with a local advisor",
-    aiNoteTitle: "AI orients. Cancun confirms.",
-    aiNoteCopy: "We turn AI information into a real estate strategy reviewed with local judgment.",
-    aiValidationKicker: "AI validation",
-    aiValidationTitle: "Did ChatGPT already give you a price or strategy?",
-    aiValidationCopy:
-      "Paste the price, description, or recommendation AI gave you and we can review it from the real Cancun property market.",
     operationType: "Operation type",
     sellOperation: "Sell",
     buyOperation: "Buy",
     investOperation: "Invest",
-    aiResponseField: "AI response",
-    validateWithAdvisor: "Validate with local advisor",
+    aiResponseField: "Previous reference",
+    validateWithAdvisor: "Review my estimate",
     sellerAudienceTitle: "For owners who want to sell better",
     sellerAudienceCopy:
       "We help define a competitive price, prepare your property, create a marketing strategy, and negotiate with buyers.",
@@ -953,15 +977,35 @@ const translations = {
     sellerPanelSubtitle: "Submit sale requests and review each property's status.",
     adminPanelTitle: "Admin panel",
     adminPanelSubtitle: "Review requests, monitor activity, and manage site listings.",
-    adminWorkspaceTitle: "Control center",
-    adminWorkspaceCopy: "Review requests, listings, prices, areas, and activity from one panel.",
-    adminJumpRequests: "Requests",
-    adminJumpListings: "Listings",
+    adminWorkspaceTitle: "Quick actions",
+    adminWorkspaceCopy: "Choose a task to open its workspace.",
+    adminJumpRequests: "Sale requests",
+    adminJumpListings: "Properties",
     adminJumpCatalogs: "Catalogs",
     adminJumpNew: "New property",
     adminJumpPrompts: "AI tools",
-    adminJumpLeads: "Advisory",
-    adminJumpDashboard: "Dashboard",
+    adminJumpLeads: "Client inquiries",
+    adminMenuLabel: "Menu",
+    navDaily: "My day",
+    navClients: "Client services",
+    navInventory: "Inventory",
+    navOutreach: "Communications",
+    navControl: "Reporting and administration",
+    homeAdminTitle: "Daily overview",
+    homeInventoryTitle: "Your inventory",
+    openTasksFilter: "Open",
+    askAdvisorTitle: "Ask an advisor",
+    askAdvisorDescription: "Ask about selling or negotiating. An advisor will review your question and reply here.",
+    askAdvisorAction: "Ask a question",
+    homeAdminGuide: "Start with requests waiting for a reply, or review your inventory. Select a number to open the listings included in that total.",
+    adminRequestGuide: "These are properties submitted by registered owners. Open Reply to request details or send a message. Check the photos and price before approval. Approving a submission with a photo can publish the listing.",
+    guestRequestGuide: "These owners submitted basic details without an account. Check their contact preference, record the follow-up and request the information needed to prepare their listing.",
+    estimateKicker: "Price review",
+    estimateTitle: "What is your estimated price?",
+    estimateIntro: "Tell us your estimate and where the property is located. An advisor will compare it with similar properties and explain which factors affect the price.",
+    ownerEstimateLabel: "Estimated price",
+    shareEstimate: "Share my estimate",
+    adminJumpDashboard: "Home",
     adminJumpContacts: "CRM / Contacts",
     adminJumpValuations: "Valuations",
     adminJumpBuyers: "Buyers",
@@ -983,7 +1027,7 @@ const translations = {
     leadCenterTitle: "Lead Center",
     leadCenterHint: "Wide inbox with priority, score, contact data and suggested next action.",
     valuationTitle: "Property valuations",
-    valuationHint: "Requests and manual valuations to review expected price, suggested range and professional response.",
+    valuationHint: "Estimate the value of a property here. Record the owner’s expected price, compare similar properties and save the range you will discuss.",
     noValuations: "No pending valuations.",
     createValuation: "Create manual valuation",
     suggestedPrice: "Suggested price",
@@ -1067,14 +1111,14 @@ const translations = {
     adminPromptLibraryCopy:
       "Use these texts as internal support to value, write, and review properties before publishing. This is not a public section.",
     adminPromptsEmpty: "No internal tools configured.",
-    adminLeadsTitle: "Advisor requests",
+    adminLeadsTitle: "Client inquiries",
     adminLeadSummary: "advisor requests",
-    adminLeadsHint: "Reply by WhatsApp or email and mark each request as handled.",
+    adminLeadsHint: "People use these forms to ask about buying, visits and prices. Open a request to read their question, reply and record the next step.",
     adminNoLeads: "No advisor requests.",
     leadFilterAll: "All",
     leadFilterSeller: "Seller",
     leadFilterValuation: "Valuation",
-    leadFilterAi: "Validate AI",
+    leadFilterAi: "Price reviews",
     leadFilterBuyer: "Buyers",
     leadFilterProperty: "Property",
     leadFilterWhatsApp: "WhatsApp / help",
@@ -1162,7 +1206,7 @@ const translations = {
     leadStatusContacted: "Handled",
     leadStatusClosed: "Closed",
     leadTypeGeneral: "General",
-    leadTypeAiValidation: "AI validation",
+    leadTypeAiValidation: "Price review",
     leadTypeValuation: "Valuation",
     leadTypeBuyer: "Buyer",
     leadTypeSeller: "Seller",
@@ -1271,7 +1315,6 @@ const state = {
     pagination: { total: 0, limit: 50, offset: 0 },
     retentionDays: 365,
   },
-  intelligence: { priorities: [], metrics: {} },
   integrations: [],
   dataQuality: { summary: {}, incomplete: [], duplicateContacts: [], duplicateProperties: [] },
   copilotFeatures: [],
@@ -1918,17 +1961,35 @@ function centerMapInstance(instance, center, zoom = 13) {
   }
 }
 
+function canOpenAdminMap() {
+  const user = state.session;
+  return user?.role === "admin" && (user.id === "admin-prueba" || ["admin", "super_admin"].includes(user.internalRole));
+}
+
+function googleMapsSearchUrl(query) {
+  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`;
+}
+
 function updateMapPicker(picker) {
   if (!picker) return;
   const form = picker.closest("form");
   const query = mapQueryFromForm(form);
-  const encoded = encodeURIComponent(query);
   const frame = picker.querySelector("[data-map-frame]");
   const openLink = picker.querySelector("[data-open-map]");
   const placeInput = picker.querySelector("[data-map-place]");
   const instance = googleMapInstances.get(picker);
-  if (frame && !instance) frame.src = `https://www.google.com/maps?q=${encoded}&output=embed`;
-  if (openLink) openLink.href = `https://www.google.com/maps/search/?api=1&query=${encoded}`;
+  if (frame && !instance) {
+    const lat = formField(form, "latitude")?.value;
+    const lon = formField(form, "longitude")?.value;
+    const source = window.PccCatalogMap.openStreetMapEmbed(lat, lon)
+      || window.PccCatalogMap.openStreetMapEmbed(DEFAULT_MAP_CENTER.lat, DEFAULT_MAP_CENTER.lng, false);
+    if (frame.getAttribute("src") !== source) frame.src = source;
+  }
+  if (openLink) {
+    openLink.hidden = !canOpenAdminMap();
+    if (openLink.hidden) openLink.removeAttribute("href");
+    else openLink.href = googleMapsSearchUrl(query);
+  }
   if (placeInput) placeInput.value = mapAddressQueryFromForm(form) || query;
 
   if (instance && formField(form, "latitude")?.value && formField(form, "longitude")?.value) {
@@ -2113,7 +2174,7 @@ async function enhanceLeafletMapPicker(picker) {
 
 async function enhanceMapPicker(picker) {
   if (googleMapInstances.has(picker)) return;
-  if (!state.config.googleMapsApiKey) {
+  if (!state.config.googleMapsApiKey || !canOpenAdminMap()) {
     await enhanceLeafletMapPicker(picker);
     return;
   }
@@ -2153,15 +2214,16 @@ function bindMapPickers() {
     if (!picker.querySelector("[data-map-search]")) {
       const search = document.createElement("div");
       search.className = "map-location-search";
+      const searchId = picker.closest("form").id + "-map-search";
       search.innerHTML = `
-        <label class="map-search-field">
-          <span data-i18n="mapSearchLabel">${escapeHtml(t("mapSearchLabel"))}</span>
+        <div class="map-search-field">
+          <label for="${searchId}" data-i18n="mapSearchLabel">${escapeHtml(t("mapSearchLabel"))}</label>
           <div class="search-input-with-icon">
             <i data-lucide="search"></i>
-            <input data-map-search type="search" role="combobox" aria-autocomplete="list" aria-expanded="false" autocomplete="off" placeholder="${escapeHtml(t("mapSearchPlaceholder"))}" />
-            <div class="map-address-suggestions" data-map-search-suggestions role="listbox" hidden></div>
+            <input id="${searchId}" data-map-search type="search" role="combobox" aria-controls="${searchId}-options" aria-autocomplete="list" aria-expanded="false" autocomplete="off" placeholder="${escapeHtml(t("mapSearchPlaceholder"))}" />
           </div>
-        </label>
+          <div class="map-address-suggestions" id="${searchId}-options" data-map-search-suggestions role="listbox" hidden></div>
+        </div>
         <button class="ghost-button" type="button" data-map-search-submit>
           <i data-lucide="map-pin"></i>
           <span data-i18n="mapSearchAction">${escapeHtml(t("mapSearchAction"))}</span>
@@ -2259,6 +2321,30 @@ function bindMapPickers() {
       const help = picker.querySelector(".map-help");
       if (help) help.textContent = t("mapLoadUnavailable");
     });
+  });
+}
+
+function bindPublicAreaMap() {
+  const button = document.querySelector("[data-show-area-map]");
+  if (!button) return;
+  const section = button.closest(".property-location-map");
+  const frame = section.querySelector("iframe");
+  const message = section.querySelector("[role=status]");
+  button.addEventListener("click", async () => {
+    button.disabled = true;
+    try {
+      const point = await api("/api/geocode?address=" + encodeURIComponent(button.dataset.showAreaMap));
+      const source = window.PccCatalogMap.openStreetMapEmbed(point.latitude, point.longitude, false);
+      if (!source) throw new Error();
+      frame.src = source;
+      frame.hidden = false;
+      button.hidden = true;
+      message.textContent = "";
+    } catch {
+      message.textContent = state.lang === "en" ? "The area map could not be loaded. Please try again." : "No se pudo cargar el mapa de la zona. Inténtalo de nuevo.";
+    } finally {
+      button.disabled = false;
+    }
   });
 }
 
@@ -3044,7 +3130,6 @@ function renderProperties() {
             <div class="badge-row">${badgeHtml}</div>
             <div class="property-save-actions">
               <button class="${isFavorite ? "active" : ""}" type="button" data-favorite="${escapeHtml(property.id)}" title="${escapeHtml(favoriteLabel)}" aria-label="${escapeHtml(favoriteLabel)}"><i data-lucide="heart"></i></button>
-              <button class="${isCompared ? "active" : ""}" type="button" data-compare-id="${escapeHtml(property.id)}" title="${escapeHtml(compareLabel)}" aria-label="${escapeHtml(compareLabel)}"><i data-lucide="git-compare-arrows"></i></button>
             </div>
           </div>
           <div class="property-body">
@@ -3056,6 +3141,7 @@ function renderProperties() {
             <div class="property-actions">
               <a class="mini-button primary" href="${escapeHtml(propertyUrl || `/propiedades/${property.slug || property.id}`)}">${escapeHtml(state.lang === "en" ? "View property" : "Ver propiedad")}</a>
               <button class="mini-button" type="button" data-detail="${escapeHtml(property.id)}"><i data-lucide="search"></i><span>${escapeHtml(state.lang === "en" ? "Quick view" : "Vista rápida")}</span></button>
+              <button class="mini-button" type="button" data-compare-id="${escapeHtml(property.id)}" aria-pressed="${isCompared}" aria-label="${escapeHtml(compareLabel)}"><i data-lucide="git-compare-arrows" aria-hidden="true"></i><span>${state.lang === "en" ? "Compare" : "Comparar"}</span></button>
               <button class="mini-button" type="button" data-tour="${escapeHtml(property.id)}"><i data-lucide="calendar-days"></i><span>${escapeHtml(state.lang === "en" ? "Request a tour" : "Solicitar visita")}</span></button>
               <button class="mini-button whatsapp-card-button" type="button" data-contact="${escapeHtml(property.id)}"><i data-lucide="message-circle"></i><span>${escapeHtml(t("contactWhatsApp"))}</span></button>
             </div>
@@ -3901,15 +3987,21 @@ function openSellerFlow(flow) {
   if (!form || !card) return;
   form.reset();
   form.flow.value = flow;
-  const aiField = form.querySelector('[data-service-field="aiResponse"]');
   const priceField = form.querySelector('[data-service-field="expectedPrice"]');
-  aiField.hidden = flow !== "ai_validation";
-  priceField.hidden = flow === "ai_validation";
-  const config = {
+  priceField.hidden = flow === "advice";
+  const currencyField = form.querySelector('[data-service-field="currency"]');
+  currencyField.hidden = priceField.hidden;
+  form.elements.currency.disabled = priceField.hidden;
+  form.elements.comments.required = flow === "advice";
+  const config = (state.lang === "en" ? {
+    valuation: ["Request a valuation", "Share the property details so an advisor can prepare a price range and suggest next steps.", "Expected price"],
+    price_validation: ["Review my price", "An advisor will compare your estimate with similar listings.", "Your estimated price"],
+    advice: ["Ask an advisor", "Tell us your question and include any property details that will help your advisor.", ""],
+  } : {
     valuation: ["Solicitar valoración", "Comparte los datos principales para que un asesor prepare un rango y próximos pasos.", "Precio esperado"],
     price_validation: ["Validar precio con asesor", "Revisaremos si tu precio parece bajo, competitivo o alto frente al inventario interno.", "Precio que quieres validar"],
-    ai_validation: ["Validar respuesta de IA", "Pega la respuesta externa. Un asesor revisará qué está bien, qué falta y qué debe validarse localmente.", ""],
-  }[flow];
+    advice: ["Consultar a un asesor", "Escribe tu pregunta y comparte los datos de la propiedad que ayuden a entender tu caso.", ""],
+  })[flow];
   $("#sellerServiceTitle").textContent = config[0];
   $("#sellerServiceHint").textContent = config[1];
   $("#sellerServicePriceLabel").textContent = config[2];
@@ -4033,17 +4125,18 @@ function leadStatusLabel(status) {
 
 function leadTypeLabel(type) {
   const value = String(type || "").toLowerCase();
-  if (value.includes("validacion")) return t("leadTypeAiValidation");
-  if (value.includes("valuacion")) return t("leadTypeValuation");
-  if (value.includes("comprador")) return t("leadTypeBuyer");
+  if (["validar-precio", "price_validation", "ai_validation"].includes(value) || value.includes("validacion")) return t("leadTypeAiValidation");
+  if (value === "advice") return state.lang === "en" ? "Advisor inquiry" : "Consulta a un asesor";
+  if (value === "valuation" || value.includes("valuacion")) return t("leadTypeValuation");
+  if (value.includes("comprador") || value.includes("buyer")) return t("leadTypeBuyer");
   if (value.includes("vendedor") || value.includes("seller")) return t("leadTypeSeller");
   return t("leadTypeGeneral");
 }
 
 function leadCategory(type) {
   const value = String(type || "").toLowerCase();
-  if (value.includes("valuacion")) return "valuation";
-  if (value.includes("validacion") || value.includes("ia")) return "ai_validation";
+  if (value === "valuation" || value.includes("valuacion")) return "valuation";
+  if (["validar-precio", "price_validation", "ai_validation"].includes(value) || value.includes("validacion")) return "ai_validation";
   if (value.includes("comprador") || value.includes("buyer")) return "buyer";
   if (value.includes("vendedor") || value.includes("seller") || value.includes("venta")) return "seller";
   if (value.includes("propiedad") || value.includes("contacto")) return "property_contact";
@@ -4095,7 +4188,8 @@ function leadPayloadLabel(key) {
     amenities: "Amenidades",
     age: "Antiguedad",
     legalStatus: "Estado legal",
-    ownerEstimate: "Precio estimado",
+    ownerEstimate: t("ownerEstimateLabel"),
+    currency: t("currency"),
     usedAi: "Uso de IA",
     goal: "Objetivo",
     purchaseDate: "Fecha estimada",
@@ -4474,15 +4568,14 @@ function mountAdminInventory() {
 
 function renderStats() {
   const records = typeof window !== "undefined" && window.PccAdminInventory
-    ? window.PccAdminInventory.snapshot(state.properties).records : null;
+    ? window.PccAdminInventory.currentSnapshot(state.properties).records : null;
   const stats = ["properties", "developments"].flatMap((entity) => {
     const rows = records?.filter((record) => record.entity === entity);
     const label = entity === "properties" ? "Propiedades" : "Desarrollos";
     return [
-      [rows?.length, label, entity, "IDs cargados; todos los estados"],
-      [rows?.filter((record) => record.status === "active").length, `${label}: activos`, `active-${entity}`, "Estado activo; no equivale a visible en web"],
-      [rows?.filter((record) => !record.quality.complete).length, `${label}: incompletos`, `incomplete-${entity}`, "Faltantes editoriales; todos los estados"],
-      [rows?.filter((record) => record.quality.missingFields.some((field) => field.field === "images")).length, `${label}: sin portada`, `${entity}-without-cover`, "Portada ausente; todos los estados"],
+      [rows?.length, `${label} · Total`, entity, "Todos los estados"],
+      [rows?.filter((record) => record.quality.complete).length, `${label} · ${entity === "properties" ? "Completas" : "Completos"}`, `complete-${entity}`, "Todos los requisitos editoriales"],
+      [rows?.filter((record) => !record.quality.complete).length, `${label} · ${entity === "properties" ? "Incompletas" : "Incompletos"}`, `incomplete-${entity}`, "Uno o más requisitos pendientes"],
     ];
   });
   const metricMarkup = ([value, label, target, scope]) => {
@@ -4525,13 +4618,20 @@ function openAdminMetric(metric) {
     return;
   }
   if (["new-leads", "premium-leads"].includes(metric)) {
+    state.leadFilter = "all";
     state.adminLeadStatusFilter = metric === "new-leads" ? "new" : "all";
     state.adminLeadPriorityFilter = metric === "premium-leads" ? "premium" : "all";
     setAdminSection("leads");
     renderAdminLeads();
     return;
   }
-  const section = ["requests", "leads", "valuations", "tasks", "contacts", "analytics", "pdf"].includes(metric) ? metric : "dashboard";
+  if (["tasks", "overdue-tasks"].includes(metric)) {
+    state.taskFilter = metric === "tasks" ? "open" : "overdue";
+    setAdminSection("tasks");
+    renderAdminTasks();
+    return;
+  }
+  const section = ["requests", "leads", "valuations", "contacts", "analytics", "pdf"].includes(metric) ? metric : "dashboard";
   setAdminSection(section);
 }
 
@@ -4539,46 +4639,31 @@ function renderAdminInsights() {
   const container = $("#adminInsights");
   if (!container) return;
   const records = typeof window !== "undefined" && window.PccAdminInventory
-    ? window.PccAdminInventory.snapshot(state.properties).records : [];
+    ? window.PccAdminInventory.currentSnapshot(state.properties).records : [];
   const pending = state.requests.filter((request) => request.status === "pending").length;
   const newLeads = state.leads.filter((lead) => lead.status === "new").length;
   const openTasks = state.tasks.filter((task) => ["pending", "in_progress"].includes(task.status)).length;
-  const overdueTasks = state.tasks.filter((task) => task.status === "overdue").length;
+  const overdueTasks = state.tasks.filter((task) => task.dueDate && new Date(task.dueDate) < new Date() && task.status !== "completed").length;
+  const en = state.lang === "en";
   const priorityActions = [
-    [pending, "Solicitudes pendientes", "pending-requests", "message-circle"],
-    [newLeads, "Leads sin atender", "new-leads", "inbox"],
-    [records.filter((record) => record.entity === "properties" && !record.quality.complete).length, "Propiedades incompletas", "incomplete-properties", "file-warning"],
-    [records.filter((record) => record.entity === "developments" && !record.quality.complete).length, "Desarrollos incompletos", "incomplete-developments", "building-2"],
-    [openTasks, "Tareas abiertas", "tasks", "list-checks"],
+    [pending, en ? "Pending sale requests" : "Solicitudes de venta pendientes", "pending-requests", "message-circle"],
+    [newLeads, en ? "New client inquiries" : "Asesorías sin atender", "new-leads", "inbox"],
+    [records.filter((record) => record.entity === "properties" && !record.quality.complete).length, en ? "Incomplete properties" : "Propiedades incompletas", "incomplete-properties", "file-warning"],
+    [records.filter((record) => record.entity === "developments" && !record.quality.complete).length, en ? "Incomplete developments" : "Desarrollos incompletos", "incomplete-developments", "building-2"],
+    [openTasks, en ? "Open tasks" : "Tareas abiertas", "tasks", "list-checks"],
   ].sort((a, b) => b[0] - a[0]);
   container.innerHTML = `
     <section class="dashboard-operations" aria-labelledby="dashboardOperationsTitle">
       <div class="dashboard-operations-heading">
-        <div><h3 id="dashboardOperationsTitle">Pendientes de atención</h3><small>Registros cargados; sin filtro temporal. Los indicadores pueden coincidir.</small></div>
-        <span class="dashboard-health ${overdueTasks ? "warning" : "healthy"}">${overdueTasks ? `${overdueTasks} vencidas` : "Sin tareas marcadas como vencidas"}</span>
+        <div><h3 id="dashboardOperationsTitle">${en ? "Needs your attention" : "Pendientes de atención"}</h3></div>
+        ${overdueTasks ? `<button type="button" data-admin-metric="overdue-tasks" class="dashboard-health warning">${overdueTasks} ${en ? "overdue" : "vencidas"} →</button>` : `<span class="dashboard-health healthy">${en ? "No overdue tasks" : "Sin tareas vencidas"}</span>`}
       </div>
       <div class="dashboard-priority-list">
-        ${priorityActions.map(([value, label, metric, icon], index) => `<button type="button" data-admin-metric="${metric}" class="dashboard-priority-item ${index === 0 && value ? "urgent" : ""}"><i data-lucide="${icon}" aria-hidden="true"></i><span><b>${escapeHtml(label)}</b><small>${value ? "Abrir registros" : "Sin pendientes"}</small></span><strong>${value}</strong></button>`).join("")}
+        ${priorityActions.map(([value, label, metric, icon], index) => `<button type="button" data-admin-metric="${metric}" class="dashboard-priority-item ${index === 0 && value ? "urgent" : ""}"><i data-lucide="${icon}" aria-hidden="true"></i><span><b>${escapeHtml(label)}</b><small>${value ? (en ? "View list" : "Ver lista") : (en ? "Up to date" : "Al día")}</small></span><strong>${value}</strong></button>`).join("")}
       </div>
     </section>
   `;
   mountAdminInventory();
-}
-
-function renderAdminIntelligence() {
-  const container = $("#adminIntelligence");
-  if (!container) return;
-  const priorities = state.intelligence?.priorities || [];
-  const metrics = state.intelligence?.metrics || {};
-  container.innerHTML = `
-    <div class="intelligence-summary">
-      <article><span>Búsquedas inteligentes · 30 días</span><strong>${escapeHtml(metrics.aiSearches30Days || 0)}</strong></article>
-      <article><span>Integraciones por revisar</span><strong>${escapeHtml(metrics.integrationIssues || 0)}</strong></article>
-      <article><span>Última actualización</span><strong>${escapeHtml(formatDate(state.intelligence?.generatedAt || new Date()))}</strong></article>
-    </div>
-    <div class="intelligence-action-list">
-      ${priorities.length ? priorities.map((item) => `<button type="button" data-intelligence-section="${escapeHtml(item.section)}" class="intelligence-action severity-${escapeHtml(item.severity || "ok")}"><span><b>${escapeHtml(item.label)}</b><small>${item.count ? "Requiere revisión" : "Sin pendientes"}</small></span><strong>${escapeHtml(item.count || 0)}</strong><i data-lucide="arrow-right"></i></button>`).join("") : `<p class="empty-state">No fue posible calcular las prioridades en este momento.</p>`}
-    </div>`;
 }
 
 function renderAdminIntegrations() {
@@ -4708,11 +4793,7 @@ async function confirmCopilotAction() {
     $("#copilotActionPreview").hidden = true;
     $("#copilotActionForm").reset();
     setFormMessage($("#copilotActionMessage"), "Acción confirmada y registrada en auditoría.");
-    await loadPanelData();
-    renderAdminTasks();
-    renderAdminContacts();
-    renderAdminLeads();
-    renderAdminTours();
+    adminResourceReads.clear();
     showToast("Acción completada.");
   } catch (error) {
     setFormMessage($("#copilotActionMessage"), error.message, true);
@@ -4727,13 +4808,6 @@ async function cancelCopilotAction() {
   state.pendingCopilotAction = null;
   $("#copilotActionPreview").hidden = true;
   setFormMessage($("#copilotActionMessage"), "Acción cancelada. No se modificó información.");
-}
-
-async function refreshAdminIntelligence() {
-  const data = await api("/api/admin/intelligence", { timeoutMs: 25000, retry: false });
-  state.intelligence = data;
-  renderAdminIntelligence();
-  refreshIcons();
 }
 
 async function refreshAdminIntegrations() {
@@ -4863,17 +4937,33 @@ function renderAdminPrompts() {
     .join("");
 }
 
+let catalogIndex;
+
 function renderLocationCatalogs() {
   const list = $("#locationCatalogList");
   if (!list) return;
   const filters = state.catalogFilters || { search: "", type: "" };
   const search = normalizeSearchText(filters.search);
-  const typeOrder = ["state", "city", "zone", "neighborhood"];
-  const allOptions = [...state.locationOptions].sort((a, b) => {
-    const typeDifference = typeOrder.indexOf(a.type) - typeOrder.indexOf(b.type);
-    return typeDifference || locationOptionPath(a).localeCompare(locationOptionPath(b), "es", { sensitivity: "base" });
-  });
-  const counts = Object.fromEntries(typeOrder.map((type) => [type, allOptions.filter((option) => option.type === type).length]));
+  if (catalogIndex?.source !== state.locationOptions) {
+    const source = state.locationOptions;
+    const byId = new Map(source.map((item) => [item.id, item]));
+    const counts = { state: 0, city: 0, zone: 0, neighborhood: 0 };
+    const children = new Map();
+    const paths = new Map();
+    const terms = new Map();
+    for (const item of source) {
+      const path = locationOptionPath(item, byId);
+      paths.set(item.id, path);
+      terms.set(item.id, normalizeSearchText(`${path} ${catalogTypeMeta(item.type).label}`));
+      if (Object.hasOwn(counts, item.type)) counts[item.type]++;
+      children.set(item.parentId, (children.get(item.parentId) || 0) + 1);
+    }
+    const order = Object.keys(counts);
+    const collator = new Intl.Collator("es", { sensitivity: "base" });
+    const options = [...source].sort((a, b) => order.indexOf(a.type) - order.indexOf(b.type) || collator.compare(paths.get(a.id), paths.get(b.id)));
+    catalogIndex = { source, options, counts, children, paths, terms };
+  }
+  const { options: allOptions, counts, children, paths, terms } = catalogIndex;
   const summary = $("#catalogSummary");
   if (summary) {
     summary.innerHTML = [
@@ -4905,16 +4995,23 @@ function renderLocationCatalogs() {
   const options = allOptions.filter((option) => {
     if (filters.type && option.type !== filters.type) return false;
     if (!search) return true;
-    return normalizeSearchText(`${option.name} ${locationOptionPath(option)} ${catalogTypeMeta(option.type).label}`).includes(search);
+    return terms.get(option.id).includes(search);
   });
+  const pageSize = 25;
+  const scope = JSON.stringify([search, filters.type]);
+  if (state.catalogPageScope !== scope) state.catalogPage = 1;
+  state.catalogPageScope = scope;
+  const pages = Math.max(1, Math.ceil(options.length / pageSize));
+  const page = Math.min(state.catalogPage || 1, pages);
+  state.catalogPage = page;
   const resultCount = $("#catalogResultCount");
   if (resultCount) resultCount.textContent = `${options.length} ${options.length === 1 ? "ubicación" : "ubicaciones"}`;
   list.innerHTML = options.length
-    ? options
+    ? options.slice((page - 1) * pageSize, page * pageSize)
         .map((option) => {
           const meta = catalogTypeMeta(option.type);
           const nextType = nextCatalogType(option.type);
-          const children = allOptions.filter((item) => item.parentId === option.id).length;
+          const childCount = children.get(option.id) || 0;
           const properties = Number(option.propertyCount || 0);
           return `
             <article class="catalog-entry ${option.isActive === false ? "is-inactive" : ""} ${$("#locationCatalogForm")?.elements.id.value === option.id ? "is-editing" : ""}">
@@ -4925,11 +5022,11 @@ function renderLocationCatalogs() {
                   <span class="catalog-type-badge">${escapeHtml(meta.label)}</span>
                   ${option.isActive === false ? `<span class="catalog-status-badge">Inactivo</span>` : ""}
                 </div>
-                <small>${escapeHtml(locationOptionPath(option))}</small>
+                <small>${escapeHtml(paths.get(option.id))}</small>
               </div>
               <div class="catalog-entry-metrics">
                 <span><b>${properties}</b> propiedad${properties === 1 ? "" : "es"}</span>
-                ${nextType ? `<span><b>${children}</b> subnivel${children === 1 ? "" : "es"}</span>` : ""}
+                ${nextType ? `<span><b>${childCount}</b> subnivel${childCount === 1 ? "" : "es"}</span>` : ""}
               </div>
               <div class="catalog-actions">
                 ${nextType ? `<button class="catalog-child-button" type="button" data-add-location-child="${escapeHtml(option.id)}"><i data-lucide="corner-down-right"></i> Agregar debajo</button>` : ""}
@@ -4942,6 +5039,7 @@ function renderLocationCatalogs() {
         })
         .join("")
     : `<div class="catalog-empty-state"><i data-lucide="search-x"></i><h3>No encontramos ubicaciones</h3><p>Prueba otro término o limpia los filtros. También puedes agregar este lugar al catálogo.</p><button class="primary-button" type="button" data-new-location>Agregar ubicación</button></div>`;
+  if (pages > 1) list.insertAdjacentHTML("afterbegin", `<nav class="pcc-pagination" aria-label="Páginas de ubicaciones"><button type="button" class="mini-button" data-catalog-page="-1" ${page === 1 ? "disabled" : ""}>Anterior</button><span>Página ${page} de ${pages}</span><button type="button" class="mini-button" data-catalog-page="1" ${page === pages ? "disabled" : ""}>Siguiente</button></nav>`);
   refreshIcons();
 }
 
@@ -4958,14 +5056,15 @@ function nextCatalogType(type) {
   return { state: "city", city: "zone", zone: "neighborhood" }[type] || "";
 }
 
-function locationOptionPath(option) {
+function locationOptionPath(option, byId) {
   const parts = [];
   const visited = new Set();
   let current = option;
   while (current && !visited.has(current.id)) {
     visited.add(current.id);
     parts.unshift(current.name);
-    current = current.parentId ? state.locationOptions.find((item) => item.id === current.parentId) : null;
+    if (!current.parentId) break;
+    current = byId ? byId.get(current.parentId) : state.locationOptions.find((item) => item.id === current.parentId);
   }
   return parts.join(" › ");
 }
@@ -5132,13 +5231,14 @@ function renderAdminListingFilters() {
 
 function renderAdminListings() {
   const list = $("#adminListings");
-  if (!list) return;
+  if (!list || !["properties", "developments"].includes(state.adminSection)) return;
   renderListingDraftShelf();
   const developmentInventory = state.adminSection === "developments";
   const inventoryModule = typeof window !== "undefined" ? window.PccAdminInventory : null;
   const contract = typeof window !== "undefined" ? window.PccInventory : null;
   const priceSort = ["price_asc", "price_desc"].includes(state.adminListingSort);
-  const source = inventoryModule ? inventoryModule.snapshot(state.properties).records.map((record) => record.property) : state.properties;
+  const records = inventoryModule?.currentSnapshot(state.properties).records;
+  const source = records ? records.map((record) => record.property) : state.properties;
   const sorted = priceSort && inventoryModule
     ? inventoryModule.sortListingsByPrice(source, state.adminListingSort === "price_desc" ? "desc" : "asc")
     : [...source].sort((a, b) => {
@@ -5156,8 +5256,9 @@ function renderAdminListings() {
   });
   const filters = state.adminListingFilters;
   const search = normalizeSearchText(filters.search);
-  const properties = typeof window !== "undefined" && window.PccAdminInventory
-    ? window.PccAdminInventory.filterListings(inventory, filters, developmentInventory ? "developments" : "properties")
+  const matchingIds = records && new Set(inventoryModule.selectRecords(records, filters, developmentInventory ? "developments" : "properties").map((record) => record.id));
+  const properties = matchingIds
+    ? inventory.filter((property) => matchingIds.has(property.id))
     : inventory.filter((property) => {
     if (!filters.status && ["draft", "archived"].includes(property.status)) return false;
     if (filters.type && property.type !== filters.type) return false;
@@ -5197,8 +5298,16 @@ function renderAdminListings() {
     mountAdminInventory();
     return;
   }
+  const pageSize = 20;
+  const pages = Math.ceil(properties.length / pageSize);
+  const scope = JSON.stringify([developmentInventory, filters, state.adminListingSort]);
+  if (state.adminListingPageScope && state.adminListingPageScope !== scope) state.adminListingPage = 1;
+  state.adminListingPageScope = scope;
+  const page = Math.min(pages, Math.max(1, state.adminListingPage || 1));
+  state.adminListingPage = page;
+  const offset = (page - 1) * pageSize;
   let previousPriceGroup = null;
-  list.innerHTML = properties
+  list.innerHTML = properties.slice(offset, offset + pageSize)
     .map((property) => {
       const group = priceSort && inventoryModule ? inventoryModule.priceGroupOf(property) : null;
       const groupHeading = group && previousPriceGroup !== group.key
@@ -5239,7 +5348,6 @@ function renderAdminListings() {
               <span>${escapeHtml(property.baths || 0)} ${escapeHtml(t("bathShort"))}</span>
               <span>${escapeHtml(property.area || 0)} ${escapeHtml(t("sqmBuild"))}</span>
               <span>${escapeHtml(property.operation === "rent" ? t("rent") : t("sale"))}</span>
-              <span>${escapeHtml(t("qualityScore"))}: ${escapeHtml(property.qualityScore || 0)}% · ${escapeHtml(qualityLevelLabel(property.qualityLevel))}</span>
               <span class="inventory-freshness ${freshnessDays === null || freshnessDays > 90 ? "needs-review" : ""}">${escapeHtml(freshnessLabel)}</span>
             </div>
             ${
@@ -5276,6 +5384,9 @@ function renderAdminListings() {
       `;
     })
     .join("");
+  if (pages > 1) {
+    list.insertAdjacentHTML("afterbegin", `<nav aria-label="Páginas de inventario" class="pcc-pagination pcc-list-pages"><button class="mini-button" type="button" data-list-page="-1" aria-label="Página anterior" ${page === 1 ? "disabled" : ""}>Anterior</button><span aria-live="polite">Página ${page} de ${pages} · ${offset + 1}–${Math.min(offset + pageSize, properties.length)} de ${properties.length}</span><button class="mini-button" type="button" data-list-page="1" aria-label="Página siguiente" ${page === pages ? "disabled" : ""}>Siguiente</button></nav>`);
+  }
   if (!canManageListings()) {
     list.querySelectorAll("[data-edit-listing], [data-status-listing], [data-feature-listing], [data-duplicate-listing], [data-delete-listing], [data-verify-property], [data-listing-visibility]").forEach(control => { control.disabled = true; });
   }
@@ -5349,10 +5460,7 @@ async function refreshExternalPropertyInventory({ resetPage = false } = {}) {
   const list = $("#externalPropertyList");
   if (list) list.innerHTML = '<div class="loading-inline"><span class="loading-spinner"></span><span>Actualizando inventario externo...</span></div>';
   try {
-    const data = await api(`/api/admin/external-properties?${externalPropertySearchParams().toString()}`, { timeoutMs: 30000, retry: false });
-    state.externalProperties = data.externalProperties || [];
-    state.externalPropertyFacets = data.facets || state.externalPropertyFacets;
-    state.externalPropertyPagination = data.pagination || state.externalPropertyPagination;
+    if (!await readAdminResource("external", `external-properties?${externalPropertySearchParams()}`, true)) return;
     renderExternalPropertyFilters();
     renderExternalProperties();
   } catch (error) {
@@ -5541,7 +5649,7 @@ async function externalPropertySubmit(event) {
     city: field("city").value, zone: field("zone").value, neighborhood: field("neighborhood").value,
     address: field("address").value.trim(), latitude: field("latitude").value, longitude: field("longitude").value,
     mapPlace: field("mapPlace").value, locationPrecision: field("latitude").value && field("longitude").value ? "exact" : "approximate",
-    googleMapsUrl: form.querySelector("[data-open-map]")?.href || "", beds: field("beds").value,
+    googleMapsUrl: googleMapsSearchUrl(mapQueryFromForm(form)), beds: field("beds").value,
     baths: field("baths").value, parking: field("parking").value, area: field("area").value, lot: field("lot").value,
     features: field("features").value, amenities: field("amenities").value, keywords: field("keywords").value,
     description: field("description").value, descriptionEn: field("descriptionEn").value,
@@ -5703,11 +5811,14 @@ function nextActionForLead(lead) {
   return state.lang === "en" ? "Contact and qualify" : "Contactar y calificar";
 }
 
-function formatMaybePrice(value, currency = "USD") {
+function formatMaybePrice(value, currency = "USD", maximumFractionDigits = 0) {
   const number = Number(value || 0);
   if (!number) return "-";
+  if (!currency) {
+    return `${new Intl.NumberFormat(state.lang === "en" ? "en-US" : "es-MX").format(number)} (${state.lang === "en" ? "currency unspecified" : "moneda sin indicar"})`;
+  }
   const locale = currency === "MXN" ? "es-MX" : "en-US";
-  return `${currency} $${new Intl.NumberFormat(locale, { maximumFractionDigits: 0 }).format(number)}`;
+  return `${currency} $${new Intl.NumberFormat(locale, { maximumFractionDigits }).format(number)}`;
 }
 
 function valuationStatusLabel(status) {
@@ -5739,7 +5850,7 @@ function renderAdminValuations() {
             <p>${escapeHtml(valuation.zone || "-")} · ${escapeHtml(valuation.propertyType || "-")} · ${escapeHtml(formatDate(valuation.createdAt))}</p>
           </div>
           <div class="wide-row-metrics">
-            <div><span>${escapeHtml(t("price"))}</span><strong>${escapeHtml(formatMaybePrice(valuation.expectedPrice))}</strong></div>
+            <div><span>${escapeHtml(t("price"))}</span><strong>${escapeHtml(formatMaybePrice(valuation.expectedPrice, valuation.expectedCurrency || null, 2))}</strong></div>
             <div><span>${escapeHtml(t("suggestedPrice"))}</span><strong>${escapeHtml(formatMaybePrice(valuation.suggestedPrice))}</strong></div>
             <div><span>${escapeHtml(t("lowRange"))} / ${escapeHtml(t("highRange"))}</span><strong>${escapeHtml(range)}</strong></div>
             <div><span>${escapeHtml(t("confidenceLevel"))}</span><strong>${escapeHtml(valuation.confidenceLevel || "manual")}</strong></div>
@@ -5796,6 +5907,7 @@ function renderAdminTasks() {
   week.setDate(now.getDate() + 7);
   const tasks = state.tasks.filter((task) => {
     const due = task.dueDate ? new Date(task.dueDate) : null;
+    if (state.taskFilter === "open") return ["pending", "in_progress"].includes(task.status);
     if (state.taskFilter === "completed") return task.status === "completed";
     if (state.taskFilter === "overdue") return due && due < now && task.status !== "completed";
     if (state.taskFilter === "today") return due && due.toDateString() === now.toDateString();
@@ -6106,8 +6218,7 @@ async function refreshVisitorLeads({ offset = 0, silent = false } = {}) {
   const button = $("#refreshVisitorLeads");
   if (!silent) setButtonLoading(button, true, visitorLeadCopy("Actualizando...", "Refreshing..."));
   try {
-    const data = await api(`/api/admin/visitor-leads?${visitorLeadFilterParams({ offset }).toString()}`, { timeoutMs: 25000, retry: false });
-    state.visitorLeads = data || state.visitorLeads;
+    if (!await readAdminResource("visitors", `visitor-leads?${visitorLeadFilterParams({ offset })}`, true)) return;
     renderVisitorLeads();
     refreshIcons();
   } finally {
@@ -6214,13 +6325,16 @@ function renderAdminAnalytics() {
   container.innerHTML = `<div class="analytics-summary-grid">${summaryCards}</div>${funnelMarkup}${propertyTable}<div class="analytics-breakdown-grid">${detailBlocks}</div>`;
 }
 
-async function refreshAdminAnalytics() {
+function adminAnalyticsRoute() {
   const period = $("#analyticsPeriod")?.value || "30";
   const zone = $("#analyticsZone")?.value || "";
   const params = new URLSearchParams({ period });
   if (zone) params.set("zone", zone);
-  const data = await api(`/api/admin/analytics?${params.toString()}`, { timeoutMs: 25000, retry: false });
-  state.analytics = data || {};
+  return `analytics?${params}`;
+}
+
+async function refreshAdminAnalytics() {
+  if (!await readAdminResource("analytics", adminAnalyticsRoute(), true)) return;
   renderAdminAnalytics();
   refreshIcons();
 }
@@ -6587,19 +6701,6 @@ function openEmailComposer(button) {
   form.scrollIntoView({ behavior: "smooth", block: "start" });
   form.elements.name.focus({ preventScroll: true });
   showToast(`Correo preparado para ${email}. Revisa el contenido y presiona Enviar correo ahora.`);
-}
-
-function renderOperationalModules() {
-  renderMarketing();
-  renderAdminBlogPosts();
-  renderDocuments();
-  renderMediaLibrary();
-  renderScopedMediaLibrary();
-  renderInternalUsers();
-  renderAdminNotifications();
-  renderSystemHealth();
-  renderAdminActivity();
-  populateOperationalSelects();
 }
 
 let networkStatusTimer = 0;
@@ -6984,23 +7085,19 @@ function setMarketingView(view) {
   window.requestAnimationFrame(() => window.lucide?.createIcons());
 }
 
-function populateOperationalSelects() {
-  populateSelect($("#aiPropertySelect"), state.properties, (item) => item.titleEs, "id", "Sin propiedad");
-  populatePropertyPicker("#instagramPropertySearch", "#instagramPropertySuggestions", "#instagramPropertySelect", "#instagramPropertyMatches", "Selecciona una propiedad");
-  populatePropertyPicker("#marketingPropertySearch", "#marketingPropertySuggestions", "#marketingPropertySelect", "#marketingPropertyMatches", "Selecciona una propiedad");
-  populatePropertyPicker("#campaignPropertySearch", "#campaignPropertySuggestions", "#campaignPropertySelect", "#campaignPropertyMatches", "Sin propiedad");
-  populatePropertyPicker("#pdfPropertySearch", null, "#pdfPropertySelect", "#pdfPropertyMatches", "Selecciona una propiedad");
-  populateSelect($("#pdfValuationSelect"), state.valuations, (item) => `${item.ownerName} · ${item.zone || "Sin zona"}`, "id", "Selecciona una valoración");
-  populateSelect($("#aiRequestSelect"), state.leads, (item) => `${item.name} · ${leadTypeLabel(item.leadType)}`, "id", "Sin solicitud");
+function populateAdminStaff() {
   $$("[data-staff-select]").forEach((select) => {
     const current = select.value;
     select.innerHTML = `<option value="">Sin asignar</option>`;
-    state.internalUsers
-      .filter((user) => user.status === "active")
-      .forEach((user) => select.append(new Option(`${user.name} · ${user.role}`, user.id)));
+    state.internalUsers.filter((user) => user.status === "active").forEach((user) => select.append(new Option(`${user.name} · ${user.role}`, user.id)));
+    if (current) ensureSelectOption(select, current);
     if (current) select.value = current;
   });
-  renderMarketingSelectionPreviews();
+}
+
+function populatePdfOptions() {
+  populatePropertyPicker("#pdfPropertySearch", null, "#pdfPropertySelect", "#pdfPropertyMatches", "Selecciona una propiedad");
+  populateSelect($("#pdfValuationSelect"), state.valuations, (item) => `${item.ownerName} · ${item.zone || "Sin zona"}`, "id", "Selecciona una valoración");
 }
 
 function renderMarketing() {
@@ -7654,7 +7751,7 @@ function previewPdf() {
       <span class="eyebrow">VALORACIÓN INMOBILIARIA</span>
       <h3>${escapeHtml(entity.ownerName)}</h3>
       <p>${escapeHtml(entity.zone || "-")} · ${escapeHtml(entity.propertyType || "-")}</p>
-      <div class="preview-price">${escapeHtml(formatMaybePrice(entity.suggestedPrice || entity.expectedPrice))}</div>
+      <div class="preview-price">${escapeHtml(entity.suggestedPrice ? formatMaybePrice(entity.suggestedPrice) : formatMaybePrice(entity.expectedPrice, entity.expectedCurrency || null, 2))}</div>
       <p>Rango: ${escapeHtml(formatMaybePrice(entity.lowRange))} - ${escapeHtml(formatMaybePrice(entity.highRange))}</p>
       <p>${escapeHtml(entity.comments || "Requiere revisión del asesor.")}</p>
     `
@@ -8097,6 +8194,7 @@ async function settingsSubmit(event) {
   });
   await api(`/api/admin/settings/${encodeURIComponent(section)}`, { method: "PUT", body });
   state.settings[section] = body;
+  form.dataset.edited = "false";
   showToast("Configuración guardada.");
 }
 
@@ -8481,9 +8579,15 @@ async function saveWhatsappLead(button) {
 }
 
 async function loadPublicData() {
+  const panelPage = document.body.dataset.page === "panel";
+  const session = api("/api/session");
+  // The admin panel uses its own inventory. Sellers still use the public list for favorites and tours.
+  const inventory = panelPage
+    ? session.then(({ user }) => user && user.role !== "admin" ? api("/api/properties") : null)
+    : api("/api/properties");
   const results = await Promise.allSettled([
-    api("/api/properties"),
-    api("/api/session"),
+    inventory,
+    session,
     api("/api/location-options"),
     api("/api/config"),
   ]);
@@ -8492,15 +8596,17 @@ async function loadPublicData() {
   const sessionData = value(1, { user: null });
   const locationData = value(2, { options: [] });
   const configData = value(3, state.config);
-  state.properties = propertiesData.properties || [];
+  state.properties = propertiesData?.properties || [];
   state.publicInventoryStatus = results[0].status === "fulfilled" ? "ready" : "error";
   state.session = sessionData.user;
   state.csrfToken = sessionData.csrfToken || state.csrfToken;
   state.locationOptions = locationData.options || [];
   state.config = configData || state.config;
   state.platform = configData?.platform || state.platform;
-  mountPublicComparison(state.properties);
-  hydrateLocationCovers(state.properties);
+  if (!panelPage) {
+    mountPublicComparison(state.properties);
+    hydrateLocationCovers(state.properties);
+  }
   if (results.every((result) => result.status === "rejected")) throw results[0].reason;
   if (results.some((result) => result.status === "rejected")) {
     showToast(t("partialLoadError"), "error");
@@ -8544,135 +8650,87 @@ function mountPublicComparison(publicProperties) {
   if ($("#compareTray")) $("#compareTray").hidden = true;
 }
 
+// Each resource updates only its own data. Sections share fresh reads without waiting for unrelated modules.
+const adminResources = {
+  stats: ["stats"], properties: ["properties", "properties"],
+  requests: ["requests", "requests"], guests: ["guest-sale-requests", "requests", "guestSaleRequests"],
+  leads: ["leads", "leads"], contacts: ["contacts", "contacts"], valuations: ["valuations", "valuations"],
+  tasks: ["tasks", "tasks"], buyers: ["buyers", "buyers"], tours: ["tours", "tours"],
+  users: ["users", "users", "internalUsers"], blog: ["blog", "posts", "blogPosts"],
+  documents: ["documents", "documents"], campaigns: ["campaigns", "campaigns"],
+  instagram: ["instagram/status", null, "instagramStatus"], analytics: ["analytics"],
+  settings: ["settings", "settings"], activity: ["activity?limit=80", "activity"], health: ["/api/health", null, "systemHealth"],
+  integrations: ["integrations", "integrations"], quality: ["data-quality", null, "dataQuality"],
+  notifications: ["notifications", "notifications"], whatsapp: ["whatsapp/overview"],
+  features: ["copilot/features", "features", "copilotFeatures"], feedback: ["copilot/feedback-summary", null, "copilotFeedbackSummary"],
+  visitors: ["visitor-leads?period=30", null, "visitorLeads"], external: ["external-properties?limit=60&offset=0&sort=updated_desc"],
+  generalFiles: ["files?scope=general", "files", "files", "general"], propertyFiles: ["files?scope=property", "files", "files", "property"],
+  developmentFiles: ["files?scope=development", "files", "files", "development"],
+  propertyFolders: ["file-folders?scope=property", "folders", "fileFolders", "property"],
+  developmentFolders: ["file-folders?scope=development", "folders", "fileFolders", "development"],
+};
+const adminSectionResources = {
+  dashboard: ["stats", "properties", "requests", "guests", "leads", "tasks", "valuations", "whatsapp", "notifications"],
+  statistics: ["stats", "properties"], analytics: ["analytics"], "data-quality": ["quality", "properties"],
+  properties: ["properties"], developments: ["properties"], "new-property": ["properties"], "new-development": ["properties"],
+  "property-files": ["properties", "propertyFiles", "propertyFolders"], "development-files": ["properties", "developmentFiles", "developmentFolders"],
+  "external-properties": ["external"], "new-external-property": [], catalogs: [], files: ["generalFiles"],
+  requests: ["requests"], "guest-requests": ["guests"], "guest-contacts": ["guests"], leads: ["leads", "tours"],
+  contacts: ["contacts", "users"], buyers: ["buyers", "contacts", "requests", "valuations"], sellers: ["buyers", "contacts", "requests", "valuations"],
+  valuations: ["valuations"], tasks: ["tasks", "users"], "visitor-leads": ["visitors"],
+  pdf: ["properties", "valuations", "documents"], mailing: ["campaigns", "contacts", "properties", "buyers"],
+  marketing: ["properties", "instagram", "campaigns"], blog: ["blog"], copilot: ["features", "feedback"],
+  integrations: ["integrations"], roles: ["users"], settings: ["settings", "health", "activity", "instagram", "whatsapp"],
+};
+const adminResourceReads = new Map();
+let adminNavigation = 0;
+
+function readAdminResource(key, routeOverride, force = false) {
+  const [defaultRoute, field, target = key, scope] = adminResources[key];
+  let route = routeOverride || defaultRoute;
+  if (!routeOverride && key === "external") route = `external-properties?${externalPropertySearchParams()}`;
+  if (!routeOverride && key === "visitors") route = `visitor-leads?${visitorLeadFilterParams({ offset: state.visitorLeads?.pagination?.offset || 0 })}`;
+  if (!routeOverride && key === "analytics") route = adminAnalyticsRoute();
+  const user = state.session;
+  const existing = adminResourceReads.get(key);
+  if (!force && existing?.userId === user.id && existing.route === route && Date.now() < existing.expiresAt) return existing.promise;
+  const entry = { userId: user.id, route, expiresAt: Infinity };
+  adminResourceReads.set(key, entry);
+  entry.promise = api(route.startsWith("/") ? route : `/api/admin/${route}`, { timeoutMs: 25000, retry: false }).then((data) => {
+    if (state.session?.id !== user.id || state.session?.role !== "admin" || adminResourceReads.get(key) !== entry) return;
+    if (key === "external") {
+      state.externalProperties = data.externalProperties || [];
+      state.externalPropertyFacets = data.facets || state.externalPropertyFacets;
+      state.externalPropertyPagination = data.pagination || state.externalPropertyPagination;
+    } else if (key === "whatsapp") {
+      state.whatsapp.overview = data;
+    } else if (scope) {
+      if (Array.isArray(data[field])) state[target] = [...state[target].filter((item) => (item.libraryScope || "general") !== scope), ...data[field]];
+    } else if (!field || data[field] !== undefined) {
+      state[target] = field ? data[field] : data;
+    }
+    entry.expiresAt = Date.now() + 30000;
+    return true;
+  }).catch((error) => {
+    if (adminResourceReads.get(key) === entry) adminResourceReads.delete(key);
+    throw error;
+  });
+  return entry.promise;
+}
+
+async function loadAdminResources(keys, section) {
+  const userId = state.session?.id;
+  const results = await Promise.allSettled(keys.map((key) => readAdminResource(key)));
+  const failedModules = results.filter(result => result.status === "rejected" && result.reason?.status !== 403).length;
+  if (failedModules && state.session?.id === userId && state.adminSection === section) showToast("Parte de esta sección no respondió. Vuelve a abrirla para reintentar.", "error");
+}
+
 async function loadPanelData() {
   if (!state.session) return;
   const panelApi = (path) => api(path, { timeoutMs: 25000, retry: false });
   if (state.session.role === "admin") {
-    const adminResults = await Promise.allSettled([
-      panelApi("/api/admin/stats"),
-      panelApi("/api/admin/requests"),
-      panelApi("/api/admin/properties"),
-      panelApi("/api/admin/prompts"),
-      panelApi("/api/admin/leads"),
-      panelApi("/api/admin/contacts"),
-      panelApi("/api/admin/valuations"),
-      panelApi("/api/admin/tasks"),
-      panelApi("/api/admin/analytics"),
-      panelApi("/api/admin/buyers"),
-      panelApi("/api/admin/users"),
-      panelApi("/api/admin/files?scope=general"),
-      panelApi("/api/admin/documents"),
-      panelApi("/api/admin/campaigns"),
-      panelApi("/api/admin/instagram/status"),
-      panelApi("/api/admin/settings"),
-      panelApi("/api/admin/notifications"),
-      panelApi("/api/admin/whatsapp/overview"),
-      panelApi("/api/admin/whatsapp/chats"),
-      panelApi("/api/admin/whatsapp/leads"),
-      panelApi("/api/admin/activity?limit=80"),
-      panelApi("/api/health"),
-      panelApi("/api/admin/blog"),
-      panelApi("/api/admin/intelligence"),
-      panelApi("/api/admin/integrations"),
-      panelApi("/api/admin/data-quality"),
-      panelApi("/api/admin/copilot/features"),
-      panelApi("/api/admin/copilot/feedback-summary"),
-      panelApi("/api/admin/tours"),
-      panelApi("/api/admin/guest-sale-requests"),
-      panelApi("/api/admin/file-folders?scope=property"),
-      panelApi("/api/admin/file-folders?scope=development"),
-      panelApi("/api/admin/files?scope=property"),
-      panelApi("/api/admin/files?scope=development"),
-      panelApi("/api/admin/visitor-leads?period=30"),
-      panelApi("/api/admin/external-properties?limit=60&offset=0&sort=updated_desc"),
-    ]);
-    const adminValue = (index, fallback = {}) => adminResults[index].status === "fulfilled" ? adminResults[index].value : fallback;
-    const [
-      statsData,
-      requestsData,
-      propertiesData,
-      promptsData,
-      leadsData,
-      contactsData,
-      valuationsData,
-      tasksData,
-      analyticsData,
-      buyersData,
-      usersData,
-      filesData,
-      documentsData,
-      campaignsData,
-      instagramStatusData,
-      settingsData,
-      notificationsData,
-      whatsappOverviewData,
-      whatsappChatsData,
-      whatsappLeadsData,
-      activityData,
-      systemHealthData,
-      blogData,
-      intelligenceData,
-      integrationsData,
-      dataQualityData,
-      copilotFeaturesData,
-      copilotFeedbackData,
-      toursData,
-      guestSaleRequestsData,
-      propertyFoldersData,
-      developmentFoldersData,
-      propertyFilesData,
-      developmentFilesData,
-      visitorLeadsData,
-      externalPropertiesData,
-    ] = adminResults.map((result, index) => adminValue(index));
-    if (adminResults[0].status === "fulfilled") state.stats = statsData;
-    state.requests = requestsData.requests || state.requests;
-    state.properties = propertiesData.properties || state.properties;
-    state.adminPrompts = promptsData.prompts || state.adminPrompts;
-    state.leads = leadsData.leads || state.leads;
-    state.contacts = contactsData.contacts || state.contacts;
-    state.valuations = valuationsData.valuations || state.valuations;
-    state.tasks = tasksData.tasks || state.tasks;
-    if (adminResults[8].status === "fulfilled") state.analytics = analyticsData || state.analytics;
-    state.buyers = buyersData.buyers || state.buyers;
-    state.internalUsers = usersData.users || state.internalUsers;
-    state.files = [
-      ...(filesData.files || state.files.filter((file) => (file.libraryScope || "general") === "general")),
-      ...(propertyFilesData.files || state.files.filter((file) => file.libraryScope === "property")),
-      ...(developmentFilesData.files || state.files.filter((file) => file.libraryScope === "development")),
-    ];
-    state.documents = documentsData.documents || state.documents;
-    state.campaigns = campaignsData.campaigns || state.campaigns;
-    if (adminResults[14].status === "fulfilled") state.instagramStatus = instagramStatusData || state.instagramStatus;
-    state.settings = settingsData.settings || state.settings;
-    state.notifications = notificationsData.notifications || state.notifications;
-    if (adminResults[17].status === "fulfilled") state.whatsapp.overview = whatsappOverviewData;
-    state.whatsapp.chats = whatsappChatsData.chats || state.whatsapp.chats;
-    state.whatsapp.leads = whatsappLeadsData.leads || state.whatsapp.leads;
-    state.activity = activityData.activity || state.activity;
-    if (adminResults[21].status === "fulfilled") state.systemHealth = systemHealthData || state.systemHealth;
-    state.blogPosts = blogData.posts || state.blogPosts;
-    state.intelligence = intelligenceData.priorities ? intelligenceData : state.intelligence;
-    state.integrations = integrationsData.integrations || state.integrations;
-    state.dataQuality = dataQualityData.summary ? dataQualityData : state.dataQuality;
-    state.copilotFeatures = copilotFeaturesData.features || state.copilotFeatures;
-    state.copilotFeedbackSummary = copilotFeedbackData.rates ? copilotFeedbackData : state.copilotFeedbackSummary;
-    state.tours = toursData.tours || state.tours;
-    state.guestSaleRequests = guestSaleRequestsData.requests || state.guestSaleRequests;
-    state.fileFolders = [
-      ...(propertyFoldersData.folders || state.fileFolders.filter((folder) => folder.libraryScope === "property")),
-      ...(developmentFoldersData.folders || state.fileFolders.filter((folder) => folder.libraryScope === "development")),
-    ];
-    if (adminResults[34].status === "fulfilled") state.visitorLeads = visitorLeadsData || state.visitorLeads;
-    if (adminResults[35].status === "fulfilled") {
-      state.externalProperties = externalPropertiesData.externalProperties || [];
-      state.externalPropertyFacets = externalPropertiesData.facets || state.externalPropertyFacets;
-      state.externalPropertyPagination = externalPropertiesData.pagination || state.externalPropertyPagination;
-    }
-    const failedModules = adminResults.filter((result) => result.status === "rejected" && result.reason?.status !== 403).length;
-    if (failedModules) showToast(`${failedModules} módulo${failedModules === 1 ? "" : "s"} no respondió. El resto del panel continúa disponible.`, "error");
-    state.serviceRequests = [];
-    state.messages = [];
+    const section = state.adminSection || "dashboard";
+    await loadAdminResources(adminSectionResources[section] || [], section);
   } else {
     const sellerResults = await Promise.allSettled([
       panelApi("/api/seller/requests"),
@@ -8838,19 +8896,22 @@ function canManageListings() {
 function updateAdminShell() {
   if (!$("#adminPanel")) return;
   const section = state.adminSection || "dashboard";
+  const manageAccess = state.session?.id === "admin-prueba" || ["admin", "super_admin"].includes(state.session?.internalRole);
+  $$('[data-admin-section-link="roles"], [data-admin-jump="adminRolesCard"]').forEach(button => { button.hidden = !manageAccess; });
   $$("[data-admin-section-link]").filter(button => ["new-property", "new-development", "new-external-property"].includes(button.dataset.adminSectionLink)).forEach(button => { button.hidden = !canManageListings(); });
   $$("[data-admin-section]").forEach((button) => {
-    const active = button.dataset.adminSection === section
-      || (button.dataset.adminSection === "properties" && section === "new-property")
-      || (button.dataset.adminSection === "properties" && section === "property-files")
-      || (button.dataset.adminSection === "developments" && section === "new-development")
-      || (button.dataset.adminSection === "developments" && section === "development-files")
-      || (button.dataset.adminSection === "external-properties" && section === "new-external-property")
-      || (button.dataset.adminSection === "requests" && section === "guest-requests")
-      || (button.dataset.adminSection === "contacts" && section === "guest-contacts");
+    const isCurrent = button.dataset.adminSection === section;
+    const subnav = button.nextElementSibling;
+    const active = isCurrent || (subnav?.matches(".admin-sidebar-subnav") && Array.from(subnav.querySelectorAll("[data-admin-section-link]")).some(item => !item.hidden && item.dataset.adminSectionLink === section));
     button.classList.toggle("active", active);
+    const label = button.querySelector("span")?.textContent.trim();
+    if (label) button.setAttribute("aria-label", label);
+    const badge = button.querySelector("b[id]");
+    if (badge) button.setAttribute("aria-describedby", badge.id);
+    if (isCurrent) button.setAttribute("aria-current", "page");
+    else button.removeAttribute("aria-current");
     if (["roles", "settings", "integrations"].includes(button.dataset.adminSection)) {
-      button.hidden = state.session?.id !== "admin-prueba" && !["admin", "super_admin"].includes(state.session?.internalRole);
+      button.hidden = !manageAccess;
     }
   });
   $$("[data-admin-section-panel]").forEach((panel) => {
@@ -8888,6 +8949,10 @@ function updateAdminShell() {
     const open = belongsToSection && subnav.dataset.userCollapsed !== "true";
     subnav.classList.toggle("is-open", open);
     subnav.inert = !open;
+    subnav.querySelectorAll("[data-admin-section-link]").forEach(item => {
+      if (item.dataset.adminSectionLink === section) item.setAttribute("aria-current", "page");
+      else item.removeAttribute("aria-current");
+    });
     if (parent?.matches("[data-admin-section]")) parent.setAttribute("aria-expanded", String(open));
   });
   const leadBadge = $("#sidebarLeadBadge");
@@ -9045,6 +9110,7 @@ function restoreListingReturnContext(fallback = "properties") {
     state.adminListingFilters = structuredClone(context.filters);
     state.adminListingSort = context.sort;
     if (context.page !== undefined) state.adminListingPage = context.page;
+    state.adminListingPageScope = null;
     if (context.pagination !== undefined) state.adminListingPagination = structuredClone(context.pagination);
     renderAdminListingFilters();
     renderAdminListings();
@@ -9092,7 +9158,7 @@ function preventImplicitListingSubmit(event) {
   event.preventDefault();
 }
 
-function setAdminSection(section) {
+function setAdminSection(section, listingFilters) {
   if (section === "prompts") section = "new-property";
   const requestedSection = /^[a-z0-9-]+$/i.test(String(section || "")) ? String(section) : "dashboard";
   const available = requestedSection === "dashboard" || $$(`[data-admin-section-panel~="${requestedSection}"]`).length > 0;
@@ -9132,6 +9198,10 @@ function setAdminSection(section) {
     }
     configureListingFormMode(section);
   }
+  if ((opensListingForm && !wasListingForm) || (opensExternalForm && !wasExternalForm)) {
+    refreshLocationSelects();
+    bindMapPickers();
+  }
   if (opensExternalForm && !wasExternalForm) resetExternalPropertyForm();
   if (["property-files", "development-files"].includes(state.adminSection)) {
     configureScopedLibrary(state.adminSection);
@@ -9141,15 +9211,19 @@ function setAdminSection(section) {
   updateAdminShell();
   renderCopilotContext();
   if (["properties", "developments"].includes(state.adminSection)) {
-    state.adminListingFilters = { search: "", type: "", zone: "", operation: "", status: "", quality: "", missingCover: false };
+    state.adminListingPage = 1;
+    state.adminListingFilters = listingFilters || { search: "", type: "", zone: "", operation: "", status: "", quality: "", missingCover: false };
     renderAdminListingFilters();
     renderAdminListings();
     void loadListingDraftShelf();
+  } else if (["dashboard", "statistics", "catalogs", "new-property", "new-development"].includes(state.adminSection)) {
+    mountAdminInventory();
   }
   if (state.adminSection === "external-properties") {
     renderExternalPropertyFilters();
     renderExternalProperties();
   }
+  if (typeof loadActiveAdminSection === "function" && state.session?.role === "admin") void loadActiveAdminSection(state.adminSection);
   $("#adminPanel")?.scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
@@ -9236,6 +9310,60 @@ function translatePanelStaticCopy() {
   });
 }
 
+function renderActiveAdminSection(section) {
+  switch (section) {
+    case "dashboard": renderStats(); renderAdminInsights(); renderAdminNotifications(); break;
+    case "statistics": renderStats(); break;
+    case "properties": case "developments":
+      renderAdminListingFilters(); renderAdminListings(); break;
+    case "property-files": case "development-files": configureScopedLibrary(section); break;
+    case "new-property": case "new-development": {
+      const form = $("#listingForm");
+      if (form && form.dataset.dirty !== "true" && form.dataset.saving !== "true") configureListingFormMode(section);
+      break;
+    }
+    case "external-properties": renderExternalPropertyFilters(); renderExternalProperties(); break;
+    case "catalogs": renderCatalogParentOptions(); renderLocationCatalogs(); mountAdminInventory(); break;
+    case "requests": renderAdminRequests(); break;
+    case "guest-requests": renderAdminGuestRequests(); break;
+    case "guest-contacts": renderAdminGuestContacts(); break;
+    case "leads": renderAdminLeads(); renderAdminTours(); break;
+    case "contacts": renderAdminContacts(); populateAdminStaff(); break;
+    case "valuations": renderAdminValuations(); break;
+    case "tasks": renderAdminTasks(); populateAdminStaff(); break;
+    case "buyers": case "sellers": renderAdminSegments(); break;
+    case "data-quality": renderAdminDataQuality(); break;
+    case "integrations": renderAdminIntegrations(); break;
+    case "analytics": renderAdminAnalytics(); break;
+    case "visitor-leads": renderVisitorLeads(); break;
+    case "copilot": renderCopilotContext(); renderCopilotFeedbackSummary(); break;
+    case "pdf": populatePdfOptions(); renderDocuments(); break;
+    case "marketing":
+      populatePropertyPicker("#instagramPropertySearch", "#instagramPropertySuggestions", "#instagramPropertySelect", "#instagramPropertyMatches", "Selecciona una propiedad");
+      populatePropertyPicker("#marketingPropertySearch", "#marketingPropertySuggestions", "#marketingPropertySelect", "#marketingPropertyMatches", "Selecciona una propiedad");
+      renderMarketing(); renderMarketingSelectionPreviews(); break;
+    case "mailing":
+      populatePropertyPicker("#campaignPropertySearch", "#campaignPropertySuggestions", "#campaignPropertySelect", "#campaignPropertyMatches", "Sin propiedad");
+      renderMarketing(); break;
+    case "blog": renderAdminBlogPosts(); break;
+    case "files": renderMediaLibrary(); break;
+    case "roles": renderInternalUsers(); break;
+    case "settings":
+      if ($("#settingsForm")?.dataset.edited !== "true") renderSettingsFields();
+      renderSystemHealth(); renderAdminActivity(); break;
+  }
+  updateAdminShell();
+}
+
+async function loadActiveAdminSection(section) {
+  const navigation = ++adminNavigation;
+  const userId = state.session?.id;
+  await loadAdminResources(adminSectionResources[section] || [], section);
+  if (navigation !== adminNavigation || section !== state.adminSection || state.session?.id !== userId || state.session?.role !== "admin") return;
+  renderActiveAdminSection(section);
+  refreshIcons();
+}
+
 async function renderPanel() {
   if (!state.session) return;
   const isAdmin = state.session.role === "admin";
@@ -9248,43 +9376,17 @@ async function renderPanel() {
   $("#sellerNotificationButton").hidden = isAdmin;
   document.body.classList.toggle("admin-session", isAdmin);
   if (isAdmin) {
-    renderStats();
     updateAdminShell();
   }
   translatePanelStaticCopy();
   refreshIcons();
-  await loadPanelData();
-  refreshLocationSelects();
   if (isAdmin) {
-    renderStats();
-    renderAdminInsights();
-    renderAdminIntelligence();
-    renderAdminIntegrations();
-    renderAdminDataQuality();
-    renderCopilotContext();
-    renderCopilotFeedbackSummary();
-    renderCatalogParentOptions();
-    renderLocationCatalogs();
-    renderAdminPrompts();
-    renderAdminLeads();
-    renderAdminContacts();
-    renderAdminRequests();
-    renderAdminGuestRequests();
-    renderAdminGuestContacts();
-    renderAdminListingFilters();
-    renderAdminListings();
-    renderExternalPropertyFilters();
-    renderExternalProperties();
-    renderAdminValuations();
-    renderAdminTasks();
-    renderAdminAnalytics();
-    renderVisitorLeads();
-    renderAdminSegments();
-    renderOperationalModules();
-    renderSettingsFields();
-    renderWhatsappModule();
-    updateAdminShell();
+    adminResourceReads.clear();
+    const section = state.adminSection || "dashboard";
+    await loadActiveAdminSection(section);
   } else {
+    await loadPanelData();
+    refreshLocationSelects();
     await prepareSellerForm();
     renderSellerRequests();
     renderSellerServiceRequests();
@@ -9295,8 +9397,7 @@ async function renderPanel() {
     renderSellerTours();
     setSellerSection(state.sellerSection || "sale");
   }
-  bindMapPickers();
-  if (isAdmin) void loadListingDraftShelf();
+  if (!isAdmin) bindMapPickers();
   translatePanelStaticCopy();
   const panelLanguageLabel = $("#panelLanguageToggle span");
   if (panelLanguageLabel) panelLanguageLabel.textContent = state.lang === "es" ? "English" : "Español";
@@ -9505,12 +9606,13 @@ function applyTranslations({ renderPanelContent = true } = {}) {
     link.href = state.lang === "en" ? "/en/property-valuation-cancun" : "/valuacion-inmobiliaria-cancun";
   });
   renderReleaseInfo();
-  refreshLocationSelects();
-  renderCatalogParentOptions();
-  renderLocationCatalogs();
-  bindMapPickers();
+  const privatePage = document.body.dataset.page === "panel";
+  if (!privatePage) {
+    refreshLocationSelects();
+    bindMapPickers();
+    renderProperties();
+  }
   updateAuthNav();
-  renderProperties();
   if (state.detailPropertyId) {
     const property = state.properties.find((item) => item.id === state.detailPropertyId);
     if (property) renderPropertyDetail(property);
@@ -10827,18 +10929,14 @@ function resetListingForm(clearDraft = true) {
 
 function setListingQualityPreview(property) {
   const score = $("#listingQualityPreview");
-  const copy = $(".listing-side-panel [data-i18n='propertyQualityMissing']")?.closest("p");
+  const copy = $("#listingQualityExplanation");
   if (!score) return;
-  if (!property) {
-    score.textContent = "0%";
-    if (copy) copy.textContent = t("propertyQualityMissing");
-    return;
-  }
-  score.textContent = `${property.qualityScore || 0}%`;
-  if (copy) {
-    const missing = Array.isArray(property.qualityMissing) && property.qualityMissing.length ? property.qualityMissing.join(", ") : qualityLevelLabel(property.qualityLevel);
-    copy.textContent = `${t("propertyQualityMissing")}: ${missing}`;
-  }
+  const quality = property && window.PccInventory?.quality(property);
+  score.textContent = quality ? `${quality.score}%` : "—";
+  if (copy) copy.textContent = quality
+    ? `${quality.fulfilled} de ${quality.required} requisitos cumplidos en la ficha guardada.${quality.complete ? "" : ` Falta: ${quality.missing.join(", ")}.`}`
+    : "El avance se calcula con los datos de la ficha guardada.";
+
 }
 
 function renderImagePreview(preview, images, interactive = false, metadata = []) {
@@ -11263,7 +11361,7 @@ async function listingSubmit(event) {
     longitude,
     mapPlace: field("mapPlace").value,
     locationPrecision: field("publicLocationPrecision")?.value || "approximate",
-    googleMapsUrl: form.querySelector("[data-open-map]")?.href || "",
+    googleMapsUrl: googleMapsSearchUrl(mapQueryFromForm(form)),
     operation: developmentMode ? "sale" : field("operation").value,
     status: field("status").value,
     isPublic: field("isPublic").checked,
@@ -11325,7 +11423,7 @@ async function listingSubmit(event) {
         const videoResult = await persistListingVideo(saved.id, form);
         if (videoResult?.property) saved = videoResult.property;
       } catch (videoError) {
-        videoWarning = ` La publicación se guardó, pero el video no pudo actualizarse: ${videoError.message}`;
+        videoWarning = `La ficha se guardó. El video sigue pendiente. ${videoError.message} Puedes volver a guardar desde este editor.`;
       }
     }
     updateFormProgress(submit, 92, "Actualizando inventario", "La publicación ya fue guardada; estamos actualizando el panel.");
@@ -11335,12 +11433,22 @@ async function listingSubmit(event) {
     if (existingIndex >= 0) state.properties.splice(existingIndex, 1, saved);
     else state.properties.unshift(saved);
     clearListingDraft();
+    if (videoWarning) {
+      setListingFormRecordId(form, saved.id);
+      form.dataset.draftSlot = `edit-${saved.id}`;
+      form.dataset.expectedUpdatedAt = saved.updatedAt || "";
+      form.dataset.dirty = "true";
+      setFormMessage(message, videoWarning, true);
+      setFormMessage($("#listingVideoMessage"), videoWarning, true);
+      showToast(videoWarning, "error");
+      return;
+    }
     resetListingForm(false);
     delete form.dataset.idempotencyKey;
     renderAdminListingFilters();
     renderAdminListings();
     renderProperties();
-    const savedMessage = `${developmentMode ? "Desarrollo" : "Publicación"} guardado correctamente · ${new Date().toLocaleTimeString("es-MX", { hour: "2-digit", minute: "2-digit" })}.${videoWarning}`;
+    const savedMessage = `${developmentMode ? "Desarrollo" : "Publicación"} guardado correctamente · ${new Date().toLocaleTimeString("es-MX", { hour: "2-digit", minute: "2-digit" })}.`;
     setFormMessage(message, savedMessage);
     showToast(savedMessage);
     savedSuccessfully = true;
@@ -11711,6 +11819,11 @@ async function respondToRequest(requestTable, requestId) {
       ? state.guestSaleRequests.find((request) => request.id === requestId)
       : state.leads.find((lead) => lead.id === requestId);
   if (!modal || !form || !item) return;
+  const section = state.adminSection;
+  const userId = state.session?.id;
+  await loadAdminResources(["documents", "generalFiles", "propertyFiles", "developmentFiles", "users"], section);
+  if (state.adminSection !== section || state.session?.id !== userId) return;
+  populateAdminStaff();
   form.reset();
   form.requestTable.value = requestTable;
   form.requestId.value = requestId;
@@ -11905,6 +12018,7 @@ function openPropertyDetail(property) {
 
 function closePropertyDetail() {
   state.detailPropertyId = null;
+  $("#propertyDetailContent video")?.pause();
   $("#propertyDetailModal").hidden = true;
   document.body.classList.remove("modal-open");
 }
@@ -11926,14 +12040,16 @@ function renderPropertyDetail(property) {
   const galleryImages = images.length ? images : [fallbackImage];
   const imageMetadata = normalizedImageMetadata(property.imageMetadata, galleryImages.length);
   const gallery = galleryImages
-    .map(
-      (src, index) => `
+    .map((src, index) => {
+      const metadata = imageMetadata[index];
+      const caption = state.lang === "en" ? metadata.descriptionEn || metadata.descriptionEs : metadata.descriptionEs;
+      return `
         <figure class="property-detail-slide">
-          <img src="${escapeHtml(src)}" alt="${escapeHtml((state.lang === "en" ? imageMetadata[index].descriptionEn : imageMetadata[index].descriptionEs) || `${localizedTitle(property)} ${index + 1}`)}" onerror="this.onerror=null;this.src='${escapeHtml(fallbackImage)}';" />
-          ${(state.lang === "en" ? imageMetadata[index].descriptionEn : imageMetadata[index].descriptionEs) ? `<figcaption>${escapeHtml(state.lang === "en" ? imageMetadata[index].descriptionEn : imageMetadata[index].descriptionEs)}</figcaption>` : ""}
+          <img src="${escapeHtml(src)}" alt="${escapeHtml(caption || `${localizedTitle(property)} ${index + 1}`)}" onerror="this.onerror=null;this.src='${escapeHtml(fallbackImage)}';" />
+          ${caption ? `<figcaption>${escapeHtml(caption)}</figcaption>` : ""}
         </figure>
-      `
-    )
+      `;
+    })
     .join("");
   const mapsUrl = /^https?:\/\//i.test(String(property.googleMapsUrl || ""))
     ? property.googleMapsUrl
@@ -11943,16 +12059,16 @@ function renderPropertyDetail(property) {
 
   content.innerHTML = `
     <div class="property-detail-layout">
-      ${property.videoUrl ? `<section class="property-detail-video"><span class="eyebrow">${escapeHtml(state.lang === "en" ? "VIDEO TOUR" : "RECORRIDO EN VIDEO")}</span><video controls playsinline preload="metadata" poster="${escapeHtml(primaryImage(property) || fallbackImage)}"><source src="${escapeHtml(property.videoUrl)}" type="${escapeHtml(property.videoMimeType || "video/mp4")}" /></video></section>` : ""}
-      <div class="property-detail-image property-detail-gallery">
+      ${property.videoUrl ? `<section class="property-detail-video"><span class="eyebrow">${state.lang === "en" ? "Video tour" : "Recorrido en video"}</span><video controls playsinline preload="metadata" aria-label="${state.lang === "en" ? "Property video" : "Video de la propiedad"}" src="${escapeHtml(property.videoUrl)}"></video><a class="text-link" href="${escapeHtml(property.videoUrl)}" target="_blank" rel="noopener">${state.lang === "en" ? "Open video" : "Abrir video"}</a></section>` : ""}
+      <details class="property-detail-image property-detail-gallery">
+        <summary><img src="${escapeHtml(galleryImages[0])}" alt="${escapeHtml((state.lang === "en" ? imageMetadata[0].descriptionEn : "") || imageMetadata[0].descriptionEs || localizedTitle(property))}" /><span>${state.lang === "en" ? "Photo gallery" : "Galería de fotos"} (${galleryImages.length})</span></summary>
         <div class="property-detail-track">${gallery}</div>
-        ${galleryImages.length > 1 ? `<span class="gallery-count">1 / ${galleryImages.length}</span>` : ""}
-      </div>
+      </details>
       <div class="property-detail-copy">
         <p class="property-detail-price">${escapeHtml(formatPriceSummary(property))}</p>
         <h2 id="propertyDetailTitle">${escapeHtml(localizedTitle(property))}</h2>
         <div class="property-detail-meta">${facts}</div>
-        ${mapsUrl ? `<a class="property-detail-map-link" href="${escapeHtml(mapsUrl)}" target="_blank" rel="noopener"><i data-lucide="map-pin"></i><span>${escapeHtml(state.lang === "en" ? "Open location in Google Maps" : "Abrir ubicacion en Google Maps")}</span></a>` : ""}
+        ${canOpenAdminMap() && mapsUrl ? `<a class="property-detail-map-link" href="${escapeHtml(mapsUrl)}" target="_blank" rel="noopener"><i data-lucide="map-pin"></i><span>${escapeHtml(state.lang === "en" ? "Open location in Google Maps" : "Abrir ubicacion en Google Maps")}</span></a>` : ""}
         <div class="property-detail-description">${paragraphs || `<p>${escapeHtml(t("noResults"))}</p>`}</div>
         <div class="property-detail-actions">
           <button class="ghost-button" type="button" data-tour="${escapeHtml(property.id)}"><i data-lucide="calendar-days"></i><span>${escapeHtml(state.lang === "en" ? "Request a tour" : "Solicitar visita")}</span></button>
@@ -12073,6 +12189,9 @@ function initializePropertyGallery() {
       modalImage.src = image.currentSrc || image.src;
       modalImage.alt = image.alt;
     }
+    const caption = modal.querySelector("[data-gallery-caption]");
+    caption.textContent = slides[activeIndex].dataset.caption || "";
+    caption.hidden = !caption.textContent;
     window.setTimeout(() => ensureImage(activeIndex + 1), 0);
     resetZoom();
   };
@@ -12451,7 +12570,7 @@ function bindEvents() {
     const result = event.target.closest("[data-global-result-section]");
     if (!result) return;
     toggleAdminGlobalSearch(false);
-    if (result.dataset.globalResultSection === "properties" || result.dataset.globalResultSection === "developments") {
+    if (result.dataset.globalResultId && ["properties", "developments"].includes(result.dataset.globalResultSection)) {
       focusAdminListing(result.dataset.globalResultId);
     } else setAdminSection(result.dataset.globalResultSection);
   });
@@ -12479,7 +12598,6 @@ function bindEvents() {
   $("#copilotActionForm")?.addEventListener("submit", copilotActionPreviewSubmit);
   $("#confirmCopilotAction")?.addEventListener("click", () => void confirmCopilotAction());
   $("#cancelCopilotAction")?.addEventListener("click", () => void cancelCopilotAction());
-  $("#refreshIntelligence")?.addEventListener("click", () => void refreshAdminIntelligence().catch((error) => showToast(error.message, "error")));
   $("#refreshIntegrations")?.addEventListener("click", () => void refreshAdminIntegrations().catch((error) => showToast(error.message, "error")));
   $("#refreshAnalytics")?.addEventListener("click", () => void refreshAdminAnalytics().catch((error) => showToast(error.message, "error")));
   ["#analyticsPeriod", "#analyticsZone"].forEach((selector) => $(selector)?.addEventListener("change", () => void refreshAdminAnalytics().catch((error) => showToast(error.message, "error"))));
@@ -12501,10 +12619,6 @@ function bindEvents() {
   $("#adminIntegrations")?.addEventListener("click", (event) => {
     const button = event.target.closest("[data-test-integration]");
     if (button) void testAdminIntegration(button.dataset.testIntegration, button);
-  });
-  $("#adminIntelligence")?.addEventListener("click", (event) => {
-    const button = event.target.closest("[data-intelligence-section]");
-    if (button) setAdminSection(button.dataset.intelligenceSection);
   });
   $("#adminDataQuality")?.addEventListener("click", (event) => {
     const button = event.target.closest("[data-quality-property]");
@@ -12620,12 +12734,11 @@ function bindEvents() {
   });
   $("#translateListingToEnglish")?.addEventListener("click", () => void translateListingToEnglish());
   $("#adminListingSearch")?.addEventListener("input", (event) => {
+    state.adminListingFilters.search = event.target.value;
     window.clearTimeout(adminListingSearchTimer);
     adminListingSearchTimer = window.setTimeout(() => {
-      state.adminListingFilters.missingCover = false;
-      state.adminListingFilters.search = event.target.value;
-      renderAdminListings();
-    }, 350);
+      if (["properties", "developments"].includes(state.adminSection)) renderAdminListings();
+    }, 150);
   });
   [
     ["#adminListingTypeFilter", "type"],
@@ -12639,6 +12752,15 @@ function bindEvents() {
       state.adminListingFilters[key] = event.target.value;
       renderAdminListings();
     });
+  });
+  $("#adminListings")?.addEventListener("click", (event) => {
+    const button = event.target.closest("[data-list-page]");
+    if (!button || button.disabled) return;
+    const step = Number(button.dataset.listPage);
+    state.adminListingPage += step;
+    renderAdminListings();
+    const pager = $("#adminListings .pcc-list-pages");
+    (pager?.querySelector(`[data-list-page="${step}"]:not(:disabled)`) || pager?.querySelector("button:not(:disabled)"))?.focus();
   });
   $("#adminListingSort")?.addEventListener("change", event => { state.adminListingSort = event.target.value; renderAdminListings(); });
   $("#adminUserSearch")?.addEventListener("input", renderInternalUsers);
@@ -12810,6 +12932,15 @@ function bindEvents() {
     if ($("#catalogTypeFilter")) $("#catalogTypeFilter").value = "";
     renderLocationCatalogs();
   });
+  $("#locationCatalogList")?.addEventListener("click", (event) => {
+    const button = event.target.closest("[data-catalog-page]");
+    if (!button || button.disabled) return;
+    const step = Number(button.dataset.catalogPage);
+    state.catalogPage += step;
+    renderLocationCatalogs();
+    const pager = $("#locationCatalogList nav");
+    (pager?.querySelector(`[data-catalog-page="${step}"]:not(:disabled)`) || pager?.querySelector("button:not(:disabled)"))?.focus();
+  });
   $("#catalogNewLocationButton")?.addEventListener("click", () => {
     resetCatalogForm();
     $("#locationCatalogForm")?.elements.name.focus({ preventScroll: true });
@@ -12905,6 +13036,7 @@ function bindEvents() {
   $("#scopedMediaUploadForm")?.addEventListener("submit", scopedMediaUploadSubmit);
   $("#scopedFolderForm")?.addEventListener("submit", scopedFolderSubmit);
   $("#internalUserForm")?.addEventListener("submit", internalUserSubmit);
+  $("#settingsForm")?.addEventListener("input", () => { $("#settingsForm").dataset.edited = "true"; });
   $("#settingsForm")?.addEventListener("submit", settingsSubmit);
   $("#refreshSystemHealth")?.addEventListener("click", (event) => void refreshSystemHealth(event.currentTarget));
   $("#whatsappChatbotForm")?.addEventListener("submit", whatsappChatbotSubmit);
@@ -12981,6 +13113,7 @@ function bindEvents() {
   $$("[data-settings-tab]").forEach((button) => {
     button.addEventListener("click", () => {
       $$("[data-settings-tab]").forEach((item) => item.classList.toggle("active", item === button));
+      $("#settingsForm").dataset.edited = "false";
       renderSettingsFields(button.dataset.settingsTab);
     });
   });
@@ -13134,7 +13267,7 @@ function bindEvents() {
         adminLeadsCard: "leads",
         adminContactsCard: "contacts",
         adminPdfCard: "pdf",
-        adminMarketingCard: "marketing",
+        adminMailingCard: "mailing",
         adminRolesCard: "roles",
         listingForm: "new-property",
       };
@@ -13458,6 +13591,7 @@ function bindEvents() {
     const pdfValuation = event.target.closest("[data-pdf-valuation]");
     if (pdfValuation) {
       setAdminSection("pdf");
+      populatePdfOptions();
       $("#pdfDocumentType").value = "valuation";
       $$("[data-pdf-target]").forEach((field) => {
         field.hidden = field.dataset.pdfTarget !== "valuation";
@@ -13469,6 +13603,7 @@ function bindEvents() {
     const pdfProperty = event.target.closest("[data-pdf-property]");
     if (pdfProperty) {
       setAdminSection("pdf");
+      populatePdfOptions();
       $("#pdfDocumentType").value = "property";
       $$("[data-pdf-target]").forEach((field) => {
         field.hidden = field.dataset.pdfTarget !== "property";
@@ -13605,6 +13740,7 @@ async function init() {
   preparePersonalDataForms();
   initializeCookiePreferences();
   bindEvents();
+  bindPublicAreaMap();
   applyTranslations({ renderPanelContent: false });
   initializePropertyGallery();
   updateNetworkStatus(navigator.onLine);

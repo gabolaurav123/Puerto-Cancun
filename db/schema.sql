@@ -314,6 +314,7 @@ CREATE TABLE IF NOT EXISTS valuations (
   zone TEXT,
   property_type TEXT,
   expected_price NUMERIC,
+  expected_currency TEXT CHECK (expected_currency IN ('MXN', 'USD')),
   suggested_price NUMERIC,
   low_range NUMERIC,
   high_range NUMERIC,

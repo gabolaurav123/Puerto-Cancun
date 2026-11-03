@@ -53,6 +53,21 @@ test("cuentas, permisos, sesiones y borradores en PostgreSQL aislado", { skip: !
   let editorId;
   const editor = client();
   await editor("/api/session");
+  await t.test("las solicitudes del propietario conservan la estimación y moneda en Valoraciones", async () => {
+    const requests = [];
+    for (const [flow, currency] of [["valuation", "USD"], ["price_validation", "MXN"], ["price_validation", null]]) {
+      const { request } = await member("/api/seller/service-requests", "POST", {
+        flow, expectedPrice: 123456.5, ...(currency && { currency }),
+      }, 201);
+      requests.push([request.id, currency]);
+    }
+    const { valuations } = await root("/api/admin/valuations");
+    for (const [requestId, currency] of requests) {
+      const valuation = valuations.find(row => row.requestId === requestId);
+      assert.equal(valuation.expectedPrice, 123456.5);
+      assert.equal(valuation.expectedCurrency, currency);
+    }
+  });
   await t.test("solicitudes se aprueban en su inventario y la galería admite guardados sucesivos", async () => {
     const sharp = require('sharp');
     const image = 'data:image/jpeg;base64,' + (await sharp({ create: { width: 64, height: 64, channels: 3, background: '#dde8e4' } }).jpeg().toBuffer()).toString('base64');

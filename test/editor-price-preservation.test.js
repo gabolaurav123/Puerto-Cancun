@@ -71,7 +71,7 @@ function editor(property) {
     api: async (url, options) => { if (!options) return {}; requests.push({ url, ...copy(options) }); return { property: property || { id: "created", status: "draft" } }; },
   };
   for (const name of ["resetListingForm", "setSelectedDevelopmentPropertyIds", "updateMapPickerForForm", "updateListingImagePreview", "clearListingVideoObjectUrl", "renderListingVideoPreview", "renderListingKeywordChips", "updateListingDescriptionCounter", "setListingQualityPreview", "restoreListingDraft", "saveListingDraft", "setButtonLoading", "updateFormProgress", "clearListingDraft", "renderAdminListingFilters", "renderAdminListings", "renderProperties", "renderStats", "showToast", "restoreListingReturnContext", "renderDevelopmentPropertyLinker"]) bindings[name] = () => {};
-  const runtime = extract(app, ["editListing", "listingSubmit", "configureListingFormMode", "listingEditorTitle"], bindings);
+  const runtime = extract(app, ["editListing", "listingSubmit", "configureListingFormMode", "listingEditorTitle", "googleMapsSearchUrl", "mapQueryFromForm"], bindings);
   if (property) runtime.editListing(property.id);
   return { ...runtime, field, form, state, requests, messages,
     submit: () => runtime.listingSubmit({ preventDefault() {}, currentTarget: form, submitter: submit }) };
@@ -91,6 +91,15 @@ function body(patch = {}) {
 
 const commercial = p => [p.price, p.currency, p.priceUnit, p.priceUsd, p.priceMxn];
 const columns = row => [row.price_amount, row.price_currency, row.price_unit, row.price_usd, row.price_mxn];
+
+test("editing persists the map point when the Google Maps link is unavailable", async () => {
+  const h = editor(dto(stored()));
+  h.field("latitude").value = "21.16";
+  h.field("longitude").value = "-86.85";
+  await h.submit();
+  const url = new URL(h.requests[0].body.googleMapsUrl);
+  assert.equal(url.searchParams.get("query"), "21.16,-86.85");
+});
 
 for (const patch of [
   {}, { price_currency: "USD" }, { price_currency: "USD", price_unit: "total" }, { price_amount: "123.45" },

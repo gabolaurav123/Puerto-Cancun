@@ -54,7 +54,8 @@ body[data-page=seo]:has([data-catalog-root]) .seo-page-hero h1 { margin: 8px 0; 
 body[data-page=seo]:has([data-catalog-root]) .seo-page-content { padding-top: 24px; }
 .catalog-experience .seo-property-grid { gap: 20px; }
 .catalog-experience .seo-property-card h2 { font-size: 1.12rem; line-height: 1.3; overflow-wrap: anywhere; }
-.catalog-experience .seo-property-image { aspect-ratio: 4 / 3; }
+.seo-property-card > .seo-property-image { aspect-ratio: 4 / 3; }
+.seo-property-card > .seo-property-image img { display: block; width: 100%; height: 100%; object-fit: contain; }
 .catalog-experience .seo-property-description { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
 .catalog-experience .seo-property-actions { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-top: auto; }
 /* Home inherits its approved hero and contact hierarchy from styles.css. */
@@ -97,16 +98,9 @@ body[data-page=home] .type-tile img { aspect-ratio: 1.6; height: auto; }
   .catalog-filter-actions label:has([name=sort]) { flex: 1 1 180px; }
   .catalog-result-bar { flex-wrap: wrap; }
   .catalog-experience .seo-property-grid { grid-template-columns: minmax(0, 1fr); }
-  .catalog-experience .seo-property-card > .seo-property-image,
-  .catalog-experience .seo-property-card > .seo-property-image img { aspect-ratio: 16 / 9; }
   .catalog-experience .seo-property-card > div { padding: 16px; }
-  .catalog-experience .seo-property-card > div { position: static; }
   .catalog-experience .seo-property-card .seo-property-price {
-    position: absolute; top: 68px; left: 12px; z-index: 1;
-    width: max-content; max-width: calc(100% - 24px); margin: 0;
-    padding: 8px 10px; background: #fff; color: #073540;
-    border: 1px solid #cbdedf; border-radius: 4px;
-    font-size: 1rem; line-height: 1.4; overflow-wrap: anywhere;
+    margin: 0; font-size: 1.15rem; line-height: 1.4; overflow-wrap: break-word;
   }
   .catalog-map-canvas { height: 420px; }
   body[data-page=seo]:has([data-catalog-root]) .seo-page-hero h1 { font-size: 1.65rem; }
@@ -119,6 +113,6 @@ body[data-page=home] .type-tile img { aspect-ratio: 1.6; height: auto; }
 .property-evidence dt { font-size: .8rem; color: #526d73; }
 .property-evidence dd { margin: 4px 0 0; font-size: .9rem; }
 .property-evidence p { font-size: .85rem; color: #526d73; }
-.catalog-compare-button { position: absolute; top: 12px; right: 12px; min-height: 44px; display: inline-flex; align-items: center; gap: 6px; padding: 8px 12px; background: white; color: #064e5b; border: 1px solid #bed0d1; border-radius: 4px; cursor: pointer; z-index: 1; }
+.catalog-compare-button { min-height: 44px; display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 8px 12px; background: white; color: #064e5b; border: 1px solid #bed0d1; border-radius: 4px; cursor: pointer; }
 .catalog-compare-button svg { width: 18px; height: 18px; }
 .catalog-compare-button[aria-pressed="true"] { background: #064e5b; color: white; }

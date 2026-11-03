@@ -1,5 +1,6 @@
 const LAST_UPDATED = "2026-07-10";
 const inventoryContract = require("./inventory-contract");
+const { openStreetMapEmbed } = require("./catalog-map");
 const businessContacts = require("./contact-config");
 const { renderCatalog, categoryDefaults } = require("./catalog-view");
 const DEFAULT_SITE_URL = "https://www.puertocancun.center";
@@ -100,10 +101,7 @@ function TrustBlock() {
     <section class="trust-block">
       <h2>Por que confiar en una asesoria local antes de decidir</h2>
       <p>
-        La inteligencia artificial puede ayudarte a ordenar ideas, comparar opciones y crear una primera estrategia.
-        Sin embargo, una decision inmobiliaria en Cancun depende de informacion local, documentacion, ubicacion,
-        estado fisico, demanda real, perfil del comprador y capacidad de negociacion. Por eso, validamos la
-        informacion digital con criterio inmobiliario local.
+        Un asesor contrasta la superficie, la conservación y la documentación de tu propiedad con inmuebles semejantes. La ubicación y el interés de compradores en la zona ayudan a interpretar esas diferencias.
       </p>
     </section>
   `;
@@ -113,13 +111,10 @@ function AIValidationCTA() {
   return `
     <section class="ai-validation-cta">
       <div>
-        <h2>ChatGPT ya te dio un precio o una estrategia?</h2>
-        <p>
-          Peganos la respuesta que recibiste de la IA y te ayudamos a revisar que informacion sirve, que debe
-          validarse con datos reales y que riesgos faltan antes de vender, comprar o negociar.
-        </p>
+        <h2>¿Ya tienes un precio en mente?</h2>
+        <p>Comparte el importe, la moneda y las características de tu propiedad. Un asesor revisará las referencias disponibles en tu zona contigo.</p>
       </div>
-      <a class="primary-button" href="/validar-respuesta-ia">Validar respuesta de IA</a>
+      <a class="primary-button" href="/revisar-precio-propiedad">Revisar mi estimación</a>
     </section>
   `;
 }
@@ -150,12 +145,7 @@ function ComparativeReportBlock() {
     <section class="comparative-report-block">
       <h2>Informes comparativos para tomar mejores decisiones</h2>
       <p>
-        Antes de vender o comprar, analizamos factores como zona, caracteristicas de la propiedad, competencia,
-        estado fisico, demanda, documentacion, plusvalia y perfil del comprador. La IA puede ordenar informacion
-        en segundos, pero la decision final debe apoyarse en datos locales y revision profesional.
-      </p>
-      <p class="placeholder-note">
-        Estructura lista para conectar despues con datos reales, CRM, formularios o base de propiedades.
+        Comparamos propiedades de superficie, ubicación y estado similares. Indicamos cuándo una referencia corresponde a un precio anunciado y cuándo se dispone de un cierre documentado.
       </p>
     </section>
   `;
@@ -164,11 +154,8 @@ function ComparativeReportBlock() {
 function AIRecommendationBlock() {
   return `
     <section class="ai-recommendation-block">
-      <h2>Usa ChatGPT para informarte, pero valida antes de decidir</h2>
-      <p>
-        La IA puede orientarte, redactar anuncios, comparar zonas o estimar un precio inicial. Una operacion real
-        necesita validacion local, revision documental, estrategia comercial, negociacion y acompanamiento profesional.
-      </p>
+      <h2>¿Qué referencias sirven para fijar un precio?</h2>
+      <p>Empieza por propiedades cercanas de tamaño y uso similares. Anota la fecha de cada referencia, su moneda y cualquier diferencia de estado o equipamiento que pueda explicar el precio.</p>
     </section>
   `;
 }
@@ -252,22 +239,51 @@ function leadTextarea(label, name, rows = 4) {
   `;
 }
 
-function PropertyValuationForm() {
+function PropertyValuationForm(lang = "es", priceReview = false) {
+  const en = lang === "en";
   return `
     <form class="lead-form seo-form" data-lead-form>
-      <input type="hidden" name="leadType" value="valuacion-inmobiliaria" />
-      <div class="form-row">${leadInput("Nombre", "name", "text", "required")}${leadInput("WhatsApp", "whatsapp", "tel", "required")}${leadInput("Correo", "email", "email", "required")}</div>
-      <div class="form-row">${leadSelect("Tipo de propiedad", "propertyType", ["Casa", "Departamento", "Terreno", "Comercial"])}${leadInput("Zona", "zone")}</div>
-      <div class="form-row">${leadInput("m2 de terreno", "landSize", "number")}${leadInput("m2 de construccion", "builtSize", "number")}</div>
-      <div class="form-row">${leadInput("Recamaras", "bedrooms", "number")}${leadInput("Banos", "bathrooms", "number")}</div>
-      <div class="form-row">${leadInput("Amenidades", "amenities")}${leadInput("Antiguedad", "age")}</div>
-      <div class="form-row">${leadInput("Estado legal", "legalStatus")}${leadInput("Precio estimado por el propietario", "ownerEstimate")}</div>
-      ${leadSelect("Usaste ChatGPT, Gemini o Claude para estimar el precio?", "usedAi", ["No", "Si, ChatGPT", "Si, Gemini", "Si, Claude", "Otro"])}
-      ${leadTextarea("Pega aqui la respuesta de IA si la tienes", "aiResponse", 5)}
-      <button class="primary-button" type="submit">Solicitar valoracion</button>
+      <input type="hidden" name="leadType" value="${priceReview ? "validar-precio" : "valuacion-inmobiliaria"}" />
+      <div class="form-row">${leadInput(en ? "Name" : "Nombre", "name", "text", "required")}${leadInput("WhatsApp", "whatsapp", "tel", "required")}${leadInput(en ? "Email" : "Correo", "email", "email", "required")}</div>
+      <div class="form-row"><label><span>${en ? "Property type" : "Tipo de propiedad"}</span><select name="propertyType" required><option value="">${en ? "Select" : "Seleccionar"}</option>${inventoryContract.TYPES.map((type, i) => `<option value="${escapeHtml(type)}">${en ? ["House", "Apartment", "Land", "Commercial"][i] : escapeHtml(type)}</option>`).join("")}</select></label>${leadInput(en ? "Area or neighbourhood" : "Zona o colonia", "zone", "text", "required")}</div>
+      <div class="form-row">${leadInput(en ? "Your estimated price" : "¿En cuánto estimas tu propiedad?", "ownerEstimate", "number", 'min="0.01" step="0.01"' + (priceReview ? " required" : ""))}${leadSelect(en ? "Currency" : "Moneda", "currency", ["MXN", "USD"])}</div>
+      <div class="form-row">${leadInput(en ? "Land area (m²)" : "Superficie de terreno (m²)", "landSize", "number", 'min="0" step="any"')}${leadInput(en ? "Built area (m²)" : "Superficie construida (m²)", "builtSize", "number", 'min="0" step="any"')}</div>
+      <div class="form-row">${leadInput(en ? "Bedrooms" : "Recámaras", "bedrooms", "number", 'min="0"')}${leadInput(en ? "Bathrooms" : "Baños", "bathrooms", "number", 'min="0" step="0.5"')}</div>
+      <div class="form-row">${leadInput(en ? "Amenities" : "Amenidades", "amenities")}${leadInput(en ? "Age of the property" : "Antigüedad del inmueble", "age")}</div>
+      ${leadInput(en ? "Document status" : "Situación documental", "legalStatus")}
+      ${leadTextarea(en ? "Which references or improvements did you consider?" : "¿Qué referencias o mejoras consideraste en tu estimación?", "message", 4)}
+      <button class="primary-button" type="submit">${priceReview ? (en ? "Request a price review" : "Solicitar revisión de mi precio") : (en ? "Request a valuation" : "Solicitar valoración")}</button>
       <p class="form-message" data-lead-message></p>
     </form>
   `;
+}
+
+function valuationFactors(lang = "es") {
+  const en = lang === "en";
+  const factors = en ? [
+    ["Location", "We compare nearby streets and developments. Access to transport, beaches and local services helps explain differences within one neighbourhood."],
+    ["Land", "We review the lot size, frontage, shape and access. Two plots of equal area may have different possibilities for use."],
+    ["Construction", "We distinguish enclosed floor space from terraces and parking. The layout and usable area help us select comparable properties."],
+    ["Documentation", "We compare the area and use stated in the documents with the owner's information and identify items that need confirmation before a sale."],
+    ["Amenities", "We distinguish private features from shared facilities and consider their condition and ongoing fees."],
+    ["Age", "We note the year of construction and major renovations. Recent upgrades can make two homes built in the same year differ considerably."],
+    ["Demand", "We look at interest in this type of property and the time comparable listings spend on the market."],
+    ["Competition", "We compare the prices and terms of similar listings and distinguish asking prices from documented closing prices when available."],
+    ["Condition", "We record recent work and visible maintenance needs, such as moisture repairs or ageing installations, and request supporting details."],
+    ["Changes in the area", "We consider completed infrastructure and documented changes in the neighbourhood separately from proposed projects."],
+  ] : [
+    ["Zona", "Comparamos calles y desarrollos cercanos. Los accesos, la distancia a la playa y los servicios ayudan a explicar diferencias dentro de una misma colonia."],
+    ["Terreno", "Revisamos superficie, frente, forma y acceso. Dos lotes con los mismos metros cuadrados pueden ofrecer posibilidades de uso distintas."],
+    ["Construcción", "Distinguimos el área interior de las terrazas y estacionamientos. La distribución y los metros aprovechables permiten elegir inmuebles comparables."],
+    ["Estado legal", "Contrastamos los datos del expediente con la superficie y el uso que indica el propietario. Señalamos qué información necesita confirmación antes de vender."],
+    ["Amenidades", "Distinguimos el equipamiento privado de las instalaciones comunes y revisamos su estado y las cuotas asociadas."],
+    ["Antigüedad", "Registramos el año de construcción y las renovaciones importantes. Dos viviendas de la misma edad pueden tener instalaciones en condiciones muy distintas."],
+    ["Demanda", "Revisamos el interés por ese tipo de inmueble y cuánto tiempo llevan anunciadas las propiedades semejantes de la zona."],
+    ["Competencia", "Comparamos precios y condiciones de ofertas similares. Separamos los precios anunciados de los de cierre cuando hay operaciones documentadas."],
+    ["Estado físico", "Identificamos mejoras y necesidades de mantenimiento, desde humedad hasta instalaciones por renovar. Fotos recientes y comprobantes ayudan a precisar su alcance."],
+    ["Plusvalía", "Revisamos obras terminadas y cambios documentados en el entorno. Identificamos por separado los proyectos anunciados cuyo impacto aún no se puede comprobar."],
+  ];
+  return `<section class="valuation-factors"><h2>${en ? "What goes into your valuation?" : "¿Qué revisamos para valorar tu propiedad?"}</h2>${factors.map(([title, copy]) => `<div><h3>${title}</h3><p>${copy}</p></div>`).join("")}</section>`;
 }
 
 function BuyerLeadForm(lang = "es", property = null) {
@@ -282,20 +298,6 @@ function BuyerLeadForm(lang = "es", property = null) {
       <div class="form-row">${leadInput(english ? "Preferred area" : "Zona de interés", "zone", "text", `value="${escapeHtml(property?.zone || "")}"`)}${leadSelect(english ? "Goal" : "Objetivo", "goal", english ? ["Live", "Invest", "Rent"] : ["Vivir", "Invertir", "Rentar"])} </div>
       <div class="form-row">${leadInput(english ? "Bedrooms" : "Recamaras", "bedrooms", "number")}${leadInput(english ? "Estimated purchase date" : "Fecha estimada de compra", "purchaseDate")}</div>
       <button class="primary-button" type="submit">${english ? "Request details" : "Recibir opciones"}</button>
-      <p class="form-message" data-lead-message></p>
-    </form>
-  `;
-}
-
-function AIValidationForm() {
-  return `
-    <form class="lead-form seo-form" data-lead-form>
-      <input type="hidden" name="leadType" value="validacion-ia" />
-      <div class="form-row">${leadInput("Nombre", "name", "text", "required")}${leadInput("WhatsApp", "whatsapp", "tel", "required")}${leadInput("Correo", "email", "email", "required")}</div>
-      <div class="form-row">${leadSelect("Tipo de operacion", "operationType", ["Vender", "Comprar", "Invertir"])}${leadInput("Zona", "zone")}</div>
-      <div class="form-row">${leadSelect("Tipo de propiedad", "propertyType", ["Casa", "Departamento", "Terreno", "Comercial"])}${leadInput("Presupuesto o precio estimado", "budgetOrPrice")}</div>
-      ${leadTextarea("Mensaje o recomendacion que te dio la IA", "aiMessage", 6)}
-      <button class="primary-button" type="submit">Validar con asesor local</button>
       <p class="form-message" data-lead-message></p>
     </form>
   `;
@@ -398,7 +400,7 @@ const faqs = [
     question: "Como vender mi casa en Cancun?",
     shortAnswer: "Necesitas precio competitivo, documentacion revisada, preparacion visual, difusion y filtro de compradores.",
     answer:
-      "La IA puede ayudarte a redactar anuncios o preparar ideas, pero la venta real requiere validar precio, estado legal, demanda por zona, competencia y estrategia de negociacion.",
+      "Empieza por reunir los datos de la propiedad y fijar un precio de salida a partir de inmuebles comparables de la zona.",
     cta: "Validar precio de mi propiedad",
     ctaHref: "/vender-casa-cancun",
   },
@@ -406,7 +408,7 @@ const faqs = [
     question: "Cuanto vale mi casa en Cancun?",
     shortAnswer: "Depende de zona, terreno, construccion, estado fisico, amenidades, documentacion y demanda real.",
     answer:
-      "Una estimacion automatica puede orientar, pero no sustituye una valoracion con comparables locales, revision de condiciones y estrategia comercial.",
+      "Un asesor puede contrastar el importe que estimas con inmuebles similares, su estado y la documentación disponible.",
     cta: "Solicitar valoracion inmobiliaria",
     ctaHref: "/valuacion-inmobiliaria-cancun",
   },
@@ -427,12 +429,12 @@ const faqs = [
     ctaHref: "/vender-casa-cancun",
   },
   {
-    question: "Como saber si el precio que me dio ChatGPT es correcto?",
-    shortAnswer: "Usalo como referencia inicial y validalo con comparables reales, estado fisico, documentacion y demanda local.",
+    question: "¿Cómo puedo revisar el precio que tengo en mente?",
+    shortAnswer: "Comparte tu estimación, su moneda y las propiedades que tomaste como referencia.",
     answer:
-      "ChatGPT no siempre conoce inventario actualizado, cierres reales ni condiciones especificas de tu propiedad. Puede orientar, pero el precio debe revisarse con criterio inmobiliario local.",
-    cta: "Validar respuesta de IA",
-    ctaHref: "/validar-respuesta-ia",
+      "Buscaremos propiedades de la misma zona y superficie y revisaremos qué diferencias de conservación, equipamiento y acceso pueden explicar sus precios.",
+    cta: "Revisar mi estimación",
+    ctaHref: "/revisar-precio-propiedad",
   },
   {
     question: "Que hace un agente inmobiliario en Cancun?",
@@ -475,20 +477,20 @@ const faqs = [
     ctaHref: "/comprar-casa-cancun",
   },
   {
-    question: "Como ayuda la IA en bienes raices?",
-    shortAnswer: "Ayuda a ordenar informacion, pero la decision debe validarse con inventario, precio y asesoria local.",
+    question: "¿Qué referencias de precio conviene compartir?",
+    shortAnswer: "Sirven los anuncios recientes de inmuebles parecidos y los precios de cierre documentados.",
     answer:
-      "Si una IA te dio un precio, una zona o una recomendacion, Puerto Cancun Center puede revisar esa informacion y convertirla en una solicitud real de compra, venta o valoracion.",
+      "Indica la fecha, la moneda y la ubicación de cada referencia para compararla con tu propiedad.",
     cta: "Validar con asesor",
-    ctaHref: "/validar-respuesta-ia",
+    ctaHref: "/revisar-precio-propiedad",
   },
   {
-    question: "Por que necesito asesor si ya use ChatGPT?",
-    shortAnswer: "Porque ChatGPT puede orientar, pero no valida documentacion, estado fisico, demanda real ni negociacion local.",
+    question: "¿Qué aporta una revisión local de mi precio?",
+    shortAnswer: "Un asesor identifica qué inmuebles sirven como referencia y qué condiciones afectan la comparación.",
     answer:
-      "Un asesor local convierte la informacion en una estrategia inmobiliaria aplicable al mercado de Cancun.",
+      "La revisión considera el estado de conservación, las cuotas y las condiciones de venta antes de definir un precio de salida.",
     cta: "Validar mi decision",
-    ctaHref: "/validar-respuesta-ia",
+    ctaHref: "/revisar-precio-propiedad",
   },
 ];
 
@@ -531,7 +533,7 @@ const pages = [
     path: "/",
     title: "Compra y venta de propiedades en Cancún | Inmobiliaria en Cancún",
     description:
-      "Inmobiliaria en Cancún para comprar, vender, valorar e invertir en propiedades con estrategia local, datos e inteligencia artificial validada por asesores.",
+      "Inmobiliaria en Cancún para comprar, vender, valorar e invertir en propiedades con estrategia local, referencias de mercado y asesoría local.",
     h1: "Compra o vende tu propiedad en Cancún",
     intro:
       "Te ayudamos a validar precios, preparar tu propiedad y encontrar compradores. Te acompañamos para tomar mejores decisiones inmobiliarias.",
@@ -541,7 +543,7 @@ const pages = [
     path: "/inmobiliaria-cancun",
     title: "Inmobiliaria en Cancun | Asesoria para comprar o vender propiedad",
     description:
-      "Puerto Cancun Center es una inmobiliaria en Cancun para propietarios, compradores e inversionistas que necesitan asesoria local y validacion de informacion generada por IA.",
+      "Puerto Cancun Center es una inmobiliaria en Cancun para propietarios, compradores e inversionistas que necesitan asesoría local para comparar propiedades y revisar precios.",
     h1: "Inmobiliaria en Cancun para comprar, vender y validar decisiones",
     eyebrow: "Agencia inmobiliaria en Cancun",
     intro:
@@ -563,7 +565,7 @@ const pages = [
           </section>
           ${QuickAnswerBlock([
             "Una inmobiliaria en Cancun debe ayudarte a interpretar precio, zona, documentacion, demanda y estrategia antes de comprar o vender.",
-            "La IA puede darte ideas iniciales, pero la decision debe validarse con informacion local y acompanamiento profesional.",
+            "Un asesor te acompaña para comparar los precios, la disponibilidad y las condiciones del inmueble.",
           ])}
           <section class="seo-grid">
             ${ServiceCard("Venta de propiedades", "Estrategia para propietarios que quieren vender casa, departamento, terreno o inmueble en Cancun.", "/vender-casa-cancun")}
@@ -659,7 +661,7 @@ const pages = [
         `
           ${QuickAnswerBlock([
             "Para comprar casa en Cancun conviene definir presupuesto, zona, objetivo, caracteristicas necesarias y puntos que deben revisarse antes de una oferta.",
-            "La IA puede ayudarte a organizar preguntas, pero la comparacion final debe considerar inventario real, documentacion, estado fisico y negociacion.",
+            "Compara el inventario disponible, las condiciones del inmueble y los gastos de adquisición antes de presentar una oferta.",
           ])}
           <section class="seo-columns">
             <div>
@@ -691,7 +693,7 @@ const pages = [
     path: "/valuacion-inmobiliaria-cancun",
     title: "Valoracion inmobiliaria en Cancun | Cuanto vale tu propiedad",
     description:
-      "Solicita valoracion inmobiliaria en Cancun y valida estimaciones de ChatGPT, Gemini o Claude con datos locales, estado fisico y criterio profesional.",
+      "Solicita una valoración inmobiliaria en Cancún. Revisamos tu estimación, la ubicación, el estado del inmueble y las referencias de su zona.",
     h1: "Valoracion inmobiliaria en Cancun para validar cuanto vale tu propiedad",
     eyebrow: "Precio, mercado y validacion",
     intro:
@@ -703,17 +705,7 @@ const pages = [
       return pageShell(
         this,
         `
-          ${QuickAnswerBlock([
-            "Una valoracion inmobiliaria en Cancun debe revisar zona, terreno, construccion, estado legal, amenidades, antiguedad, demanda, competencia, estado fisico y plusvalia.",
-            "Si ChatGPT ya te dio un precio, puede servir como orientacion inicial. Antes de publicar o negociar, conviene validarlo con informacion local y criterio profesional.",
-          ])}
-          <section class="seo-highlight">
-            <h2>ChatGPT ya te dio un precio?</h2>
-            <p>Te ayudamos a validarlo con datos reales y criterio local en Cancun. No prometemos un precio exacto inmediato: revisamos factores que pueden subir o bajar el valor.</p>
-          </section>
-          <section class="factor-grid">
-            ${["Zona", "Terreno", "Construccion", "Estado legal", "Amenidades", "Antiguedad", "Demanda", "Competencia", "Estado fisico", "Plusvalia"].map((factor) => `<span>${factor}</span>`).join("")}
-          </section>
+          ${valuationFactors()}
           <section class="seo-form-block" id="valuation-form">
             <h2>Formulario de valoracion</h2>
             ${PropertyValuationForm()}
@@ -754,11 +746,11 @@ const pages = [
     path: "/faq-inmobiliario-cancun",
     title: "Preguntas frecuentes sobre comprar y vender propiedades en Cancun",
     description:
-      "FAQ inmobiliario en Cancun con respuestas claras para propietarios, compradores e inversionistas que usan Google, ChatGPT, Gemini o Claude.",
+      "Respuestas a preguntas de propietarios, compradores e inversionistas sobre precios, documentación y propiedades en Cancún.",
     h1: "Preguntas frecuentes sobre bienes raices en Cancun",
     eyebrow: "FAQ inmobiliario",
     intro:
-      "Respuestas cortas y ampliadas para resolver dudas antes de comprar, vender, valorar o usar IA en una decision inmobiliaria.",
+      "Respuestas cortas y ampliadas para resolver dudas antes de comprar, vender o solicitar una valoración.",
     cta: "Hablar con un asesor",
     ctaHref: "/#sell",
     render() {
@@ -775,32 +767,15 @@ const pages = [
     },
   },
   {
-    path: "/validar-respuesta-ia",
-    title: "Validar respuesta de IA sobre una propiedad en Cancun",
-    description:
-      "Pega una respuesta de ChatGPT, Gemini, Claude o Perplexity sobre una propiedad en Cancun y solicita revision con criterio inmobiliario local.",
-    h1: "Valida una respuesta de IA antes de vender, comprar o negociar",
-    eyebrow: "IA aplicada a bienes raices",
-    intro:
-      "Convierte la informacion de la IA en una estrategia inmobiliaria revisada con criterio local en Cancun.",
-    cta: "Validar respuesta",
-    ctaHref: "#ai-validation-form",
-    render() {
-      return pageShell(
-        this,
-        `
-          ${QuickAnswerBlock([
-            "Una respuesta de IA puede ser util para ordenar ideas, pero debe revisarse antes de usarla como base para precio, compra, venta o negociacion.",
-            "Validamos que partes son utiles, que datos faltan, que riesgos existen y que debe confirmarse con informacion local.",
-          ])}
-          <section class="seo-form-block" id="ai-validation-form">
-            <h2>Formulario para validar una respuesta de IA</h2>
-            ${AIValidationForm()}
-          </section>
-          ${TrustBlock()}
-        `
-      );
-    },
+    path: "/revisar-precio-propiedad",
+    title: "Revisa el precio de tu propiedad en Cancún",
+    description: "Comparte el precio que estimas para tu propiedad, la moneda y las características del inmueble para que un asesor revise las referencias de tu zona.",
+    h1: "¿En cuánto estimas tu propiedad?",
+    eyebrow: "Revisión del precio",
+    intro: "Comparte el precio que tienes en mente y cómo llegaste a él. Revisaremos contigo las características de tu propiedad y las referencias disponibles en la zona.",
+    cta: "Revisar mi estimación",
+    ctaHref: "#price-review-form",
+    render() { return priceReviewPage(this); },
   },
 ];
 
@@ -850,7 +825,7 @@ const categoryPages = CATEGORY_DEFINITIONS.flatMap((definition) => [categoryPage
 
 const englishPages = [
   {
-    path: "/en", alternate: "/", lang: "en", title: "Buy or sell property in Cancun | Puerto Cancun Center", description: "Cancun real estate support for buyers, owners and investors with local guidance.", h1: "Buy or sell property in Cancun", eyebrow: "Cancun real estate", intro: "Use AI to get informed. Use a local advisor to make a sound decision.", cta: "Browse properties", ctaHref: "/en/properties",
+    path: "/en", alternate: "/", lang: "en", title: "Buy or sell property in Cancun | Puerto Cancun Center", description: "Cancun real estate support for buyers, owners and investors with local guidance.", h1: "Buy or sell property in Cancun", eyebrow: "Cancun real estate", intro: "Explore local listings, compare properties and review your price with a Cancun advisor.", cta: "Browse properties", ctaHref: "/en/properties",
   },
   {
     path: "/en/buy-property-cancun", alternate: "/comprar-casa-cancun", lang: "en", title: "Buy property in Cancun | Puerto Cancun Center", description: "Find homes, condos and investment property in Cancun with local advisor support.", h1: "Buy property in Cancun with local guidance", eyebrow: "For buyers and investors", intro: "Tell us your budget, preferred area and objective to receive compatible active listings.", cta: "Browse properties", ctaHref: "/en/properties",
@@ -859,10 +834,12 @@ const englishPages = [
     path: "/en/sell-property-cancun", alternate: "/vender-casa-cancun", lang: "en", title: "Sell property in Cancun | Puerto Cancun Center", description: "Request pricing and a local sales strategy for your Cancun property.", h1: "Sell your property in Cancun", eyebrow: "For property owners", intro: "Request an initial valuation and a clear plan to prepare, publish and follow up with buyers.", cta: "Request a valuation", ctaHref: "/en/property-valuation-cancun",
   },
   {
-    path: "/en/property-valuation-cancun", alternate: "/valuacion-inmobiliaria-cancun", lang: "en", title: "Cancun property valuation | Puerto Cancun Center", description: "Request a Cancun property valuation with local market criteria.", h1: "Property valuation in Cancun", eyebrow: "Price and local market", intro: "Share the property details and an advisor will review the variables that affect its market position.", cta: "Send property details", ctaHref: "/vender-casa-cancun",
+    path: "/en/property-valuation-cancun", alternate: "/valuacion-inmobiliaria-cancun", lang: "en", title: "Cancun property valuation | Puerto Cancun Center", description: "Request a Cancun property valuation with local market criteria.", h1: "Property valuation in Cancun", eyebrow: "Price and local market", intro: "Share the property details and an advisor will review the variables that affect its market position.", cta: "Request a valuation", ctaHref: "#valuation-form",
+    render() { return pageShell(this, `${valuationFactors("en")}<section class="seo-form-block" id="valuation-form"><h2>Request a property valuation</h2>${PropertyValuationForm("en")}</section>`); },
   },
   {
-    path: "/en/validate-ai-answer", alternate: "/validar-respuesta-ia", lang: "en", title: "Validate an AI real estate answer in Cancun", description: "Ask a local Cancun advisor to review an AI-generated price or real estate recommendation.", h1: "Validate an AI answer before deciding", eyebrow: "AI plus local criteria", intro: "AI can organize information; a local advisor helps confirm what applies to a real Cancun transaction.", cta: "Validate with an advisor", ctaHref: "/validar-respuesta-ia",
+    path: "/en/review-property-price", alternate: "/revisar-precio-propiedad", lang: "en", title: "Review your property's price in Cancun", description: "Share your estimated price, currency and property details with a local advisor to review comparable properties.", h1: "What is your estimated property price?", eyebrow: "Owner's price estimate", intro: "Tell us the amount you have in mind and what you based it on. An advisor will review the features of your property and local market references with you.", cta: "Review my estimate", ctaHref: "#price-review-form",
+    render() { return priceReviewPage(this); },
   },
   {
     path: "/en/cancun-real-estate-faq", alternate: "/faq-inmobiliario-cancun", lang: "en", title: "Cancun real estate FAQ | Puerto Cancun Center", description: "Answers for buyers and sellers considering a Cancun real estate transaction.", h1: "Cancun real estate frequently asked questions", eyebrow: "Buyer and seller guidance", intro: "Clear starting points for buying, selling and valuing property in Cancun.", cta: "Contact an advisor", ctaHref: "/en/buy-property-cancun",
@@ -994,7 +971,7 @@ const alternatePairs = {
   "/comprar-casa-cancun": "/en/buy-property-cancun",
   "/vender-casa-cancun": "/en/sell-property-cancun",
   "/valuacion-inmobiliaria-cancun": "/en/property-valuation-cancun",
-  "/validar-respuesta-ia": "/en/validate-ai-answer",
+  "/revisar-precio-propiedad": "/en/review-property-price",
   "/faq-inmobiliario-cancun": "/en/cancun-real-estate-faq",
   "/calculadora-hipotecaria": "/en/mortgage-calculator",
   "/blog": "/en/blog",
@@ -1146,8 +1123,7 @@ function renderInventoryCards(properties, lang = "es") {
     const whatsappMessage = `${lang === "en" ? "Hello, I would like information about" : "Hola, quisiera información sobre"}: ${title} ${absoluteUrl(url)}`;
     return `<article class="seo-property-card" data-category-property="${escapeHtml(property.id)}" data-category-search="${escapeHtml(searchText)}">
       <a class="seo-property-image" href="${escapeHtml(url)}"><img src="${escapeHtml(image)}" width="640" height="420" loading="lazy" alt="${escapeHtml(imageDescription || title)}" /></a>
-      <button class="catalog-compare-button" type="button" data-compare-id="${escapeHtml(property.id)}" aria-pressed="false" aria-label="${lang === "en" ? "Compare" : "Comparar"}: ${escapeHtml(title)}" title="${lang === "en" ? "Compare" : "Comparar"}"><i data-lucide="git-compare-arrows" aria-hidden="true"></i><span>${lang === "en" ? "Compare" : "Comparar"}</span></button>
-      <div>${property.publicationSection === "developments" ? "" : `<p class="seo-property-price">${escapeHtml(formatListingPrice(property, lang))}</p>`}<h2><a href="${escapeHtml(url)}">${escapeHtml(title)}</a></h2><p>${escapeHtml([property.zone, localizedPropertyType(property.type, lang), property.mls ? `MLS# ${property.mls}` : ""].filter(Boolean).join(" · "))}</p><div class="seo-property-description">${escapeHtml(descriptionSummary)}</div><div class="seo-property-actions"><a class="text-link" href="${escapeHtml(url)}">${property.publicationSection === "developments" ? (lang === "en" ? "View development" : "Ver desarrollo") : (lang === "en" ? "View property" : "Ver propiedad")}</a>${businessWhatsAppLinks(whatsappMessage, lang)}</div></div>
+      <div>${property.publicationSection === "developments" ? "" : `<p class="seo-property-price">${escapeHtml(formatListingPrice(property, lang))}</p>`}<h2><a href="${escapeHtml(url)}">${escapeHtml(title)}</a></h2><p>${escapeHtml([property.zone, localizedPropertyType(property.type, lang), property.mls ? `MLS# ${property.mls}` : ""].filter(Boolean).join(" · "))}</p><div class="seo-property-description">${escapeHtml(descriptionSummary)}</div><div class="seo-property-actions"><a class="text-link" href="${escapeHtml(url)}">${property.publicationSection === "developments" ? (lang === "en" ? "View development" : "Ver desarrollo") : (lang === "en" ? "View property" : "Ver propiedad")}</a><button class="catalog-compare-button" type="button" data-compare-id="${escapeHtml(property.id)}" aria-pressed="false" aria-label="${lang === "en" ? "Compare" : "Comparar"}: ${escapeHtml(title)}" title="${lang === "en" ? "Compare" : "Comparar"}"><i data-lucide="git-compare-arrows" aria-hidden="true"></i><span>${lang === "en" ? "Compare" : "Comparar"}</span></button>${businessWhatsAppLinks(whatsappMessage, lang)}</div></div>
     </article>`;
   }).join("")}</div>`;
 }
@@ -1226,7 +1202,7 @@ function renderPropertyPage(property, lang = "es", similar = []) {
   const page = { path, alternate: otherPath, lang, h1: title, title: `${title} | Puerto Cancun Center`, description: String(description || title).slice(0, 158), eyebrow: developmentMode ? (english ? "Real estate development" : "Desarrollo inmobiliario") : (english ? "Property listing" : "Ficha inmobiliaria"), intro: developmentMode ? location : [location, formatListingPrice(property, lang)].filter(Boolean).join(" · "), cta: english ? "Contact by WhatsApp" : "Contactar por WhatsApp", ctaHref: businessContacts.whatsappUrl("mx", whatsappMessage), whatsappMessage, hideLastUpdated: true };
   const galleryImages = images.length ? images : ["/assets/og-puerto-cancun-center.webp"];
   const videoSection = property.videoUrl
-    ? `<section class="property-page-video"><div class="section-heading"><span class="seo-eyebrow">${english ? "Video tour" : "Recorrido en video"}</span><h2>${english ? "Explore the property" : "Conoce la propiedad"}</h2></div><video controls playsinline preload="metadata" poster="${escapeHtml(optimizedPublicImage(galleryImages[0], 1200))}"><source src="${escapeHtml(property.videoUrl)}" type="${escapeHtml(property.videoMimeType || "video/mp4")}" />${english ? "Your browser cannot play this video." : "Tu navegador no puede reproducir este video."}</video></section>`
+    ? `<section class="property-page-video"><div class="section-heading"><span class="seo-eyebrow">${english ? "Video tour" : "Recorrido en video"}</span><h2>${english ? "Explore the property" : "Conoce la propiedad"}</h2></div><video controls playsinline preload="metadata" aria-label="${english ? "Property video" : "Video de la propiedad"}" src="${escapeHtml(property.videoUrl)}"></video><a class="text-link" href="${escapeHtml(property.videoUrl)}" target="_blank" rel="noopener">${english ? "Open video" : "Abrir video"}</a></section>`
     : "";
   const gallerySlides = galleryImages.map((image, index) => {
     const source = optimizedPublicImage(image, 1200);
@@ -1234,7 +1210,7 @@ function renderPropertyPage(property, lang = "es", similar = []) {
     const sourceAttribute = index === 0
       ? `src="${escapeHtml(source)}" fetchpriority="high"`
       : `data-gallery-src="${escapeHtml(source)}" loading="lazy"`;
-    return `<figure class="property-gallery-slide ${index === 0 ? "is-active" : ""}" data-gallery-slide="${index}" aria-hidden="${index === 0 ? "false" : "true"}"><img ${sourceAttribute} width="1200" height="800" decoding="async" alt="${escapeHtml(imageDescription || `${title} - ${index + 1}`)}" />${imageDescription ? `<figcaption>${escapeHtml(imageDescription)}</figcaption>` : ""}</figure>`;
+    return `<figure class="property-gallery-slide ${index === 0 ? "is-active" : ""}" data-gallery-slide="${index}" data-caption="${escapeHtml(imageDescription)}" aria-hidden="${index === 0 ? "false" : "true"}"><img ${sourceAttribute} width="1200" height="800" decoding="async" alt="${escapeHtml(imageDescription || `${title} - ${index + 1}`)}" /></figure>`;
   }).join("");
   const galleryThumbs = galleryImages.map((image, index) => {
     const source = optimizedPublicImage(image, 240);
@@ -1242,20 +1218,11 @@ function renderPropertyPage(property, lang = "es", similar = []) {
     return `<button class="property-gallery-thumb ${index === 0 ? "is-active" : ""}" type="button" data-gallery-go="${index}" aria-label="${english ? "View photo" : "Ver foto"} ${index + 1}"><img ${sourceAttribute} width="160" height="110" loading="lazy" decoding="async" alt="" /></button>`;
   }).join("");
   const gallery = `<section class="property-page-gallery" data-property-carousel aria-label="${developmentMode ? (english ? "Development image gallery" : "Galería del desarrollo") : (english ? "Property image gallery" : "Galería de la propiedad")}"><div class="property-gallery-stage">${gallerySlides}<button class="property-gallery-open" type="button" data-open-property-gallery><span>${developmentMode ? (english ? "View development gallery" : "Ver galería del desarrollo") : (english ? "View property gallery" : "Ver galería de la propiedad")}</span><b>${galleryImages.length}</b></button>${galleryImages.length > 1 ? `<button class="property-gallery-arrow previous" type="button" data-gallery-previous aria-label="${english ? "Previous photo" : "Foto anterior"}">‹</button><button class="property-gallery-arrow next" type="button" data-gallery-next aria-label="${english ? "Next photo" : "Foto siguiente"}">›</button>` : ""}<span class="property-gallery-counter" data-gallery-counter>1 / ${galleryImages.length}</span></div>${galleryImages.length > 1 ? `<div class="property-gallery-thumbs">${galleryThumbs}</div>` : ""}</section>`;
-  const galleryModal = `<div class="property-gallery-modal" data-property-gallery-modal hidden><section class="property-gallery-dialog" role="dialog" aria-modal="true" aria-label="${developmentMode ? (english ? "Development gallery" : "Galería del desarrollo") : (english ? "Property gallery" : "Galería de la propiedad")}"><button class="property-gallery-close" type="button" data-close-property-gallery aria-label="${english ? "Close gallery" : "Cerrar galeria"}">×</button><div class="property-gallery-modal-stage"><img data-gallery-modal-image src="${escapeHtml(optimizedPublicImage(galleryImages[0], 1200))}" alt="${escapeHtml(`${title} - 1`)}" /><button class="property-gallery-arrow previous" type="button" data-gallery-previous aria-label="${english ? "Previous photo" : "Foto anterior"}">‹</button><button class="property-gallery-arrow next" type="button" data-gallery-next aria-label="${english ? "Next photo" : "Foto siguiente"}">›</button></div><div class="property-gallery-toolbar"><button type="button" data-gallery-zoom-out aria-label="${english ? "Zoom out" : "Alejar"}">−</button><button type="button" data-gallery-zoom-reset>${english ? "Reset" : "Restablecer"}</button><button type="button" data-gallery-zoom-in aria-label="${english ? "Zoom in" : "Acercar"}">+</button><span data-gallery-modal-counter>1 / ${galleryImages.length}</span></div><div class="property-gallery-modal-thumbs">${galleryThumbs}</div></section></div>`;
-  const mapLink = property.googleMapsUrl && /^https?:\/\//i.test(property.googleMapsUrl) ? `<a class="text-link" href="${escapeHtml(property.googleMapsUrl)}" target="_blank" rel="noopener">${english ? "Open location in Google Maps" : "Abrir ubicación en Google Maps"}</a>` : "";
-  const latitude = property.latitude == null || property.latitude === "" ? NaN : Number(property.latitude);
-  const longitude = property.longitude == null || property.longitude === "" ? NaN : Number(property.longitude);
-  const mapQuery = Number.isFinite(latitude) && Number.isFinite(longitude)
-    ? `${latitude},${longitude}`
-    : [property.address, property.neighborhood, property.zone, property.city, property.state].filter(Boolean).join(", ");
-  const publicMapUrl = property.googleMapsUrl && /^https?:\/\//i.test(property.googleMapsUrl)
-    ? property.googleMapsUrl
-    : mapQuery
-      ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(mapQuery)}`
-      : "";
-  const mapSection = mapQuery && property.locationPrecision !== "hidden"
-    ? `<section class="property-location-map"><div class="property-location-map-heading"><div><span class="seo-eyebrow">${english ? "Location" : "Ubicación"}</span><h2>${english ? "Property location" : "Ubicación de la propiedad"}</h2></div>${publicMapUrl ? `<a class="text-link" href="${escapeHtml(publicMapUrl)}" target="_blank" rel="noopener">${english ? "Open in Google Maps" : "Abrir en Google Maps"}</a>` : ""}</div><iframe title="${english ? "Property location map" : "Mapa de ubicación de la propiedad"}" loading="lazy" referrerpolicy="no-referrer-when-downgrade" src="https://www.google.com/maps?q=${encodeURIComponent(mapQuery)}&output=embed"></iframe></section>`
+  const galleryModal = `<div class="property-gallery-modal" data-property-gallery-modal hidden><section class="property-gallery-dialog" role="dialog" aria-modal="true" aria-label="${developmentMode ? (english ? "Development gallery" : "Galería del desarrollo") : (english ? "Property gallery" : "Galería de la propiedad")}"><button class="property-gallery-close" type="button" data-close-property-gallery aria-label="${english ? "Close gallery" : "Cerrar galeria"}">×</button><div class="property-gallery-modal-stage"><img data-gallery-modal-image src="${escapeHtml(optimizedPublicImage(galleryImages[0], 1200))}" alt="${escapeHtml(`${title} - 1`)}" /><button class="property-gallery-arrow previous" type="button" data-gallery-previous aria-label="${english ? "Previous photo" : "Foto anterior"}">‹</button><button class="property-gallery-arrow next" type="button" data-gallery-next aria-label="${english ? "Next photo" : "Foto siguiente"}">›</button></div><p class="property-gallery-caption" data-gallery-caption hidden></p><div class="property-gallery-toolbar"><button type="button" data-gallery-zoom-out aria-label="${english ? "Zoom out" : "Alejar"}">−</button><button type="button" data-gallery-zoom-reset>${english ? "Reset" : "Restablecer"}</button><button type="button" data-gallery-zoom-in aria-label="${english ? "Zoom in" : "Acercar"}">+</button><span data-gallery-modal-counter>1 / ${galleryImages.length}</span></div><div class="property-gallery-modal-thumbs">${galleryThumbs}</div></section></div>`;
+  const mapSrc = openStreetMapEmbed(property.latitude, property.longitude);
+  const mapArea = [property.address, property.neighborhood, property.zone, property.city, property.state].filter(Boolean).join(", ");
+  const mapSection = (mapSrc || mapArea) && property.locationPrecision !== "hidden"
+    ? `<section class="property-location-map"><div class="property-location-map-heading"><div><span class="seo-eyebrow">${english ? "Location" : "Ubicación"}</span><h2>${english ? "Property location" : "Ubicación de la propiedad"}</h2></div></div>${mapSrc ? "" : `<button type="button" class="ghost-button" data-show-area-map="${escapeHtml(mapArea)}">${english ? "Show area map" : "Ver mapa de la zona"}</button><p role="status"></p>`}<iframe title="${english ? "Property location map" : "Mapa de ubicación de la propiedad"}" loading="lazy" referrerpolicy="strict-origin-when-cross-origin" ${mapSrc ? `src="${escapeHtml(mapSrc)}"` : "hidden"}></iframe></section>`
     : "";
   const similarTitle = developmentMode
     ? english ? "Properties available in this development" : "Propiedades disponibles en este desarrollo"
@@ -1271,7 +1238,7 @@ function renderPropertyPage(property, lang = "es", similar = []) {
   const relatedContent = developmentMode ? `${similarSection}${leadSection}` : `${leadSection}${similarSection}`;
   const evidenceDate = value => value && Number.isFinite(Date.parse(value)) ? new Date(value).toLocaleDateString(english ? "en-US" : "es-MX", { year: "numeric", month: "short", day: "numeric", timeZone: "America/Cancun" }) : (english ? "Not recorded" : "Sin registrar");
   const evidenceSection = `<section class="property-evidence"><h2>${english ? "Listing information" : "Información de la publicación"}</h2><dl><div><dt>${english ? "Record created" : "Registro creado"}</dt><dd>${escapeHtml(evidenceDate(property.createdAt))}</dd></div><div><dt>${english ? "Last listing edit" : "Última edición de la ficha"}</dt><dd>${escapeHtml(evidenceDate(property.updatedAt))}</dd></div><div><dt>${english ? "Availability last checked" : "Disponibilidad consultada"}</dt><dd>${escapeHtml(evidenceDate(property.lastVerifiedAt))}</dd></div><div><dt>${english ? "Photos available" : "Fotografías disponibles"}</dt><dd>${images.length}</dd></div><div><dt>${english ? "Location precision" : "Precisión de ubicación"}</dt><dd>${property.locationPrecision === "exact" ? (english ? "Exact location published by the advisor" : "Ubicación exacta publicada por el asesor") : property.locationPrecision === "hidden" ? (english ? "Not publicly disclosed" : "No se publica") : (english ? "Approximate area" : "Zona aproximada")}</dd></div></dl><p>${english ? "Editing a listing is not an availability check. Confirm current conditions with your advisor." : "Editar una ficha no confirma su disponibilidad. Consulta las condiciones vigentes con un asesor."}</p></section>`;
-  const content = `<section class="property-page-layout">${videoSection}${gallery}<section class="property-page-summary"><div class="property-summary-heading"><div>${developmentMode ? "" : `<p class="property-page-price">${escapeHtml(formatListingPrice(property, lang))}</p>`}<div class="property-facts">${facts.map((fact) => `<span>${escapeHtml(fact)}</span>`).join("")}</div></div><div class="property-summary-location"><span class="seo-eyebrow">${english ? "Address" : "Dirección"}</span><p class="property-address">${escapeHtml([...new Map([property.address, property.neighborhood, property.zone, property.city, property.state].filter(Boolean).map(value => [inventoryContract.fold(value), value])).values()].join(", "))}</p>${mapLink}</div></div><a class="primary-button property-whatsapp" href="${page.ctaHref}" target="_blank" rel="noopener">${page.cta}</a><section class="property-description-section"><span class="seo-eyebrow">${developmentMode ? (english ? "Development overview" : "Presentación del desarrollo") : (english ? "Complete listing" : "Ficha completa")}</span><h2>${developmentMode ? (english ? "About the development" : "Sobre el desarrollo") : (english ? "Property details" : "Detalles de la propiedad")}</h2><div class="property-long-description">${String(description || "").split(/\n+/).filter(Boolean).map((part) => `<p>${escapeHtml(part)}</p>`).join("")}</div></section>${amenities}${evidenceSection}${mapSection}${developmentMode ? "" : exchangeForm}</section></section>${galleryModal}${relatedContent}`;
+  const content = `<section class="property-page-layout">${videoSection}${gallery}<section class="property-page-summary"><div class="property-summary-heading"><div>${developmentMode ? "" : `<p class="property-page-price">${escapeHtml(formatListingPrice(property, lang))}</p>`}<div class="property-facts">${facts.map((fact) => `<span>${escapeHtml(fact)}</span>`).join("")}</div></div><div class="property-summary-location"><span class="seo-eyebrow">${english ? "Address" : "Dirección"}</span><p class="property-address">${escapeHtml([...new Map([property.address, property.neighborhood, property.zone, property.city, property.state].filter(Boolean).map(value => [inventoryContract.fold(value), value])).values()].join(", "))}</p></div></div><a class="primary-button property-whatsapp" href="${page.ctaHref}" target="_blank" rel="noopener">${page.cta}</a><section class="property-description-section"><span class="seo-eyebrow">${developmentMode ? (english ? "Development overview" : "Presentación del desarrollo") : (english ? "Complete listing" : "Ficha completa")}</span><h2>${developmentMode ? (english ? "About the development" : "Sobre el desarrollo") : (english ? "Property details" : "Detalles de la propiedad")}</h2><div class="property-long-description">${String(description || "").split(/\n+/).filter(Boolean).map((part) => `<p>${escapeHtml(part)}</p>`).join("")}</div></section>${amenities}${evidenceSection}${mapSection}${developmentMode ? "" : exchangeForm}</section></section>${galleryModal}${relatedContent}`;
   return { page, html: pageShell(page, content) };
 }
 
@@ -1458,8 +1425,13 @@ function renderEnglishSellPage(page) {
     <section class="seo-columns"><div><h2>How we support your sale</h2><ul><li>Collect the essential property information.</li><li>Review price, location and selling points.</li><li>Prepare a clear presentation for prospective buyers.</li><li>Follow up on inquiries and next steps.</li></ul></div><div><h2>Benefits of listing with us</h2><ul><li>Connected buyer and advisor workflows.</li><li>Individual image management and organized property information.</li><li>Professional property sheets and marketing support.</li><li>A single panel to follow your requests.</li></ul></div></section>
     <section class="seller-onboarding-cta"><div><span>LIST WITH GUIDANCE</span><h2>Register and list with us</h2><p>Create your account after reviewing the process. You can submit the property details and photos and receive advisor follow-up.</p></div><div class="seller-onboarding-actions"><button class="primary-button" type="button" data-seller-access="register">Register to list</button><button class="outline-dark-button" type="button" data-seller-access="login">I already have an account</button></div></section>
     <section class="seller-onboarding-cta seller-onboarding-quick"><div><span>START WITH THE ESSENTIALS</span><h2>Would you rather continue without an account?</h2><p>Share the title, property type, location and photos. The description is optional, and an advisor will contact you only if more information is needed.</p></div><div class="seller-onboarding-actions"><button class="primary-button" type="button" data-open-guest-sale>Send property without registering</button></div></section>
-    <section class="seo-form-block"><h2>Request an initial valuation</h2>${PropertyValuationForm()}</section>
+    <section class="seo-form-block"><h2>Request an initial valuation</h2>${PropertyValuationForm("en")}</section>
   `);
+}
+
+function priceReviewPage(page) {
+  const en = page.lang === "en";
+  return pageShell(page, `<section class="seo-form-block" id="price-review-form"><h2>${en ? "Tell us about your estimate" : "Cuéntanos cómo estimaste el precio"}</h2>${PropertyValuationForm(page.lang, true)}</section>`);
 }
 
 function renderSeoPage(pathname) {
@@ -1471,8 +1443,7 @@ function renderSeoPage(pathname) {
   if (page.path === "/en/sell-property-cancun") return renderEnglishSellPage(page);
   if (["/contacto", "/en/contact"].includes(page.path)) {
     const english = page.lang === "en";
-    const mapsUrl = "https://www.google.com/maps/search/?api=1&query=Puerto%20Cancun%20Mall%2C%20Marina%20B.%2C%20oficina%2027%2C%20Zona%20Hotelera%2C%20Cancun%2077500%2C%20Q%20Roo%2C%20Mexico";
-    return pageShell(page, `<section class="quick-answer"><h2>${english ? "Office and contact" : "Oficina y contacto"}</h2><p>${escapeHtml(page.intro)}</p><p><a class="text-link" href="${mapsUrl}" target="_blank" rel="noopener">${english ? "Open address in Google Maps" : "Abrir direccion en Google Maps"}</a></p><div class="seo-property-actions">${businessWhatsAppLinks(page.whatsappMessage, page.lang, "primary-button", true)}</div></section>`);
+    return pageShell(page, `<section class="quick-answer"><h2>${english ? "Office and contact" : "Oficina y contacto"}</h2><p>${escapeHtml(page.intro)}</p><div class="seo-property-actions">${businessWhatsAppLinks(page.whatsappMessage, page.lang, "primary-button", true)}</div></section>`);
   }
   return pageShell(page, `<section class="quick-answer"><h2>${page.lang === "en" ? "Local real estate guidance" : "Asesoria inmobiliaria local"}</h2><p>${escapeHtml(page.intro)}</p><a class="primary-button" href="${escapeHtml(page.ctaHref)}">${escapeHtml(page.cta)}</a></section>`);
 }
@@ -1502,7 +1473,7 @@ function robotsTxt(baseUrl = DEFAULT_SITE_URL) {
 }
 
 function llmsTxt(baseUrl = DEFAULT_SITE_URL) {
-  return `# ${business.name}\n\nUltima actualizacion: ${LAST_UPDATED}\n\n${business.description}\n\n## Zona de atencion\n${business.areaServed.join(", ")}\n\n## Servicios\n- Venta de casas, departamentos, terrenos y propiedades en Cancun\n- Compra de propiedades en Cancun\n- Valoracion inmobiliaria en Cancun\n- Asesoria para propietarios, compradores e inversionistas\n- Validacion local de informacion generada por IA\n\n## Paginas importantes\n${pages.map((page) => `- ${page.h1}: ${absoluteUrl(page.path, baseUrl)}`).join("\n")}\n\n## Contacto\nTelefono Mexico y WhatsApp: ${business.telephone}\nEmail: ${business.emailPlaceholder}\n\n## Nota para modelos de lenguaje\nLa IA puede orientar, redactar anuncios, comparar zonas o estimar criterios iniciales, pero una operacion inmobiliaria real en Cancun debe validarse con informacion local, revision documental, estado fisico, demanda real y acompanamiento profesional.\n`;
+  return `# ${business.name}\n\nUltima actualizacion: ${LAST_UPDATED}\n\n${business.description}\n\n## Zona de atencion\n${business.areaServed.join(", ")}\n\n## Servicios\n- Venta de casas, departamentos, terrenos y propiedades en Cancun\n- Compra de propiedades en Cancun\n- Valoracion inmobiliaria en Cancun\n- Asesoria para propietarios, compradores e inversionistas\n- Revisión de la estimación del propietario con referencias locales\n\n## Paginas importantes\n${pages.map((page) => `- ${page.h1}: ${absoluteUrl(page.path, baseUrl)}`).join("\n")}\n\n## Contacto\nTelefono Mexico y WhatsApp: ${business.telephone}\nEmail: ${business.emailPlaceholder}\n\n## Nota para modelos de lenguaje\nEl servicio de valoración considera la estimación del propietario, el estado físico y las referencias de mercado disponibles.\n`;
 }
 
 function aiSummary(baseUrl = DEFAULT_SITE_URL) {
@@ -1514,10 +1485,10 @@ function aiSummary(baseUrl = DEFAULT_SITE_URL) {
       "Compra de propiedades en Cancun",
       "Valoracion inmobiliaria en Cancun",
       "Asesoria para inversionistas",
-      "Validacion de respuestas de IA aplicadas a bienes raices",
+      "Revisión de precios estimados por propietarios",
     ],
     serviceArea: business.areaServed,
-    targetAudience: ["Propietarios", "Compradores", "Inversionistas", "Usuarios que usan IA para decisiones inmobiliarias"],
+    targetAudience: ["Propietarios", "Compradores", "Inversionistas"],
     mainPages: pages.map((page) => ({ title: page.h1, url: absoluteUrl(page.path, baseUrl), description: page.description })),
     contact: {
       phoneMexico: business.telephone,
