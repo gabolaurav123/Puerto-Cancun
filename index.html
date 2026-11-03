@@ -2,7 +2,7 @@
 <html lang="es">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content" />
     <title>Compra y venta de propiedades en Cancún | Inmobiliaria en Cancún</title>
     <meta
       name="description"
@@ -29,7 +29,9 @@
     <link rel="icon" type="image/png" sizes="48x48" href="/favicon.png" />
     <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
     <link rel="manifest" href="/site.webmanifest" />
-    <link rel="preload" as="image" href="/assets/cancun-hotel-zone-hero-1280.webp" imagesrcset="/assets/cancun-hotel-zone-hero-768.webp 768w, /assets/cancun-hotel-zone-hero-1280.webp 1280w, /assets/cancun-hotel-zone-hero-1920.webp 1920w" imagesizes="100vw" fetchpriority="high" />
+    <link rel="preload" as="image" href="/assets/cancun-hotel-zone-hero-768.webp" media="(max-width: 767px)" fetchpriority="high" />
+    <link rel="preload" as="image" href="/assets/cancun-hotel-zone-hero-1280.webp" media="(min-width: 768px) and (max-width: 1439px)" fetchpriority="high" />
+    <link rel="preload" as="image" href="/assets/cancun-hotel-zone-hero-1920.webp" media="(min-width: 1440px)" fetchpriority="high" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -52,7 +54,7 @@
         <div class="brand-row">
           <a class="brand" href="/" aria-label="Puerto Cancún Center">
             <span class="brand-mark" aria-hidden="true">
-              <img src="/assets/puerto-cancun-logo.png?v=20260711" width="640" height="640" alt="" />
+              <img src="/assets/puerto-cancun-logo-160.webp" width="640" height="640" alt="" />
             </span>
             <span class="brand-copy">
               <span>Puerto</span>
@@ -155,12 +157,8 @@
               Te ayudamos a validar precios, preparar tu propiedad, encontrar compradores reales y tomar mejores
               decisiones inmobiliarias en Cancún.
             </p>
-            <div class="hero-actions">
-              <a class="accent-button" href="/vender-casa-cancun" id="heroSellButton" data-open-seller-options data-i18n="heroSellCta">Quiero vender mi propiedad</a>
-              <a class="outline-button" href="/comprar-casa-cancun" data-i18n="heroBuyCta">Quiero comprar en Cancun</a>
-            </div>
             <form class="search-panel" id="searchForm">
-              <span class="intelligent-search-label"><i data-lucide="sparkles"></i> Búsqueda inteligente</span>
+              <span class="intelligent-search-label"><i data-lucide="search" aria-hidden="true"></i> <span data-i18n="homeSearchLabel">Busca una propiedad</span></span>
               <label class="search-field">
                 <i data-lucide="map-pin"></i>
                 <input
@@ -169,9 +167,9 @@
                   autocomplete="off"
                   aria-label="Describe la propiedad que estás buscando"
                   data-i18n-placeholder="searchPlaceholder"
-                  placeholder="Zona, desarrollo, departamento, casa, terreno, renta o venta"
+                  placeholder="Zona o propiedad"
                 />
-                <span class="search-field-prompt" data-i18n="searchPlaceholder" aria-hidden="true">Zona, desarrollo, departamento, casa, terreno, renta o venta</span>
+                <span class="search-field-prompt" data-i18n="searchPlaceholder" aria-hidden="true">Zona o propiedad</span>
               </label>
               <button class="accent-button" type="submit">
                 <i data-lucide="search"></i>
@@ -179,6 +177,10 @@
               </button>
             </form>
             <div class="intelligent-search-status" id="intelligentSearchStatus" aria-live="polite" hidden></div>
+            <div class="hero-actions">
+              <a class="accent-button" href="/vender-casa-cancun" id="heroSellButton" data-open-seller-options data-i18n="heroSellCta">Quiero vender mi propiedad</a>
+              <a class="outline-button" href="/comprar-casa-cancun" data-i18n="heroBuyCta">Quiero comprar en Cancún</a>
+            </div>
           </div>
         </section>
 
@@ -290,7 +292,7 @@
               <a class="type-tile" href="/propiedades/casas-cancun">
                 <span data-i18n="typeHouses">Casas</span>
                 <img
-                  src="/assets/type-houses-cancun.jpg"
+                  src="/assets/type-houses-cancun-720.webp"
                   alt="Luxury house pool"
                   width="1200" height="800"
                 />
@@ -298,7 +300,7 @@
               <a class="type-tile" href="/propiedades/departamentos-cancun">
                 <span data-i18n="typeCondos">Departamentos</span>
                 <img
-                  src="/assets/type-apartments-cancun.jpg"
+                  src="/assets/type-apartments-cancun-720.webp"
                   alt="Luxury apartment"
                   width="1200" height="800"
                 />
@@ -306,14 +308,14 @@
               <a class="type-tile" href="/propiedades/terrenos-cancun">
                 <span data-i18n="typeLand">Terrenos</span>
                 <img
-                  src="/assets/type-land-cancun.jpg"
+                  src="/assets/type-land-cancun-720.webp"
                   alt="Waterfront land"
                   width="1200" height="800"
                 />
               </a>
               <a class="type-tile" href="/propiedades/comerciales-cancun">
                 <span data-i18n="typeCommercial">Comercial</span>
-                <img src="/assets/type-apartments-cancun.jpg" alt="Inventario comercial" width="1200" height="800" loading="lazy" />
+                <img src="/assets/type-apartments-cancun-720.webp" alt="Inventario comercial" width="1200" height="800" loading="lazy" />
               </a>
             </div>
 
@@ -326,7 +328,7 @@
                 </p>
                 <a class="primary-button" href="/preventas-cancun" data-i18n="seeMore">Ver mas</a>
               </div>
-              <img src="/assets/type-apartments-cancun.jpg" alt="Departamento contemporáneo disponible en Cancún"
+              <img src="/assets/type-apartments-cancun-720.webp" alt="Departamento contemporáneo disponible en Cancún"
                 width="1200" height="800" loading="lazy" />
             </div>
           </div>
@@ -557,7 +559,7 @@
           <div class="footer-brand">
             <a class="brand footer-logo" href="/" aria-label="Puerto Cancún Center">
               <span class="brand-mark" aria-hidden="true">
-                <img src="/assets/puerto-cancun-logo.png?v=20260711" width="640" height="640" alt="" loading="lazy" />
+                <img src="/assets/puerto-cancun-logo-160.webp" width="640" height="640" alt="" loading="lazy" />
               </span>
               <span class="brand-copy">
                 <span>Puerto</span>
@@ -726,16 +728,16 @@
             <div class="seller-tour-list" id="sellerTours"></div>
           </article>
         </section>
-        <article class="panel-card seller-help-card seller-help-card-top" data-seller-panel-section="sale">
+        <details class="panel-card seller-help-card seller-help-card-top" data-seller-panel-section="sale" open>
+          <summary data-i18n="sellerHelpTitle">¿Necesitas asesoría para llenar el formulario?</summary>
           <div>
-            <h2 data-i18n="sellerHelpTitle">Necesitas asesoria para llenar el formulario?</h2>
-            <p data-i18n="sellerHelpCopy">Un asesor puede ayudarte a preparar la informacion, fotos y ubicacion antes de enviar la solicitud.</p>
+            <p data-i18n="sellerHelpCopy">Un asesor puede ayudarte a preparar la información, fotos y ubicación antes de enviar la solicitud.</p>
           </div>
           <button class="primary-button" type="button" data-seller-help>
             <i data-lucide="message-circle"></i>
-            <span data-i18n="sellerHelpCta">Solicitar guia por WhatsApp</span>
+            <span data-i18n="sellerHelpCta">Solicitar guía por WhatsApp</span>
           </button>
-        </article>
+        </details>
         <article class="panel-card seller-service-card" id="sellerServiceCard" data-seller-panel-section="service-form" hidden>
           <div class="admin-module-heading">
             <div>
@@ -826,7 +828,7 @@
                   </label>
                   <label>
                     <span data-i18n="phone">Telefono</span>
-                    <input name="phone" required />
+                    <input name="phone" type="tel" autocomplete="tel" required />
                   </label>
                 </div>
                 <label>
@@ -994,7 +996,7 @@
           <aside class="admin-sidebar" id="adminSidebar">
             <div class="admin-sidebar-brand">
               <span class="admin-sidebar-identity">
-                <img src="/assets/puerto-cancun-logo.png?v=20260711" width="640" height="640" alt="" />
+                <img src="/assets/puerto-cancun-logo-160.webp" width="640" height="640" alt="" />
                 <strong>Puerto Cancún Center</strong>
               </span>
               <button class="icon-button" type="button" id="adminSidebarToggle" title="Contraer menú" aria-controls="adminMenu">
@@ -1417,7 +1419,7 @@
             <div><span>Leads activos</span><strong id="whatsappKpiLeads">0</strong></div>
           </div>
           <div class="whatsapp-tabs" role="tablist" aria-label="Secciones de WhatsApp">
-            <button class="active" type="button" data-whatsapp-tab="connection"><i data-lucide="qr-code"></i><span>Conexion</span></button>
+            <button class="active" type="button" data-whatsapp-tab="connection"><i data-lucide="qr-code"></i><span>Conexión</span></button>
             <button type="button" data-whatsapp-tab="chatbot"><i data-lucide="bot"></i><span>Chatbot</span></button>
             <button type="button" data-whatsapp-tab="chats"><i data-lucide="messages-square"></i><span>Chats</span></button>
             <button type="button" data-whatsapp-tab="leads"><i data-lucide="contact-round"></i><span>Leads</span></button>
@@ -2750,7 +2752,7 @@
             </aside>
             </div>
             <section id="listingDraftShelf" data-admin-listing-view="properties developments" hidden><h3>Borradores pendientes</h3><div id="listingDraftList"></div></section>
-            <div class="admin-listing-toolbar" data-admin-listing-view="properties developments" aria-label="Buscar y filtrar publicaciones">
+            <div class="admin-listing-toolbar admin-inventory-toolbar" data-admin-listing-view="properties developments" aria-label="Buscar y filtrar publicaciones">
               <label class="admin-listing-search">
                 <span>Buscar publicaciones</span>
                 <div class="search-input-with-icon">
@@ -2758,12 +2760,17 @@
                   <input id="adminListingSearch" type="search" placeholder="Título, keyword, zona, MLS, ubicación..." />
                 </div>
               </label>
+              <details class="admin-listing-advanced" id="adminListingAdvancedFilters" open>
+                <summary id="adminListingFiltersSummary">Filtros y orden</summary>
+                <div class="admin-listing-filter-fields">
               <label><span>Tipo</span><select id="adminListingTypeFilter"><option value="">Todos</option></select></label>
               <label><span>Zona</span><select id="adminListingZoneFilter"><option value="">Todas</option></select></label>
               <label><span>Operación</span><select id="adminListingOperationFilter"><option value="">Todas</option><option value="sale">Venta</option><option value="rent">Renta</option></select></label>
               <label class="admin-listing-view-filter"><span data-i18n="inventoryView">Vista / estado</span><select id="adminListingStatusFilter"><option value="" data-i18n="inventoryGeneral">Inventario general</option><option value="draft" data-i18n="inventoryDrafts">Borradores</option><option value="pending">Pendiente</option><option value="active">Activa</option><option value="disabled">Deshabilitada</option><option value="sold">Vendida</option><option value="rented">Rentada</option><option value="archived">Archivada</option></select></label>
               <label><span>Calidad</span><select id="adminListingQualityFilter"><option value="">Todas</option><option value="incomplete">Incompletas</option><option value="ready">Listas para publicar</option></select></label>
               <label><span>Ordenar por</span><select id="adminListingSort"><option value="created_desc">Más recientes</option><option value="updated_desc">Última modificación</option><option value="created_asc">Más antiguas</option><option value="title_asc">Título A–Z</option><option value="price_asc">Precio: menor a mayor</option><option value="price_desc">Precio: mayor a menor</option></select></label>
+                </div>
+              </details>
               <button class="ghost-button" id="clearAdminListingSearch" type="button"><i data-lucide="x"></i> Limpiar</button>
             </div>
             <div class="panel-card-subhead listings-subhead" data-admin-listing-view="properties developments">
@@ -2911,8 +2918,8 @@
     <aside class="cookie-banner" id="cookieBanner" role="dialog" aria-label="Preferencias de cookies" hidden>
       <div>
         <strong data-i18n="cookieBannerTitle">Tu privacidad importa</strong>
-        <p data-i18n="cookieBannerCopy">Usamos cookies esenciales para seguridad, sesión e idioma. Las mediciones opcionales solo se activan con tu autorización.</p>
-        <a href="/politica-de-cookies" data-i18n="cookieLearnMore">Conocer la política de cookies</a>
+        <p data-i18n="cookieBannerCopy">Usamos cookies para tu sesión. Tú eliges si permites medir las visitas.</p>
+        <a href="/politica-de-cookies" data-i18n="cookieLearnMore">Política de cookies</a>
       </div>
       <div class="cookie-actions">
         <button class="ghost-button" type="button" data-cookie-choice="essential" data-i18n="cookieEssential">Solo esenciales</button>
@@ -3054,9 +3061,11 @@
 
     <div class="modal-backdrop" id="authModal" hidden>
       <section class="auth-modal" role="dialog" aria-modal="true" aria-labelledby="authTitle">
-        <button class="modal-close" type="button" id="authClose" aria-label="Close">
-          <i data-lucide="x"></i>
-        </button>
+        <div class="auth-modal-controls">
+          <button class="modal-close" type="button" id="authClose" aria-label="Close">
+            <i data-lucide="x"></i>
+          </button>
+        </div>
         <h2 id="authTitle" data-i18n="authTitle">Acceso Puerto Cancún Center</h2>
         <p class="auth-intro" data-i18n="authIntro">Regístrate y anuncia con nosotros. Podrás enviar tu propiedad, agregar fotografías y seguir el proceso con un asesor.</p>
         <div class="modal-tabs" role="tablist">

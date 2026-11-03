@@ -19,7 +19,8 @@
     return `${form.action}?${params}`;
   }
 
-  async function navigate(url, push = true, preserveField = "") {
+  async function navigate(url, push = true, preserveField = "", revealResults = false) {
+    clearTimeout(debounce);
     request?.abort();
     request = new AbortController();
     const id = ++sequence;
@@ -58,6 +59,14 @@
         input?.focus({ preventScroll: true });
         if (selection !== null && input?.type === "search") input.setSelectionRange(selection, selection);
       }
+      if (revealResults) {
+        const target = replacement.querySelector(".catalog-errors, .catalog-result-bar");
+        if (target) {
+          target.setAttribute("tabindex", "-1");
+          target.focus({ preventScroll: true });
+          target.scrollIntoView({ block: "start", behavior: "instant" });
+        }
+      }
       window.lucide?.createIcons();
       window.pccComparison?.syncControls();
     } catch (error) {
@@ -70,7 +79,7 @@
 
   document.addEventListener("submit", (event) => {
     if (event.target.id !== "catalogFilters") return;
-    event.preventDefault(); clearTimeout(debounce); navigate(formUrl(event.target));
+    event.preventDefault(); navigate(formUrl(event.target), true, "", true);
   });
   document.addEventListener("input", (event) => {
     if (event.target.form?.id !== "catalogFilters" || event.target.name !== "q") return;
@@ -88,12 +97,12 @@
   });
   document.addEventListener("click", (event) => {
     const link = event.target.closest(".catalog-pagination a, .catalog-chip, #catalogFilters a.text-link");
-    if (link && !event.ctrlKey && !event.metaKey && event.button === 0) {
+    if (link && !event.ctrlKey && !event.metaKey && !event.shiftKey && !event.altKey && event.button === 0) {
       event.preventDefault();
       const url = new URL(link.href);
       const comparison = new URLSearchParams(location.search).get("compare");
       if (comparison) url.searchParams.set("compare", comparison); else url.searchParams.delete("compare");
-      navigate(url.href);
+      navigate(url.href, true, "", true);
       return;
     }
     const button = event.target.closest("[data-catalog-view]");

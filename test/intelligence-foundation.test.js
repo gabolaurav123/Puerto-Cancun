@@ -80,7 +80,7 @@ test("las herramientas IA consultan las columnas vigentes de precio", () => {
 });
 
 test("la interfaz integra búsqueda, Intelligence, calidad e integraciones sin chatbot público", () => {
-  assert.match(indexSource, /id="searchForm"[\s\S]*Búsqueda inteligente/);
+  assert.match(indexSource, /id="searchForm"[\s\S]*data-i18n="homeSearchLabel">Busca una propiedad/);
   assert.match(indexSource, /data-admin-section="copilot"/);
   assert.match(indexSource, /data-admin-section-panel="data-quality"/);
   assert.match(indexSource, /data-admin-section-panel="integrations"/);
