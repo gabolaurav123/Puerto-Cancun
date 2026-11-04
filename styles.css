@@ -4691,6 +4691,8 @@ textarea {
   color: #111;
   text-align: center;
   font-size: 0.7rem;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
 
 .admin-main {
@@ -10564,14 +10566,11 @@ body:has(.listing-publish-dialog[open]) { overflow: hidden; }
   transform: translateY(0);
 }
 
-.admin-sidebar-nav > button:has(+ .admin-sidebar-subnav) {
-  position: relative;
-  padding-right: 34px;
-}
-
 .admin-sidebar-nav > button:has(+ .admin-sidebar-subnav)::after {
   position: absolute;
   right: 11px;
+  top: 50%;
+  transform: translateY(-50%);
   content: "+";
   font-size: 1rem;
   line-height: 1;
@@ -10579,10 +10578,6 @@ body:has(.listing-publish-dialog[open]) { overflow: hidden; }
 
 .admin-sidebar-nav > button[aria-expanded="true"]:has(+ .admin-sidebar-subnav)::after {
   content: "-";
-}
-
-.admin-sidebar-nav > button:has(+ .admin-sidebar-subnav) b {
-  margin-right: 14px;
 }
 
 .admin-sidebar-subnav button,
@@ -13692,6 +13687,12 @@ body[data-page="seo"] .seo-page-hero p:not(.seo-eyebrow) { margin: 0 0 12px; }
   color: #fff;
 }
 
+/* Reserve the same disclosure gutter on every row so counters share an edge. */
+.admin-sidebar-nav > button {
+  position: relative;
+  padding-right: 34px;
+}
+
 .admin-nav-label {
   grid-column: 1 / -1;
   margin: 12px 9px 2px;
@@ -13721,7 +13722,7 @@ body[data-page="seo"] .seo-page-hero p:not(.seo-eyebrow) { margin: 0 0 12px; }
   #adminPanel.sidebar-collapsed .admin-sidebar-nav > button {
     display: grid; grid-template-columns: 20px minmax(0, 1fr) auto;
     justify-items: stretch; align-items: center; gap: 7px;
-    min-width: 0; min-height: 48px; padding: 9px 7px;
+    min-width: 0; min-height: 48px; padding: 9px 20px 9px 7px;
     text-align: left; font-size: .8125rem; line-height: 1.4;
   }
   #adminPanel.sidebar-collapsed .admin-sidebar-nav > button > span {
@@ -13733,7 +13734,6 @@ body[data-page="seo"] .seo-page-hero p:not(.seo-eyebrow) { margin: 0 0 12px; }
   #adminPanel.sidebar-collapsed .admin-sidebar-nav > button > b {
     justify-self: end; min-width: 22px; margin: 0; padding: 2px 5px; line-height: 1.4;
   }
-  #adminPanel.sidebar-collapsed .admin-sidebar-nav > button:has(+ .admin-sidebar-subnav) { padding-right: 20px; }
   #adminPanel.sidebar-collapsed .admin-sidebar-nav > button:has(+ .admin-sidebar-subnav)::after {
     content: "›"; right: 6px; font-size: 1.15rem;
   }
