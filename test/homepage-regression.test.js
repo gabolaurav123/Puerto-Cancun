@@ -2,6 +2,8 @@ const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const path = require("node:path");
 const test = require("node:test");
+const vm = require("node:vm");
+const inventory = require("../inventory-contract");
 
 const root = path.join(__dirname, "..");
 const read = (file) => fs.readFileSync(path.join(root, file), "utf8");
@@ -27,17 +29,111 @@ test("la portada restaura su jerarquia sin el bloque de destacadas y conserva su
   assert.match(styles, /body\[data-page="home"\] \.hero h1[\s\S]*font-size: 4\.25rem/);
 });
 
-test("zonas y tipos no repiten una sola imagen", () => {
+function homeCoverRuntime(properties) {
+  const selectors = [
+    ...Array.from({ length: 4 }, (_, i) => `.type-grid .type-tile:nth-child(${i + 1})`),
+    ...Array.from({ length: 4 }, (_, i) => `.zone-grid .zone-card:nth-child(${i + 1})`),
+    ".presale-feature",
+  ];
+  const cards = selectors.map((selector, index) => {
+    const classes = new Set(["has-home-cover"]);
+    const image = {
+      hidden: false, src: "/old-photo.webp", srcset: "/old-photo-large.webp 2x", alt: "Anterior",
+      dataset: { fallbackApplied: "true" }, removeAttribute(name) { delete this[name]; },
+    };
+    return {
+      selector, image, classes, href: `/destination-${index}`, hidden: false,
+      classList: { toggle(name, enabled) { if (enabled) classes.add(name); else classes.delete(name); } },
+      querySelector: selector => selector === "[data-home-cover]" ? image : null,
+    };
+  });
+  const state = { properties };
+  const source = read("app.js");
+  const functions = ["updateHomeEditorialImages", "storedImages", "optimizedMediaUrl"].map(name => {
+    const match = source.match(new RegExp(`function ${name}\\([^]*?\\n}`));
+    assert.ok(match, `missing function ${name}`);
+    return match[0];
+  });
+  const update = vm.runInNewContext(`${functions.join("\n")}\nupdateHomeEditorialImages`, {
+    state, window: { PccInventory: inventory }, localizedTitle: property => property.titleEs,
+    document: { querySelector: selector => cards.find(card => card.selector === selector) || null },
+  }, { timeout: 1000 });
+  return { update, state, cards };
+}
+
+function homeProperty(id, type, zone, extra = {}) {
+  return {
+    id, titleEs: `Fotografía de ${id}`, type, zone, city: "Cancún", status: "active", isPublic: true,
+    publicationSection: type === "Desarrollo" ? "developments" : "properties",
+    images: [`/media/properties/${id}/0`], ...extra,
+  };
+}
+
+test("las tarjetas de inicio parten de un fondo neutro sin mostrar fotos de stock", () => {
   const index = read("index.html");
-  const app = read("app.js");
-  const section = index.match(/<div class="zone-grid">([\s\S]*?)<\/div>[\s\S]*?<div class="type-grid">([\s\S]*?)<\/div>/);
-  assert.ok(section, "deben existir las zonas y los tipos editoriales");
-  const images = [...section[0].matchAll(/src="([^"]+)"/g)].map((match) => match[1]);
-  assert.ok(new Set(images).size >= 4, "deben existir por lo menos cuatro imagenes distintas");
-  assert.match(app, /const usedImages = new Set\(\)/);
-  assert.match(app, /\.type-grid \.type-tile:nth-child\(3\)/);
-  assert.match(app, /PccInventory\.resolveLocation\(property\)/);
-  assert.match(index, /data-commercial-location="cancun-city"/);
+  const covers = [...index.matchAll(/<img\b[^>]*\bdata-home-cover\b[^>]*>/g)].map(match => match[0]);
+  assert.equal(covers.length, 9, "cuatro tipos, cuatro zonas y preventas");
+  for (const image of covers) {
+    assert.match(image, /\bhidden\b/);
+    assert.doesNotMatch(image, /\s(?:src|srcset)=/);
+  }
+});
+
+test("las portadas respetan tipo y zona, excluyen imágenes externas y registros privados, y no mutan el inventario", () => {
+  const properties = [
+    homeProperty("private-house", "Casa", "Puerto Cancún", { isPublic: false }),
+    homeProperty("draft-house", "Casa", "Puerto Cancún", { status: "draft" }),
+    homeProperty("archived-condo", "Departamento", "Zona Hotelera", { status: "archived" }),
+    homeProperty("stock-house", "Casa", "Puerto Cancún", { images: ["https://images.example.test/stock.jpg"] }),
+    homeProperty("stock-land", "Terreno", "Tulum", { images: ["/assets/type-land-cancun-720.webp"] }),
+    homeProperty("house", "Casa", "Puerto Cancún", { images: ["https://images.example.test/stock.jpg", "/media/properties/house/0"] }),
+    homeProperty("condo", "Departamento", "Zona Hotelera", { images: [], image: "/media/properties/condo/0" }),
+    homeProperty("land", "Terreno", "Tulum"),
+    homeProperty("office", "Comercial", "Huayacán"),
+    homeProperty("hotel-zone", "Desarrollo", "Zona Hotelera"),
+    homeProperty("puerto", "Desarrollo", "Puerto Cancún"),
+    homeProperty("city", "Desarrollo", "Huayacán"),
+    homeProperty("outside", "Desarrollo", "Tulum"),
+    homeProperty("presale", "Desarrollo", "Puerto Cancún", { salesModality: "presale" }),
+  ];
+  const before = JSON.stringify(properties);
+  for (const property of properties) { Object.freeze(property.images); Object.freeze(property); }
+  Object.freeze(properties);
+  const { update, cards } = homeCoverRuntime(properties);
+  update();
+  const expected = ["house", "condo", "land", "office", "hotel-zone", "puerto", "city", "outside", "presale"];
+  cards.forEach((card, index) => {
+    assert.equal(card.image.src, `/media/properties/${expected[index]}/0?w=640`);
+    assert.equal(card.image.alt, `Fotografía de ${expected[index]}`);
+    assert.equal(card.image.hidden, false);
+    assert.equal(card.classes.has("has-home-cover"), true);
+    assert.equal(card.image.srcset, undefined);
+    assert.equal(card.image.dataset.fallbackApplied, undefined);
+    assert.equal(card.hidden, false);
+  });
+  assert.equal(new Set(cards.map(card => card.image.src)).size, 9);
+  assert.equal(JSON.stringify(properties), before);
+});
+
+test("sin una foto compatible la tarjeta conserva su enlace y limpia la portada anterior", () => {
+  const property = homeProperty("only-house", "Casa", "Puerto Cancún");
+  const { update, state, cards } = homeCoverRuntime([property]);
+  update();
+  assert.equal(cards[0].image.src, "/media/properties/only-house/0?w=640");
+  assert.equal(cards[5].image.src, cards[0].image.src, "reutilizar una foto pertinente es válido si no hay otra para la zona");
+  assert.equal(cards[2].image.src, undefined, "un terreno no puede usar la foto de una casa");
+  assert.equal(cards[2].image.hidden, true);
+  state.properties = [];
+  update();
+  cards.forEach((card, index) => {
+    assert.equal(card.image.hidden, true);
+    assert.equal(card.image.src, undefined);
+    assert.equal(card.image.srcset, undefined);
+    assert.equal(card.image.alt, "");
+    assert.equal(card.classes.has("has-home-cover"), false);
+    assert.equal(card.hidden, false);
+    assert.equal(card.href, `/destination-${index}`);
+  });
 });
 
 test("el panel privado no se convierte en otra portada", () => {

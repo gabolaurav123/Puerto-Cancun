@@ -3006,7 +3006,11 @@ function sortedProperties(properties) {
 }
 
 function updateHomeEditorialImages() {
-  const candidates = state.properties.filter((property) => /^\/media\/properties\//.test(primaryImage(property)));
+  const contract = window.PccInventory;
+  if (!contract) return;
+  // Home covers only reuse photos attached to public inventory; no stock-photo defaults.
+  const candidates = state.properties.filter(contract.isPublic);
+  const inventoryImages = (property) => storedImages(property).filter(source => /^\/media\/properties\//.test(source));
   const usedProperties = new Set();
   const usedImages = new Set();
   const assignments = [
@@ -3015,15 +3019,21 @@ function updateHomeEditorialImages() {
     [".type-grid .type-tile:nth-child(3)", (property) => property.type === "Terreno"],
     [".type-grid .type-tile:nth-child(4)", (property) => property.type === "Comercial"],
     ...["zona-hotelera", "puerto-cancun", "cancun-city", "fuera-de-cancun"].map((id, index) => [`.zone-grid .zone-card:nth-child(${index + 1})`, (property) => window.PccInventory?.resolveLocation(property).id === id]),
+    [".presale-feature", (property) => contract.modalityOf(property) === "presale"],
   ];
   assignments.forEach(([selector, matches]) => {
-    const image = document.querySelector(`${selector} img`);
-    const property = candidates.find((candidate) => {
-      const source = primaryImage(candidate);
-      return matches(candidate) && !usedProperties.has(candidate.id) && !usedImages.has(source);
-    });
-    if (!image || !property) return;
-    const source = primaryImage(property);
+    const card = document.querySelector(selector);
+    const image = card?.querySelector('[data-home-cover]');
+    if (!image) return;
+    const matching = candidates.filter(candidate => matches(candidate) && inventoryImages(candidate).length);
+    const property = matching.find(candidate => !usedProperties.has(candidate.id) && inventoryImages(candidate).some(source => !usedImages.has(source))) || matching[0];
+    const images = property ? inventoryImages(property) : [];
+    const source = images.find(source => !usedImages.has(source)) || images[0];
+    image.hidden = !source;
+    card.classList.toggle('has-home-cover', Boolean(source));
+    image.removeAttribute('srcset');
+    delete image.dataset.fallbackApplied;
+    if (!source) { image.removeAttribute('src'); image.alt = ''; return; }
     usedProperties.add(property.id);
     usedImages.add(source);
     image.src = optimizedMediaUrl(source, 640);
@@ -8749,27 +8759,12 @@ async function loadPublicData() {
   state.platform = configData?.platform || state.platform;
   if (!panelPage) {
     mountPublicComparison(state.properties);
-    hydrateLocationCovers(state.properties);
+    updateHomeEditorialImages();
   }
   if (results.every((result) => result.status === "rejected")) throw results[0].reason;
   if (results.some((result) => result.status === "rejected")) {
     showToast(t("partialLoadError"), "error");
   }
-}
-
-function hydrateLocationCovers(properties) {
-  if (!window.PccInventory) return;
-  document.querySelectorAll('[data-commercial-location]').forEach(card => {
-    const image = card.querySelector('[data-location-cover]');
-    if (!image) return;
-    const candidates = window.PccInventory.queryInventory(properties, { location: card.dataset.commercialLocation }).all;
-    const property = candidates.find(item => item.images?.some(source => source !== fallbackImage && /^(https?:\/\/|\/media\/properties\/)/.test(source)));
-    const source = property?.images.find(source => source !== fallbackImage && /^(https?:\/\/|\/media\/properties\/)/.test(source));
-    image.hidden = !source;
-    card.classList.toggle('has-location-cover', Boolean(source));
-    if (source) { image.alt = localizedTitle(property); image.src = source; }
-    else image.removeAttribute('src');
-  });
 }
 
 function mountPublicComparison(publicProperties, requested = false) {
@@ -9975,9 +9970,9 @@ function setFormMessage(element, text, error = false) {
 
 function installImageFallbacks() {
   const applyFallback = (image) => {
-    if (image instanceof HTMLImageElement && image.matches('[data-location-cover]')) {
+    if (image instanceof HTMLImageElement && (image.matches('[data-home-cover]') || image.matches('[data-location-cover]'))) {
       image.hidden = true;
-      image.closest('[data-commercial-location]')?.classList.remove('has-location-cover');
+      image.closest('.zone-card, .type-tile, .presale-feature')?.classList.remove('has-home-cover');
       return;
     }
     if (!(image instanceof HTMLImageElement) || image.matches('.leaflet-tile') || image.dataset.fallbackApplied === "true") return;

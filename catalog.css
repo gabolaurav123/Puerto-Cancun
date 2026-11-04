@@ -76,11 +76,13 @@ body[data-page=home] [data-contact-number] { white-space: nowrap; }
 body[data-page=home] .zone-grid, body[data-page=home] .type-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 body[data-page=home] .zone-card { aspect-ratio: 1.6; min-height: 0; }
 body[data-page=home] .zone-card img { height: 100%; }
-.zone-card .location-cover-placeholder { position: absolute; top: 22px; left: 22px; width: 36px; height: 36px; color: #d6b465; }
-.zone-card.has-location-cover .location-cover-placeholder { display: none; }
-.zone-card [data-location-cover][hidden] { display: none; }
-body[data-page=home] .type-tile { min-width: 0; }
-body[data-page=home] .type-tile img { aspect-ratio: 1.6; height: auto; }
+:is(.zone-card, .type-tile) .location-cover-placeholder { position: absolute; top: 22px; left: 22px; width: 36px; height: 36px; color: #d6b465; }
+.has-home-cover .location-cover-placeholder { display: none; }
+[data-home-cover][hidden], .zone-card [data-location-cover][hidden] { display: none; }
+body[data-page=home] .type-tile { min-width: 0; min-height: 0; height: auto; aspect-ratio: 1.6; background: #0b4d58; }
+body[data-page=home] .type-tile img { height: 100%; min-height: 0; }
+body[data-page=home] .presale-feature:not(.has-home-cover) { grid-template-columns: minmax(0, 1fr); }
+body[data-page=home] .presale-feature:not(.has-home-cover) .primary-button { width: fit-content; }
 @media (min-width: 1366px) { .catalog-experience .seo-property-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); } .catalog-map-open .seo-property-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (max-width: 900px) {
   .catalog-controls :is(input:not([type=checkbox]), select) { font-size: 16px; }
@@ -94,6 +96,9 @@ body[data-page=home] .type-tile img { aspect-ratio: 1.6; height: auto; }
   body[data-page=home] [data-contact-label] { display: block; }
 }
 @media (max-width: 540px) {
+  body[data-page=home] :is(.zone-card, .type-tile) { height: 150px; aspect-ratio: auto; }
+  body[data-page=home] :is(.zone-card, .type-tile) > span { left: 12px; right: 12px; bottom: 14px; font-size: clamp(.95rem, 4vw, 1.1rem); line-height: 1.25; }
+  body[data-page=home] .location-cover-placeholder { top: 16px; left: 12px; width: 28px; height: 28px; }
   .catalog-controls { grid-template-columns: auto 1fr; gap: 6px 8px; }
   .catalog-search-row { grid-column: 1 / -1; }
   .catalog-controls > details > summary { padding: 10px; }
