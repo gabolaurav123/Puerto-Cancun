@@ -6943,8 +6943,11 @@ async function loadDailyBlogStatus() {
     const today = data.today || new Intl.DateTimeFormat("en-CA", { timeZone: data.timeZone || "America/Cancun", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date());
     const todayRun = data.runs?.find((run) => String(run.run_date).slice(0, 10) === today);
     const runButton = $("#runDailyBlog");
-    if (runButton) runButton.disabled = !data.configured || !data.enabled || data.running || todayRun?.status === "published" || Number(todayRun?.attempts || 0) >= 3;
+    const attemptLimit = Number(data.manualAttemptLimit || 3);
+    const attemptsExhausted = Number(todayRun?.attempts || 0) >= attemptLimit;
+    if (runButton) runButton.disabled = !data.configured || !data.enabled || data.running || todayRun?.status === "published" || attemptsExhausted;
     status.textContent = !data.configured ? "Falta configurar la conexión editorial en Integraciones." : !data.enabled ? "Publicación automática desactivada." : `Programado diariamente a las ${String(data.hour).padStart(2, "0")}:00 (hora de Cancún).${latest ? ` Último resultado: ${labels[latest.status] || latest.status} · ${String(latest.run_date).slice(0, 10)}.` : " La primera publicación está pendiente."}`;
+    if (data.configured && data.enabled && attemptsExhausted && todayRun?.status !== "published") status.textContent += " Se alcanzó el límite de intentos de hoy; se volverá a consultar mañana.";
     status.dataset.loaded = "true";
   } catch { status.textContent = "No se pudo consultar la programación. Pulsa Actualizar estado."; }
   finally { delete status.dataset.loading; }

@@ -10478,6 +10478,9 @@ app.post("/api/admin/blog-automation/run", requireRole("admin"), async (_req, re
   try {
     const status = await dailyBlogService.getStatus();
     if (!status.enabled || !status.configured) return res.status(503).json({ error: "La publicación diaria no está configurada en el servicio." });
+    const todayRun = status.runs?.find((run) => String(run.run_date instanceof Date ? run.run_date.toISOString() : run.run_date).slice(0, 10) === status.today);
+    if (todayRun?.status === "published") return res.status(409).json({ error: "La edición de hoy ya está publicada." });
+    if (Number(todayRun?.attempts || 0) >= Number(status.manualAttemptLimit || 3)) return res.status(429).json({ error: "Se alcanzó el límite de intentos de hoy. La consulta automática continuará mañana." });
     void dailyBlogService.run({ manual: true });
     res.status(202).json({ status: "scheduled" });
   } catch (error) { next(error); }

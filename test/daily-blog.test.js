@@ -1,13 +1,13 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
-const { collectOfficialNews, parseOfficialFeed, createDailyBlogService, generateArticle: generateRealArticle, localDay, localHour, renderBlogParagraph, renderBlogSources, researchSources, safeSourceUrl, validateArticle } = require("../daily-blog");
+const { collectOfficialNews, parseOfficialFeed, createDailyBlogService, generateArticle: generateRealArticle, localDay, localHour, renderBlogParagraph, renderBlogSources, researchSources, safeSourceUrl, editorialSourceUrl, editorialSearchPlan, publicResearchActions, DISCOVERY_DOMAINS, validateArticle } = require("../daily-blog");
 const noOfficialNews = async () => ({ sources: [], checks: [] });
 const generateArticle = options => generateRealArticle({ collectNews: noOfficialNews, ...options });
 
 const now = new Date("2026-11-03T15:00:00.000Z");
 const sources = [
   { title: "Comunicado sobre el turismo de Cancún", url: "https://sedetur.qroo.gob.mx/noticia-cancun/", publishedAt: "2026-11-02" },
-  { title: "Actualización del aeropuerto de Cancún", url: "https://www.asur.com.mx/comunicado-cancun", publishedAt: "2026-11-01" },
+  { title: "Actualización del aeropuerto de Cancún", url: "https://cgc.qroo.gob.mx/comunicado-cancun/", publishedAt: "2026-11-01" },
 ];
 function candidate() {
   return {
@@ -35,6 +35,45 @@ test("official source URLs reject deceptive domains, credentials, roots and non-
 test("source evidence is extracted from search results and annotations, not generated prose URLs", () => {
   const payload = { output: [{ type: "web_search_call", action: { sources: [sources[0]] } }, { content: [{ text: "https://qroo.gob.mx/invented", annotations: [{ type: "url_citation", ...sources[1] }, { url: "https://attacker.test/news" }] }] }] };
   assert.deepEqual(researchSources(payload).map(source => source.url), [sources[1].url, sources[0].url]);
+});
+
+test("editorial discovery excludes government administrative files, indexes and unrelated hosts", () => {
+  const rejected = [
+    "https://transparenciafocalizada.qroo.gob.mx/viaticos/turismo-2026.pdf",
+    "https://transparencia.cancun.gob.mx/noticia", "https://qroo.gob.mx/noticia/", "https://www.asur.com.mx/estados-financieros",
+    "https://cgc.qroo.gob.mx/general/secretarias-de-gobierno/sedetur/", "https://cgc.qroo.gob.mx/sedetur/",
+    "https://cgc.qroo.gob.mx/cjg/wp-content/uploads/2026/informe.pdf", "https://cgc.qroo.gob.mx/%77p-content/uploads/article.html",
+    "https://sedetur.qroo.gob.mx/transparencia/informe", "https://sedetur.qroo.gob.mx/informe.xlsx",
+    "https://cgc.qroo.gob.mx/noticias/?s=Cancun", "https://cgc.qroo.gob.mx/noticia%ZZ",
+  ];
+  for (const url of rejected) assert.equal(editorialSourceUrl(url), "", url);
+  for (const source of sources) assert.equal(editorialSourceUrl(source.url), source.url);
+  const payload = { output: [{ type: "web_search_call", action: { sources: [...rejected.map(url => ({ url })), ...sources] } }] };
+  assert.deepEqual(researchSources(payload).map(s => s.url), sources.map(s => s.url));
+});
+
+test("Spanish discovery queries calculate exact windows and month names across year boundaries", () => {
+  const plan = editorialSearchPlan("2027-01-03");
+  assert.equal(plan.since, "2026-12-27");
+  assert.equal(plan.before, "2027-01-04");
+  assert.equal(plan.queries.length, 4);
+  assert.match(plan.queries[0], /site:cgc\.qroo\.gob\.mx "enero" "2027"/);
+  assert.match(plan.queries[1], /"diciembre" "2026" SEDETUR/);
+  assert.ok(plan.queries.every(query => query.includes("after:2026-12-27 before:2027-01-04")));
+  assert.equal(editorialSearchPlan("2028-03-01").since, "2028-02-23");
+  assert.throws(() => editorialSearchPlan("2027-02-30"), { code: "BLOG_INVALID_DAY" });
+});
+
+test("public research diagnostics normalize actions without persisting credentials or full result text", () => {
+  const actions = publicResearchActions({ output: [
+    { type: "web_search_call", action: { type: "search", queries: ["site:cgc.qroo.gob.mx Cancún noviembre 2026", "api_key=private-value Bearer private-header sk-private-secret a@example.com https://user:pass@cgc.qroo.gob.mx/x", 12], sources: [{ content: "private full source text" }] } },
+    { type: "web_search_call", action: { type: "open_page", url: "https://cgc.qroo.gob.mx/noticia?token=private-value" } },
+    { type: "web_search_call", action: { type: "search", query: "https://cgc.qroo.gob.mx/noticia?session=private-value" } },
+  ] });
+  assert.equal(actions[0].queries[0], "site:cgc.qroo.gob.mx Cancún noviembre 2026");
+  assert.equal(actions[1].type, "open_page");
+  assert.equal(actions[2].queries[0], "https://cgc.qroo.gob.mx/noticia");
+  assert.doesNotMatch(JSON.stringify(actions), /private|example\.com|user:pass/);
 });
 
 test("bilingual daily article preserves clickable citation references", () => {
@@ -86,6 +125,9 @@ test("generation requires completed web research and validates structured biling
   assert.equal(article.sources.length, 2);
   assert.equal(requests[0].tool_choice, "auto");
   assert.equal(requests[0].tools[0].type, "web_search");
+  assert.deepEqual(requests[0].tools[0].filters.allowed_domains, ["cgc.qroo.gob.mx", "sedetur.qroo.gob.mx"]);
+  assert.equal(requests[0].tools[0].search_context_size, "high");
+  assert.equal(requests[0].tools[0].external_web_access, true);
   assert.equal(requests[1].text.format.strict, true);
   assert.match(requests[0].input, /https:\/\/cgc.qroo.gob.mx\/general\/comunicados-recientes\//);
   assert.match(requests[0].input, /2026-10-27 through 2026-11-03/);
@@ -97,20 +139,24 @@ test("diagnostics distinguish insufficient retrieved sources from an editorial e
   const researched = includedSources => ({ status: "completed", output: [{ type: "web_search_call", status: "completed", action: { sources: includedSources } }, { content: [{ type: "output_text", text: "Research result" }] }] });
   await assert.rejects(generateArticle({ apiKey: "test-only", model: "test-model", day: "2026-11-03", fetchImpl: async () => ({ ok: true, json: async () => researched([sources[0]]) }) }), error => {
     assert.equal(error.code, "BLOG_INSUFFICIENT_SOURCES");
-    assert.deepEqual(error.diagnostics, { stage: "research", searchCalls: 1, retrievedSources: 1, researchTextCharacters: 15, officialSources: 0, feedChecks: [], sourceUrls: [sources[0].url] });
+    const { discoveryDomains, plannedQueries, searchMode, researchActions, ...result } = error.diagnostics;
+    assert.deepEqual(result, { stage: "research", searchCalls: 1, retrievedSources: 1, researchTextCharacters: 15, officialSources: 0, feedChecks: [], sourceUrls: [sources[0].url] });
+    assert.deepEqual(discoveryDomains, DISCOVERY_DOMAINS);
+    assert.equal(plannedQueries.length, 4);
     return true;
   });
   const refused = { ...candidate(), ready: false, readinessReason: "missing_dates" };
   const replies = [researched(sources), { status: "completed", output_text: JSON.stringify(refused) }];
   await assert.rejects(generateArticle({ apiKey: "test-only", model: "test-model", day: "2026-11-03", fetchImpl: async () => ({ ok: true, json: async () => replies.shift() }) }), error => {
     assert.equal(error.code, "BLOG_NO_VERIFIED_NEWS");
-    assert.deepEqual(error.diagnostics, { stage: "validation", searchCalls: 1, retrievedSources: 2, researchTextCharacters: 15, officialSources: 0, feedChecks: [], sourceUrls: sources.map(s => s.url), ready: false, reason: "missing_dates" });
+    const { discoveryDomains, plannedQueries, searchMode, researchActions, ...result } = error.diagnostics;
+    assert.deepEqual(result, { stage: "validation", searchCalls: 1, retrievedSources: 2, researchTextCharacters: 15, officialSources: 0, feedChecks: [], sourceUrls: sources.map(s => s.url), ready: false, reason: "missing_dates" });
     return true;
   });
 });
 
 test("cited sources remain available when broad search results exceed the source cap", () => {
-  const broad = Array.from({ length: 25 }, (_, index) => ({ url: `https://qroo.gob.mx/older-result-${index}` }));
+  const broad = Array.from({ length: 25 }, (_, index) => ({ url: `https://cgc.qroo.gob.mx/older-result-${index}` }));
   const payload = { output: [{ type: "web_search_call", action: { sources: broad } }, { content: [{ annotations: sources.map(source => ({ type: "url_citation", ...source })) }] }] };
   const selected = researchSources(payload);
   assert.equal(selected.length, 20);
@@ -183,21 +229,42 @@ test("failed generation publishes nothing and applies persisted retry limits", a
   assert.equal(pool.state.locked, false);
 });
 
-test("manual retry may bypass cooldown but never the daily attempt cap or a published edition", async () => {
+test("only one fourth attempt is available manually and the scheduler never consumes it", async () => {
   const pool = mockPool();
-  const job = service(pool, { generate: async () => { throw Object.assign(new Error("no dated sources"), { code: "BLOG_NO_VERIFIED_NEWS" }); } });
+  let current = now;
+  const job = service(pool, { now: () => current, generate: async () => { throw Object.assign(new Error("no dated sources"), { code: "BLOG_NO_VERIFIED_NEWS" }); } });
   assert.equal((await job.run()).status, "skipped");
   assert.equal((await job.run()).status, "waiting");
   assert.equal((await job.run({ manual: true })).status, "skipped");
   assert.equal((await job.run({ manual: true })).status, "skipped");
-  assert.equal((await job.run({ manual: true })).status, "waiting");
+  current = new Date("2026-11-03T23:01:00Z");
+  assert.equal((await job.run()).status, "waiting");
   assert.equal(pool.state.runs.get("2026-11-03").attempts, 3);
+  assert.equal((await job.run({ manual: true })).status, "skipped");
+  assert.equal((await job.run()).status, "waiting");
+  assert.equal((await job.run({ manual: true })).status, "waiting");
+  assert.equal(pool.state.runs.get("2026-11-03").attempts, 4);
+  assert.equal((await job.getStatus()).manualAttemptLimit, 4);
+  assert.equal((await job.getStatus()).automaticAttemptLimit, 3);
   const publishedPool = mockPool();
   const published = service(publishedPool);
   assert.equal((await published.run()).status, "published");
   assert.equal((await published.run({ manual: true })).existing, true);
   assert.equal(publishedPool.state.posts.size, 1);
   assert.equal((await published.getStatus()).today, "2026-11-03");
+});
+
+test("a persisted third failure can recover once manually without resetting history or duplicating publication", async () => {
+  const pool = mockPool();
+  const failing = service(pool, { generate: async () => { throw Object.assign(new Error("no dated sources"), { code: "BLOG_NO_VERIFIED_NEWS" }); } });
+  for (let attempt = 0; attempt < 3; attempt++) await failing.run({ manual: true });
+  const recoveredWorker = service(pool);
+  assert.equal((await recoveredWorker.run()).status, "waiting");
+  assert.equal((await recoveredWorker.run({ manual: true })).status, "published");
+  assert.equal(pool.state.runs.get("2026-11-03").attempts, 4);
+  assert.equal((await service(pool).run({ manual: true })).existing, true);
+  assert.equal(pool.state.posts.size, 1);
+  assert.equal(pool.state.locked, false);
 });
 
 test("local environments, missing credentials and pre-schedule times produce no provider calls", async () => {
@@ -294,6 +361,10 @@ test("unreachable feeds allow dated official article text retrieved through the 
   assert.match(requests[0].input, /after at most two failed opens/);
   assert.match(requests[0].input, /substantial article text supporting at least three distinct concrete facts/);
   assert.match(requests[1].instructions, /Opening failures alone do not invalidate/);
+  assert.equal(requests[0].tools[0].external_web_access, false);
+  assert.equal(article.diagnostics.searchMode, "indexed");
+  assert.match(requests[0].input, /Use the search index only; do not attempt live page opens/);
+  assert.deepEqual(article.diagnostics.discoveryDomains, DISCOVERY_DOMAINS);
   assert.equal(JSON.parse(requests[1].input).research, research);
   assert.ok(article.diagnostics.feedChecks.every(check => check.code === "BLOG_FEED_UNAVAILABLE"));
   assert.doesNotMatch(JSON.stringify(article.diagnostics), /remain private|test-only/);
