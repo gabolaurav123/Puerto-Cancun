@@ -269,9 +269,11 @@ test("draft receives independently retrieved dates even when search only finds a
   assert.throws(() => validateArticle(badDate, officialSources, "2026-11-03"), { code: "BLOG_UNVERIFIED_SOURCE" });
 });
 
-test("feed timeouts expose safe diagnostics and still allow normal web research", async () => {
+test("unreachable feeds allow dated official article text retrieved through the search index", async () => {
+  const research = sources.map(source => `${source.url}\nEvidence: indexed official article text; publisher could not be opened. Publisher-stated publication date: ${source.publishedAt}.\nThe official announcement identifies Cancun as the location. It describes a tourism coordination meeting held that week. It names the public office responsible for the follow-up and explains where visitors can consult the published information.`).join("\n\n");
+  const requests = [];
   const responseBodies = [
-    { status: "completed", output: [{ type: "web_search_call", status: "completed", action: { sources } }], output_text: "Fuentes oficiales abiertas con sus fechas de publicación." },
+    { status: "completed", output: [{ type: "web_search_call", status: "completed", action: { sources } }], output_text: research },
     { status: "completed", output_text: JSON.stringify(candidate()) },
   ];
   let apiCalls = 0;
@@ -282,12 +284,51 @@ test("feed timeouts expose safe diagnostics and still allow normal web research"
     }
     apiCalls++;
     assert.equal(url, "https://api.openai.com/v1/responses");
+    requests.push(JSON.parse(options.body));
     return { ok: true, json: async () => responseBodies.shift() };
   } });
   assert.equal(apiCalls, 2);
   assert.equal(article.sources.length, 2);
+  assert.equal(article.sources[0].publishedAt, sources[0].publishedAt);
+  assert.match(requests[0].input, /Start with topic-and-date-window searches/);
+  assert.match(requests[0].input, /after at most two failed opens/);
+  assert.match(requests[0].input, /substantial article text supporting at least three distinct concrete facts/);
+  assert.match(requests[1].instructions, /Opening failures alone do not invalidate/);
+  assert.equal(JSON.parse(requests[1].input).research, research);
   assert.ok(article.diagnostics.feedChecks.every(check => check.code === "BLOG_FEED_UNAVAILABLE"));
   assert.doesNotMatch(JSON.stringify(article.diagnostics), /remain private|test-only/);
+});
+
+test("indexed headlines without publication dates remain an editorial refusal", async () => {
+  const requests = [];
+  const replies = [
+    { status: "completed", output: [{ type: "web_search_call", status: "completed", action: { sources } }], output_text: "Only brief headlines and crawl dates were indexed. No explicit publication dates or sufficient article facts were available; both articles are unusable." },
+    { status: "completed", output_text: JSON.stringify({ ...candidate(), ready: false, readinessReason: "missing_dates", sources: [], sections: [] }) },
+  ];
+  await assert.rejects(generateArticle({ apiKey: "test-only", model: "test", day: "2026-11-03", fetchImpl: async (_url, options) => {
+    requests.push(JSON.parse(options.body));
+    return { ok: true, json: async () => replies.shift() };
+  } }), error => {
+    assert.equal(error.code, "BLOG_NO_VERIFIED_NEWS");
+    assert.equal(error.diagnostics.reason, "missing_dates");
+    return true;
+  });
+  assert.match(requests[0].input, /Never infer a missing publication date/);
+  assert.match(requests[1].instructions, /A headline, brief snippet or date inferred.*is insufficient; reject that source/);
+});
+
+test("source preflight cancels both stalled feeds before a ten-second browser deadline", { timeout: 11000 }, async () => {
+  const start = performance.now();
+  let cancelled = 0;
+  const result = await collectOfficialNews({ day: "2026-11-03", fetchImpl: (_url, { signal }) => new Promise((resolve, reject) => {
+    // Keep the event loop alive and fail clearly if the production abort stops working.
+    const watchdog = setTimeout(() => reject(new Error("Feed deadline exceeded")), 10000);
+    signal.addEventListener("abort", () => { clearTimeout(watchdog); cancelled++; reject(signal.reason); }, { once: true });
+  }) });
+  assert.equal(cancelled, 2);
+  assert.ok(performance.now() - start < 9500, "Both feeds must share a parallel deadline below the browser timeout");
+  assert.deepEqual(result.sources, []);
+  assert.ok(result.checks.every(check => check.status === "unavailable"));
 });
 
 test("source preflight never consumes an attempt, calls AI or writes to PostgreSQL", async () => {
