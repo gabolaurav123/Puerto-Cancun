@@ -12254,8 +12254,10 @@ app.get(["/blog/:slug", "/en/blog/:slug"], async (req, res, next) => {
       description: excerpt || String(content).replace(/\s+/g, " ").slice(0, 190),
       h1: title,
       intro: excerpt || "",
+      cta: lang === "en" ? "Back to the blog" : "Volver al blog",
+      ctaHref: indexPage.path,
     };
-    const baseHtml = renderSeoPage(indexPage.path);
+    const baseHtml = indexPage.render.call(page);
     const textBlocks = String(content || "").split(/\n+/).filter(Boolean);
     const contentImages = Array.isArray(post.contentImages) ? post.contentImages : [];
     const imageInterval = Math.max(1, Math.ceil(textBlocks.length / Math.max(1, contentImages.length + 1)));
