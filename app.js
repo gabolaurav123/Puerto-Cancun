@@ -6955,7 +6955,7 @@ async function runDailyBlog() {
   if (!button || button.disabled) return;
   setButtonLoading(button, true, "Preparando edición…");
   try {
-    await api("/api/admin/blog-automation/run", { method: "POST", body: JSON.stringify({}) });
+    await api("/api/admin/blog-automation/run", { method: "POST", body: {} });
     $("#dailyBlogStatus").textContent = "La edición de hoy se está preparando. Pulsa Actualizar estado en unos minutos para consultar el resultado.";
   } catch (error) { $("#dailyBlogStatus").textContent = error.message; }
   finally { setButtonLoading(button, false); button.disabled = true; }
