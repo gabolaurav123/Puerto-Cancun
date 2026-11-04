@@ -6938,12 +6938,27 @@ async function loadDailyBlogStatus() {
   status.dataset.loading = "true";
   try {
     const data = await api("/api/admin/blog-automation");
-    const labels = { published: "Publicado", running: "Preparando la nota", skipped: "Sin novedades verificadas; se reintentará", failed: "No se pudo completar la nota; se reintentará" };
+    const labels = { published: "Publicado", running: "Preparando la nota", skipped: "No se encontraron novedades verificadas suficientes", failed: "No se pudo completar la nota" };
     const latest = data.runs?.[0];
+    const today = data.today || new Intl.DateTimeFormat("en-CA", { timeZone: data.timeZone || "America/Cancun", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date());
+    const todayRun = data.runs?.find((run) => String(run.run_date).slice(0, 10) === today);
+    const runButton = $("#runDailyBlog");
+    if (runButton) runButton.disabled = !data.configured || !data.enabled || data.running || todayRun?.status === "published" || Number(todayRun?.attempts || 0) >= 3;
     status.textContent = !data.configured ? "Falta configurar la conexión editorial en Integraciones." : !data.enabled ? "Publicación automática desactivada." : `Programado diariamente a las ${String(data.hour).padStart(2, "0")}:00 (hora de Cancún).${latest ? ` Último resultado: ${labels[latest.status] || latest.status} · ${String(latest.run_date).slice(0, 10)}.` : " La primera publicación está pendiente."}`;
     status.dataset.loaded = "true";
   } catch { status.textContent = "No se pudo consultar la programación. Pulsa Actualizar estado."; }
   finally { delete status.dataset.loading; }
+}
+
+async function runDailyBlog() {
+  const button = $("#runDailyBlog");
+  if (!button || button.disabled) return;
+  setButtonLoading(button, true, "Preparando edición…");
+  try {
+    await api("/api/admin/blog-automation/run", { method: "POST", body: JSON.stringify({}) });
+    $("#dailyBlogStatus").textContent = "La edición de hoy se está preparando. Pulsa Actualizar estado en unos minutos para consultar el resultado.";
+  } catch (error) { $("#dailyBlogStatus").textContent = error.message; }
+  finally { setButtonLoading(button, false); button.disabled = true; }
 }
 
 function clearBlogPreviewObjectUrls() {
@@ -13283,6 +13298,7 @@ function bindEvents() {
   $("#resetBlogForm")?.addEventListener("click", resetBlogForm);
   $("#blogAdminSearch")?.addEventListener("input", renderAdminBlogPosts);
   $("#refreshDailyBlog")?.addEventListener("click", loadDailyBlogStatus);
+  $("#runDailyBlog")?.addEventListener("click", runDailyBlog);
   $("#developmentCoverFile")?.addEventListener("change", previewDevelopmentCovers);
   $("#applyDevelopmentCovers")?.addEventListener("click", applyDevelopmentCovers);
   $("#aiToolForm")?.addEventListener("submit", aiToolSubmit);

@@ -9,7 +9,7 @@ const sources = [
 ];
 function candidate() {
   return {
-    ready: true, titleEs: "Novedades de Cancún y la Riviera Maya", titleEn: "News from Cancun and the Riviera Maya",
+    ready: true, readinessReason: "ready", titleEs: "Novedades de Cancún y la Riviera Maya", titleEn: "News from Cancun and the Riviera Maya",
     excerptEs: "Una revisión de los anuncios oficiales recientes de turismo y conectividad local.",
     excerptEn: "A review of recent official announcements about tourism and local connectivity.",
     sources: structuredClone(sources),
@@ -32,7 +32,7 @@ test("official source URLs reject deceptive domains, credentials, roots and non-
 
 test("source evidence is extracted from search results and annotations, not generated prose URLs", () => {
   const payload = { output: [{ type: "web_search_call", action: { sources: [sources[0]] } }, { content: [{ text: "https://qroo.gob.mx/invented", annotations: [{ type: "url_citation", ...sources[1] }, { url: "https://attacker.test/news" }] }] }] };
-  assert.deepEqual(researchSources(payload).map(source => source.url), sources.map(source => source.url));
+  assert.deepEqual(researchSources(payload).map(source => source.url), [sources[1].url, sources[0].url]);
 });
 
 test("bilingual daily article preserves clickable citation references", () => {
@@ -85,7 +85,33 @@ test("generation requires completed web research and validates structured biling
   assert.equal(requests[0].tool_choice, "required");
   assert.equal(requests[0].tools[0].type, "web_search");
   assert.equal(requests[1].text.format.strict, true);
+  assert.match(requests[0].input, /https:\/\/cgc.qroo.gob.mx\/general\/comunicados-recientes\//);
+  assert.equal(article.diagnostics.stage, "validation");
   await assert.rejects(generateArticle({ apiKey: "test-only", model: "test-model", day: "2026-11-03", fetchImpl: async () => ({ ok: true, json: async () => ({ status: "completed", output_text: "A story without searching." }) }) }), { code: "BLOG_SEARCH_REQUIRED" });
+});
+
+test("diagnostics distinguish insufficient retrieved sources from an editorial evidence refusal", async () => {
+  const researched = includedSources => ({ status: "completed", output: [{ type: "web_search_call", status: "completed", action: { sources: includedSources } }, { content: [{ type: "output_text", text: "Research result" }] }] });
+  await assert.rejects(generateArticle({ apiKey: "test-only", model: "test-model", day: "2026-11-03", fetchImpl: async () => ({ ok: true, json: async () => researched([sources[0]]) }) }), error => {
+    assert.equal(error.code, "BLOG_INSUFFICIENT_SOURCES");
+    assert.deepEqual(error.diagnostics, { stage: "research", searchCalls: 1, retrievedSources: 1 });
+    return true;
+  });
+  const refused = { ...candidate(), ready: false, readinessReason: "missing_dates" };
+  const replies = [researched(sources), { status: "completed", output_text: JSON.stringify(refused) }];
+  await assert.rejects(generateArticle({ apiKey: "test-only", model: "test-model", day: "2026-11-03", fetchImpl: async () => ({ ok: true, json: async () => replies.shift() }) }), error => {
+    assert.equal(error.code, "BLOG_NO_VERIFIED_NEWS");
+    assert.deepEqual(error.diagnostics, { stage: "validation", searchCalls: 1, retrievedSources: 2, ready: false, reason: "missing_dates" });
+    return true;
+  });
+});
+
+test("cited sources remain available when broad search results exceed the source cap", () => {
+  const broad = Array.from({ length: 25 }, (_, index) => ({ url: `https://qroo.gob.mx/older-result-${index}` }));
+  const payload = { output: [{ type: "web_search_call", action: { sources: broad } }, { content: [{ annotations: sources.map(source => ({ type: "url_citation", ...source })) }] }] };
+  const selected = researchSources(payload);
+  assert.equal(selected.length, 20);
+  assert.deepEqual(selected.slice(0, 2).map(source => source.url), sources.map(source => source.url));
 });
 
 function mockPool() {
@@ -145,13 +171,30 @@ test("failed generation publishes nothing and applies persisted retry limits", a
   let attempts = 0;
   const job = service(pool, { now: () => current, generate: async () => { attempts++; throw Object.assign(new Error("sensitive provider details"), { code: "BLOG_PROVIDER_429" }); } });
   assert.deepEqual(await job.run(), { status: "failed", errorCode: "BLOG_PROVIDER_429" });
-  assert.equal((await job.run({ manual: true })).status, "waiting");
+  assert.equal((await job.run()).status, "waiting");
   for (const hour of [19, 23]) { current = new Date(`2026-11-03T${hour}:01:00Z`); assert.equal((await job.run()).status, "failed"); }
   current = new Date("2026-11-04T03:30:00Z");
   assert.equal((await job.run()).status, "waiting");
   assert.equal(attempts, 3);
   assert.equal(pool.state.posts.size, 0);
   assert.equal(pool.state.locked, false);
+});
+
+test("manual retry may bypass cooldown but never the daily attempt cap or a published edition", async () => {
+  const pool = mockPool();
+  const job = service(pool, { generate: async () => { throw Object.assign(new Error("no dated sources"), { code: "BLOG_NO_VERIFIED_NEWS" }); } });
+  assert.equal((await job.run()).status, "skipped");
+  assert.equal((await job.run()).status, "waiting");
+  assert.equal((await job.run({ manual: true })).status, "skipped");
+  assert.equal((await job.run({ manual: true })).status, "skipped");
+  assert.equal((await job.run({ manual: true })).status, "waiting");
+  assert.equal(pool.state.runs.get("2026-11-03").attempts, 3);
+  const publishedPool = mockPool();
+  const published = service(publishedPool);
+  assert.equal((await published.run()).status, "published");
+  assert.equal((await published.run({ manual: true })).existing, true);
+  assert.equal(publishedPool.state.posts.size, 1);
+  assert.equal((await published.getStatus()).today, "2026-11-03");
 });
 
 test("local environments, missing credentials and pre-schedule times produce no provider calls", async () => {
