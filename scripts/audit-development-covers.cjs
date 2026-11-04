@@ -28,7 +28,14 @@ async function main() {
       console.log(JSON.stringify({ id: result.id, candidates: result.candidates.length, skipped: result.skipped || null, errors: result.errors.length }));
     }
   }));
-  const report = { capturedAt: new Date().toISOString(), mode: "READ_ONLY_CANDIDATES_REQUIRE_VISUAL_REVIEW", records: results, summary: { total: results.length, withCandidates: results.filter(item => item.candidates.length).length, candidates: results.reduce((sum, item) => sum + item.candidates.length, 0), published: 0 } };
+  const hashes = new Map();
+  for (const result of results) for (const candidate of result.candidates) {
+    const ids = hashes.get(candidate.sha256) || new Set();
+    ids.add(result.id);
+    hashes.set(candidate.sha256, ids);
+  }
+  const sharedImages = [...hashes].filter(([, ids]) => ids.size > 1).map(([sha256, ids]) => ({ sha256, developmentIds: [...ids], reviewReason: "La misma imagen aparece en varios desarrollos; confirmar identidad antes de publicarla." }));
+  const report = { capturedAt: new Date().toISOString(), mode: "READ_ONLY_CANDIDATES_REQUIRE_VISUAL_REVIEW", records: results, sharedImages, summary: { total: results.length, withCandidates: results.filter(item => item.candidates.length).length, candidates: results.reduce((sum, item) => sum + item.candidates.length, 0), sharedImageHashes: sharedImages.length, published: 0 } };
   await fs.writeFile(path.join(outputDir, "cover-review.json"), JSON.stringify(report, null, 2) + "\n");
   console.log(JSON.stringify(report.summary));
 }
