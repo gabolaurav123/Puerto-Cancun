@@ -32,6 +32,7 @@ const {
 } = require("./intelligence-utils");
 const { features, registryForRole, searchFeatures } = require("./feature-registry");
 const { PROMPT_VERSION, prompts, sanitizeAiMetadata } = require("./ai-prompts");
+const { sanitizeTranslationText, hasDistinctEnglishTranslation, englishPropertyTitle } = require("./property-translations");
 const { analyzePhotos } = require("./photo-analysis");
 const {
   extractBrochureFields,
@@ -806,11 +807,8 @@ function propertyQuality(property) {
 }
 
 function propertyEnglishFallback(row) {
-  const titleEs = String(row.title_es || "").trim();
-  const titleEn = String(row.title_en || "").trim();
   const descriptionEs = String(row.description_es || "").trim();
   const descriptionEn = String(row.description_en || "").trim();
-  const hasManualTitle = hasDistinctEnglishTranslation(titleEn, titleEs);
   const hasManualDescription = hasDistinctEnglishTranslation(descriptionEn, descriptionEs);
   const type = {
     Casa: "Home",
@@ -836,23 +834,9 @@ function propertyEnglishFallback(row) {
   ].filter(Boolean).join(" ");
   const fallbackDescription = fallbackOverview;
   return {
-    title: hasManualTitle ? titleEn : fallbackTitle,
+    title: englishPropertyTitle(row) || fallbackTitle,
     description: hasManualDescription ? descriptionEn : fallbackDescription,
   };
-}
-
-function comparableTranslationText(value) {
-  return String(value || "")
-    .normalize("NFKC")
-    .replace(/\s+/g, " ")
-    .trim()
-    .toLocaleLowerCase("es-MX");
-}
-
-function hasDistinctEnglishTranslation(englishValue, spanishValue) {
-  const english = comparableTranslationText(englishValue);
-  if (!english) return false;
-  return english !== comparableTranslationText(spanishValue);
 }
 
 function blogSlug(value, fallback = "") {
@@ -10847,15 +10831,15 @@ async function requestAutomaticPropertyTranslation(title, description) {
   const raw = String(payload.output_text || payload.output?.flatMap((item) => item.content || []).find((item) => item.type === "output_text")?.text || "").trim();
   if (!raw) throw new Error("OpenAI no devolvió la traducción automática.");
   const translated = JSON.parse(raw.replace(/^```json\s*|\s*```$/gi, ""));
-  const titleEn = String(translated.titleEn || "").trim().slice(0, 500);
-  const descriptionEn = String(translated.descriptionEn || "").trim().slice(0, DESCRIPTION_MAX_LENGTH);
+  const titleEn = sanitizeTranslationText(translated.titleEn, 500);
+  const descriptionEn = sanitizeTranslationText(translated.descriptionEn, DESCRIPTION_MAX_LENGTH);
   if (!titleEn || !descriptionEn) throw new Error("La traducción automática llegó incompleta.");
   return { titleEn, descriptionEn, model };
 }
 
 async function requestAutomaticImageMetadataTranslation(items) {
   const source = (Array.isArray(items) ? items : [])
-    .map((item) => ({ index: Number(item.index), descriptionEs: String(item.descriptionEs || "").trim().slice(0, 500) }))
+    .map((item) => ({ index: Number(item.index), descriptionEs: sanitizeTranslationText(item.descriptionEs, 500) }))
     .filter((item) => Number.isInteger(item.index) && item.index >= 0 && item.descriptionEs);
   if (!process.env.OPENAI_API_KEY || !source.length) return null;
   const model = process.env.OPENAI_MODEL || "gpt-5-mini";
@@ -10905,7 +10889,7 @@ async function requestAutomaticImageMetadataTranslation(items) {
   return {
     model,
     translations: translations
-      .map((item) => ({ index: Number(item.index), descriptionEn: String(item.descriptionEn || "").trim().slice(0, 500) }))
+      .map((item) => ({ index: Number(item.index), descriptionEn: sanitizeTranslationText(item.descriptionEn, 500) }))
       .filter((item) => Number.isInteger(item.index) && item.index >= 0 && item.descriptionEn),
   };
 }
@@ -10913,13 +10897,13 @@ async function requestAutomaticImageMetadataTranslation(items) {
 async function automaticallyTranslateProperty(propertyId) {
   if (!process.env.OPENAI_API_KEY || !propertyId) return;
   const result = await query(
-    `SELECT id, title_es, title_en, description_es, description_en, publication_section, image_metadata
+    `SELECT id, title_es, title_en, description_es, description_en, type, publication_section, image_metadata
      FROM properties WHERE id = $1`,
     [propertyId]
   );
   const row = result.rows[0];
   if (!row) return;
-  const needsTitle = !hasDistinctEnglishTranslation(row.title_en, row.title_es);
+  const needsTitle = !englishPropertyTitle(row);
   const needsDescription = !hasDistinctEnglishTranslation(row.description_en, row.description_es);
   const imageMetadata = normalizeImageMetadata(row.image_metadata, safeJsonArray(row.image_metadata).length);
   const imageTranslationItems = imageMetadata
@@ -10942,7 +10926,7 @@ async function automaticallyTranslateProperty(propertyId) {
     await query(
       `UPDATE properties
        SET title_en = CASE
-             WHEN NULLIF(BTRIM(title_en), '') IS NULL OR LOWER(BTRIM(title_en)) = LOWER(BTRIM(title_es)) THEN $2
+             WHEN $4::boolean AND (NULLIF(BTRIM(title_en), '') IS NULL OR LOWER(BTRIM(title_en)) = LOWER(BTRIM(title_es))) THEN $2
              ELSE title_en
            END,
            description_en = CASE
@@ -10950,7 +10934,7 @@ async function automaticallyTranslateProperty(propertyId) {
              ELSE description_en
            END
        WHERE id = $1`,
-      [propertyId, translated.titleEn, translated.descriptionEn]
+      [propertyId, translated.titleEn, translated.descriptionEn, needsTitle]
     );
   }
   if (translatedImages?.translations?.length) {
@@ -10991,9 +10975,11 @@ async function backfillAutomaticPropertyTranslations() {
     const pending = await client.query(
       `SELECT id
        FROM properties
-       WHERE NULLIF(BTRIM(title_en), '') IS NULL
+       WHERE (
+            COALESCE(publication_section, '') <> 'developments' AND COALESCE(type, '') <> 'Desarrollo'
+            AND (NULLIF(BTRIM(title_en), '') IS NULL OR LOWER(BTRIM(title_en)) = LOWER(BTRIM(title_es)))
+          )
           OR NULLIF(BTRIM(description_en), '') IS NULL
-          OR LOWER(BTRIM(title_en)) = LOWER(BTRIM(title_es))
           OR LOWER(BTRIM(description_en)) = LOWER(BTRIM(description_es))
           OR EXISTS (
             SELECT 1
@@ -11562,9 +11548,9 @@ app.post("/api/admin/ai/translate-property", requireRole("admin"), async (req, r
     const raw = String(payload.output_text || payload.output?.flatMap((item) => item.content || []).find((item) => item.type === "output_text")?.text || "").trim();
     if (!raw) throw new Error("OpenAI no devolvió texto traducido. Revisa el modelo configurado.");
     const translated = JSON.parse(raw.replace(/^```json\s*|\s*```$/gi, ""));
-    if (!translated.titleEn || !translated.descriptionEn) throw new Error("La traducción no devolvió los campos esperados.");
-    const titleEn = String(translated.titleEn).trim().slice(0, 500);
-    const descriptionEn = String(translated.descriptionEn).trim().slice(0, DESCRIPTION_MAX_LENGTH);
+    const titleEn = sanitizeTranslationText(translated.titleEn, 500);
+    const descriptionEn = sanitizeTranslationText(translated.descriptionEn, DESCRIPTION_MAX_LENGTH);
+    if (!titleEn || !descriptionEn) throw new Error("La traducción no devolvió los campos esperados.");
     await query(
       `INSERT INTO translation_cache
         (id, entity_type, entity_id, source_hash, source_language, target_language, prompt_version, translated_title, translated_description, provider, model)
