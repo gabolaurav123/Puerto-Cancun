@@ -10480,6 +10480,11 @@ app.get("/api/admin/blog", requireRole("admin"), async (_req, res, next) => {
   }
 });
 
+app.get("/api/admin/blog-automation/sources", requireRole("admin"), async (_req, res, next) => {
+  try { res.set("Cache-Control", "no-store").json(await dailyBlogService.inspectSources()); }
+  catch (error) { next(error); }
+});
+
 app.get("/api/admin/blog-automation", requireRole("admin"), async (_req, res, next) => {
   try { res.set("Cache-Control", "no-store").json(await dailyBlogService.getStatus()); }
   catch (error) { next(error); }
