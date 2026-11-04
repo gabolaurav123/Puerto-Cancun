@@ -1,6 +1,8 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
-const { createDailyBlogService, generateArticle, localDay, localHour, renderBlogParagraph, renderBlogSources, researchSources, safeSourceUrl, validateArticle } = require("../daily-blog");
+const { collectOfficialNews, parseOfficialFeed, createDailyBlogService, generateArticle: generateRealArticle, localDay, localHour, renderBlogParagraph, renderBlogSources, researchSources, safeSourceUrl, validateArticle } = require("../daily-blog");
+const noOfficialNews = async () => ({ sources: [], checks: [] });
+const generateArticle = options => generateRealArticle({ collectNews: noOfficialNews, ...options });
 
 const now = new Date("2026-11-03T15:00:00.000Z");
 const sources = [
@@ -82,10 +84,11 @@ test("generation requires completed web research and validates structured biling
   ];
   const article = await generateArticle({ apiKey: "test-only", model: "test-model", day: "2026-11-03", fetchImpl: async (url, options) => { requests.push(JSON.parse(options.body)); return { ok: true, json: async () => replies.shift() }; } });
   assert.equal(article.sources.length, 2);
-  assert.equal(requests[0].tool_choice, "required");
+  assert.equal(requests[0].tool_choice, "auto");
   assert.equal(requests[0].tools[0].type, "web_search");
   assert.equal(requests[1].text.format.strict, true);
   assert.match(requests[0].input, /https:\/\/cgc.qroo.gob.mx\/general\/comunicados-recientes\//);
+  assert.match(requests[0].input, /2026-10-27 through 2026-11-03/);
   assert.equal(article.diagnostics.stage, "validation");
   await assert.rejects(generateArticle({ apiKey: "test-only", model: "test-model", day: "2026-11-03", fetchImpl: async () => ({ ok: true, json: async () => ({ status: "completed", output_text: "A story without searching." }) }) }), { code: "BLOG_SEARCH_REQUIRED" });
 });
@@ -94,14 +97,14 @@ test("diagnostics distinguish insufficient retrieved sources from an editorial e
   const researched = includedSources => ({ status: "completed", output: [{ type: "web_search_call", status: "completed", action: { sources: includedSources } }, { content: [{ type: "output_text", text: "Research result" }] }] });
   await assert.rejects(generateArticle({ apiKey: "test-only", model: "test-model", day: "2026-11-03", fetchImpl: async () => ({ ok: true, json: async () => researched([sources[0]]) }) }), error => {
     assert.equal(error.code, "BLOG_INSUFFICIENT_SOURCES");
-    assert.deepEqual(error.diagnostics, { stage: "research", searchCalls: 1, retrievedSources: 1 });
+    assert.deepEqual(error.diagnostics, { stage: "research", searchCalls: 1, retrievedSources: 1, researchTextCharacters: 15, officialSources: 0, feedChecks: [], sourceUrls: [sources[0].url] });
     return true;
   });
   const refused = { ...candidate(), ready: false, readinessReason: "missing_dates" };
   const replies = [researched(sources), { status: "completed", output_text: JSON.stringify(refused) }];
   await assert.rejects(generateArticle({ apiKey: "test-only", model: "test-model", day: "2026-11-03", fetchImpl: async () => ({ ok: true, json: async () => replies.shift() }) }), error => {
     assert.equal(error.code, "BLOG_NO_VERIFIED_NEWS");
-    assert.deepEqual(error.diagnostics, { stage: "validation", searchCalls: 1, retrievedSources: 2, ready: false, reason: "missing_dates" });
+    assert.deepEqual(error.diagnostics, { stage: "validation", searchCalls: 1, retrievedSources: 2, researchTextCharacters: 15, officialSources: 0, feedChecks: [], sourceUrls: sources.map(s => s.url), ready: false, reason: "missing_dates" });
     return true;
   });
 });
@@ -203,4 +206,116 @@ test("local environments, missing credentials and pre-schedule times produce no 
   assert.equal((await service(pool, { env: { NODE_ENV: "production" } }).run()).status, "unconfigured");
   assert.equal((await service(pool, { now: () => new Date("2026-11-03T12:00:00Z") }).run()).status, "scheduled");
   assert.equal(pool.state.calls.length, 0);
+});
+
+function feedItem({ url = "https://cgc.qroo.gob.mx/noticia-cancun/", date = "Thu, 29 Oct 2026 16:00:00 +0000", content = "Información oficial del turismo de Cancún. ".repeat(12), title = "Noticias oficiales del turismo de Cancún" } = {}) {
+  return `<item><title><![CDATA[${title}]]></title><link>${url}</link><pubDate>${date}</pubDate><content:encoded><![CDATA[<p>${content}</p>]]></content:encoded></item>`;
+}
+
+test("official RSS evidence preserves publisher dates, full content and deduplicated exact URLs", () => {
+  const xml = `<rss><channel>${feedItem()}${feedItem()}</channel></rss>`;
+  const parsed = parseOfficialFeed(xml, "2026-11-03");
+  assert.equal(parsed.length, 1);
+  assert.equal(parsed[0].publishedAt, "2026-10-29");
+  assert.equal(parsed[0].dateEvidence, "official-rss-pubDate");
+  assert.match(parsed[0].content, /turismo de Cancún/);
+  assert.doesNotMatch(parsed[0].content, /<p>/);
+});
+
+test("RSS evidence rejects stale, future, missing dates, incomplete text, irrelevant topics and hostile URLs", () => {
+  const invalidItems = [
+    { date: "Mon, 19 Oct 2026 16:00:00 +0000" }, { date: "Thu, 05 Nov 2026 16:00:00 +0000" }, { date: "" },
+    { content: "Noticia sin cuerpo" }, { url: "https://attacker.test/noticia" },
+    { title: "Informe de política nacional", content: "Informe nacional sin relación con el destino. ".repeat(12) },
+  ];
+  for (const item of invalidItems) assert.deepEqual(parseOfficialFeed(`<rss>${feedItem(item)}</rss>`, "2026-11-03"), []);
+  assert.deepEqual(parseOfficialFeed(`<!DOCTYPE x [<!ENTITY x SYSTEM "file:///etc/passwd">]><rss>${feedItem()}</rss>`, "2026-11-03"), []);
+  assert.deepEqual(parseOfficialFeed("x".repeat(1500001), "2026-11-03"), []);
+});
+
+test("bounded official feed collector records public diagnostics and refuses redirects off the publisher", async () => {
+  const called = [];
+  const result = await collectOfficialNews({ day: "2026-11-03", fetchImpl: async (url, options) => {
+    called.push({ url, options });
+    if (url.includes("secretarias")) return new Response(null, { status: 302, headers: { location: "http://127.0.0.1/private" } });
+    return new Response(`<rss>${feedItem()}</rss>`, { headers: { "content-type": "application/rss+xml" } });
+  } });
+  assert.equal(called.length, 2);
+  assert.ok(called.every(call => call.options.redirect === "manual"));
+  assert.equal(result.sources.length, 1);
+  assert.equal(result.checks[0].code, "BLOG_FEED_DESTINATION");
+  assert.equal(result.checks[1].status, "verified");
+  assert.doesNotMatch(JSON.stringify(result.checks), /127\.0\.0\.1|Información|Authorization/);
+  const tooLarge = await collectOfficialNews({ day: "2026-11-03", fetchImpl: async () => new Response("x".repeat(1500001), { headers: { "content-type": "application/rss+xml" } }) });
+  assert.ok(tooLarge.checks.every(check => check.code === "BLOG_FEED_TOO_LARGE"));
+});
+
+test("draft receives independently retrieved dates even when search only finds an archive", async () => {
+  const officialSources = sources.map(source => ({ ...source, content: "Información oficial verificada sobre turismo de Cancún. ".repeat(6), dateEvidence: "official-rss-pubDate" }));
+  const requests = [];
+  const responses = [
+    { status: "completed", output: [{ type: "web_search_call", status: "completed", action: { sources: [{ url: "https://cgc.qroo.gob.mx/sedetur/" }] } }], output_text: "El índice no contiene fechas en el extracto disponible." },
+    { status: "completed", output_text: JSON.stringify(candidate()) },
+  ];
+  const article = await generateArticle({ apiKey: "test-only", model: "test", day: "2026-11-03", collectNews: async () => ({ sources: officialSources, checks: [] }), fetchImpl: async (_url, options) => {
+    requests.push(JSON.parse(options.body)); return { ok: true, json: async () => responses.shift() };
+  } });
+  assert.equal(article.sources.length, 2);
+  assert.equal(article.diagnostics.officialSources, 2);
+  const draftInput = JSON.parse(requests[1].input);
+  assert.equal(draftInput.officialDatedArticles[0].publishedAt, sources[0].publishedAt);
+  assert.match(draftInput.officialDatedArticles[0].content, /verificada/);
+  const badDate = candidate(); badDate.sources[0].publishedAt = "2026-11-01";
+  assert.throws(() => validateArticle(badDate, officialSources, "2026-11-03"), { code: "BLOG_UNVERIFIED_SOURCE" });
+});
+
+test("feed timeouts expose safe diagnostics and still allow normal web research", async () => {
+  const responseBodies = [
+    { status: "completed", output: [{ type: "web_search_call", status: "completed", action: { sources } }], output_text: "Fuentes oficiales abiertas con sus fechas de publicación." },
+    { status: "completed", output_text: JSON.stringify(candidate()) },
+  ];
+  let apiCalls = 0;
+  const article = await generateRealArticle({ apiKey: "test-only", model: "test", day: "2026-11-03", fetchImpl: async (url, options) => {
+    if (url.startsWith("https://cgc.qroo.gob.mx/")) {
+      assert.ok(options.signal instanceof AbortSignal);
+      throw new DOMException("network message that should remain private", "TimeoutError");
+    }
+    apiCalls++;
+    assert.equal(url, "https://api.openai.com/v1/responses");
+    return { ok: true, json: async () => responseBodies.shift() };
+  } });
+  assert.equal(apiCalls, 2);
+  assert.equal(article.sources.length, 2);
+  assert.ok(article.diagnostics.feedChecks.every(check => check.code === "BLOG_FEED_UNAVAILABLE"));
+  assert.doesNotMatch(JSON.stringify(article.diagnostics), /remain private|test-only/);
+});
+
+test("source preflight never consumes an attempt, calls AI or writes to PostgreSQL", async () => {
+  const pool = mockPool();
+  const job = service(pool, { fetchImpl: async url => {
+    assert.ok(url.startsWith("https://cgc.qroo.gob.mx/"));
+    return new Response(`<rss>${feedItem()}</rss>`, { headers: { "content-type": "application/rss+xml" } });
+  } });
+  const result = await job.inspectSources();
+  assert.equal(result.day, "2026-11-03");
+  assert.equal(result.sources[0].publishedAt, "2026-10-29");
+  assert.match(result.sources[0].excerpt, /Información oficial/);
+  assert.ok(result.sources[0].excerpt.length <= 1200);
+  assert.equal(pool.state.calls.length, 0);
+  assert.equal(pool.state.runs.size, 0);
+});
+
+test("tool calls without a research report fail before draft generation when no independent full articles exist", async () => {
+  let calls = 0;
+  await assert.rejects(generateArticle({ apiKey: "test-only", model: "test", day: "2026-11-03", fetchImpl: async () => {
+    calls++;
+    return { ok: true, json: async () => ({ status: "completed", output: [{ type: "web_search_call", status: "completed", action: { sources } }] }) };
+  } }), error => {
+    assert.equal(error.code, "BLOG_EMPTY_RESEARCH");
+    assert.equal(error.diagnostics.researchTextCharacters, 0);
+    assert.equal(error.diagnostics.searchCalls, 1);
+    assert.deepEqual(error.diagnostics.sourceUrls, sources.map(s => s.url));
+    return true;
+  });
+  assert.equal(calls, 1);
 });
