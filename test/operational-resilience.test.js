@@ -99,7 +99,7 @@ test("el acceso público y el vendedor conservan inventario y el administrador c
     };
     await vm.runInNewContext(loader + "\nloadPublicData()", {
       api, state, document: { body: { dataset: { page } } },
-      mountPublicComparison: () => rendered.push("compare"), hydrateLocationCovers: () => rendered.push("covers"),
+      mountPublicComparison: () => rendered.push("compare"), updateHomeEditorialImages: () => rendered.push("covers"),
       renderCurrencyExchange() {},
     });
     assert.equal(calls.filter((route) => route === "/api/properties").length, Number(needsPublic));

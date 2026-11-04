@@ -168,9 +168,10 @@ test('image fallback repairs early failures, preserves loaded photos and never l
     removeAttribute(name) { delete this[name]; }
     matches(selector) {
       return selector === '[data-location-cover]' && this.dataset.locationCover !== undefined
+        || selector === '[data-home-cover]' && this.dataset.homeCover !== undefined
         || selector === '.leaflet-tile' && this.isMapTile;
     }
-    closest() { return null; }
+    closest() { return this.card || null; }
   }
   const failed = new Image('https://example.test/failed.jpg', true, 0);
   const loaded = new Image('https://example.test/loaded.jpg', true, 640);
@@ -178,6 +179,10 @@ test('image fallback repairs early failures, preserves loaded photos and never l
   const localPreview = new Image('blob:local-photo', true, 0);
   const locationCover = new Image('https://example.test/location.jpg', true, 0);
   locationCover.dataset.locationCover = '';
+  const homeCover = new Image('/media/properties/home-photo/0?w=640', false, 0);
+  homeCover.dataset.homeCover = '';
+  const homeClasses = new Set(['has-home-cover']);
+  homeCover.card = { hidden: false, href: '/propiedades/casas-cancun', classList: { remove: name => homeClasses.delete(name) } };
   const mapTile = new Image('https://tile.openstreetmap.org/12/1/1.png', true, 0);
   mapTile.isMapTile = true;
   let listener;
@@ -185,7 +190,7 @@ test('image fallback repairs early failures, preserves loaded photos and never l
     HTMLImageElement: Image, fallbackImage: '/assets/fallback.webp',
     document: {
       addEventListener(type, fn, capture) { assert.equal(type, 'error'); assert.equal(capture, true); listener = fn; },
-      querySelectorAll: () => [failed, loaded, pending, localPreview, locationCover, mapTile],
+      querySelectorAll: () => [failed, loaded, pending, localPreview, locationCover, homeCover, mapTile],
     },
   });
   api.installImageFallbacks();
@@ -196,6 +201,13 @@ test('image fallback repairs early failures, preserves loaded photos and never l
   assert.equal(localPreview.src, 'blob:local-photo');
   assert.equal(locationCover.hidden, true);
   assert.equal(locationCover.src, 'https://example.test/location.jpg', 'never replace a Location photo with an unrelated property');
+  listener({ target: homeCover });
+  assert.equal(homeCover.hidden, true);
+  assert.equal(homeClasses.has('has-home-cover'), false);
+  assert.equal(homeCover.src, '/media/properties/home-photo/0?w=640', 'failed home covers must not become a generic hero image');
+  assert.equal(homeCover.dataset.fallbackApplied, undefined);
+  assert.equal(homeCover.card.hidden, false);
+  assert.equal(homeCover.card.href, '/propiedades/casas-cancun');
   listener({ target: mapTile });
   assert.equal(mapTile.src, 'https://tile.openstreetmap.org/12/1/1.png', 'a failed map tile must not become a property photo');
   assert.equal(mapTile.dataset.fallbackApplied, undefined);
