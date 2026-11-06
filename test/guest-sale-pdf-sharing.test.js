@@ -11,7 +11,7 @@ test("la venta sin registro solicita solo datos esenciales y el contacto al fina
   const html = source("index.html");
   const app = source("app.js");
   const styles = source("styles.css");
-  for (const value of ["sellerOptionsModal", "guestSaleModal", "guestSaleForm", "preferredContact", "countryCode"]) {
+  for (const value of ["sellerOptionsModal", "guestSaleModal", "guestSaleForm", "preferredContact", "data-inquiry-country"]) {
     assert.ok(html.includes(value), `Falta ${value}`);
   }
   assert.match(html, /name="description"[^>]*maxlength="4000"/);
@@ -25,8 +25,9 @@ test("la venta sin registro solicita solo datos esenciales y el contacto al fina
   assert.match(styles, /\.guest-consent-field\s*\{[\s\S]*grid-template-columns:\s*20px minmax\(0, 1fr\)/);
   const sellPage = renderSeoPage("/vender-casa-cancun");
   assert.match(sellPage, /Enviar propiedad sin registro/);
-  assert.match(sellPage, /PUBLICA CON ACOMPAÑAMIENTO/);
-  assert.match(sellPage, /Solicita valoracion de tu propiedad/);
+  assert.match(sellPage, /data-open-guest-sale/);
+  assert.match(sellPage, /data-intent="sell"/);
+  assert.match(sellPage, /value="valuacion-inmobiliaria"/);
 });
 
 test("las solicitudes sin cuenta se conservan en una tabla aditiva y tienen panel propio", () => {

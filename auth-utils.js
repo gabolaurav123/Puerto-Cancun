@@ -39,7 +39,7 @@ function internalRoleAllows(req, user) {
   if (matches(["/api/admin/users", "/api/admin/settings", "/api/admin/integrations"])) return false;
   const shared = ["/api/admin/stats", "/api/admin/properties", "/api/admin/developments", "/api/admin/location-options", "/api/admin/copilot/features"];
   if (read && matches(shared)) return true;
-  const editorial = ["/api/admin/properties", "/api/admin/developments", "/api/admin/external-properties", "/api/admin/blog", "/api/admin/files", "/api/admin/file-folders", "/api/admin/documents", "/api/admin/ai", "/api/admin/listing-drafts"];
+  const editorial = ["/api/admin/properties", "/api/admin/developments", "/api/admin/portal-directory", "/api/admin/external-properties", "/api/admin/blog", "/api/admin/files", "/api/admin/file-folders", "/api/admin/documents", "/api/admin/ai", "/api/admin/listing-drafts"];
   const commercial = ["/api/admin/requests", "/api/admin/guest-sale-requests", "/api/admin/leads", "/api/admin/contacts", "/api/admin/valuations", "/api/admin/tasks", "/api/admin/buyers", "/api/admin/messages", "/api/admin/notifications", "/api/admin/tours", "/api/admin/whatsapp"];
   const marketing = ["/api/admin/campaigns", "/api/admin/instagram", "/api/admin/analytics", "/api/admin/visitor-leads"];
   if (role === "viewer") return read && matches([...editorial, ...commercial, "/api/admin/analytics"]);

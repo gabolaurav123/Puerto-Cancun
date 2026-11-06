@@ -39,6 +39,7 @@
       rel="stylesheet"
     />
     <link rel="stylesheet" href="/styles.css?v=20260905.1" />
+    <link rel="stylesheet" href="/contextual-contact.css?v=1" />
     <link rel="stylesheet" href="/catalog.css?v=20261029.1" />
     <link rel="stylesheet" href="/admin-inventory.css?v=20261029.1" />
     <link rel="stylesheet" href="/comparison.css?v=20261029.1" />
@@ -71,7 +72,7 @@
         </div>
 
         <nav class="public-quick-nav" aria-label="Accesos rápidos" data-i18n-aria-label="navQuick">
-          <a href="/zonas-cancun" data-i18n="footerCommunities">Comunidades</a>
+          <a href="/zonas-cancun" data-i18n="footerCommunities">Zonas</a>
           <a href="/propiedades/desarrollos-cancun" data-i18n="navDevelopments">Desarrollos</a>
           <a href="/propiedades/destacadas-cancun" data-i18n="navFeatured">Destacadas</a>
         </nav>
@@ -112,17 +113,11 @@
               </div>
             </details>
             <details class="public-nav-group" name="site-navigation">
-              <summary data-i18n="footerCommunities">Comunidades</summary>
-              <div class="public-nav-popover public-nav-communities">
-                <a class="public-nav-overview" href="/zonas-cancun" data-i18n="menuAllZones">Ver todas las zonas</a>
-                <a href="/propiedades/zona-hotelera"><strong data-i18n="navHotelZone">Zona Hotelera</strong><small data-i18n="navHotelZoneDescription">Zona Hotelera, Costa Mujeres y Punta Sam</small></a>
-                <a href="/propiedades/puerto-cancun"><strong>Puerto Cancún</strong><small data-i18n="navPuertoDescription">Marina, canales y comunidades residenciales</small></a>
-                <a href="/propiedades/cancun-city"><strong data-i18n="navCancunCity">Ciudad de Cancún</strong><small data-i18n="navCityDescription">Centro, Huayacán y corredor Colosio</small></a>
-                <a href="/propiedades/fuera-de-cancun"><strong data-i18n="navOutsideCancun">Fuera de Cancún</strong><small data-i18n="navOutsideDescription">Riviera Maya y otros destinos</small></a>
-              </div>
+              <summary data-i18n="footerCommunities">Zonas</summary>
+              <div class="public-nav-popover public-nav-communities"></div>
             </details>
             <a href="/propiedades/desarrollos-cancun" id="developmentsNavLink" data-i18n="navDevelopments">Desarrollos</a>
-            <a href="/vender-casa-cancun" id="sellNavLink" data-open-seller-options data-i18n="navSell">Vender</a>
+            <a href="/vender-casa-cancun" id="sellNavLink" data-contact-inquiry data-intent="sell" data-origin="header" data-i18n="navSell">Vender</a>
           </div>
           <div class="public-nav-services">
             <details class="public-nav-group" name="site-navigation">
@@ -136,7 +131,6 @@
                 <a href="/blog" data-i18n="resourceBlog">Blog</a>
               </div>
             </details>
-            <a class="public-nav-call" href="tel:+5219982166563"><span aria-hidden="true" data-lucide="phone"></span>998-216-6563</a>
             <a class="login-link" href="/?auth=login" id="loginOpen" data-i18n="navLogin">Iniciar sesión</a>
           </div>
         </nav>
@@ -174,21 +168,21 @@
                 <i data-lucide="search"></i>
                 <span data-i18n="searchButton">Buscar</span>
               </button>
+              <div id="homeSearchSuggestions" class="home-search-suggestions" hidden></div>
             </form>
             <div class="intelligent-search-status" id="intelligentSearchStatus" aria-live="polite" hidden></div>
             <div class="hero-actions">
-              <a class="accent-button" href="/vender-casa-cancun" id="heroSellButton" data-open-seller-options data-i18n="heroSellCta">Quiero vender mi propiedad</a>
-              <a class="outline-button" href="/comprar-casa-cancun" data-i18n="heroBuyCta">Quiero comprar en Cancún</a>
+              <a class="accent-button" href="/vender-casa-cancun" id="heroSellButton" data-contact-inquiry data-intent="sell" data-origin="home-sell" data-i18n="heroSellCta">Quiero vender mi propiedad</a>
+              <a class="outline-button" href="/propiedades/en-venta" data-i18n="heroBuyCta">Quiero comprar en Cancún</a>
+              <a class="outline-button" href="/propiedades-en-renta-cancun" data-i18n="findRental">Buscar una renta</a>
+              <a class="outline-button" href="/contacto?intent=let" data-contact-inquiry data-intent="let" data-origin="home-let" data-i18n="offerRental">Poner en renta</a>
             </div>
           </div>
         </section>
 
-        <section class="contact-strip home-only" aria-label="WhatsApp">
-          <h2 data-i18n="contactToday">Contáctanos Hoy</h2>
-          <div class="contact-numbers">
-            <a href="https://wa.me/5219982166563" target="_blank" rel="noopener" data-business-contact="mx"><span data-contact-label>México · WhatsApp</span> <span data-contact-number>+52 1 998 216 6563</span></a>
-            <a href="https://wa.me/19562518956" target="_blank" rel="noopener" data-business-contact="us"><span data-contact-label>USA · WhatsApp</span> <span data-contact-number>+1 956 251 8956</span></a>
-          </div>
+        <section class="contact-strip home-only" aria-labelledby="homeContactTitle">
+          <h2 id="homeContactTitle" data-i18n="contactToday">Contáctanos Hoy</h2>
+          <a class="accent-button" href="/contacto?inquiry=1" data-contact-inquiry data-origin="home-contact" data-i18n="teamCta">Contactar al equipo</a>
         </section>
 
         <section class="resource-section home-only" hidden>
@@ -221,6 +215,7 @@
           </div>
         </section>
 
+        <!-- HOME_FEATURED -->
         <section class="zones-band home-only" id="zones">
           <div class="content-wrap">
             <div class="section-heading inverse">
@@ -230,28 +225,7 @@
                 <i data-lucide="arrow-right"></i>
               </a>
             </div>
-            <div class="zone-grid">
-              <a class="zone-card" href="/propiedades/zona-hotelera" data-commercial-location="zona-hotelera">
-                <img data-location-cover data-home-cover alt="" width="900" height="600" loading="lazy" decoding="async" hidden />
-                <i class="location-cover-placeholder" data-lucide="map-pin" aria-hidden="true"></i>
-                <span>Zona Hotelera (ZH)</span>
-              </a>
-              <a class="zone-card" href="/propiedades/puerto-cancun" data-commercial-location="puerto-cancun">
-                <img data-location-cover data-home-cover alt="" width="900" height="600" loading="lazy" decoding="async" hidden />
-                <i class="location-cover-placeholder" data-lucide="map-pin" aria-hidden="true"></i>
-                <span>Puerto Cancún</span>
-              </a>
-              <a class="zone-card" href="/propiedades/cancun-city" data-commercial-location="cancun-city">
-                <img data-location-cover data-home-cover alt="" width="900" height="600" loading="lazy" decoding="async" hidden />
-                <i class="location-cover-placeholder" data-lucide="map-pin" aria-hidden="true"></i>
-                <span data-i18n="navCancunCity">Ciudad de Cancún</span>
-              </a>
-              <a class="zone-card" href="/propiedades/fuera-de-cancun" data-commercial-location="fuera-de-cancun">
-                <img data-location-cover data-home-cover alt="" width="900" height="600" loading="lazy" decoding="async" hidden />
-                <i class="location-cover-placeholder" data-lucide="map-pin" aria-hidden="true"></i>
-                <span data-i18n="navOutsideCancun">Fuera de Cancún</span>
-              </a>
-            </div>
+            <div class="zone-grid"></div>
           </div>
         </section>
 
@@ -330,7 +304,7 @@
             <h2 id="categoryTitle">Propiedades en Cancun</h2>
             <p id="categoryIntro"></p>
             <div class="category-actions">
-              <a class="accent-button" href="tel:+5219982166563">998-216-6563</a>
+              <a class="accent-button" href="/contacto?inquiry=1" data-contact-inquiry data-origin="category-help" data-i18n="teamCta">Contactar al equipo</a>
               <button class="primary-button" type="button" id="categoryInfoButton">
                 <i data-lucide="message-circle"></i>
                 <span data-i18n="requestInfo">Solicitar informacion</span>
@@ -536,7 +510,7 @@
                 Conoce cómo anunciamos tu propiedad, qué información necesitas y los beneficios de trabajar con nuestro equipo.
               </p>
             </div>
-            <a class="accent-button" href="/vender-casa-cancun" id="sellCtaButton">
+            <a class="accent-button" href="/vender-casa-cancun" id="sellCtaButton" data-contact-inquiry data-intent="sell" data-origin="home-sell-section">
               <i data-lucide="home"></i>
               <span data-i18n="startSellerRequest">Conocer cómo vender</span>
             </a>
@@ -558,13 +532,7 @@
             </a>
           </div>
           <div>
-            <h3 data-i18n="footerCommunities">Comunidades</h3>
-            <a href="/propiedades/puerto-cancun">Puerto Cancun</a>
-            <a href="/propiedades/zona-hotelera">Zona Hotelera</a>
-            <a href="/propiedades/cancun-centro">Cancun Centro</a>
-            <a href="/propiedades/riviera-maya">Riviera Maya</a>
-            <a href="/propiedades/playa-mujeres">Punta Sam / Playa Mujeres</a>
-            <a href="/propiedades/fuera-de-cancun" data-i18n="navOutsideCancun">Fuera de Cancún</a>
+            <h3 data-i18n="footerCommunities">Zonas</h3>
           </div>
           <div>
             <h3 data-i18n="footerBuy">Compra de propiedad</h3>
@@ -578,8 +546,8 @@
           </div>
           <div>
             <h3 data-i18n="footerSell">Asesoria de venta</h3>
-            <a href="/vender-casa-cancun" id="footerSellButton" data-open-seller-options data-i18n="saleProperty">Venta de propiedad</a>
-            <a href="/vender-casa-cancun" data-open-seller-options data-i18n="resourceSellHere">Vender mi propiedad aqui</a>
+            <a href="/vender-casa-cancun" id="footerSellButton" data-contact-inquiry data-intent="sell" data-origin="footer-sell" data-i18n="saleProperty">Venta de propiedad</a>
+            <a href="/vender-casa-cancun" data-contact-inquiry data-intent="sell" data-origin="footer-sell" data-i18n="resourceSellHere">Vender mi propiedad aqui</a>
             <a href="/valuacion-inmobiliaria-cancun" data-i18n="resourceValuation">Valoracion inmobiliaria</a>
             <a href="/faq-inmobiliario-cancun" data-i18n="resourceFaq">Preguntas frecuentes</a>
             <a href="/blog" data-i18n="footerBlog">Blog inmobiliario</a>
@@ -1077,6 +1045,9 @@
                 <i data-lucide="map-pin"></i>
                 <span data-i18n="adminJumpCatalogs">Catálogos</span>
               </button>
+              <button type="button" data-admin-section="portal-areas"><i data-lucide="map"></i><span>Zonas y subzonas</span></button>
+              <button type="button" data-admin-section="portal-featured"><i data-lucide="star"></i><span>Destacados</span></button>
+              <button type="button" data-admin-section="portal-presales"><i data-lucide="building-2"></i><span>Preventas</span></button>
               <button type="button" data-admin-section="files">
                 <i data-lucide="folder-open"></i>
                 <span data-i18n="adminJumpFiles">Archivos</span>
@@ -1283,6 +1254,10 @@
             <button type="button" data-lead-filter="buyer" data-i18n="leadFilterBuyer">Compradores</button>
             <button type="button" data-lead-filter="property_contact" data-i18n="leadFilterProperty">Propiedad</button>
             <button type="button" data-lead-filter="whatsapp_help" data-i18n="leadFilterWhatsApp">WhatsApp / ayuda</button>
+          </div>
+          <div class="inquiry-admin-filters">
+            <label><span data-i18n="inquiryIntent">Intención</span><select id="inquiryIntentFilter"><option value="" data-i18n="leadFilterAll">Todas</option><option value="buy" data-i18n="inquiryBuy">Comprar</option><option value="rent" data-i18n="inquiryRent">Buscar una renta</option><option value="sell" data-i18n="inquirySell">Vender</option><option value="let" data-i18n="inquiryLet">Poner en renta</option></select></label>
+            <label><span data-i18n="inquiryInterest">Interés (zona, propiedad, MLS o proyecto)</span><input id="inquiryInterestFilter" type="search" maxlength="160"></label>
           </div>
           <div class="lead-list" id="adminLeads"></div>
           <section class="admin-tour-section">
@@ -1594,6 +1569,9 @@
           </div>
           <div class="wide-data-list" id="adminSellers"></div>
         </article>
+        <article class="panel-card portal-admin" data-admin-section-panel="portal-areas" data-portal-module="portal-areas" hidden></article>
+        <article class="panel-card portal-admin" data-admin-section-panel="portal-featured" data-portal-module="portal-featured" hidden></article>
+        <article class="panel-card portal-admin" data-admin-section-panel="portal-presales" data-portal-module="portal-presales" hidden></article>
         <article class="panel-card admin-catalogs-card" id="adminCatalogsCard" data-admin-section-panel="catalogs">
           <div class="admin-prompts-heading catalog-page-heading">
             <div>
@@ -2213,6 +2191,7 @@
             <button type="button" data-settings-tab="maps">Google Maps</button>
             <button type="button" data-settings-tab="seo">SEO</button>
             <button type="button" data-settings-tab="forms">Formularios</button>
+            <button type="button" data-settings-tab="contact_routing">Contacto / WhatsApp</button>
             <button type="button" data-settings-tab="pdf">PDF</button>
             <button type="button" data-settings-tab="ai">IA</button>
           </div>
@@ -3004,11 +2983,11 @@
             <h2 data-i18n="contactPreferenceTitle">¿Por dónde prefieres que te contactemos?</h2>
             <p data-i18n="contactPreferenceCopy">Si precisamos más datos sobre tu propiedad, te contactaremos únicamente por el medio que elijas.</p>
             <div class="contact-method-options">
-              <label><input type="radio" name="preferredContact" value="email" checked /><span><i data-lucide="mail"></i><b data-i18n="contactEmail">Correo</b></span></label>
-              <label><input type="radio" name="preferredContact" value="whatsapp" /><span><i data-lucide="message-circle"></i><b>WhatsApp</b></span></label>
+              <label><input type="radio" name="preferredContact" value="whatsapp" checked /><span><i data-lucide="message-circle"></i><b>WhatsApp</b></span></label>
+              <label><input type="radio" name="preferredContact" value="email" /><span><i data-lucide="mail"></i><b data-i18n="contactEmail">Correo</b></span></label>
             </div>
             <label data-guest-contact-field="email"><span data-i18n="email">Dirección de correo</span><input name="email" type="email" autocomplete="email" /></label>
-            <fieldset data-guest-contact-field="whatsapp" hidden><legend>WhatsApp</legend><div class="phone-registration-grid"><label><span data-i18n="countryPrefix">Prefijo</span><select name="countryCode"><option value="+52" selected>México +52</option><option value="+1">EE. UU. / Canadá +1</option><option value="+591">Bolivia +591</option><option value="+54">Argentina +54</option><option value="+55">Brasil +55</option><option value="+56">Chile +56</option><option value="+57">Colombia +57</option><option value="+51">Perú +51</option><option value="+34">España +34</option><option value="+502">Guatemala +502</option></select></label><label><span data-i18n="nationalNumber">Número nacional</span><input name="phone" type="tel" inputmode="tel" autocomplete="tel-national" /></label></div></fieldset>
+            <fieldset data-guest-contact-field="whatsapp"><legend data-i18n="contactPhone">Teléfono</legend><div class="phone-registration-grid"><label><span data-i18n="inquiryPhoneCountry">País del teléfono</span><select name="country" required data-inquiry-country><option value="MX">México (+52)</option></select></label><label><span data-i18n="contactPhone">Teléfono</span><input name="phone" type="tel" inputmode="tel" autocomplete="tel" maxlength="40" required></label></div></fieldset>
             <label class="check-field guest-consent-field"><input name="consent" type="checkbox" required /><span data-i18n="guestConsent">Acepto el aviso de privacidad y que un asesor me contacte sobre esta solicitud.</span></label>
             <div class="form-actions"><button class="ghost-button" type="button" id="backGuestSale"><i data-lucide="arrow-left"></i><span data-i18n="back">Volver</span></button><button class="primary-button" type="submit"><i data-lucide="send"></i><span data-i18n="confirmSendRequest">Confirmar y enviar</span></button></div>
             <p class="form-message" id="guestSaleMessage" aria-live="polite"></p>
@@ -3262,10 +3241,9 @@
     <a
       class="whatsapp-float"
       id="whatsappButton"
-      href="https://wa.me/5219982166563?text=Hola%2C%20quiero%20recibir%20informaci%C3%B3n%20de%20Puerto%20Canc%C3%BAn%20Center."
-      target="_blank"
-      rel="noopener noreferrer"
-      aria-label="Contactar a Puerto Cancun Center por WhatsApp"
+      href="/contacto?inquiry=1"
+      data-contact-inquiry data-origin="floating-contact"
+      aria-label="Contactar a Puerto Cancún Center"
     >
       <span>WhatsApp</span>
       <i data-lucide="message-circle"></i>
@@ -3292,10 +3270,14 @@
     <script src="/contact-config.js?v=20261029.1"></script>
     <script src="/exchange-rate-view.js?v=20261103.1"></script>
     <script src="/admin-inventory-ui.js?v=20261029.1"></script>
+    <script src="/portal-directory.js?v=1"></script>
+    <script src="/admin-portal-directory.js?v=1"></script>
     <script src="/comparison-ui.js?v=20261029.1"></script>
     <script src="/catalog-map.js?v=20261029.1"></script>
     <script src="/catalog-assistant.js?v=20261029.1"></script>
+    <script src="/site-language.js?v=1"></script>
     <script src="/app.js?v=20260905.1"></script>
+    <script src="/contextual-contact.js?v=1"></script>
     <script src="/catalog-ui.js?v=20261029.1"></script>
   </body>
 </html>

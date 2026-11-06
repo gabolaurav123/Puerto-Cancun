@@ -19,20 +19,19 @@ test("la portada restaura su jerarquia sin el bloque de destacadas y conserva su
   assert.doesNotMatch(catalogStyles, /body\[data-page=home\] \.hero(?:\s|[.{-])/);
   assert.match(index, /class="contact-strip home-only"/);
   assert.match(index, /data-i18n="contactToday"/);
-  assert.match(index, /data-business-contact="mx"/);
-  assert.match(index, /data-business-contact="us"/);
+  assert.match(index, /data-contact-inquiry data-origin="home-contact"/);
   assert.equal((index.match(/class="presale-feature"/g) || []).length, 1);
   assert.ok(index.indexOf('class="presale-feature"') > index.indexOf('class="type-grid"'));
   assert.ok(index.indexOf('class="presale-feature"') < index.indexOf('id="categoryPage"'));
   assert.match(index, /<a class="login-link" href="\/\?auth=login" id="loginOpen"/);
-  assert.match(index, /id="whatsappButton"[\s\S]*href="https:\/\/wa\.me\/5219982166563/);
+  assert.match(index, /id="whatsappButton"\s+href="\/contacto\?inquiry=1"\s+data-contact-inquiry/);
   assert.match(styles, /body\[data-page="home"\] \.hero h1[\s\S]*font-size: 4\.25rem/);
 });
 
 function homeCoverRuntime(properties) {
   const selectors = [
     ...Array.from({ length: 4 }, (_, i) => `.type-grid .type-tile:nth-child(${i + 1})`),
-    ...Array.from({ length: 4 }, (_, i) => `.zone-grid .zone-card:nth-child(${i + 1})`),
+    ...inventory.LOCATIONS.map(area => `.zone-grid [data-commercial-location="${area.id}"]`),
     ".presale-feature",
   ];
   const cards = selectors.map((selector, index) => {
@@ -71,8 +70,10 @@ function homeProperty(id, type, zone, extra = {}) {
 
 test("las tarjetas de inicio parten de un fondo neutro sin mostrar fotos de stock", () => {
   const index = read("index.html");
-  const covers = [...index.matchAll(/<img\b[^>]*\bdata-home-cover\b[^>]*>/g)].map(match => match[0]);
-  assert.equal(covers.length, 9, "cuatro tipos, cuatro zonas y preventas");
+  const directory = require("../portal-directory").publicDirectory(null, []);
+  const dynamicAreas = require("../exploration-view").areaCards(directory, "es");
+  const covers = [...(index + dynamicAreas).matchAll(/<img\b[^>]*\bdata-home-cover\b[^>]*>/g)].map(match => match[0]);
+  assert.equal(covers.length, 5 + directory.areas.length, "tipos, áreas configuradas y preventas");
   for (const image of covers) {
     assert.match(image, /\bhidden\b/);
     assert.doesNotMatch(image, /\s(?:src|srcset)=/);
@@ -152,7 +153,7 @@ test("el acceso conserva la accion al redirigir el idioma", () => {
   const app = read("app.js");
   const server = read("server.js");
   assert.match(app, /window\.location\.assign\(alternate \? `\$\{alternate\}\$\{window\.location\.search\}\$\{window\.location\.hash\}`/);
-  assert.doesNotMatch(app, /if \(storedLanguage[^]*?window\.location\.replace/);
+  assert.match(app, /window\.location\.replace\("\/" \+ location\.search \+ location\.hash\)/);
   assert.match(server, /function renderAuthEntry\(html, requestedTab\)/);
   assert.match(server, /html = renderAuthEntry\(html, req\.query\.auth\)/);
 });

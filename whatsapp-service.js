@@ -333,6 +333,10 @@ function createWhatsappService({ pool, query, uuid, secret }) {
       status: incoming ? "received" : "sent",
     });
     if (incoming && type === "notify") void maybeAutoReply(jid, text);
+    if (incoming) {
+      const sender = jid.endsWith("@s.whatsapp.net") ? jid : String(message.key.remoteJidAlt || "");
+      await require("./contact-inquiries").recordIncomingInquiry(query, sender, text, timestamp);
+    }
   }
 
   service.connect = async ({ reset = false } = {}) => {

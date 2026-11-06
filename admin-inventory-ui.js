@@ -33,11 +33,11 @@
     return parts.join(" / ") || text(p.source || metadata(p).source) || (p.sourceRequestId ? `Solicitud ${p.sourceRequestId}` : "Origen no informado");
   }
 
-  function snapshot(items = []) {
+  function snapshot(items = [], areas) {
     const api = inventory();
     const valid = items.filter((p) => p && p.id !== null && p.id !== undefined && String(p.id).trim());
     const unique = new Map(valid.map((p) => [p.id, p]));
-    const reconciled = api.reconcile([...unique.values()]);
+    const reconciled = api.reconcile([...unique.values()], areas);
     return {
       ...reconciled,
       duplicateRows: valid.length - unique.size,
@@ -51,11 +51,11 @@
   }
 
   // The host replaces a row object after a save, sometimes within the same array.
-  function currentSnapshot(items) {
+  function currentSnapshot(items, areas) {
     const cached = snapshotCache.get(items);
-    if (cached && cached.rows.length === items.length && items.every((row, i) => row === cached.rows[i])) return cached.report;
-    const report = snapshot(items);
-    snapshotCache.set(items, { rows: items.slice(), report });
+    if (cached && cached.areas === areas && cached.rows.length === items.length && items.every((row, i) => row === cached.rows[i])) return cached.report;
+    const report = snapshot(items, areas);
+    snapshotCache.set(items, { rows: items.slice(), areas, report });
     return report;
   }
 
@@ -204,13 +204,17 @@
     return `<button type="button" class="pcc-action ${className}" aria-label="${escape(accessibleLabel)}" data-pcc-query="${escape(JSON.stringify({ entity, filters: { ...filters, ids } }))}" ${ctx.helpers.setSection && ctx.helpers.renderListings ? "" : "disabled"}>${escape(label)}${icon("arrow-right")}</button>`;
   }
 
-  function locationName(id) {
-    return inventory().LOCATIONS.find((item) => item.id === id)?.name || "Pendiente de clasificar";
+  function locationOptions(ctx) {
+    if (!Array.isArray(ctx.state.adminPortalAreas)) return inventory().LOCATIONS;
+    return ctx.state.adminPortalAreas.map(a => ({...a,name:(ctx.state.lang === "en" ? a.nameEn : a.nameEs) || a.name,description:(ctx.state.lang === "en" ? a.descriptionEn : a.descriptionEs) || a.description || ""}));
+  }
+  function locationName(ctx,id) {
+    return locationOptions(ctx).find((item) => item.id === id)?.name || "Pendiente de clasificar";
   }
 
   function renderLocations(ctx, records = ctx.snapshot.records, entityFilter = "") {
     const entities = entityFilter ? [entityFilter] : Object.keys(ENTITIES);
-    return `<p class="pcc-note">IDs \u00fanicos del inventario administrativo. Incluye borradores y archivadas; las cifras no son disponibilidad p\u00fablica.</p><div class="pcc-table-scroll" role="region" aria-label="Ubicaciones por entidad por entidad" tabindex="0"><table class="pcc-table pcc-locations"><caption>Conteos por entidad y ubicación</caption><thead><tr><th scope="col">Ubicación / alcance</th>${entities.map((entity) => `<th scope="col">${ENTITIES[entity]}</th>`).join("")}</tr></thead><tbody>${[...inventory().LOCATIONS, { id: "", name: "Pendiente de clasificar", description: "Requiere confirmar la fuente. Una direcci\u00f3n ambigua no se asigna por suposici\u00f3n." }].map((location, index) => {
+    return `<p class="pcc-note">IDs \u00fanicos del inventario administrativo. Incluye borradores y archivadas; las cifras no son disponibilidad p\u00fablica.</p><div class="pcc-table-scroll" role="region" aria-label="Ubicaciones por entidad por entidad" tabindex="0"><table class="pcc-table pcc-locations"><caption>Conteos por entidad y ubicación</caption><thead><tr><th scope="col">Ubicación / alcance</th>${entities.map((entity) => `<th scope="col">${ENTITIES[entity]}</th>`).join("")}</tr></thead><tbody>${[...locationOptions(ctx), { id: "", name: "Pendiente de clasificar", description: "Requiere confirmar la fuente. Una direcci\u00f3n ambigua no se asigna por suposici\u00f3n." }].map((location, index) => {
       const counts = entities.map((entity) => {
         const rows = records.filter((r) => r.entity === entity && r.location.id === location.id);
         return `<td data-pcc-entity-label="${ENTITIES[entity]}">${queryButton(ctx, String(rows.length), entity, { location: location.id || "pending" }, "", `${rows.length} ${ENTITIES[entity].toLowerCase()} en ${location.name}`)}<small>${rows.filter((r) => r.public).length} visibles en web</small></td>`;
@@ -237,7 +241,7 @@
     const page = Math.min(Math.max(1, ctx.ui[`${scope}Page`] || 1), pages);
     ctx.ui[`${scope}Page`] = page;
     const rows = matching.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
-    return `<label class="pcc-check"><input type="checkbox" data-pcc-pending="${scope}" ${onlyPending ? "checked" : ""}>Solo pendientes y datos por revisar</label><p class="pcc-note" role="status">${matching.length} IDs \u00fanicos \u00b7 ${onlyPending ? "Faltantes, contradicciones o MLS compartidos" : "Conciliaci\u00f3n completa del alcance"}</p>${!rows.length ? '<p class="pcc-note">No hay registros en este conjunto.</p>' : `<div class="pcc-table-scroll" role="region" aria-label="Conciliaci\u00f3n por ID" tabindex="0"><table class="pcc-table pcc-reconciliation"><thead><tr>${["Publicaci\u00f3n / ID", "Entidad / estado", "Agrupación / ubicaci\u00f3n original", "Origen / inclusi\u00f3n", "Pendientes", "Acciones"].map((label) => `<th scope="col">${label}</th>`).join("")}</tr></thead><tbody>${rows.map((r) => `<tr><th scope="row">${escape(titleOf(r.property))}<code>${escape(r.id)}</code>${r.mls ? `<small>MLS ${escape(r.mls)}</small>` : ""}</th><td>${ENTITIES[r.entity]}<small>${escape(STATES[r.status] || r.status || "Estado no informado")}</small><small>${r.public ? "Visible en web" : "No visible en web"}</small></td><td>${escape(locationName(r.location.id))}<small>${escape([r.zone, r.city].filter(Boolean).join(" / ") || "Ubicaci\u00f3n no informada")}</small></td><td>${escape(r.source)}<small>ID \u00fanico de ${ENTITIES[r.entity].toLowerCase()}; ${escape(r.location.reason || "Ubicación por revisar")}</small></td><td>${escape(pendingText(r))}</td><td>${openButton(ctx, r, "Corregir", r.quality.missingFields[0]?.field || r.quality.issues[0]?.field)}${openButton(ctx, r, "Ver registro", "", "focus")}</td></tr>`).join("")}</tbody></table></div>`}<div class="pcc-pagination"><button type="button" class="pcc-icon-button" data-pcc-page="${scope}" data-pcc-step="-1" aria-label="P\u00e1gina anterior" title="P\u00e1gina anterior" ${page === 1 ? "disabled" : ""}>${icon("chevron-left")}</button><span>P\u00e1gina ${page} de ${pages}</span><button type="button" class="pcc-icon-button" data-pcc-page="${scope}" data-pcc-step="1" aria-label="P\u00e1gina siguiente" title="P\u00e1gina siguiente" ${page === pages ? "disabled" : ""}>${icon("chevron-right")}</button></div>`;
+    return `<label class="pcc-check"><input type="checkbox" data-pcc-pending="${scope}" ${onlyPending ? "checked" : ""}>Solo pendientes y datos por revisar</label><p class="pcc-note" role="status">${matching.length} IDs \u00fanicos \u00b7 ${onlyPending ? "Faltantes, contradicciones o MLS compartidos" : "Conciliaci\u00f3n completa del alcance"}</p>${!rows.length ? '<p class="pcc-note">No hay registros en este conjunto.</p>' : `<div class="pcc-table-scroll" role="region" aria-label="Conciliaci\u00f3n por ID" tabindex="0"><table class="pcc-table pcc-reconciliation"><thead><tr>${["Publicaci\u00f3n / ID", "Entidad / estado", "Agrupación / ubicaci\u00f3n original", "Origen / inclusi\u00f3n", "Pendientes", "Acciones"].map((label) => `<th scope="col">${label}</th>`).join("")}</tr></thead><tbody>${rows.map((r) => `<tr><th scope="row">${escape(titleOf(r.property))}<code>${escape(r.id)}</code>${r.mls ? `<small>MLS ${escape(r.mls)}</small>` : ""}</th><td>${ENTITIES[r.entity]}<small>${escape(STATES[r.status] || r.status || "Estado no informado")}</small><small>${r.public ? "Visible en web" : "No visible en web"}</small></td><td>${escape(locationName(ctx,r.location.id))}<small>${escape([r.zone, r.city].filter(Boolean).join(" / ") || "Ubicaci\u00f3n no informada")}</small></td><td>${escape(r.source)}<small>ID \u00fanico de ${ENTITIES[r.entity].toLowerCase()}; ${escape(r.location.reason || "Ubicación por revisar")}</small></td><td>${escape(pendingText(r))}</td><td>${openButton(ctx, r, "Corregir", r.quality.missingFields[0]?.field || r.quality.issues[0]?.field)}${openButton(ctx, r, "Ver registro", "", "focus")}</td></tr>`).join("")}</tbody></table></div>`}<div class="pcc-pagination"><button type="button" class="pcc-icon-button" data-pcc-page="${scope}" data-pcc-step="-1" aria-label="P\u00e1gina anterior" title="P\u00e1gina anterior" ${page === 1 ? "disabled" : ""}>${icon("chevron-left")}</button><span>P\u00e1gina ${page} de ${pages}</span><button type="button" class="pcc-icon-button" data-pcc-page="${scope}" data-pcc-step="1" aria-label="P\u00e1gina siguiente" title="P\u00e1gina siguiente" ${page === pages ? "disabled" : ""}>${icon("chevron-right")}</button></div>`;
   }
 
   function reference(entity, complete) {
@@ -290,7 +294,7 @@
     const records = selectRecords(ctx.snapshot.records, filters, entity);
     ctx.selected = records;
     const quality = filters.quality === "complete" ? "ready" : filters.quality || "";
-    return `${Array.isArray(filters.ids) ? `<div class="pcc-scope"><span>Selecci\u00f3n del indicador: ${filters.ids.length} IDs; los filtros siguientes restringen este conjunto.</span><button type="button" class="pcc-action" data-pcc-clear-ids>${icon("x")}Quitar selecci\u00f3n por ID</button></div>` : ""}<div class="pcc-filters"><div class="pcc-segments" role="group" aria-label="Completitud editorial">${[["", "Total"], ["ready", "Completas"], ["incomplete", "Incompletas"]].map(([value, label]) => `<button type="button" data-pcc-quality="${value}" aria-pressed="${quality === value}" ${ctx.helpers.renderListings ? "" : "disabled"}>${label}<span>${eligible.filter((r) => !value || (value === "ready" ? r.quality.complete : !r.quality.complete)).length}</span></button>`).join("")}</div><label class="pcc-filter-location"><span>Ubicación</span><select data-pcc-filter="location" ${ctx.helpers.renderListings ? "" : "disabled"}><option value="">Todas las ubicaciones</option>${[...inventory().LOCATIONS, { id: "pending", name: "Pendiente de clasificar" }].map((item) => `<option value="${item.id}" ${filters.location === item.id ? "selected" : ""}>${escape(item.name)}</option>`).join("")}</select></label><label class="pcc-check"><input type="checkbox" data-pcc-filter="featured" ${bool(filters.featured) ? "checked" : ""} ${ctx.helpers.renderListings ? "" : "disabled"}>Solo destacadas</label></div><div class="pcc-scope" role="status"><span>${records.length} ${ENTITIES[entity].toLowerCase()} \u00b7 ${filters.availability ? "Disponibilidad: solo activas visibles en web" : filters.status === "all" ? "Todos los estados, incluidos borradores y archivadas" : filters.status ? escape(STATES[filters.status] || filters.status) : "Inventario general, sin borradores ni archivadas"}${filters.missingCover ? " \u00b7 Sin portada" : ""}${filters.review ? " \u00b7 Datos por revisar" : ""}${filters.publicOnly ? " \u00b7 Visibles en web" : ""}</span><small>Criterios ${escape(ctx.snapshot.version)}</small></div><div class="pcc-secondary-details">${disclosure("listing-review", "Revisar registros por ID")}${disclosure("listing-prices", "Consultar precios del resultado")}</div>`;
+    return `${Array.isArray(filters.ids) ? `<div class="pcc-scope"><span>Selecci\u00f3n del indicador: ${filters.ids.length} IDs; los filtros siguientes restringen este conjunto.</span><button type="button" class="pcc-action" data-pcc-clear-ids>${icon("x")}Quitar selecci\u00f3n por ID</button></div>` : ""}<div class="pcc-filters"><div class="pcc-segments" role="group" aria-label="Completitud editorial">${[["", "Total"], ["ready", "Completas"], ["incomplete", "Incompletas"]].map(([value, label]) => `<button type="button" data-pcc-quality="${value}" aria-pressed="${quality === value}" ${ctx.helpers.renderListings ? "" : "disabled"}>${label}<span>${eligible.filter((r) => !value || (value === "ready" ? r.quality.complete : !r.quality.complete)).length}</span></button>`).join("")}</div><label class="pcc-filter-location"><span>Ubicación</span><select data-pcc-filter="location" ${ctx.helpers.renderListings ? "" : "disabled"}><option value="">Todas las ubicaciones</option>${[...locationOptions(ctx), { id: "pending", name: "Pendiente de clasificar" }].map((item) => `<option value="${item.id}" ${filters.location === item.id ? "selected" : ""}>${escape(item.name)}</option>`).join("")}</select></label><label class="pcc-check"><input type="checkbox" data-pcc-filter="featured" ${bool(filters.featured) ? "checked" : ""} ${ctx.helpers.renderListings ? "" : "disabled"}>Solo destacadas</label></div><div class="pcc-scope" role="status"><span>${records.length} ${ENTITIES[entity].toLowerCase()} \u00b7 ${filters.availability ? "Disponibilidad: solo activas visibles en web" : filters.status === "all" ? "Todos los estados, incluidos borradores y archivadas" : filters.status ? escape(STATES[filters.status] || filters.status) : "Inventario general, sin borradores ni archivadas"}${filters.missingCover ? " \u00b7 Sin portada" : ""}${filters.review ? " \u00b7 Datos por revisar" : ""}${filters.publicOnly ? " \u00b7 Visibles en web" : ""}</span><small>Criterios ${escape(ctx.snapshot.version)}</small></div><div class="pcc-secondary-details">${disclosure("listing-review", "Revisar registros por ID")}${disclosure("listing-prices", "Consultar precios del resultado")}</div>`;
   }
 
   function updateHTML(element, html) {
@@ -486,7 +490,7 @@
       const allIncomplete = record.entity === "developments" ? "Ver todos los desarrollos incompletos" : "Ver todas las propiedades incompletas";
       const badge = q.complete ? `<strong>Completa · ${q.score}%</strong>` :
         `<button type="button" class="pcc-action pcc-quality-link" data-pcc-incomplete="${record.entity}" aria-label="Incompleta · ${q.score}%. ${allIncomplete}" title="${allIncomplete}" ${ctx.helpers.setSection && ctx.helpers.renderListings ? "" : "disabled"}><strong>Incompleta · ${q.score}%</strong>${icon("arrow-right")}</button>`;
-      updateHTML(diagnosis, `<div class="pcc-row-status">${badge}<span>${q.fulfilled} de ${q.required} requisitos editoriales cumplidos</span><span>${escape(locationName(record.location.id))}</span></div>${q.missingFields.length ? `<ul class="pcc-missing">${q.missingFields.map((item) => `<li>${openButton(ctx, record, ACTIONS[item.field] || item.label, item.field)}</li>`).join("")}</ul>` : '<small>Sin faltantes editoriales; no implica disponibilidad verificada.</small>'}${needsReview(record) ? `<p class="pcc-review-note"><strong>Datos por revisar:</strong> ${escape([...q.issues.map((issue) => issue.reason), record.duplicateMlsIds.length ? `MLS compartido (${record.duplicateMlsIds.length} IDs distintos)` : ""].filter(Boolean).join(". "))}</p>` : ""}`);
+      updateHTML(diagnosis, `<div class="pcc-row-status">${badge}<span>${q.fulfilled} de ${q.required} requisitos editoriales cumplidos</span><span>${escape(locationName(ctx,record.location.id))}</span></div>${q.missingFields.length ? `<ul class="pcc-missing">${q.missingFields.map((item) => `<li>${openButton(ctx, record, ACTIONS[item.field] || item.label, item.field)}</li>`).join("")}</ul>` : '<small>Sin faltantes editoriales; no implica disponibilidad verificada.</small>'}${needsReview(record) ? `<p class="pcc-review-note"><strong>Datos por revisar:</strong> ${escape([...q.issues.map((issue) => issue.reason), record.duplicateMlsIds.length ? `MLS compartido (${record.duplicateMlsIds.length} IDs distintos)` : ""].filter(Boolean).join(". "))}</p>` : ""}`);
       let freshness = diagnosis.querySelector("[data-pcc-availability]");
       if (!freshness) { freshness = ctx.document.createElement("p"); freshness.dataset.pccAvailability = ""; diagnosis.append(freshness); }
       freshness.textContent = availability(record.property, ctx.reviewPolicy).label;
@@ -553,7 +557,7 @@
     if (!ctx) { ctx = { document, ui: {}, helpers, state }; contexts.set(document, ctx); }
     ctx.state = state;
     ctx.helpers = helpers;
-    ctx.snapshot = currentSnapshot(Array.isArray(state.properties) ? state.properties : []);
+    ctx.snapshot = currentSnapshot(Array.isArray(state.properties) ? state.properties : [],state.adminPortalAreas);
     if (["properties", "developments"].includes(state.adminSection)) loadAvailabilityPolicy(ctx);
     const dashboard = section(ctx, "pccInventoryDashboard", document.getElementById("statsGrid"), "afterend", "dashboard");
     if (dashboard && state.adminSection === "dashboard") updateHTML(dashboard, disclosure("dashboard-detail", "Más detalles del inventario"));
@@ -570,7 +574,7 @@
     }
     const zone = document.querySelector('#listingForm [name="zone"]');
     const help = section(ctx, "pccInventoryLocationHelp", zone?.closest(".form-row") || zone?.closest("label"), "afterend");
-    if (help) updateHTML(help, `<details class="pcc-details" data-pcc-details="zone-help"><summary>\u00bfQu\u00e9 incluye esta zona?</summary><dl class="pcc-location-help">${inventory().LOCATIONS.map((item) => `<div><dt>${escape(item.name)}</dt><dd>${escape(item.description)}</dd></div>`).join("")}</dl><p class="pcc-note">La agrupaci\u00f3n no cambia la direcci\u00f3n original. La ubicaci\u00f3n ambigua queda pendiente de revisar.</p></details>`);
+    if (help) updateHTML(help, `<details class="pcc-details" data-pcc-details="zone-help"><summary>\u00bfQu\u00e9 incluye esta zona?</summary><dl class="pcc-location-help">${locationOptions(ctx).map((item) => `<div><dt>${escape(item.name)}</dt><dd>${escape(item.description)}</dd></div>`).join("")}</dl><p class="pcc-note">La agrupaci\u00f3n no cambia la direcci\u00f3n original. La ubicaci\u00f3n ambigua queda pendiente de revisar.</p></details>`);
     if (controls && !controls.hidden) syncNativeFilters(ctx);
     const sort = document.getElementById("adminListingSort");
     if (sort) for (const option of sort.options) {

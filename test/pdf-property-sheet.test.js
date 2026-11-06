@@ -11,7 +11,7 @@ async function imageDataUrl(color) {
   return `data:image/png;base64,${buffer.toString("base64")}`;
 }
 
-function buildPdf(property, images, brandMode, drawnText = []) {
+function buildPdf(property, images, brandMode, drawnText = [], businessPhone) {
   return new Promise((resolve, reject) => {
     const document = new PDFDocument({ size: "A4", margin: 48, compress: false });
     const text = document.text.bind(document);
@@ -23,6 +23,7 @@ function buildPdf(property, images, brandMode, drawnText = []) {
     drawPropertyPdf(document, {
       property,
       images,
+      businessPhone,
       propertyUrl: "https://example.com/propiedad",
       options: { brandMode, showPrice: true, showAddress: true },
     });
@@ -70,8 +71,13 @@ test("genera las fichas institucional y neutra en una página", async () => {
   };
 
   const drawnText = [];
-  const brandedPdf = await buildPdf(property, brandedImages, "branded", drawnText);
-  const neutralPdf = await buildPdf(property, neutralImages, "neutral", drawnText);
+  const customPhone = "+1 202 555 0136";
+  const brandedPdf = await buildPdf(property, brandedImages, "branded", drawnText, customPhone);
+  assert.ok(drawnText.includes(customPhone));
+  const neutralText = [];
+  const neutralPdf = await buildPdf(property, neutralImages, "neutral", neutralText, customPhone);
+  assert.ok(!neutralText.includes(customPhone));
+  drawnText.push(...neutralText);
   assert.doesNotMatch(drawnText.join("\n"), /Pie exclusivo de galería|Gallery-only caption/);
   const brandedPageCount = (brandedPdf.toString("latin1").match(/\/Type \/Page\b/g) || []).length;
   const neutralPageCount = (neutralPdf.toString("latin1").match(/\/Type \/Page\b/g) || []).length;

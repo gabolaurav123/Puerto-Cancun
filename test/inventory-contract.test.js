@@ -139,8 +139,8 @@ contractTest("R09: raw parent_development_id uses the same unit relationship as 
 const locationCases = [
   ["Zona Hotelera", "Cancun", "zona-hotelera"],
   ["Zona Hotelera de Canc\u00fan", "Cancun", "zona-hotelera"],
-  ["Costa Mujeres", "Isla Mujeres", "zona-hotelera"],
-  ["Punta Sam", "Isla Mujeres", "zona-hotelera"],
+  ["Costa Mujeres", "Isla Mujeres", "fuera-de-cancun"],
+  ["Punta Sam", "Isla Mujeres", "fuera-de-cancun"],
   ["  PUERTO   CANC\u00daN  ", "Cancun", "puerto-cancun"],
   ["Puerto Cancun", "Cancun", "puerto-cancun"],
   ["Av. Huayac\u00e1n", "Cancun", "cancun-city"],
@@ -382,7 +382,7 @@ contractTest("Location unions accept JSON arrays, comma lists and repeated query
   ];
   const inputs = [
     { locations: ["Puerto Canc\u00fan", "Punta Sam", "puerto-cancun"], featured: true },
-    { location: "puerto-cancun,zona-hotelera", featured: "1" },
+    { location: "puerto-cancun,fuera-de-cancun", featured: "1" },
     new URLSearchParams("location=puerto-cancun&location=Punta+Sam&featured=1"),
   ];
   for (const input of inputs) {

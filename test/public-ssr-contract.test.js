@@ -42,16 +42,18 @@ function cardPrice(p, lang = "es") {
   return html.match(/class="seo-property-price">([^<]*)</)?.[1];
 }
 
-// Only these two real functions execute; DB, media I/O and application startup are absent.
-function publicInventory(rows) {
-  const snippets = ["toProperty", "getPublicProperties"].map((name) => {
+// Exercise the production projection and invalidation independently of database or media I/O.
+function publicInventory(rows, readDirectory = async items => require("../portal-directory").publicDirectory(null, items)) {
+  const snippets = ["toProperty", "getPublicProperties", "invalidatePublicPropertyCache"].map((name) => {
     const match = serverSource.match(new RegExp(`(?:async )?function ${name}\\([^]*?\\n}`));
     assert.ok(match, name);
     return match[0];
   });
   let reads = 0;
-  const get = vm.runInNewContext(`${snippets.join("\n")}\ngetPublicProperties`, {
+  const handlers = vm.runInNewContext(`${snippets.join("\n")}\n({get:getPublicProperties,invalidate:invalidatePublicPropertyCache})`, {
     inventoryContract: inventory, publicProperty, propertyQuality: inventory.quality,
+    portalDirectoryModel: require("../portal-directory"),
+    getPublicPortalDirectory: readDirectory, publicPropertyGeneration: 0,
     publicPropertyCache: { expiresAt: 0, items: [] },
     PUBLIC_PROPERTY_STATUSES: new Set(["active", "featured"]), PROPERTY_SUMMARY_COLUMNS: "fixture_columns",
     query: async (sql, values) => {
@@ -65,7 +67,7 @@ function publicInventory(rows) {
     propertyEnglishFallback: () => ({ title: "Fixture", description: "Fixture description" }),
     safeJsonArray: (value) => Array.isArray(value) ? value : [], propertySlug: (value) => value.id,
   });
-  return { get, reads: () => reads };
+  return { ...handlers, reads: () => reads };
 }
 
 for (const [name, patch] of [
@@ -220,4 +222,31 @@ test("cache contains only eligible public records and reuses the existing TTL be
   assert.strictEqual(second, first);
   assert.deepEqual(plain(second.map((p) => p.id)), ["fixture-unit"]);
   assert.equal(api.reads(), 1);
+});
+
+test("an in-flight directory read cannot put a withdrawn parent back in the public response or cache", async () => {
+  const rows = [
+    row({ id:"withdrawn",type:"Desarrollo",publication_section:"developments" }),
+    row({ parent_development_id:"dev-withdrawn",parent_development_record:{id:"dev-withdrawn",propertyId:"withdrawn",nameEs:"Private parent",imageCount:1} }),
+    row({ id:"orphan",parent_development_id:"dangling-private-id" }),
+  ];
+  let started, release;
+  const entered = new Promise(resolve => { started = resolve; });
+  const paused = new Promise(resolve => { release = resolve; });
+  let first = true;
+  const api = publicInventory(rows,async items => {
+    if (first) { first = false; started(); await paused; }
+    return require("../portal-directory").publicDirectory(null,items);
+  });
+  const inFlight = api.get();
+  await entered;
+  rows[0].is_public = false;
+  api.invalidate();
+  const current = await api.get();
+  release();
+  assert.strictEqual(await inFlight,current);
+  assert.strictEqual(await api.get(),current);
+  assert.equal(api.reads(),2);
+  assert.deepEqual(plain(current.map(p => [p.id,p.developmentId,p.portalDevelopmentId,p.developmentImages])),[["fixture-unit",null,"",[]],["orphan",null,"",[]]]);
+  assert.doesNotMatch(JSON.stringify(current),/withdrawn|Private parent|dangling-private-id/);
 });

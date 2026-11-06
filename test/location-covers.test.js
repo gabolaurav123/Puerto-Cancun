@@ -24,8 +24,7 @@ test('Location images come only from eligible listings in that Location, with no
     ] },
     window: { PccInventory: inventory }, localizedTitle: item => item.titleEs,
     document: { querySelector: selector => {
-      const match = selector.match(/^\.zone-grid \.zone-card:nth-child\((\d+)\)$/);
-      return match ? cards[Number(match[1]) - 1] : null;
+      return cards.find(card => selector === `.zone-grid [data-commercial-location="${card.dataset.commercialLocation}"]`) || null;
     } },
   }, { timeout: 1000 });
   update();

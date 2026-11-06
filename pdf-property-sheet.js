@@ -1,4 +1,5 @@
 const sharp = require("sharp");
+const { contacts } = require("./contact-config");
 
 const COLORS = {
   navy: "#032f3a",
@@ -220,7 +221,7 @@ function neutralizeProperty(property) {
   return sanitized;
 }
 
-function drawPropertyPdf(document, { property, images = [], propertyUrl, logoPath, options = {} }) {
+function drawPropertyPdf(document, { property, images = [], propertyUrl, logoPath, businessPhone = contacts[0].display, options = {} }) {
   const branded = options.brandMode !== "neutral";
   const renderedProperty = branded ? property : neutralizeProperty(property);
   const renderedOptions = branded ? options : { ...options, disclaimer: stripBrand(options.disclaimer) };
@@ -341,7 +342,7 @@ function drawPropertyPdf(document, { property, images = [], propertyUrl, logoPat
     750,
     { width: 390, height: 22, ellipsis: true }
   );
-  if (branded) document.fillColor(COLORS.ink).font("Helvetica-Bold").fontSize(8).text("+52 1 998 216 6563", 442, 750, { width: 111, align: "right", lineBreak: false });
+  if (branded) document.fillColor(COLORS.ink).font("Helvetica-Bold").fontSize(8).text(businessPhone, 442, 750, { width: 111, align: "right", lineBreak: false });
   document.fillColor(COLORS.muted).font("Helvetica").fontSize(6.8).text(
     `Generado: ${new Intl.DateTimeFormat("es-MX", { dateStyle: "long" }).format(new Date())}`,
     442,

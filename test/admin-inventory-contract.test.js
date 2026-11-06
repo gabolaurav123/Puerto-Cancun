@@ -45,7 +45,7 @@ if (!process.argv.includes("--serve")) {
     const items = freeze([property("a", { zone: "Costa Mujeres" }), property("b", { zone: "Punta Sam" }), property("c"), property("d", { zone: "Huayacan" }), property("e", { zone: "Colosio", city: "Playa del Carmen" }), property("f", { zone: "Colosio", city: "" })]);
     const original = JSON.stringify(items);
     const report = admin.snapshot(items);
-    assert.deepEqual(report.records.map((r) => r.location.id), ["zona-hotelera", "zona-hotelera", "puerto-cancun", "cancun-city", "fuera-de-cancun", ""]);
+    assert.deepEqual(report.records.map((r) => r.location.id), ["fuera-de-cancun", "fuera-de-cancun", "puerto-cancun", "cancun-city", "fuera-de-cancun", ""]);
     assert.equal(JSON.stringify(items), original);
     assert.equal(report.counts[0].locations.reduce((sum, location) => sum + location.total, 0), items.length);
     assert.equal(admin.filterListings(items, { status: "all", location: "pending" }, "properties")[0].id, "f");

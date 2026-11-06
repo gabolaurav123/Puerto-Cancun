@@ -39,7 +39,7 @@ function sellerRuntime(search = "?intent=sell&location=puerto-cancun&type=Depart
 test("T30: seller CTA parses only recognized commercial Locations and the four property types", () => {
   const api = sellerRuntime();
   const result = api.parseSellerContext("?intent=sell&location=Puerto%20Cancun,costa%20mujeres,unknown&location=puerto-cancun&type=Departamento&zone=Referencia", "/panel");
-  assert.deepEqual(plain(result), { locations: ["puerto-cancun", "zona-hotelera"], type: "Departamento", zone: "Referencia" });
+  assert.deepEqual(plain(result), { locations: ["puerto-cancun", "fuera-de-cancun"], type: "Departamento", zone: "Referencia" });
   assert.equal(api.parseSellerContext("?type=Casa&location=puerto-cancun", "/propiedades"), null);
   assert.equal(api.parseSellerContext("?intent=sell&type=Preventa", "/").type, "");
   assert.equal(api.parseSellerContext("?intent=sell&type=Casa&latitude=20&city=Invented", "/").city, undefined);

@@ -26,11 +26,12 @@
     .pcc-catalog-map-mounted .catalog-map-canvas.is-page-scroll { touch-action:pan-y pinch-zoom; }
     .pcc-catalog-map-mounted .catalog-map-canvas.is-map-interactive { touch-action:none; }
     .pcc-catalog-map-mounted :focus-visible { outline:3px solid #ae8c42;outline-offset:3px; }
-    .pcc-catalog-map-pin { display:grid;place-items:center;background:#075562;color:#fff;border:2px solid white;border-radius:50%;font:700 15px Arial,sans-serif;box-shadow:0 2px 6px #0005; }
-    .pcc-catalog-map-pin.is-approximate { border-style:dashed;background:#644b19; }
+    .catalog-map-canvas .pcc-catalog-map-pin { box-sizing:border-box;background:#075562;color:#fff;border:2px solid white;border-radius:50%;font:700 16px/1 Arial,sans-serif;box-shadow:0 2px 6px #0006; }
+    .catalog-map-canvas .pcc-catalog-map-pin > span { position:absolute;inset:0;display:flex;align-items:center;justify-content:center;padding:0;margin:0;color:#fff;font:inherit;letter-spacing:0;text-indent:0;white-space:nowrap; }
+    .catalog-map-canvas .pcc-catalog-map-pin.is-approximate { border-style:dashed;background:#644b19; }
     .pcc-catalog-map-popup { padding:0;list-style:none;max-height:240px;overflow:auto;overflow-wrap:anywhere; }
     .pcc-catalog-map-popup li { padding:8px 0;border-bottom:1px solid #cbdedf; }
-    .pcc-catalog-map-popup a { display:block;padding:4px 0; }
+    .pcc-catalog-map-popup a { display:flex;align-items:center;min-height:44px;padding:4px 0;font-weight:650; }
     .pcc-catalog-map-popup small { display:block; }
     .pcc-catalog-map-missing { margin:12px 0;overflow-wrap:anywhere; }
     .pcc-catalog-map-missing summary { cursor:pointer;min-height:44px; }
@@ -84,7 +85,8 @@
       const declared = flags.find((value) => value !== undefined && value !== null && value !== "");
       const uncertain = flags.some((value) => value && value !== "exact");
       const precision = hidden ? "hidden" : !uncertain && (declared === "exact" && raw.approximate !== true || !declared && raw.approximate === false) ? "exact" : "approximate";
-      const item = { id, title: String(raw.title || raw.titleEs || raw.title_es || id), url: safeUrl(raw.url || raw.urlEs || "", base), precision };
+      const kind = ["development", "presale"].includes(raw.kind) ? raw.kind : "property";
+      const item = { id, title: String(raw.title || raw.titleEs || raw.title_es || id), url: safeUrl(raw.url || raw.urlEs || "", base), precision, kind };
       const lat = number(raw.latitude), lng = number(raw.longitude);
       if (hidden) item.reason = "hidden";
       else if (lat === null || lng === null || Math.abs(lat) > 90 || Math.abs(lng) > 180) item.reason = "missing";
@@ -264,7 +266,8 @@
         const ids = group.map((item) => item.id);
         const label = group.length === 1 ? group[0].title : t(`${group.length} resultados en este grupo`, `${group.length} results in this group`);
         const approximate = group.some((item) => item.precision === "approximate");
-        const marker = L.marker([group[0].latitude, group[0].longitude], { keyboard: true, title: label, alt: label, autoPanOnFocus: false, icon: L.divIcon({ className: `pcc-catalog-map-pin${approximate ? " is-approximate" : ""}`, html: `<span aria-hidden="true">${group.length}</span>`, iconSize: [44, 44], iconAnchor: [22, 22] }) });
+        const diameter = Math.max(44, String(group.length).length * 11 + 12);
+        const marker = L.marker([group[0].latitude, group[0].longitude], { keyboard: true, title: label, alt: label, autoPanOnFocus: false, icon: L.divIcon({ className: `pcc-catalog-map-pin${approximate ? " is-approximate" : ""}`, html: `<span aria-hidden="true">${group.length}</span>`, iconSize: [diameter, diameter], iconAnchor: [diameter / 2, diameter / 2] }) });
         marker.catalogIds = ids;
         const popup = doc.createElement("ul"); popup.className = "pcc-catalog-map-popup";
         popup.setAttribute("aria-label", label);
@@ -275,9 +278,10 @@
           propertyLink.addEventListener("mouseenter", () => highlight([item.id]));
           propertyLink.addEventListener("mouseleave", clearHighlight);
           propertyLink.addEventListener("blur", clearHighlight);
-          const precision = doc.createElement("small"); precision.textContent = item.precision === "exact" ? t("Ubicacion exacta publicada", "Published exact location") : t("Ubicacion aproximada, no es la direccion exacta", "Approximate location, not the exact address"); row.append(precision);
+          const kindLabel = item.kind === "presale" ? t("Preventa", "Presale") : item.kind === "development" ? t("Desarrollo", "Development") : t("Propiedad", "Property");
+          const precision = doc.createElement("small"); precision.textContent = kindLabel + " · " + (item.precision === "exact" ? t("Ubicación exacta publicada", "Published exact location") : t("Ubicación aproximada", "Approximate location")); row.append(precision);
         }
-        marker.bindPopup(popup, { autoPan: false, maxWidth: 280 }).addTo(map);
+        marker.bindPopup(popup, { autoPanPadding: [16, 16], maxWidth: Math.max(120, Math.min(280, canvas.clientWidth - 72)) }).addTo(map);
         const icon = marker.getElement();
         icon?.setAttribute("aria-label", label); icon?.setAttribute("aria-expanded", "false"); icon?.setAttribute("role", "button");
         icon?.addEventListener("keydown", (event) => {
@@ -305,13 +309,13 @@
         const absent = Math.max(data.missing.length, total - data.items.length);
         const approximate = data.items.filter((item) => item.precision === "approximate").length;
         const scope = suppliedTotal !== null ? t("resultados", "results") : t("registros recibidos", "received records");
-        summary.textContent = t(`${data.items.length} de ${total} ${scope} en el mapa. ${absent} sin ubicacion publica utilizable. ${approximate} aproximados.`, `${data.items.length} of ${total} ${scope} on the map. ${absent} without a usable public location. ${approximate} approximate.`);
-        missingHeading.textContent = t(`${absent} resultados sin ubicacion publica`, `${absent} results without a public location`);
+        summary.textContent = t(`${data.items.length} de ${total} ${scope} de esta página en el mapa. ${absent} sin ubicación pública. ${approximate} aproximados.`, `${data.items.length} of ${total} ${scope} on this page are on the map. ${absent} without a public location. ${approximate} approximate.`);
+        missingHeading.textContent = t(`${absent} resultados sin ubicación pública`, `${absent} results without a public location`);
         details.hidden = !absent; missingList.replaceChildren();
         for (const item of data.missing) { const row = doc.createElement("li"); missingList.append(row); link(item, row); }
         const existingBounds = serializeBounds(form?.querySelector('[name="bounds"]')?.value || "");
         if (!data.items.length && !existingBounds) {
-          canvas.hidden = true; status.textContent = t("Sin ubicaciones publicas para representar. Los resultados permanecen en la lista.", "No public locations to display. Results remain in the list.");
+          canvas.hidden = true; status.textContent = t("Sin ubicaciones públicas para mostrar. Los resultados están en la lista.", "No public locations to display. Results remain in the list.");
           return "empty";
         }
         const L = await loadLeaflet(doc);
