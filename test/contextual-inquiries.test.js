@@ -82,6 +82,17 @@ test("real HTTP / PostgreSQL inquiry, CRM, status, history, click and retry", { 
     assert.equal(response.status, 201);
     assert.match(new URL(response.data.whatsappUrl).searchParams.get("text"), /450 m²/);
   }
+  const sale = { title: "Guest " + randomUUID(), type: "Terreno", location: "Puerto Cancún", country: "CA", phone, preferredContact: "whatsapp", lang: "en", consent: true, formStartedAt: Date.now()-2500, sourcePath: "/en/sell-property-cancun" };
+  assert.equal((await call("/api/guest-sale-requests","POST",{ ...sale, phone: "", email: "optional@example.test" })).status,400);
+  const guest = await call("/api/guest-sale-requests","POST",sale);
+  assert.equal(guest.status,201);
+  assert.match(new URL(guest.data.action.whatsappUrl).searchParams.get("text"),/sell land/);
+  const guestRetry = await call("/api/guest-sale-requests","POST",sale);
+  assert.equal(guestRetry.data.request.id,guest.data.request.id);
+  const estimate = { leadType: "validar-precio", lang: "en", country: "CA", phone, ownerEstimate: "42500", currency: "USD", zone: "QA " + randomUUID(), consent: true, formStartedAt: Date.now()-2500, sourcePath: "/en/review-property-price" };
+  const review = await call("/api/leads","POST",estimate);
+  assert.equal(review.status,201);
+  assert.match(new URL(review.data.action.whatsappUrl).searchParams.get("text"),/My estimate: 42500 USD/);
   const admin = await call("/api/auth/login","POST",{ username: process.env.PCC_INQUIRY_TEST_ADMIN, password: process.env.PCC_INQUIRY_TEST_PASSWORD });
   assert.equal(admin.status,200);
   const leads = async () => (await call("/api/admin/leads?interest=" + encodeURIComponent(origin))).data.leads;
@@ -102,4 +113,12 @@ test("real HTTP / PostgreSQL inquiry, CRM, status, history, click and retry", { 
   const info = await call("/api/admin/contacts/" + lead.contactId + "/intelligence");
   assert.equal(info.status,200);
   assert.match(JSON.stringify(info.data), /Proyecto QA/);
+  assert.ok(JSON.stringify(info.data).includes(sale.title));
+  const guestFromPanel = (await call("/api/admin/guest-sale-requests")).data.requests.find(row=>row.id===guest.data.request.id);
+  assert.equal(guestFromPanel.country,"CA"); assert.equal(guestFromPanel.countryCode,"+1"); assert.equal(guestFromPanel.contactId,lead.contactId);
+  assert.equal((await call("/api/inquiries/"+guestFromPanel.id+"/whatsapp-click","POST",{token:guest.data.action.clickToken})).status,204);
+  const refreshedGuest = (await call("/api/admin/guest-sale-requests")).data.requests.find(row=>row.id===guestFromPanel.id);
+  assert.ok(refreshedGuest.inquiry.whatsappClickedAt); assert.equal(refreshedGuest.inquiry.whatsappReceivedAt,undefined);
+  const valuation = (await call("/api/admin/valuations")).data.valuations.find(row=>row.requestId===review.data.lead.id);
+  assert.equal(valuation.country,"CA"); assert.equal(valuation.expectedCurrency,"USD"); assert.equal(valuation.contactId,lead.contactId);
 });
