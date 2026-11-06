@@ -3,6 +3,48 @@ const assert = require('node:assert/strict');
 const { renderCatalog } = require('../catalog-view');
 const page = { lang: 'es', category: {} };
 
+test('the main Featured link shows the two properties and three developments once, including on its map and after filtering', () => {
+  const {getPageByPath, renderCategoryPage} = require('../seo-pages');
+  const directory = require('../portal-directory');
+  const rows = ['Casa','Desarrollo','Departamento','Desarrollo','Desarrollo','Casa'].map((type,index) => ({
+    id:'item-'+index, slug:'item-'+index, type, titleEs:'Ficha '+index, titleEn:'Listing '+index, zone:'Puerto Cancún',
+    featured:index !== 5, status:'active', isPublic:true, catalogData:{homeOrder:index},
+    urlEs:'/propiedades/item-'+index, urlEn:'/en/properties/item-'+index
+  }));
+  rows.push({...rows[0], id:'private', isPublic:false});
+  const portalDirectory = directory.publicDirectory(null,rows);
+  const ids = html => [...html.matchAll(/data-category-property="([^"]+)"/g)].map(match=>match[1]);
+  for (const [path,count] of [['/propiedades/destacadas-cancun','5 resultados destacados'],['/en/properties/featured-cancun','5 featured results']]) {
+    const page = {...getPageByPath(path),portalDirectory};
+    const html = renderCategoryPage(page,rows,{});
+    assert.ok(html.includes(count));
+    assert.deepEqual(ids(html),rows.slice(0,5).map(row=>row.id));
+    assert.deepEqual(JSON.parse(html.match(/data-catalog-map-data>([^<]+)</)[1]).map(row=>row.id),ids(html));
+    assert.deepEqual(ids(renderCategoryPage(page,rows,{entity:'developments'})),['item-1','item-3','item-4']);
+    assert.deepEqual(ids(renderCategoryPage(page,rows,{entity:'properties'})),['item-0','item-2']);
+    assert.deepEqual(ids(renderCategoryPage(page,rows,{location:'puerto-cancun',q:'Listing 2'})),['item-2']);
+    assert.ok(html.includes('action="'+path+'"'));
+  }
+});
+
+test('Featured includes public curated zones and presales in editorial order and respects placements in other pages', () => {
+  const {getPageByPath,renderCategoryPage} = require('../seo-pages');
+  const directory = require('../portal-directory');
+  const rows = [{id:'unit',slug:'unit',type:'Casa',titleEs:'Unidad',zone:'Puerto Cancún'},{id:'dev',slug:'dev',type:'Desarrollo',titleEs:'Proyecto',zone:'Puerto Cancún',catalogData:{salesModality:'presale'}}];
+  const config=directory.materialize(null,rows);
+  config.featured=[
+    {id:'z',kind:'area',targetId:'puerto-cancun',placement:'home',active:true},
+    {id:'p',kind:'presale',targetId:'presale-dev',placement:'home',active:true},
+    {id:'d',kind:'development',targetId:'dev',placement:'area',contextId:'puerto-cancun',active:true},
+    {id:'u',kind:'property',targetId:'unit',placement:'home',active:false}
+  ];
+  const page={...getPageByPath('/en/properties/featured-cancun'),portalDirectory:directory.publicDirectory(config,rows)};
+  const html=renderCategoryPage(page,rows,{});
+  assert.deepEqual([...html.matchAll(/data-category-property="([^"]+)"/g)].map(match=>match[1]),['area:puerto-cancun','presale:presale-dev']);
+  assert.ok(html.includes('/en/cancun-presales?project=presale-dev'));
+  assert.match(html,/href="\/en\/properties\?location=puerto-cancun&amp;entity=properties"/);
+});
+
 test('unmatched subarea and development remain selected instead of widening the search', () => {
   const html = renderCatalog(page, [], { zone: 'Merida', development: 'retired-development' }, () => '');
   assert.match(html, /<option value="Merida" selected>Merida \(sin coincidencias actuales\)<\/option>/);
@@ -42,7 +84,7 @@ test('legacy Playa Mujeres category keeps its corridor instead of widening to th
 });
 
 test('compact search submits the complete filter form and presents localized locations', () => {
-  for (const [lang, label, city] of [['es', 'Zonas', 'Ciudad de Cancún'], ['en', 'Areas', 'Cancun City']]) {
+  for (const [lang, label, city] of [['es', 'Zonas', 'Ciudad de Cancún'], ['en', 'Zones', 'Cancun City']]) {
     const html = renderCatalog({ lang, category: { location: 'cancun-city' } }, [], { q: 'Marina' }, () => '');
     assert.match(html, /name="q" form="catalogFilters" value="Marina"/);
     assert.match(html, /type="submit" form="catalogFilters"/);

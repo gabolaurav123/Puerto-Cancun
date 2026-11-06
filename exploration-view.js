@@ -28,7 +28,7 @@ function areaNav(directory, lang, footer = false) {
     const name = esc(nameOf(area, lang));
     return `<a href="${esc(areaLink(area.id, lang))}">${footer ? name : `<strong>${name}</strong><small>${esc(descriptionOf(area, lang))}</small>`}</a>`;
   }).join("");
-  return `<a class="public-nav-overview" href="${overview}">${lang === "en" ? "Explore all areas" : "Explorar todas las zonas"}</a>${links}`;
+  return `<a class="public-nav-overview" href="${overview}">${lang === "en" ? "Explore all zones" : "Explorar todas las zonas"}</a>${links}`;
 }
 function renderAreaGuideContent(directory, properties, lang) {
   const en = lang === "en";
@@ -50,7 +50,7 @@ function featuredSection(directory, properties, lang, placement, contextId = "")
     if (slot.kind === "area") {
       const area = directory.areas.find(a => a.id === slot.targetId);
       if (!area) continue;
-      label = en ? "Area" : "Zona"; name = nameOf(area, lang); href = areaLink(area.id, lang); image = area.image;
+      label = en ? "Zone" : "Zona"; name = nameOf(area, lang); href = areaLink(area.id, lang); image = area.image;
     } else if (slot.kind === "presale") {
       const project = directory.presales.find(p => p.id === slot.targetId);
       if (!project) continue;

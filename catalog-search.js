@@ -19,8 +19,8 @@ const MESSAGES = [
   ["name_conflict", "El nombre coincide con varios desarrollos o unidades; elige una identidad antes de buscar.", "The name matches multiple developments or units; choose an identity before searching."],
   ["development_identity", "El desarrollo no tiene un identificador de relacion verificable; confirma su selector.", "The development has no verifiable relationship ID; confirm its selector."],
   ["name_entity", "El nombre pertenece a una unidad, no a un desarrollo; confirma la entidad.", "The name belongs to a unit, not a development; confirm the entity."],
-  ["subzone_union", SUBAREA_CHOICE, "Choose one subarea or confirm that you want to search all the selected areas."],
-  ["zone_alias", "Hay varios alias de esa subzona en el catalogo; confirma una zona exacta antes de consultar.", "The catalog has multiple aliases for this subarea; confirm an exact zone before searching."],
+  ["subzone_union", SUBAREA_CHOICE, "Choose one subzone or confirm that you want to search all the selected zones."],
+  ["zone_alias", "Hay varios alias de esa subzona en el catalogo; confirma una zona exacta antes de consultar.", "The catalog has multiple aliases for this subzone; confirm an exact zone before searching."],
   ["colosio", "Colosio requiere confirmar la ciudad: Cancun o Playa del Carmen.", "Confirm the city for Colosio: Cancun or Playa del Carmen."],
   ["cancun", "Cancun no identifica una unica Location; elige Zona Hotelera, Puerto Cancun o Cancun City.", "Cancun does not identify one Location; choose Hotel Zone, Puerto Cancun or Cancun City."],
   ["operation_conflict", "Compra y renta requieren presupuestos separados; elige una operacion.", "Purchase and rent require separate budgets; choose one operation."],
@@ -167,8 +167,8 @@ function describe(filters, language = "es", areas = inventory.LOCATIONS) {
     labels.push({ sale: "Operation: Purchase", rent: "Operation: Rent" }[filters.operation] || "Operation: Purchase and rent");
     if (filters.type) labels.push(`Type: ${{ Casa: "Home", Departamento: "Apartment", Terreno: "Land", Comercial: "Commercial" }[filters.type] || filters.type}`);
     for (const location of filters.locations || []) labels.push(`Area: ${areas.find(area => area.id === location)?.nameEn || { "zona-hotelera": "Hotel Zone", "puerto-cancun": "Puerto Cancun", "cancun-city": "Cancun City", "fuera-de-cancun": "Outside Cancun" }[location] || location}`);
-    if (filters.subarea) labels.push(`Subarea: ${areas.flatMap(area => area.subareas || []).find(item => item.id === filters.subarea)?.nameEn || filters.subarea}`);
-    if (filters.zone) labels.push(`Subarea: ${filters.zone}`);
+    if (filters.subarea) labels.push(`Subzone: ${areas.flatMap(area => area.subareas || []).find(item => item.id === filters.subarea)?.nameEn || filters.subarea}`);
+    if (filters.zone) labels.push(`Subzone: ${filters.zone}`);
     if (filters.development) labels.push(`Units in development: ${filters.development}`);
     if (filters.modality) labels.push(`Sales mode: ${{ presale: "Presale", direct: "Direct sale", resale: "Resale", unclassified: "Unclassified" }[filters.modality] || filters.modality}`);
     if (filters.min !== undefined) labels.push(`Minimum price: ${filters.min} ${filters.currency || "(currency pending)"}`);
@@ -281,7 +281,7 @@ function interpretCatalogSearch(input, previous = {}, options = {}) {
 
   const addLocations = /\b(tambien|ademas|incluye|incluir|also|include|add)\b/.test(remaining);
   if (take(/\b(sin (?:limite de precio|presupuesto)|cualquier precio|quita (?:el )?presupuesto|no (?:price limit|budget)|any price|remove (?:the )?budget)\b/).length) { drop("min", "max"); resolve("budget_conflict", "negative_budget", "invalid_amount"); }
-  if (take(/\b(todas las zonas|cualquier (?:zona|ubicacion)|all locations|all areas|any area|any location|anywhere)\b/).length) { filters.locations = []; drop("zone", "subarea"); resolve("subzone_union", "zone_alias", "cancun", "colosio"); }
+  if (take(/\b(todas las zonas|cualquier (?:zona|ubicacion)|all locations|all areas|all zones|any area|any zone|any location|anywhere)\b/).length) { filters.locations = []; drop("zone", "subarea"); resolve("subzone_union", "zone_alias", "cancun", "colosio"); }
   if (take(/\b(todas las modalidades|cualquier modalidad|any modality|all modalities)\b/).length) { drop("modality"); resolve("modality_conflict"); }
   if (take(/\b(cualquier tipo|todos los tipos|any type|all types)\b/).length) { drop("type"); resolve("type_conflict"); }
   if (take(/\b(cualquier desarrollo|todos los desarrollos|any development|all developments)\b/).length) { drop("development"); resolve("name_conflict", "development_identity", "name_entity"); }

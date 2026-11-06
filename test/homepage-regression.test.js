@@ -19,7 +19,11 @@ test("la portada restaura su jerarquia sin el bloque de destacadas y conserva su
   assert.doesNotMatch(catalogStyles, /body\[data-page=home\] \.hero(?:\s|[.{-])/);
   assert.match(index, /class="contact-strip home-only"/);
   assert.match(index, /data-i18n="contactToday"/);
-  assert.match(index, /data-contact-inquiry data-origin="home-contact"/);
+  assert.match(index, /<!-- HOME_CONTACT_OFFICES -->/);
+  const hero = index.match(/<section class="hero home-only"[\s\S]*?<\/section>/)[0];
+  assert.ok(hero.includes('id="searchForm"'));
+  assert.doesNotMatch(hero, /hero-actions|heroBuyCta|heroSellCta/);
+  assert.ok(index.includes('data-intent="let" data-origin="footer-let"'));
   assert.equal((index.match(/class="presale-feature"/g) || []).length, 1);
   assert.ok(index.indexOf('class="presale-feature"') > index.indexOf('class="type-grid"'));
   assert.ok(index.indexOf('class="presale-feature"') < index.indexOf('id="categoryPage"'));

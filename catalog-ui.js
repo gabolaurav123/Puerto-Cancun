@@ -111,7 +111,7 @@
           select.value = "";
         }
       }
-      if (removed.length) notice = t("La nueva zona cambió estos filtros: ", "The new area cleared these filters: ") + removed.join(", ") + ".";
+      if (removed.length) notice = t("La nueva zona cambió estos filtros: ", "Changing the zone cleared these filters: ") + removed.join(", ") + ".";
     }
     if (["location", "type", "entity", "operation", "featured", "gated", "sort", "zone", "subarea", "development", "modality"].includes(event.target.name)) {
       clearTimeout(debounce); navigate(formUrl(form), true, event.target.name, false, notice);

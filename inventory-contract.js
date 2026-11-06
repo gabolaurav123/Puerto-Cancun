@@ -180,7 +180,7 @@
     };
     query.locations = [...new Set(query.locations.map((value) => locationId(value, areas) || value))];
     if (query.locations.some((value) => !areas.some((location) => location.id === value))) errors.push("Location no reconocida");
-    if (!["properties", "developments"].includes(query.entity)) errors.push(query.entity === "typologies" ? "Tipologías pendientes de soporte; no son propiedades ni desarrollos" : "Tipo de inventario inválido");
+    if (!["properties", "developments"].includes(query.entity) && !(query.entity === "all" && query.featured)) errors.push(query.entity === "typologies" ? "Tipologías pendientes de soporte; no son propiedades ni desarrollos" : "Tipo de inventario inválido");
     if (![undefined, null, "", true, false, "1", "0", "true", "false"].includes(raw.featured)) errors.push("Filtro de destacadas inválido");
     if (query.type && !TYPES.includes(query.type)) errors.push("Tipo de propiedad inválido");
     if (query.operation && !["sale", "rent"].includes(query.operation)) errors.push("Operación inválida");
@@ -207,7 +207,8 @@
       query = parsed.query;
     }
     if (!includePrivate && !isPublic(p)) return false;
-    if (entityOf(p) !== query.entity) return false;
+    const entity = entityOf(p);
+    if (query.entity === "all" ? !query.featured || entity === "typologies" : entity !== query.entity) return false;
     if (query.locations.length && !query.locations.includes(resolveLocation(p, areas).id)) return false;
     if (query.bounds) {
       if (p.locationPrecision === "hidden" || p.portalHiddenBlocks?.includes("location")) return false;

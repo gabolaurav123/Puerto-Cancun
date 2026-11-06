@@ -72,6 +72,7 @@ const {
   aiSummary,
   escapeHtml,
   getPageByPath,
+  officeInquiryButtons,
   llmsTxt,
   propertySlug,
   renderCategoryPage,
@@ -12093,8 +12094,9 @@ function replaceMetaTag(html, pattern, replacement) {
   return html.replace(pattern, replacement);
 }
 
-function decoratePublicHtml({ page, seo, pageContent = "", bodyPage = "seo", noindex = false, includePrivatePanel = false, showBlog = true }) {
+function decoratePublicHtml({ page, seo, pageContent = "", bodyPage = "seo", noindex = false, includePrivatePanel = false, showBlog = true, offices }) {
   let html = fs.readFileSync(indexPath, "utf8");
+  html = html.replace("<!-- HOME_CONTACT_OFFICES -->", () => bodyPage === "home" ? officeInquiryButtons(seo.lang, "home-contact", offices) : "");
   html = html.replace(/(<div class="exchange-rate-panel" data-exchange-rate[^>]*>)[\s\S]*?<\/div>/, (_match, opening) => opening + renderExchangeRate(exchangeRateService.getSnapshot(), seo.lang) + "</div>");
   const directory = publicPropertyCache.directory || portalDirectoryModel.publicDirectory(null, []);
   if (bodyPage !== "panel") {
@@ -12103,7 +12105,6 @@ function decoratePublicHtml({ page, seo, pageContent = "", bodyPage = "seo", noi
     html = html.replace(/(<div class="public-nav-popover public-nav-communities">)[\s\S]*?<\/div>/, (_m, start) => start + exploration.areaNav(directory, language) + "</div>");
     html = html.replace(/(<h3 data-i18n="footerCommunities">[^<]*<\/h3>)[\s\S]*?<\/div>/, (_m, start) => start + exploration.areaNav(directory, language, true) + "</div>");
     html = html.replace(/(<div class="zone-grid">)[\s\S]*?<\/div>/, (_m, start) => start + exploration.areaCards(directory, language) + "</div>");
-    if (bodyPage === "home") html = html.replace("<!-- HOME_FEATURED -->", () => exploration.featuredSection(directory, publicPropertyCache.items, language, "home"));
   }
   if (bodyPage !== "home") {
     html = html.replace(/\s*<link rel="preload" as="image" href="\/assets\/cancun-hotel-zone-hero-[^"]+"[^>]*>/g, "");
@@ -12198,21 +12199,23 @@ async function renderPublicHtml(requestPath, noindex = false, params = {}) {
   const basePage = getPageByPath(requestPath);
   if (!basePage) return null;
   const isHome = basePage.path === "/" || basePage.path === "/en";
-  let properties = [];
-  try {
-    properties = await getPublicProperties();
-  } catch (error) {
-    if (basePage.category) throw error;
-  }
+  const showOffices = isHome || ["/contacto", "/en/contact"].includes(basePage.path);
+  const [properties, routing] = await Promise.all([
+    getPublicProperties().catch(error => {
+      if (basePage.category) throw error;
+      return [];
+    }),
+    showOffices ? readContactRouting({ query }).catch(() => null) : null,
+  ]);
+  const offices = routing ? ["mx", "us"].filter(id => routing[id]).map(id => ({ id, display: businessPhoneLabel(routing[id]) })) : undefined;
   const directory = publicPropertyCache.directory || portalDirectoryModel.publicDirectory(null, properties);
   const page = require("./catalog-view").catalogPresentation({ ...basePage, catalogAreas: directory.areas, portalDirectory: directory }, params);
   const seo = renderSeoHead(page, siteUrl);
-  let pageContent = isHome ? "" : renderSeoPage(page.path, { directory, properties });
+  let pageContent = isHome ? "" : renderSeoPage(page.path, { directory, properties, offices });
   if (page.category) {
     pageContent = renderCategoryPage(page, properties, params);
     const area = params.location || page.category?.location || inventoryContract.locationId(page.category?.zone);
-    if (["/propiedades/destacadas-cancun", "/en/properties/featured-cancun"].includes(page.path)) pageContent += require("./exploration-view").featuredSection(directory, properties, page.lang, "home");
-    if (area && typeof area === "string") pageContent += require("./exploration-view").featuredSection(directory, properties, page.lang, "area", area);
+    if (!page.category.featured && area && typeof area === "string") pageContent += require("./exploration-view").featuredSection(directory, properties, page.lang, "area", area);
   }
   if (["/blog", "/en/blog"].includes(page.path)) {
     const listingQuery = blogListQuery({ lang: page.lang, topic: params.topic, page: params.page, limit: 24 });
@@ -12225,6 +12228,7 @@ async function renderPublicHtml(requestPath, noindex = false, params = {}) {
     seo,
     pageContent,
     bodyPage: isHome ? "home" : "seo",
+    offices,
     noindex: noindex || (Boolean(page.category) && Object.keys(params).length > 0),
     showBlog: await hasPublishedBlogPosts(page.lang),
   });

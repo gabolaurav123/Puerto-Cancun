@@ -30,6 +30,29 @@
 .inquiry-admin-note { display: grid; gap: 6px; margin: 8px 0; }
 .inquiry-admin-note textarea { width: 100%; }
 .inquiry-saved-link { margin-top: 8px; }
+.office-inquiry-buttons {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 12rem), 1fr));
+  gap: 10px;
+  width: min(100%, 32rem);
+}
+.office-inquiry-button {
+  display: grid;
+  gap: 3px;
+  align-content: center;
+  justify-items: center;
+  min-height: 52px;
+  padding: 8px 12px;
+  border: 1px solid #28765b;
+  border-radius: 5px;
+  background: #105d45;
+  color: white;
+  text-decoration: none;
+  font-weight: 700;
+}
+.office-inquiry-button:hover, .office-inquiry-button:focus-visible { background: #0b4936; color: white; }
+.office-inquiry-button [data-contact-number] { font-size: .85rem; font-weight: 500; white-space: nowrap; }
+#contact-offices { scroll-margin-top: 9rem; }
 @media (max-height: 460px) {
   .contextual-inquiry { max-height: 100dvh; }
   .contextual-inquiry header { padding-block: 3px; }

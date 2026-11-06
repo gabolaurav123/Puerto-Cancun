@@ -6,9 +6,9 @@ const app = fs.readFileSync(require.resolve('../site-language.js'), 'utf8');
 const html = fs.readFileSync(require.resolve('../index.html'), 'utf8');
 const css = fs.readFileSync(require.resolve('../styles.css'), 'utf8');
 
-test('search uses a short area or property prompt in both languages', () => {
+test('search uses a short zone or property prompt in both languages', () => {
   assert.match(app, /searchPlaceholder: "Zona o propiedad"/);
-  assert.match(app, /searchPlaceholder: "Area or property"/);
+  assert.match(app, /searchPlaceholder: "Zone or property"/);
   assert.doesNotMatch(app, /searchPlaceholder: "(?:Ciudad, dirección, código postal|City, address, zip code)"/);
   assert.match(html, /id="searchInput"[^>]*placeholder="Zona o propiedad"/);
 });
