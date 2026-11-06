@@ -1161,7 +1161,7 @@ function bindPublicAreaMap() {
       button.hidden = true;
       message.textContent = "";
     } catch {
-      message.textContent = state.lang === "en" ? "The area map could not be loaded. Please try again." : "No se pudo cargar el mapa de la zona. Inténtalo de nuevo.";
+      message.textContent = state.lang === "en" ? "The zone map could not be loaded. Please try again." : "No se pudo cargar el mapa de la zona. Inténtalo de nuevo.";
     } finally {
       button.disabled = false;
     }
@@ -1728,7 +1728,7 @@ function categoryIntro() {
   }
   if (state.filters.type) {
     return state.lang === "en"
-      ? `Available ${displayType(state.filters.type).toLowerCase()} with current prices, area details, images, and direct advisor contact.`
+      ? `Available ${displayType(state.filters.type).toLowerCase()} with current prices, zone details, images, and direct advisor contact.`
       : "Consulta el precio, la superficie y las fotos de cada inmueble, o contacta a un asesor.";
   }
   if (state.filters.zone) {
@@ -1819,7 +1819,7 @@ function bindHomeSuggestions() {
     const en = state.lang === "en";
     const base = en ? "/en/properties" : "/propiedades";
     const areas = (state.portalDirectory?.areas || []).map(area => ({
-      label: en ? area.nameEn || area.nameEs : area.nameEs, kind: en ? "Area" : "Zona",
+      label: en ? area.nameEn || area.nameEs : area.nameEs, kind: en ? "Zone" : "Zona",
       href: base + "?location=" + encodeURIComponent(area.id), words: [area.nameEs,area.nameEn],
     }));
     const items = state.properties.filter(contract.isPublic).map(item => ({
@@ -3131,12 +3131,12 @@ function leadPayloadLabel(key) {
     lang: state.lang === "en" ? "Language" : "Idioma", intent: t("inquiryIntent"), country: state.lang === "en" ? "Phone country" : "País del teléfono",
     prefix: state.lang === "en" ? "Dialing code" : "Prefijo", preferences: state.lang === "en" ? "Preferences" : "Preferencias",
     propertyTitle: state.lang === "en" ? "Listing" : "Publicación", project: state.lang === "en" ? "Presale project" : "Proyecto de preventa",
-    development: state.lang === "en" ? "Development" : "Desarrollo", subzone: state.lang === "en" ? "Subarea" : "Subzona",
+    development: state.lang === "en" ? "Development" : "Desarrollo", subzone: state.lang === "en" ? "Subzone" : "Subzona",
     origin: state.lang === "en" ? "Source button" : "Botón de origen", reference: state.lang === "en" ? "Project reference" : "Referencia de proyecto",
     viewedPropertyTitle: state.lang === "en" ? "Originally viewed listing" : "Publicación de origen",
     viewedProject: state.lang === "en" ? "Originally viewed project" : "Proyecto de origen",
     viewedReference: state.lang === "en" ? "Original project reference" : "Referencia de origen",
-    viewedZone: state.lang === "en" ? "Original area" : "Zona de origen",
+    viewedZone: state.lang === "en" ? "Original zone" : "Zona de origen",
     viewedDevelopment: state.lang === "en" ? "Original development" : "Desarrollo de origen",
   };
   return labels[key] || key.replace(/([A-Z])/g, " $1").replace(/^./, (letter) => letter.toUpperCase());
@@ -8375,7 +8375,7 @@ const panelStaticEnglish = {
   "Calidad": "Quality",
   "Accesos rápidos": "Quick actions",
   "Configuración": "Settings",
-  "Zonas y subzonas": "Areas and subareas",
+  "Zonas y subzonas": "Zones and subzones",
   "Destacados": "Featured",
   "Preventas": "Presales",
   "Roles / usuarios internos": "Roles / internal users",
@@ -8714,7 +8714,6 @@ function applyTranslations({ renderPanelContent = true } = {}) {
   $$('[data-password-visibility]').forEach(updatePasswordVisibilityButton);
   updateLocalizedLinks();
   if ($("#sellNavLink")) $("#sellNavLink").href = state.lang === "en" ? "/en/sell-property-cancun" : "/vender-casa-cancun";
-  if ($("#heroSellButton")) $("#heroSellButton").href = state.lang === "en" ? "/en/sell-property-cancun" : "/vender-casa-cancun";
   if ($("#sellCtaButton")) $("#sellCtaButton").href = state.lang === "en" ? "/en/sell-property-cancun" : "/vender-casa-cancun";
   $$('[data-valuation-option]').forEach((link) => {
     link.href = (state.lang === "en" ? "/en/property-valuation-cancun" : "/valuacion-inmobiliaria-cancun") + "#valuation-form";
@@ -8924,6 +8923,10 @@ function setFormMessage(element, text, error = false) {
 
 function installImageFallbacks() {
   const applyFallback = (image) => {
+    if (image instanceof HTMLImageElement && image.matches('[data-presale-cover]')) {
+      image.hidden = true;
+      return;
+    }
     if (image instanceof HTMLImageElement && (image.matches('[data-home-cover]') || image.matches('[data-location-cover]'))) {
       image.hidden = true;
       image.closest('.zone-card, .type-tile, .presale-feature')?.classList.remove('has-home-cover');

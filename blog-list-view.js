@@ -2,7 +2,7 @@
 
 function escapeHtml(value) { return String(value ?? "").replace(/[&<>"']/g, character => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[character]); }
 
-const topics = { buy: ["Guías para comprar", "Buying guides"], sell: ["Guías para vender", "Selling guides"], areas: ["Conocer las zonas", "Area guides"], news: ["Novedades locales", "Local news"] };
+const topics = { buy: ["Guías para comprar", "Buying guides"], sell: ["Guías para vender", "Selling guides"], areas: ["Conocer las zonas", "Zone guides"], news: ["Novedades locales", "Local news"] };
 function blogTopic(post) {
   if (post.automationDate) return "news";
   if (/zona|barrio|comunidad|area-guide/i.test(post.slug)) return "areas";

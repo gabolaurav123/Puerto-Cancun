@@ -1,7 +1,7 @@
 (() => {
   "use strict";
   const key = "pcc-inquiry-contact";
-  const fields = ["intent", "zone", "subzone", "development", "propertyId", "propertyTitle", "mls", "project", "reference", "propertyType", "budget", "currency", "origin", "preferences", "sourcePath"];
+  const fields = ["intent", "zone", "subzone", "development", "propertyId", "propertyTitle", "mls", "project", "reference", "propertyType", "budget", "currency", "office", "origin", "preferences", "sourcePath"];
   const intents = { buy: ["Comprar", "Buy"], rent: ["Buscar una renta", "Find a rental"], sell: ["Vender", "Sell"], let: ["Poner mi propiedad en renta", "List my property for rent"] };
   const typeLabels = { Casa: "House", Departamento: "Apartment", Terreno: "Land", Comercial: "Commercial property" };
   const escape = value => String(value ?? "").replace(/[&<>"']/g, ch => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[ch]));
@@ -36,7 +36,7 @@
   function updateQuestions() {
     const e = form.elements, owner = ["sell", "let"].includes(e.intent.value), land = e.propertyType.value === "Terreno";
     const label = (name, value) => { form.querySelector('[data-field="' + name + '"] span').textContent = value; };
-    label("zone", owner ? tr("Ubicación de tu propiedad", "Where your property is located") : tr("Zona de interés", "Preferred area"));
+    label("zone", owner ? tr("Ubicación de tu propiedad", "Where your property is located") : tr("Zona de interés", "Preferred zone"));
     label("budget", e.intent.value === "rent" ? tr("Presupuesto mensual de renta", "Monthly rental budget") : tr("Presupuesto aproximado", "Approximate budget"));
     form.querySelector("[data-inquiry-budget]").hidden = owner;
     e.budget.disabled = owner;
@@ -76,13 +76,14 @@
     }
     const replay = { ...identity(), ...values, ...(existing?.values || {}) };
     const typeOptions = [...new Set([...(window.PccInventory?.TYPES || Object.keys(typeLabels)), replay.propertyType].filter(Boolean))];
-    dialog.innerHTML = '<header><h2 id="inquiryTitle">' + tr("Hablar con un asesor", "Talk to an advisor") + '</h2><button type="button" data-inquiry-close aria-label="' + tr("Cerrar", "Close") + '">×</button></header><div class="inquiry-scroll"><form>'
+    const officeLabel = values.office === "us" ? tr("Estados Unidos", "United States") : values.office === "mx" ? tr("México", "Mexico") : "";
+    dialog.innerHTML = '<header><h2 id="inquiryTitle">' + (officeLabel ? "WhatsApp " + officeLabel : tr("Hablar con un asesor", "Talk to an advisor")) + '</h2><button type="button" data-inquiry-close aria-label="' + tr("Cerrar", "Close") + '">×</button></header><div class="inquiry-scroll"><form>'
       + '<section data-inquiry-step="1"><h3 tabindex="-1">' + tr("¿Qué necesitas?", "How can we help?") + '</h3>'
       + (values.project || values.propertyTitle || values.mls ? '<p class="inquiry-context">' + [values.project, values.propertyTitle, values.mls ? "MLS " + values.mls : ""].filter(Boolean).map(escape).join(" · ") + '</p>' : "")
       + row(tr("Quiero", "I want to"), "intent", '<select name="intent" required>' + option("", tr("Elige una opción", "Choose an option")) + Object.entries(intents).map(([k,v]) => option(k, tr(...v))).join("") + '</select>')
       + row(tr("Tipo de propiedad", "Property type"), "propertyType", '<select name="propertyType">' + option("", tr("No estoy seguro", "I'm not sure")) + typeOptions.map(t => option(t, lang() === "en" ? typeLabels[t] || t : t)).join("") + '</select>')
       + row("", "zone")
-      + '<details' + (replay.subzone || replay.development ? " open" : "") + '><summary>' + tr("Subzona o desarrollo (opcional)", "Subarea or development (optional)") + '</summary>' + row(tr("Subzona o corredor", "Subarea or corridor"), "subzone") + row(tr("Desarrollo", "Development"), "development") + '</details>'
+      + '<details' + (replay.subzone || replay.development ? " open" : "") + '><summary>' + tr("Subzona o desarrollo (opcional)", "Subzone or development (optional)") + '</summary>' + row(tr("Subzona o corredor", "Subzone or corridor"), "subzone") + row(tr("Desarrollo", "Development"), "development") + '</details>'
       + '<label class="inquiry-consent" data-review-origin hidden><input name="keepOrigin" type="checkbox"><span>' + tr("También me sigue interesando", "I am also still interested in") + ' ' + escape(current.project || current.propertyTitle || current.development) + '</span></label>'
       + '<div class="inquiry-budget" data-inquiry-budget>' + row("", "budget", '<input name="budget" type="number" step="any" min="0.01" max="10000000000000" inputmode="decimal" placeholder="' + tr("Aún sin definir", "Not decided yet") + '">') + row(tr("Moneda", "Currency"), "currency", '<select name="currency">' + option("", tr("Elegir", "Choose")) + option("USD", "USD") + option("MXN", "MXN") + '</select>') + '</div>'
       + row("", "area", '<input name="area" maxlength="100" placeholder="' + tr("No estoy seguro", "I'm not sure") + '">')

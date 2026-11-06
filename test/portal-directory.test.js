@@ -66,6 +66,27 @@ test("Featured placements preserve editorial order, remove only the placement, a
   cfg.featured=cfg.featured.filter(f=>f.id!=="f1");
   assert.ok(directory.publicDirectory(cfg,rows).assignments.land);
 });
+test("inventory marks stay in sync after saving the directory and removing or moving one keeps it off the general page", () => {
+  const rows=[{...dev,featured:true},{...unit,featured:false},{...land,featured:false}];
+  const saved=directory.materialize(null,rows);
+  rows[0].featured=false;
+  rows[1].featured=true;
+  const updated=directory.materialize(saved,rows);
+  assert.deepEqual(updated.featured.map(slot=>slot.targetId),["unit"]);
+  for (const scope of ["removed","area"]) {
+    const edited=structuredClone(updated);
+    if (scope === "removed") edited.featured=[];
+    else Object.assign(edited.featured[0],{placement:"area",contextId:"puerto-cancun"});
+    const stored=directory.validate(edited,rows,updated);
+    const next=directory.publicDirectory(stored,rows);
+    assert.equal(next.featured.some(slot=>slot.placement==="home"),false);
+    assert.equal(next.featured.some(slot=>slot.placement==="area"),scope==="area");
+    assert.equal(new Set(stored.featured.map(slot=>slot.id)).size,stored.featured.length);
+    rows[2].featured=true;
+    assert.deepEqual(directory.publicDirectory(stored,rows).featured.filter(slot=>slot.placement==="home").map(slot=>slot.targetId),["land"]);
+    rows[2].featured=false;
+  }
+});
 test("An illustration does not confirm a presale; Almar preview and unverified evidence never reach the public response", () => {
   const renderOnly={...dev,id:"render-only",titleEs:"Torre de ejemplo",catalogData:{},developmentData:{stage:"construcción"},image:"/assets/render.webp"};
   const cfg=directory.materialize(null,[renderOnly]);

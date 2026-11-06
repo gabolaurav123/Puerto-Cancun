@@ -288,5 +288,5 @@ test("la portada no renderiza destacadas y mantiene el acceso al catálogo compl
   const index = read("index.html");
   assert.match(app, /if \(isHome\) \{\s*grid\.innerHTML = ""/);
   assert.match(index, /href="\/propiedades"[^>]*data-i18n="navSearch"/);
-  assert.match(index, /href="\/propiedades\/en-venta"[^>]*data-i18n="heroBuyCta"/);
+  assert.match(index, /href="\/propiedades\/en-venta"[^>]*data-i18n="navForSale"/);
 });

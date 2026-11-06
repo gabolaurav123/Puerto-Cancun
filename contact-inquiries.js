@@ -70,6 +70,10 @@ function readInquiry(body) {
   if (!(elapsed >= 1000 && elapsed <= 7200000)) fail("Vuelve a abrir el formulario e intenta nuevamente.", "Reopen the form and try again.", lang);
   const phone = contactPhone(body.phone, body.country, lang);
   const data = { lang, intent: body.intent, country: phone.country, prefix: phone.prefix };
+  if (body.office) {
+    if (!["mx", "us"].includes(body.office)) fail("Elige una oficina disponible.", "Choose an available office.", lang);
+    data.office = body.office;
+  }
   const limits = { propertyType: 100, zone: 160, subzone: 160, development: 240, propertyTitle: 240, mls: 90, project: 240, reference: 140, preferences: 1200, area: 100, features: 400, origin: 120 };
   Object.assign(limits, { viewedPropertyId: 140, viewedPropertyTitle: 240, viewedMls: 90, viewedProject: 240, viewedReference: 140, viewedZone: 160, viewedDevelopment: 240 });
   for (const [key, limit] of Object.entries(limits)) {
@@ -99,7 +103,7 @@ function messageFor(data, url) {
   for (const [value, es, english] of [
     [data.propertyTitle, "Propiedad", "Listing"], [data.mls, "MLS", "MLS"], [data.project, "Preventa", "Presale"],
     [data.reference, "Referencia del proyecto", "Project reference"], [data.development, "Desarrollo", "Development"],
-    [data.zone, "Zona", "Area"], [data.subzone, "Subzona", "Subarea"], [data.area, "Superficie aproximada", "Approximate area"],
+    [data.zone, "Zona", "Zone"], [data.subzone, "Subzona", "Subzone"], [data.area, "Superficie aproximada", "Approximate area"],
     [data.features, "Características", "Features"], [data.preferences, "Preferencias", "Preferences"],
   ]) if (value) text.push((en ? english : es) + ": " + value);
   if (data.budget) text.push((en ? "Budget: " : "Presupuesto: ") + new Intl.NumberFormat(en ? "en-US" : "es-MX").format(data.budget) + " " + data.currency);
@@ -109,7 +113,8 @@ function messageFor(data, url) {
   return text.join("\n");
 }
 
-function destination(routing, country) {
+function destination(routing, country, office) {
+  if (office === "mx" || office === "us") return routing[office];
   const primary = routing.rule === "country" ? (["US", "CA"].includes(country) ? "us" : "mx") : routing.rule;
   return routing[primary] || routing[routing.fallback] || routing.mx || routing.us;
 }
@@ -163,15 +168,16 @@ function registerInquiries(app, { pool, query, uuid, siteUrl, secret, upsertCont
       const previous = (await client.query(
         `SELECT id, payload FROM lead_requests WHERE id=$1 OR (phone=$2 AND payload->>'inquiryFingerprint'=$3 AND created_at > NOW() - INTERVAL '90 seconds') ORDER BY created_at DESC LIMIT 1`,
         [id, phone, fingerprint])).rows[0];
-      const routing = await readContactRouting(client);
       let recordId = id;
       let payload = previous?.payload;
       if (previous) recordId = previous.id;
       else {
+        const number = destination(await readContactRouting(client), data.country, data.office);
+        if (!number) fail("Este número ya no está disponible. Vuelve a Contacto para elegir otro.", "This number is no longer available. Return to Contact to choose another.", data.lang);
         const leadType = intentTypes[data.intent];
         const score = leadScoreFromData({ leadType, phone, payload: data, propertyId });
         const contact = await upsertContact(client, { name, phone, source: "portal_inquiry", contactType: ["sell", "let"].includes(data.intent) ? "seller" : "buyer", preferredZones: data.zone ? [data.zone] : [], propertyType: data.propertyType, leadScore: score });
-        payload = { ...data, inquiryFingerprint: fingerprint, whatsappRef: crypto.randomBytes(8).toString("hex"), destination: destination(routing, data.country) };
+        payload = { ...data, inquiryFingerprint: fingerprint, whatsappRef: crypto.randomBytes(8).toString("hex"), destination: number };
         await client.query(
           `INSERT INTO lead_requests(id,lead_type,name,phone,source_path,property_id,contact_id,payload,priority,lead_score)
            VALUES($1,$2,$3,$4,$5,$6,$7,$8::jsonb,$9,$10)`, [id, leadType, name || (data.lang === "en" ? "Website visitor" : "Visitante web"), phone, path, propertyId || null, contact.id, JSON.stringify(payload), score === "premium" ? "premium" : score === "hot" ? "high" : "medium", score]);

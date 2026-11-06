@@ -158,7 +158,7 @@
                   id="searchInput"
                   type="search"
                   autocomplete="off"
-                  aria-label="Describe la propiedad que estás buscando"
+                  aria-label="Zona o propiedad" data-i18n-aria-label="searchPlaceholder"
                   data-i18n-placeholder="searchPlaceholder"
                   placeholder="Zona o propiedad"
                 />
@@ -171,18 +171,12 @@
               <div id="homeSearchSuggestions" class="home-search-suggestions" hidden></div>
             </form>
             <div class="intelligent-search-status" id="intelligentSearchStatus" aria-live="polite" hidden></div>
-            <div class="hero-actions">
-              <a class="accent-button" href="/vender-casa-cancun" id="heroSellButton" data-contact-inquiry data-intent="sell" data-origin="home-sell" data-i18n="heroSellCta">Quiero vender mi propiedad</a>
-              <a class="outline-button" href="/propiedades/en-venta" data-i18n="heroBuyCta">Quiero comprar en Cancún</a>
-              <a class="outline-button" href="/propiedades-en-renta-cancun" data-i18n="findRental">Buscar una renta</a>
-              <a class="outline-button" href="/contacto?intent=let" data-contact-inquiry data-intent="let" data-origin="home-let" data-i18n="offerRental">Poner en renta</a>
-            </div>
           </div>
         </section>
 
         <section class="contact-strip home-only" aria-labelledby="homeContactTitle">
           <h2 id="homeContactTitle" data-i18n="contactToday">Contáctanos Hoy</h2>
-          <a class="accent-button" href="/contacto?inquiry=1" data-contact-inquiry data-origin="home-contact" data-i18n="teamCta">Contactar al equipo</a>
+          <!-- HOME_CONTACT_OFFICES -->
         </section>
 
         <section class="resource-section home-only" hidden>
@@ -215,7 +209,6 @@
           </div>
         </section>
 
-        <!-- HOME_FEATURED -->
         <section class="zones-band home-only" id="zones">
           <div class="content-wrap">
             <div class="section-heading inverse">
@@ -238,21 +231,6 @@
               profesional y seguimiento cercano para compradores, vendedores e inversionistas.
             </p>
 
-            <div class="feature-split">
-              <img
-                src="/assets/cancun-hotel-zone-hero-1280.webp"
-                alt="Residencia con alberca disponible en Cancún"
-                width="1200" height="800" loading="lazy"
-              />
-              <div class="feature-copy">
-                <h3 data-i18n="featuredProperties">Propiedades destacadas</h3>
-                <p data-i18n="featuredCopy">
-                  Oportunidades de alta plusvalia en desarrollos frente al mar, residencias en canales y condominios
-                  con distintas amenidades.
-                </p>
-                <a class="primary-button" href="/propiedades" data-i18n="seeMore">Ver mas</a>
-              </div>
-            </div>
           </div>
         </section>
 
@@ -441,10 +419,6 @@
                 <span data-i18n="typePresales">Pre-ventas</span>
                 <img src="/assets/cancun-hotel-zone-hero-1280.webp" alt="Preventas inmobiliarias en Cancún" loading="lazy" width="700" height="394" />
               </a>
-              <a href="/propiedades">
-                <span data-i18n="navFeatured">Destacadas</span>
-                <img src="/assets/cancun-hotel-zone-hero-768.webp" alt="Propiedades destacadas en Cancún" loading="lazy" width="700" height="394" />
-              </a>
               <a href="/propiedades/casas-cancun">
                 <span data-i18n="typeHouses">Casas</span>
                 <img src="/assets/cancun-hotel-zone-hero-1280.webp" alt="Casas en Cancún" loading="lazy" width="700" height="394" />
@@ -548,6 +522,7 @@
             <h3 data-i18n="footerSell">Asesoria de venta</h3>
             <a href="/vender-casa-cancun" id="footerSellButton" data-contact-inquiry data-intent="sell" data-origin="footer-sell" data-i18n="saleProperty">Venta de propiedad</a>
             <a href="/vender-casa-cancun" data-contact-inquiry data-intent="sell" data-origin="footer-sell" data-i18n="resourceSellHere">Vender mi propiedad aqui</a>
+            <a href="/contacto?intent=let" data-contact-inquiry data-intent="let" data-origin="footer-let" data-i18n="offerRental">Poner en renta</a>
             <a href="/valuacion-inmobiliaria-cancun" data-i18n="resourceValuation">Valoracion inmobiliaria</a>
             <a href="/faq-inmobiliario-cancun" data-i18n="resourceFaq">Preguntas frecuentes</a>
             <a href="/blog" data-i18n="footerBlog">Blog inmobiliario</a>
@@ -3243,7 +3218,7 @@
       id="whatsappButton"
       href="/contacto?inquiry=1"
       data-contact-inquiry data-origin="floating-contact"
-      aria-label="Contactar a Puerto Cancún Center"
+      aria-label="Contactar al equipo" data-i18n-aria-label="teamCta"
     >
       <span>WhatsApp</span>
       <i data-lucide="message-circle"></i>

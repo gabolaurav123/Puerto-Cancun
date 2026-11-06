@@ -43,7 +43,7 @@
       noPhoto: "No photo", failedPhoto: "Photo unavailable", favorite: "Favorite", saveFavorite: "Save to favorites", removeFavorite: "Remove from favorites",
       contact: "Inquire", tour: "Request a visit", entity: "Entity", type: "Type", operation: "Transaction", sale: "For sale", rent: "For rent",
       originalPrice: "Original price", priceMatch: "Price compatibility", area: "Built area", areaMatch: "Built area compatibility", lot: "Original land / lot area", lotMatch: "Land area compatibility",
-      beds: "Bedrooms", noDevelopmentBeds: "Not applicable to a development", zone: "Area / city", compatible: "Compatible with {n}", incompatible: "Not comparable with {n}",
+      beds: "Bedrooms", noDevelopmentBeds: "Not applicable to a development", zone: "Zone / city", compatible: "Compatible with {n}", incompatible: "Not comparable with {n}",
       entityMismatch: "Different entities: property and development", noPrice: "Price unavailable", currencyUnknown: "Currency unconfirmed", currencyMismatch: "Different currencies",
       operationUnknown: "Transaction unconfirmed", operationMismatch: "Different transactions", basisUnknown: "Price basis unconfirmed", basisMismatch: "Different price bases",
       periodUnknown: "Rental period unconfirmed", periodMismatch: "Different rental periods", noSurface: "Area unavailable", conceptUnknown: "Area definition unconfirmed", unitUnknown: "Area unit unconfirmed", unitMismatch: "Different area units",

@@ -20,7 +20,7 @@ test("el idioma se guarda antes de navegar y tambien se controla desde los panel
   assert.match(serverSource, /automaticallyTranslateProperty/);
   assert.match(serverSource, /titleEnStored/);
   assert.match(seoSource, /localizedAmenity\(item, lang\)/);
-  assert.match(seoSource, /"seguridad 24\/7": "24\/7 security"/);
+  assert.equal(require("../public-listing-details").localizedAmenity("Seguridad 24/7", "en"), "24/7 security");
   assert.doesNotMatch(serverSource, /Original property description:\\n\$\{descriptionEs\}/);
   assert.match(serverSource, /function propertyEnglishFallback/);
   assert.match(appSource, /descriptionSummary = truncateText\(localizedDescription\(property\), 190\)/);

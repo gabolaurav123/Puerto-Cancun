@@ -127,8 +127,16 @@
       config.presales.push({ id:"almar-preview", nameEs:"Almar", nameEn:"Almar", reference:"ALMAR-REVISION", descriptionEs:"", descriptionEn:"", image:"",
         areaId:"",subareaId:"",developmentId:"", propertyIds:[], status:"draft", evidence:"" });
     }
-    if (!stored) for (const r of records.filter(r => r.featured && inventory.isPublic(r))) {
-      config.featured.push({ id:`home-${r.id}`,kind:isDev(r) ? "development" : "property",targetId:r.id,placement:"home",contextId:"",active:true });
+    // Home is the stored ID for the general Featured page. Inventory marks stay live
+    // after a directory edit; an explicit placement (including one hidden by an editor) wins.
+    const markOrder = r => r.catalogData?.homeOrder ?? Number.MAX_SAFE_INTEGER;
+    const marked = records.filter(r => r.featured && inventory.isPublic(r)).sort((a,b) => markOrder(a) - markOrder(b));
+    const unmarked = new Set(records.filter(r => !r.featured).map(r => r.id));
+    config.featured = config.featured.filter(slot => slot.placement !== "home" || slot.id !== `home-${slot.targetId}` || !unmarked.has(slot.targetId));
+    const existingGlobal = new Set(config.featured.filter(slot => slot.placement === "home").map(slot => slot.kind + "/" + slot.targetId));
+    for (const r of marked) {
+      const kind = isDev(r) ? "development" : "property";
+      if (!existingGlobal.has(kind + "/" + r.id)) config.featured.push({ id:`home-${r.id}`,kind,targetId:r.id,placement:"home",contextId:"",active:true });
     }
     return config;
   }
@@ -199,6 +207,16 @@
       if (placed.has(key)) invalid("Este destacado ya está en esa ubicación.");
       placed.add(key); return item;
     }), "destacados");
+    // Removing or moving an inherited mark must survive the next read of the inventory.
+    for (const old of previous?.featured || []) {
+      if (old.placement !== "home" || !["property","development"].includes(old.kind) || !byId.get(old.targetId)?.featured) continue;
+      const globalKey = JSON.stringify([old.kind,old.targetId,"home",""]);
+      if (placed.has(globalKey)) continue;
+      placed.add(globalKey);
+      let id = old.id;
+      for (let n = 1; featured.some(slot => slot.id === id); n++) id = `hidden-${n}-${old.targetId}`.slice(0,180);
+      featured.push({ ...old, id, active:false });
+    }
     for (const [key, rows] of [["areas",areas],["subareas",subareas],["presales",presales]]) {
       const ids = new Set(rows.map(x => x.id));
       if (previous?.[key]?.some(x => !ids.has(x.id))) invalid("Desactiva el registro para retirarlo de la web sin eliminarlo.");
@@ -215,7 +233,8 @@
       const {evidence, ...publicProject} = p;
       const geography = p.developmentId ? assignments[p.developmentId] : p;
       const units = new Set(p.propertyIds);
-      return {...publicProject,areaId:geography.areaId,subareaId:areas.find(a => a.id === geography.areaId)?.subareas.some(s => s.id === geography.subareaId) ? geography.subareaId : "",
+      const image = geography.hiddenBlocks?.includes("gallery") ? "" : (p.image || byId.get(p.developmentId)?.image || "");
+      return {...publicProject,image,areaId:geography.areaId,subareaId:areas.find(a => a.id === geography.areaId)?.subareas.some(s => s.id === geography.subareaId) ? geography.subareaId : "",
         propertyIds:[...units].filter(id => byId.has(id) && !isDev(byId.get(id)) && assignments[id].areaId === geography.areaId && (!p.developmentId || assignments[id].developmentId === p.developmentId))};
     }).filter(p => activeAreas.has(p.areaId));
     const publicTarget = (kind,id) => kind === "area" ? activeAreas.has(id) : kind === "presale" ? presales.some(p => p.id === id) : byId.has(id) && (kind === "development") === isDev(byId.get(id));

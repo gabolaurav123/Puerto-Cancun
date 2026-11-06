@@ -17,7 +17,7 @@ const RUNTIME_FILES = Object.freeze([
   "intelligence-utils.js", "inventory-contract.js", "inventory-metadata.js",
   "location-catalog.js", "pdf-property-sheet.js", "pdf-retention.js",
   "photo-analysis.js", "platform-utils.js", "saved-catalog-search.js",
-  "seo-pages.js", "server.js", "site.webmanifest", "site-language.js", "exploration-view.js", "styles.css",
+  "seo-pages.js", "public-listing-details.js", "server.js", "site.webmanifest", "site-language.js", "exploration-view.js", "styles.css",
   "visitor-analytics.js", "whatsapp-service.js", "package.json", "package-lock.json",
   "db/migrations.js", "db/schema.sql",
 ]);

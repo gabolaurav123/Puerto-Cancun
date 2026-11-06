@@ -1,5 +1,6 @@
 const LAST_UPDATED = "2026-07-10";
 const inventoryContract = require("./inventory-contract");
+const { safePublicImages, optimizedPublicImage, localizedAmenity } = require("./public-listing-details");
 const { openStreetMapEmbed } = require("./catalog-map");
 const businessContacts = require("./contact-config");
 const { renderCatalog, categoryDefaults } = require("./catalog-view");
@@ -41,6 +42,17 @@ function businessWhatsAppLinks(message, lang, className = "seo-whatsapp-button",
     const label = lang === "en" ? contact.labelEn : contact.label;
     return `<a class="${escapeHtml(className)}" href="${escapeHtml(businessContacts.whatsappUrl(contact.id, message))}" target="_blank" rel="noopener noreferrer">WhatsApp ${escapeHtml(label)}${showNumber ? ` ${escapeHtml(contact.display)}` : ""}</a>`;
   }).join(" ");
+}
+
+function officeInquiryButtons(lang, origin, offices = businessContacts.contacts) {
+  const en = lang === "en";
+  const path = en ? "/en/contact" : "/contacto";
+  const labels = { mx: en ? "Mexico" : "México", us: en ? "United States" : "Estados Unidos" };
+  const buttons = offices.map(({ id, display }) => {
+    const href = path + "?" + new URLSearchParams({ inquiry: "1", office: id, origin });
+    return `<a class="office-inquiry-button" href="${escapeHtml(href)}" data-contact-inquiry data-origin="${escapeHtml(origin)}" data-office="${escapeHtml(id)}"><span>WhatsApp ${labels[id]}</span><span data-contact-number>${escapeHtml(display)}</span></a>`;
+  });
+  return `<div class="office-inquiry-buttons">${buttons.join("")}</div>`;
 }
 
 function absoluteUrl(path, baseUrl = DEFAULT_SITE_URL) {
@@ -237,7 +249,7 @@ function PropertyValuationForm(lang = "es", priceReview = false) {
     <form class="lead-form seo-form" data-lead-form>
       <input type="hidden" name="leadType" value="${priceReview ? "validar-precio" : "valuacion-inmobiliaria"}" />
       <div class="form-row"><label><span>${en ? "Phone number country" : "País del teléfono"}</span><select name="country" data-inquiry-country required><option value="MX">${en ? "Mexico (+52)" : "México (+52)"}</option></select></label>${leadInput(en ? "Phone number" : "Teléfono", "phone", "tel", 'required maxlength="40" autocomplete="tel"')}</div>
-      ${leadInput(en ? "Area or neighbourhood" : "Zona o colonia", "zone", "text", 'required maxlength="140"')}
+      ${leadInput(en ? "Zone or neighbourhood" : "Zona o colonia", "zone", "text", 'required maxlength="140"')}
       ${priceReview ? price : ""}
       <details class="valuation-options"><summary>${en ? "Add optional details" : "Añadir datos opcionales"}</summary><div class="valuation-options-body">
       <div class="form-row">${leadInput(en ? "Your name" : "Tu nombre", "name", "text", 'autocomplete="name" maxlength="140"')}<label><span>${en ? "Property type" : "Tipo de propiedad"}</span><select name="propertyType"><option value="">${en ? "Select" : "Seleccionar"}</option>${inventoryContract.TYPES.map((type, i) => `<option value="${escapeHtml(type)}">${en ? ["House", "Apartment", "Land", "Commercial"][i] : escapeHtml(type)}</option>`).join("")}</select></label></div>
@@ -303,7 +315,7 @@ function BuyerLeadForm(lang = "es", property = null) {
       ${propertyId ? `<input type="hidden" name="propertyId" value="${escapeHtml(propertyId)}" />` : ""}
       <div class="form-row">${leadInput(english ? "Name" : "Nombre", "name", "text", "required")}${leadInput("WhatsApp", "whatsapp", "tel", "required")}${leadInput(english ? "Email" : "Correo", "email", "email", "required")}</div>
       <div class="form-row">${leadInput(english ? "Budget" : "Presupuesto", "budget")}<label><span>${english ? "Property type" : "Tipo de propiedad"}</span><select name="propertyType"><option value="">${english ? "Select" : "Seleccionar"}</option>${inventoryContract.TYPES.map((type, i) => `<option value="${type}"${property?.type === type ? " selected" : ""}>${english ? ["House", "Apartment", "Land", "Commercial"][i] : type}</option>`).join("")}</select></label></div>
-      <div class="form-row">${leadInput(english ? "Preferred area" : "Zona de interés", "zone", "text", `value="${escapeHtml(property?.zone || "")}"`)}${leadSelect(english ? "Goal" : "Objetivo", "goal", english ? ["Live", "Invest", "Rent"] : ["Vivir", "Invertir", "Rentar"])} </div>
+      <div class="form-row">${leadInput(english ? "Preferred zone" : "Zona de interés", "zone", "text", `value="${escapeHtml(property?.zone || "")}"`)}${leadSelect(english ? "Goal" : "Objetivo", "goal", english ? ["Live", "Invest", "Rent"] : ["Vivir", "Invertir", "Rentar"])} </div>
       <div class="form-row">${leadInput(english ? "Bedrooms" : "Recamaras", "bedrooms", "number")}${leadInput(english ? "Estimated purchase date" : "Fecha estimada de compra", "purchaseDate")}</div>
       <button class="primary-button" type="submit">${english ? "Request details" : "Recibir opciones"}</button>
       <p class="form-message" data-lead-message></p>
@@ -790,7 +802,7 @@ const pages = [
 ];
 
 const CATEGORY_DEFINITIONS = [
-  { path: "/propiedades/cancun-city", enPath: "/en/properties/cancun-city", h1: "Propiedades en la ciudad de Cancún", enH1: "Properties in Cancun City", intro: "Ciudad de Cancún, Huayacán y corredor Colosio. Las direcciones y subzonas originales se conservan.", enIntro: "Cancun city, Huayacan and the Colosio corridor. Original addresses and subareas are retained.", filter: { location: "cancun-city" } },
+  { path: "/propiedades/cancun-city", enPath: "/en/properties/cancun-city", h1: "Propiedades en la ciudad de Cancún", enH1: "Properties in Cancun City", intro: "Ciudad de Cancún, Huayacán y corredor Colosio. Las direcciones y subzonas originales se conservan.", enIntro: "Cancun city, Huayacan and the Colosio corridor. Original addresses and subzones are retained.", filter: { location: "cancun-city" } },
   { path: "/propiedades/fuera-de-cancun", enPath: "/en/properties/outside-cancun", h1: "Propiedades fuera de Cancún", enH1: "Properties outside Cancun", intro: "Tulum, Playa del Carmen, Mérida y otros destinos. Consulta la ubicación específica de cada inmueble.", enIntro: "Tulum, Playa del Carmen, Merida and other destinations. Review each property's specific location.", filter: { location: "fuera-de-cancun" } },
   { path: "/propiedades/en-venta", enPath: "/en/properties/for-sale", h1: "Propiedades en venta", enH1: "Properties for sale", intro: "Opciones de compra del inventario publicado, sin mezclar ofertas de renta.", enIntro: "Purchase options from published inventory, excluding rentals.", filter: { operation: "sale" } },
   { path: "/propiedades", enPath: "/en/properties", h1: "Propiedades en Cancún", enH1: "Properties in Cancun", intro: "Explora casas, departamentos, terrenos y preventas del inventario publicado.", enIntro: "Explore homes, condos, land and presale opportunities verified by the Puerto Cancun Center team.", filter: { publicationSection: "properties" } },
@@ -804,12 +816,12 @@ const CATEGORY_DEFINITIONS = [
   { path: "/propiedades/riviera-maya", enPath: "/en/properties/riviera-maya", h1: "Propiedades en Riviera Maya", enH1: "Properties in Riviera Maya", intro: "Opciones residenciales y de inversión seleccionadas en Riviera Maya.", enIntro: "Selected residential and investment opportunities in Riviera Maya.", filter: { zone: "Riviera Maya" } },
   { path: "/propiedades-en-renta-cancun", enPath: "/en/cancun-rentals", h1: "Propiedades en renta en Cancún", enH1: "Properties for rent in Cancun", intro: "Departamentos y casas en renta con información clara de zona, precio y características.", enIntro: "Condos and homes for rent with clear location, price and property details.", filter: { operation: "rent" } },
   { path: "/preventas-cancun", enPath: "/en/cancun-presales", h1: "Preventas en Cancún", enH1: "Cancun presales", intro: "Oportunidades de preventa con seguimiento local para revisar entrega, pagos y características del proyecto.", enIntro: "Presale opportunities with local follow-up on delivery, payment schedules and project details.", filter: { type: "Preventa" } },
-  { path: "/propiedades/casas-cancun", enPath: "/en/properties/homes-cancun", h1: "Casas en Cancún", enH1: "Homes in Cancun", intro: "Casas disponibles en Cancún filtradas por zona, presupuesto y características.", enIntro: "Available Cancun homes filtered by area, budget and property features.", filter: { type: "Casa" } },
+  { path: "/propiedades/casas-cancun", enPath: "/en/properties/homes-cancun", h1: "Casas en Cancún", enH1: "Homes in Cancun", intro: "Casas disponibles en Cancún filtradas por zona, presupuesto y características.", enIntro: "Available Cancun homes filtered by zone, budget and property features.", filter: { type: "Casa" } },
   { path: "/propiedades/departamentos-cancun", enPath: "/en/properties/condos-cancun", h1: "Departamentos en Cancún", enH1: "Condos in Cancun", intro: "Departamentos disponibles en Cancún para vivir, invertir o rentar.", enIntro: "Available Cancun condos for living, investing or renting.", filter: { type: "Departamento" } },
   { path: "/propiedades/cancun-centro", enPath: "/en/properties/downtown-cancun", h1: "Propiedades en Cancún Centro", enH1: "Properties in downtown Cancun", intro: "Inventario urbano con acceso a servicios, comercios y conectividad dentro de Cancún.", enIntro: "Urban inventory with access to services, retail and transportation in Cancun.", filter: { zone: "Cancun Centro" } },
   { path: "/propiedades/comerciales-cancun", enPath: "/en/properties/commercial-cancun", h1: "Propiedades comerciales en Cancún", enH1: "Commercial property in Cancun", intro: "Locales, hoteles y oportunidades comerciales disponibles dentro del inventario activo.", enIntro: "Retail, hospitality and commercial opportunities in the active inventory.", filter: { type: "Comercial" } },
   { path: "/propiedades/desarrollos-cancun", enPath: "/en/properties/developments-cancun", h1: "Desarrollos inmobiliarios en Cancún", enH1: "Real estate developments in Cancun", intro: "Desarrollos residenciales seleccionados para compradores e inversionistas.", enIntro: "Selected residential developments for buyers and investors.", filter: { publicationSection: "developments" } },
-  { path: "/propiedades/destacadas-cancun", enPath: "/en/properties/featured-cancun", h1: "Propiedades destacadas en Cancún", enH1: "Featured properties in Cancun", intro: "Una selección del inventario activo por ubicación, atributos y presentación.", enIntro: "A selection of active inventory based on location, features and presentation.", filter: { featured: true } },
+  { path: "/propiedades/destacadas-cancun", enPath: "/en/properties/featured-cancun", h1: "Destacadas en Cancún", enH1: "Featured in Cancun", intro: "Explora la selección de propiedades y desarrollos de nuestro equipo.", enIntro: "Explore the properties and developments selected by our team.", filter: { featured: true } },
 ];
 
 function categoryPage(definition, lang = "es") {
@@ -821,7 +833,7 @@ function categoryPage(definition, lang = "es") {
     title: `${english ? definition.enH1 : definition.h1} | Puerto Cancun Center`,
     description: english ? definition.enIntro : definition.intro,
     h1: english ? definition.enH1 : definition.h1,
-    eyebrow: definition.filter.publicationSection === "developments" ? (english ? "Developments" : "Desarrollos") : (english ? "Properties" : "Propiedades"),
+    eyebrow: definition.filter.featured ? (english ? "Editorial selection" : "Selección editorial") : definition.filter.publicationSection === "developments" ? (english ? "Developments" : "Desarrollos") : (english ? "Properties" : "Propiedades"),
     intro: definition.filter.zone === "Zona Hotelera"
       ? (english ? inventoryContract.LOCATIONS[0].descriptionEn : inventoryContract.LOCATIONS[0].description)
       : (english ? definition.enIntro : definition.intro).replace(/ verified by the Puerto Cancun Center team\./, " from published inventory."),
@@ -838,7 +850,7 @@ const englishPages = [
     path: "/en", alternate: "/", lang: "en", title: "Buy or sell property in Cancun | Puerto Cancun Center", description: "Cancun real estate support for buyers, owners and investors with local guidance.", h1: "Buy or sell property in Cancun", eyebrow: "Cancun real estate", intro: "Explore local listings, compare properties and review your price with a Cancun advisor.", cta: "Browse properties", ctaHref: "/en/properties",
   },
   {
-    path: "/en/buy-property-cancun", alternate: "/comprar-casa-cancun", lang: "en", title: "Buy property in Cancun | Puerto Cancun Center", description: "Find homes, condos and investment property in Cancun with local advisor support.", h1: "Buy property in Cancun with local guidance", eyebrow: "For buyers and investors", intro: "Tell us your budget, preferred area and objective to receive compatible active listings.", cta: "Browse properties", ctaHref: "/en/properties",
+    path: "/en/buy-property-cancun", alternate: "/comprar-casa-cancun", lang: "en", title: "Buy property in Cancun | Puerto Cancun Center", description: "Find homes, condos and investment property in Cancun with local advisor support.", h1: "Buy property in Cancun with local guidance", eyebrow: "For buyers and investors", intro: "Tell us your budget, preferred zone and objective to receive compatible active listings.", cta: "Browse properties", ctaHref: "/en/properties",
   },
   {
     path: "/en/sell-property-cancun", alternate: "/vender-casa-cancun", lang: "en", title: "Sell property in Cancun | Puerto Cancun Center", description: "Request pricing and a local sales strategy for your Cancun property.", h1: "Sell your property in Cancun", eyebrow: "For property owners", intro: "Request an initial valuation and a clear plan to prepare, publish and follow up with buyers.", cta: "Request a valuation", ctaHref: "/en/property-valuation-cancun#valuation-form",
@@ -856,11 +868,11 @@ const englishPages = [
   },
   {
     path: "/en/cancun-areas", alternate: "/zonas-cancun", lang: "en",
-    title: "Cancun areas for living and investing | Puerto Cancun Center",
-    description: "Explore Cancún by area and find developments, properties and locations in each area.",
-    h1: "Explore Cancún and nearby areas", eyebrow: "Local area guide",
-    intro: "Choose an area to explore its developments and properties.",
-    cta: "Explore areas", ctaHref: "#area-guide",
+    title: "Cancun zones for living and investing | Puerto Cancun Center",
+    description: "Browse properties and developments in each zone of Cancún and its surroundings.",
+    h1: "Explore the zones in and around Cancún", eyebrow: "Local zone guide",
+    intro: "Choose a zone to explore its developments and properties.",
+    cta: "Explore zones", ctaHref: "#area-guide",
     render() { return renderAreaGuide(this); },
   },
 ];
@@ -974,7 +986,7 @@ const featurePages = [
   { path: "/blog", alternate: "/en/blog", lang: "es", hideLastUpdated: true, title: "Blog inmobiliario de Cancun | Puerto Cancun Center", description: "Guías, noticias y análisis para comprar, vender e invertir en propiedades en Cancun.", h1: "Blog inmobiliario de Cancún", eyebrow: "Guías y mercado", intro: "Noticias de Cancún y Riviera Maya: turismo, aeropuerto, proyectos y novedades locales. Consulta la edición diaria y los artículos anteriores.", cta: "Ver artículos", ctaHref: "#publicBlogList", render() { return pageShell(this, `<section class="public-blog-grid" id="publicBlogList"><p class="loading-state">Cargando artículos...</p></section>`); } },
   { path: "/en/blog", alternate: "/blog", lang: "en", hideLastUpdated: true, title: "Cancun real estate blog | Puerto Cancun Center", description: "Guides, news and analysis for buying, selling and investing in Cancun property.", h1: "Cancun real estate blog", eyebrow: "Guides and market", intro: "Cancun and Riviera Maya news: tourism, airport updates, projects and local developments. Browse the daily edition and earlier articles.", cta: "View articles", ctaHref: "#publicBlogList", render() { return pageShell(this, `<section class="public-blog-grid" id="publicBlogList"><p class="loading-state">Loading articles...</p></section>`); } },
   { path: "/busquedas-clientes", alternate: "/en/client-requirements", lang: "es", title: "Búsquedas activas de compradores en Cancun", description: "Consulta de forma anónima qué propiedades buscan compradores activos y registra una propiedad compatible.", h1: "Qué propiedades buscan nuestros clientes", eyebrow: "Demanda activa", intro: "Perfiles anónimos de búsqueda por zona, tipo y presupuesto. Nunca mostramos datos personales.", cta: "Ver búsquedas", ctaHref: "#buyer-requirements", render() { return pageShell(this, `<section class="buyer-requirements-grid" id="buyerRequirementsPublic"><p class="loading-state">Cargando búsquedas...</p></section>`); } },
-  { path: "/en/client-requirements", alternate: "/busquedas-clientes", lang: "en", title: "Active Cancun buyer requirements", description: "Anonymized active buyer requirements by area, property type and budget.", h1: "What our clients are looking for", eyebrow: "Active demand", intro: "Anonymous search profiles by area, property type and budget. Personal data is never displayed.", cta: "View requirements", ctaHref: "#buyer-requirements", render() { return pageShell(this, `<section class="buyer-requirements-grid" id="buyerRequirementsPublic"><p class="loading-state">Loading requirements...</p></section>`); } },
+  { path: "/en/client-requirements", alternate: "/busquedas-clientes", lang: "en", title: "Active Cancun buyer requirements", description: "Anonymized active buyer requirements by zone, property type and budget.", h1: "What our clients are looking for", eyebrow: "Active demand", intro: "Anonymous search profiles by zone, property type and budget. Personal data is never displayed.", cta: "View requirements", ctaHref: "#buyer-requirements", render() { return pageShell(this, `<section class="buyer-requirements-grid" id="buyerRequirementsPublic"><p class="loading-state">Loading requirements...</p></section>`); } },
 ];
 
 pages.forEach((page) => {
@@ -1021,20 +1033,6 @@ function formatListingPrice(property, lang = "es") {
   return lang === "en" ? onRequest ? "Price on request" : "Price to be confirmed" : onRequest ? "Precio a consultar" : "Precio por confirmar";
 }
 
-function safePublicImages(property) {
-  const images = [
-    ...(Array.isArray(property.images) ? property.images : []),
-    ...(Array.isArray(property.developmentImages) ? property.developmentImages : []),
-  ];
-  return [...new Set(images)].filter((image) => /^https?:\/\//i.test(image) || /^\/media\//.test(image) || /^\/assets\//.test(image));
-}
-
-function optimizedPublicImage(image, width) {
-  if (!/^\/media\/properties\//.test(String(image || ""))) return image;
-  const separator = String(image).includes("?") ? "&" : "?";
-  return `${image}${separator}w=${width}`;
-}
-
 function localizedPropertyType(type, lang = "es") {
   if (lang !== "en") return type;
   return {
@@ -1068,45 +1066,6 @@ function localizedPropertyTitle(property, lang = "es") {
     || `Propiedad en ${property.zone || property.city || "Cancún"}`;
 }
 
-function localizedAmenity(amenity, lang = "es") {
-  if (lang !== "en") return amenity;
-  const key = String(amenity || "")
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .trim()
-    .toLowerCase();
-  return {
-    "acceso a playa": "Beach access",
-    "acceso a playa privada": "Private beach access",
-    alberca: "Swimming pool",
-    albercas: "Swimming pools",
-    "cancha de tenis": "Tennis court",
-    "canchas deportivas": "Sports courts",
-    cenote: "Cenote",
-    "centro de negocios": "Business center",
-    ciclovia: "Bike path",
-    "club de playa": "Beach club",
-    elevador: "Elevator",
-    "frente a marina": "Marina front",
-    "frente a playa": "Beachfront",
-    "frente al mar": "Oceanfront",
-    gimnasio: "Gym",
-    jacuzzi: "Jacuzzi",
-    malecon: "Waterfront promenade",
-    marina: "Marina",
-    muelle: "Dock",
-    palapa: "Palapa",
-    "playa privada": "Private beach",
-    "salon de usos multiples": "Multipurpose room",
-    seguridad: "Security",
-    "seguridad 24/7": "24/7 security",
-    "senderos peatonales": "Walking paths",
-    spa: "Spa",
-    "terraza - bar": "Terrace bar",
-    "vista a la marina": "Marina view",
-  }[key] || amenity;
-}
-
 function localizedImageDescription(property, index, lang = "es") {
   const metadata = Array.isArray(property.imageMetadata) ? property.imageMetadata[index] : null;
   if (!metadata) return "";
@@ -1118,6 +1077,12 @@ function renderInventoryCards(properties, lang = "es", context = {}) {
   const { areasFor, areaFor, areaName, subareaName, contactLink } = require("./catalog-directory");
   const en = lang === "en", areas = context.areas || areasFor({});
   return `<div class="seo-property-grid">${properties.map(property => {
+    if (property.featuredArea) {
+      const zone = property.featuredArea, url = en ? property.urlEn : property.urlEs;
+      const title = areaName(zone, lang);
+      const cover = zone.image ? `<img src="${escapeHtml(zone.image)}" alt="" width="640" height="420" loading="lazy" />` : `<span class="catalog-no-photo">${en ? "Zone" : "Zona"}</span>`;
+      return `<article class="seo-property-card" data-category-property="${escapeHtml(property.id)}"><a class="seo-property-image" href="${escapeHtml(url)}" aria-label="${escapeHtml(title)}">${cover}</a><div><h2><a href="${escapeHtml(url)}">${escapeHtml(title)}</a></h2><p>${escapeHtml(en ? zone.descriptionEn : zone.descriptionEs)}</p><div class="seo-property-actions"><a class="text-link" href="${escapeHtml(url)}">${en ? "Explore zone" : "Explorar zona"}</a></div></div></article>`;
+    }
     const development = inventoryContract.entityOf(property) === "developments";
     const project = property.presaleProject;
     const url = project ? (en ? property.urlEn : property.urlEs) : propertyPath(property, lang);
@@ -1141,12 +1106,13 @@ function renderInventoryCards(properties, lang = "es", context = {}) {
     const meta = [zone, subzone && subzone !== zone ? subzone : "", !development && localizedPropertyType(property.type,lang), land && new Intl.NumberFormat(en ? "en-US" : "es-MX").format(property.lot) + " m²", property.mls && "MLS " + property.mls].filter(Boolean);
     const explore = project ? (en ? "Explore presale" : "Explorar preventa") : development ? (en ? "Explore development" : "Explorar desarrollo") : (en ? "View property" : "Ver propiedad");
     const searchText = [title, rawDescription, property.type, property.zone, zone, subzone, property.city, property.mls, parentName, ...(property.keywords || [])].filter(Boolean).join(" ").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
-    const photo = image ? `<img src="${escapeHtml(image)}" width="640" height="420" loading="lazy" decoding="async" alt="${escapeHtml(localizedImageDescription(property,0,lang) || title)}" />` :
+    const photo = image ? `<img${project ? " data-presale-cover" : ""} src="${escapeHtml(image)}" width="640" height="420" loading="lazy" decoding="async" alt="${escapeHtml(localizedImageDescription(property,0,lang) || title)}" />` :
       `<span class="catalog-no-photo">${en ? "Photo not published" : "Sin foto publicada"}</span>`;
     return `<article class="seo-property-card" data-category-property="${escapeHtml(property.id)}" data-category-search="${escapeHtml(searchText)}">
       <a class="seo-property-image" href="${escapeHtml(url)}" aria-label="${escapeHtml(title)}">${photo}</a>
       <div>${development ? "" : `<p class="seo-property-price">${escapeHtml(formatListingPrice(property,lang))}</p>`}
       <h2><a href="${escapeHtml(url)}">${escapeHtml(title)}</a></h2>${meta.length ? `<p>${escapeHtml(meta.join(" · "))}</p>` : ""}
+      ${project && property.projectLocation ? `<p class="catalog-project-address">${escapeHtml(property.projectLocation)}</p>` : ""}
       ${description ? `<div class="seo-property-description">${escapeHtml(description)}</div>` : ""}
       <div class="seo-property-actions"><a class="text-link" href="${escapeHtml(url)}">${explore}</a>${contactLink(lang, en ? "Request information" : "Pedir información", contact, "outline-dark-button")}</div></div></article>`;
   }).join("")}</div>`;
@@ -1256,7 +1222,7 @@ function renderPropertyPage(property, lang = "es", similar = [], directory = {})
   const mapSrc = openStreetMapEmbed(property.latitude, property.longitude);
   const mapArea = [property.address, property.neighborhood, property.zone, property.city, property.state].filter(Boolean).join(", ");
   const mapSection = (mapSrc || mapArea) && property.locationPrecision !== "hidden"
-    ? `<section class="property-location-map"><div class="property-location-map-heading"><div><span class="seo-eyebrow">${english ? "Location" : "Ubicación"}</span><h2>${english ? "Property location" : "Ubicación de la propiedad"}</h2></div></div>${mapSrc ? "" : `<button type="button" class="ghost-button" data-show-area-map="${escapeHtml(mapArea)}">${english ? "Show area map" : "Ver mapa de la zona"}</button><p role="status"></p>`}<iframe title="${english ? "Property location map" : "Mapa de ubicación de la propiedad"}" loading="lazy" referrerpolicy="strict-origin-when-cross-origin" ${mapSrc ? `src="${escapeHtml(mapSrc)}"` : "hidden"}></iframe></section>`
+    ? `<section class="property-location-map"><div class="property-location-map-heading"><div><span class="seo-eyebrow">${english ? "Location" : "Ubicación"}</span><h2>${english ? "Property location" : "Ubicación de la propiedad"}</h2></div></div>${mapSrc ? "" : `<button type="button" class="ghost-button" data-show-area-map="${escapeHtml(mapArea)}">${english ? "Show zone map" : "Ver mapa de la zona"}</button><p role="status"></p>`}<iframe title="${english ? "Property location map" : "Mapa de ubicación de la propiedad"}" loading="lazy" referrerpolicy="strict-origin-when-cross-origin" ${mapSrc ? `src="${escapeHtml(mapSrc)}"` : "hidden"}></iframe></section>`
     : "";
   const similarTitle = developmentMode
     ? english ? "Properties available in this development" : "Propiedades disponibles en este desarrollo"
@@ -1516,10 +1482,10 @@ function renderCommercialGuide(page, owner) {
   const title = owner ? (en ? "What would you like to do with your property?" : "¿Qué deseas hacer con tu propiedad?") : (en ? "What are you looking for?" : "¿Qué estás buscando?");
   const actions = owner ? action("sell", en ? "Sell my property" : "Vender mi propiedad") + action("let", en ? "List my property for rent" : "Poner mi propiedad en renta") : action("buy", en ? "Help me buy" : "Quiero ayuda para comprar") + action("rent", en ? "Help me find a rental" : "Quiero ayuda para encontrar una renta");
   const extra = owner ? `<details class="owner-publishing-options"><summary>${en ? "Publish a listing or request a valuation" : "Publicar una ficha o solicitar una valoración"}</summary><div class="exploration-area-actions"><button class="ghost-button" data-seller-access="register">${en ? "Create a seller account" : "Crear cuenta de vendedor"}</button><button class="ghost-button" data-seller-access="login">${en ? "Seller sign in" : "Ingresar a mi cuenta"}</button><button class="ghost-button" data-open-guest-sale>${en ? "Submit a listing as a guest" : "Enviar propiedad sin registro"}</button><a class="text-link" href="${en ? "/en/property-valuation-cancun" : "/valuacion-inmobiliaria-cancun"}#valuation-form">${en ? "Request a valuation" : "Solicitar valoración"}</a></div></details>` : `<a class="text-link" href="${catalog}">${en ? "Explore published properties" : "Explorar las propiedades publicadas"}</a>`;
-  const intro = owner ? (en ? "An advisor can help you price, present and promote your property." : "Un asesor puede ayudarte a definir el precio, presentar y promover tu propiedad.") : (en ? "Browse the inventory or tell us your preferred area, budget and plans." : "Explora el inventario o cuéntanos la zona, el presupuesto y lo que necesitas.");
+  const intro = owner ? (en ? "An advisor can help you price, present and promote your property." : "Un asesor puede ayudarte a definir el precio, presentar y promover tu propiedad.") : (en ? "Browse the inventory or tell us your preferred zone, budget and plans." : "Explora el inventario o cuéntanos la zona, el presupuesto y lo que necesitas.");
   return pageShell({...page, intro, whatsappMessage:"", cta:en ? "Explore options" : "Ver opciones", ctaHref:"#commercial-options"}, `<section class="commercial-guide" id="commercial-options"><h2>${title}</h2><div class="exploration-area-actions">${actions}</div>${extra}${owner ? `<details class="owner-publishing-options"><summary>${en ? "Estimate my property’s value" : "Consultar el valor de mi propiedad"}</summary>${PropertyValuationForm(page.lang)}</details>` : ""}</section>`);
 }
-function renderSeoPage(pathname, { directory, properties = [] } = {}) {
+function renderSeoPage(pathname, { directory, properties = [], offices } = {}) {
   const page = getPageByPath(pathname);
   if (!page || page.path === "/") return "";
   if (["/vender-casa-cancun", "/en/sell-property-cancun"].includes(page.path)) return renderCommercialGuide(page, true);
@@ -1533,9 +1499,8 @@ function renderSeoPage(pathname, { directory, properties = [] } = {}) {
   if (["/nosotros", "/en/about"].includes(page.path)) return renderAboutPage(page);
   if (["/contacto", "/en/contact"].includes(page.path)) {
     const english = page.lang === "en";
-    const label = english ? "Talk to an advisor" : "Hablar con un asesor";
-    const href = (english ? "/en/contact" : "/contacto") + "?inquiry=1";
-    return pageShell({ ...page, whatsappMessage: "", cta: label, ctaHref: href }, `<section class="quick-answer"><h2>${english ? "Office and contact" : "Oficina y contacto"}</h2><p>${escapeHtml(page.intro)}</p><a class="primary-button" href="${href}" data-contact-inquiry data-origin="contact-page">${label}</a></section>`);
+    const label = english ? "Choose a WhatsApp number" : "Elegir un número de WhatsApp";
+    return pageShell({ ...page, whatsappMessage: "", cta: label, ctaHref: "#contact-offices" }, `<section class="quick-answer" id="contact-offices"><h2>${english ? "Talk to an advisor" : "Hablar con un asesor"}</h2>${officeInquiryButtons(page.lang, "contact-page", offices)}</section>`);
   }
   return pageShell(page, `<section class="quick-answer"><h2>${page.lang === "en" ? "Local real estate guidance" : "Asesoria inmobiliaria local"}</h2><p>${escapeHtml(page.intro)}</p><a class="primary-button" href="${escapeHtml(page.ctaHref)}">${escapeHtml(page.cta)}</a></section>`);
 }
@@ -1625,6 +1590,7 @@ module.exports = {
   publicPages,
   renderSeoHead,
   renderSeoPage,
+  officeInquiryButtons,
   sitemapXml,
   robotsTxt,
   llmsTxt,

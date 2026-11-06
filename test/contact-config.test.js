@@ -43,8 +43,21 @@ test("Spanish and English contact pages open the inquiry before offering WhatsAp
   for (const [route, lang] of [["/contacto", "es"], ["/en/contact", "en"]]) {
     const html = seo.renderSeoPage(route);
     assert.equal(whatsappLinks(html).length, 0);
-    assert.ok(html.includes('href="' + route + '?inquiry=1" data-contact-inquiry data-origin="contact-page"'));
     assert.ok(html.includes(lang === "en" ? "Talk to an advisor" : "Hablar con un asesor"));
+    for (const [origin, buttons] of [["contact-page", html], ["home-contact", seo.officeInquiryButtons(lang, "home-contact")]]) {
+      for (const { id, display } of contacts.contacts) {
+        const tag = buttons.match(new RegExp('<a [^>]*data-office="' + id + '"[^>]*>.*?</a>'))[0];
+        const href = new URL(tag.match(/href="([^"]*)"/)[1].replaceAll("&amp;", "&"), "https://example.test");
+        assert.equal(href.pathname, route);
+        assert.equal(href.searchParams.get("office"), id);
+        assert.equal(href.searchParams.get("inquiry"), "1");
+        assert.equal(href.searchParams.get("origin"), origin);
+        assert.ok(tag.includes(display));
+      }
+    }
+    const custom = seo.renderSeoPage(route, { offices: [{ id: "us", display: "+1 202 555 0199" }] });
+    assert.match(custom, /\+1 202 555 0199/);
+    assert.doesNotMatch(custom, /data-office="mx"/);
   }
   assert.equal(seo.business.telephone, contacts.contacts.find(({ id }) => id === "mx").display);
   assert.doesNotMatch(read("seo-pages.js"), /wa\.me\/\d+|5219982166563|19562518956/);

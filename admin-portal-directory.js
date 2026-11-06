@@ -4,18 +4,18 @@
   if (!api) return;
   const instances = new WeakMap();
   const esc = value => String(value ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"})[c]);
-  const headings = {"portal-areas":["Zonas y subzonas","Areas and subareas"],"portal-featured":["Destacados","Featured placements"],"portal-presales":["Preventas","Presales"]};
+  const headings = {"portal-areas":["Zonas y subzonas","Zones and subzones"],"portal-featured":["Destacados","Featured placements"],"portal-presales":["Preventas","Presales"]};
   const collectionTitles = {areas:"Zonas",subareas:"Subzonas",presales:"Proyectos",featured:"Ubicaciones de destacados"};
   const kinds = {area:"Zona",development:"Desarrollo",property:"Propiedad o terreno",presale:"Preventa"};
-  const placements = {home:"Portada",area:"Página de zona",development:"Ficha de desarrollo"};
+  const placements = {home:"Página de destacadas",area:"Página de zona",development:"Ficha de desarrollo"};
   const statusText = {draft:"Borrador privado",confirmed:"Preventa confirmada",inactive:"Inactiva"};
   const blockText = {description:"Descripción",amenities:"Amenidades",location:"Ubicación y mapa",gallery:"Galería",units:"Propiedades vinculadas",video:"Video"};
   const english = {
-    "Actualizar":"Refresh","Nueva zona":"New area","Nueva subzona":"New subarea","Ubicación y bloques de fichas":"Listing areas and sections",
-    "Nuevo proyecto":"New project","Añadir destacado":"Add featured placement","Zonas":"Areas","Subzonas":"Subareas","Proyectos":"Projects",
+    "Actualizar":"Refresh","Nueva zona":"New zone","Nueva subzona":"New subzone","Ubicación y bloques de fichas":"Listing zones and sections",
+    "Nuevo proyecto":"New project","Añadir destacado":"Add featured placement","Zonas":"Zones","Subzonas":"Subzones","Proyectos":"Projects",
     "Ubicaciones de destacados":"Featured placements","Editar":"Edit","Subir":"Move up","Bajar":"Move down","Retirar":"Remove placement","Vista previa":"Preview",
-    "Zona":"Area","Subzona":"Subarea","Desarrollo":"Development","Propiedad o terreno":"Property or land","Preventa":"Presale","Portada":"Home",
-    "Página de zona":"Area page","Ficha de desarrollo":"Development page","Borrador privado":"Private draft","Preventa confirmada":"Confirmed presale","Inactiva":"Inactive","Activa":"Active","Oculto":"Hidden",
+    "Zona":"Zone","Subzona":"Subzone","Desarrollo":"Development","Propiedad o terreno":"Property or land","Preventa":"Presale","Página de destacadas":"Featured page",
+    "Página de zona":"Zone page","Ficha de desarrollo":"Development page","Borrador privado":"Private draft","Preventa confirmada":"Confirmed presale","Inactiva":"Inactive","Activa":"Active","Oculto":"Hidden",
     "Editar registro":"Edit record","Nuevo registro":"New record","Guardar cambios":"Save changes","Cancelar":"Cancel","Qué destacar":"What to feature",
     "Registro":"Record","Seleccionar registro":"Select a record","Dónde se muestra":"Placement","Página de destino":"Destination page","Mostrar en esa ubicación":"Show in this placement",
     "Sin asignar":"Unassigned","Seleccionar página":"Select a page","Ficha del inventario":"Inventory listing","Seleccionar ficha":"Select a listing","Acceso controlado del desarrollo":"Gated access",
@@ -23,11 +23,11 @@
     "Ocultar bloques públicos":"Hide public sections","Descripción":"Description","Amenidades":"Amenities","Ubicación y mapa":"Location and map","Galería":"Gallery","Propiedades vinculadas":"Linked properties",
     "Editar contenido, fotos y mapa en el inventario":"Edit content, photos and map in inventory","Nombre en español":"Spanish name","Nombre en inglés":"English name",
     "Descripción en español":"Spanish description","Descripción en inglés":"English description","URL de la imagen":"Image URL","O elegir una portada del inventario público":"Or select a public listing cover",
-    "Elegir imagen":"Select an image","Zona superior":"Parent area","Referencia del proyecto":"Project reference","Desarrollo del inventario (opcional)":"Inventory development (optional)",
+    "Elegir imagen":"Select an image","Zona superior":"Parent zone","Referencia del proyecto":"Project reference","Desarrollo del inventario (opcional)":"Inventory development (optional)",
     "Desarrollo de la propiedad":"Property development","Usar vínculo del inventario o coincidencia verificada":"Use inventory link or verified match","Sin desarrollo":"No development",
     "Unidades vinculadas a la preventa":"Units linked to this presale","Selecciona únicamente unidades confirmadas para el proyecto.":"Select only units confirmed for this project.",
     "Estado comercial del proyecto":"Project status","Fuente de verificación (privada)":"Verification source (private)","Mostrar en el directorio público":"Show in the public directory",
-    "Destacar en la portada":"Feature on the home page","Todavía no hay registros en esta sección.":"There are no records in this section yet.",
+    "Mostrar en la página de destacadas":"Show on the Featured page","Todavía no hay registros en esta sección.":"There are no records in this section yet.",
     "Vista previa privada":"Private preview","Sin descripción confirmada.":"No confirmed description.","Cerrar":"Close","Revisar ficha":"Review listing",
     "Cambios guardados en el directorio.":"Directory changes saved.","Ya está en el extremo de este grupo.":"Already at the end of this group.",
     "Guarda o cancela el formulario antes de modificar el orden.":"Save or cancel the form before changing the order.",
@@ -130,7 +130,7 @@
         select("Estado comercial del proyecto","status",Object.entries(statusText).map(([id,label]) => option(id,label,id === (item.status || "draft"))).join(""))+textarea("Fuente de verificación (privada)","evidence",item.evidence);
     } else {
       contents += check("active","yes","Mostrar en el directorio público",item.active !== false);
-      if (key === "areas") contents += check("homeFeatured","yes","Destacar en la portada",v.data.config.featured.some(f => f.active && f.kind === "area" && f.targetId === item.id && f.placement === "home"));
+      if (key === "areas") contents += check("homeFeatured","yes","Mostrar en la página de destacadas",v.data.config.featured.some(f => f.active && f.kind === "area" && f.targetId === item.id && f.placement === "home"));
     }
     form(v,key,item,contents);
   }

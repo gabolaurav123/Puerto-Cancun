@@ -14,6 +14,9 @@ test("the phone country's ISO code stays separate from its dialing code and the 
   assert.equal(destination(contactRouting(), "CA"), "19562518956");
   assert.equal(destination(contactRouting({ us: "" }), "US"), "5219982166563");
   assert.equal(destination(contactRouting({ rule: "us" }), "ES"), "19562518956");
+  assert.equal(destination(contactRouting(), "MX", "us"), "19562518956");
+  assert.equal(destination(contactRouting({ mx: "529982166566", rule: "us" }), "CA", "mx"), "529982166566");
+  assert.equal(destination(contactRouting({ us: "" }), "MX", "us"), "");
   assert.throws(() => contactRouting({ us: "", mx: "" }, true), /respaldo/);
 });
 
@@ -62,7 +65,8 @@ test("real HTTP / PostgreSQL inquiry, CRM, status, history, click and retry", { 
   const budget = 250000;
   const req = { phone, country: "CA", lang: "en", intent: "buy", budget, currency: "USD", preferences: origin,
     sourcePath: "/en/properties?q=land", propertyType: "Terreno", zone: "Puerto Cancún", project: "Proyecto QA", reference: "QA-PRJ",
-    origin: "test-presale", formStartedAt: Date.now()-3000, consent: true, requestId: randomUUID() };
+    origin: "test-presale", office: "mx", formStartedAt: Date.now()-3000, consent: true, requestId: randomUUID() };
+  assert.equal((await call("/api/inquiries","POST",{ ...req, office: "12025550199" })).status,400);
   assert.equal((await call("/api/inquiries","POST",{ ...req, phone: "bad" })).status,400);
   const results = await Promise.all([call("/api/inquiries","POST", req),call("/api/inquiries","POST", req)]);
   assert.deepEqual(results.map(r=>r.status).sort(),[200,201]);
@@ -71,6 +75,7 @@ test("real HTTP / PostgreSQL inquiry, CRM, status, history, click and retry", { 
   assert.deepEqual(Object.keys(first).sort(),["id","whatsappUrl","clickToken"].sort());
   const url = new URL(first.whatsappUrl);
   assert.equal(url.hostname,"wa.me");
+  assert.equal(url.pathname, "/5219982166563");
   assert.match(url.searchParams.get("text"),/250,000 USD/);
   assert.match(url.searchParams.get("text"),/Proyecto QA/);
   assert.match(url.searchParams.get("text"),/QA-PRJ/);
@@ -102,6 +107,7 @@ test("real HTTP / PostgreSQL inquiry, CRM, status, history, click and retry", { 
   const lead = rows.find(r=>r.id === first.id);
   assert.equal(lead.status,"new"); assert.equal(lead.phone, "1" + phone);
   assert.equal(lead.payload.country,"CA"); assert.equal(lead.payload.prefix,"+1");
+  assert.equal(lead.payload.office, "mx");
   assert.equal(lead.payload.whatsappClickedAt,undefined); assert.equal(lead.payload.whatsappReceivedAt,undefined);
   assert.equal((await call("/api/admin/leads?intent=let&interest=" + encodeURIComponent(origin))).data.leads.length,1);
   assert.equal((await call("/api/inquiries/" + first.id + "/whatsapp-click","POST",{ token:"bad" })).status,403);
