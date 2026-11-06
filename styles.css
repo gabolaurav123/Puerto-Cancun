@@ -14785,7 +14785,7 @@ body[data-page="home"] .contact-strip {
 body[data-page="home"] .contact-strip h2 {
   margin: 0;
   padding: 16px 18px;
-  background: var(--blue-950);
+  background: transparent;
   color: var(--gold-light);
   font-size: 2.45rem;
   font-weight: 600;
@@ -16009,16 +16009,19 @@ body[data-page="home"] .properties-section .property-card {
     min-height: 48px;
     padding: 0;
   }
-  #searchForm .search-field > svg, #searchForm .search-field-prompt { display: none; }
+  #searchForm .search-field > svg { display: none; }
+  #searchForm .search-field-prompt, #searchForm #searchInput { grid-area: 1 / 1; }
+  #searchForm .search-field-prompt {
+    padding: 10px;
+    line-height: 1.35;
+  }
   #searchForm #searchInput {
-    grid-area: auto;
     min-height: 46px;
     width: 100%;
     padding: 10px;
     font-size: 16px;
     font-weight: 500;
   }
-  #searchInput::placeholder { color: #526e74; }
   #searchForm .accent-button {
     min-height: 48px;
     width: auto;
@@ -16060,6 +16063,9 @@ body[data-page="home"] .properties-section .property-card {
     right: max(12px, env(safe-area-inset-right));
     bottom: max(12px, env(safe-area-inset-bottom));
   }
+}
+@media (max-width: 480px) {
+  body[data-page="home"] #searchForm { grid-template-columns: minmax(0, 1fr); }
 }
 @media (max-width: 1180px) {
   body:has(#mainNav.open) { overflow: hidden; }

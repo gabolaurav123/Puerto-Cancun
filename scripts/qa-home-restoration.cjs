@@ -53,6 +53,23 @@ async function check(name, task) {
           assert.equal(layout.titleFits, true);
           assert.ok(layout.titleBottom <= layout.subtitleTop);
           assert.ok(layout.subtitleBottom <= layout.searchTop);
+          const input = page.locator('#searchInput');
+          const prompt = page.locator('#searchForm .search-field-prompt');
+          assert.equal(await input.getAttribute('aria-label'), await prompt.innerText());
+          const promptFits = await prompt.evaluate(element => {
+            const field = element.closest('label').getBoundingClientRect();
+            const text = document.createRange();
+            text.selectNodeContents(element);
+            const lines = Array.from(text.getClientRects());
+            return lines.length > 0 && lines.every(line =>
+              line.left >= field.left && line.right <= field.right &&
+              line.top >= field.top && line.bottom <= field.bottom);
+          });
+          assert.ok(promptFits, 'all lines of the search hint fit inside the field');
+          await input.fill(lang === 'es' ? 'Casa en renta' : 'House for rent');
+          assert.equal(await prompt.isVisible(), false);
+          await input.fill('');
+          assert.equal(await prompt.isVisible(), true);
           assert.equal(await page.locator('.hero-actions').count(), 0);
           assert.equal(layout.featuredCards, 0);
           assert.equal(await page.locator('#properties').isVisible(), false);
