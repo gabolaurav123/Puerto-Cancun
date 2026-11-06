@@ -12128,6 +12128,7 @@ function decoratePublicHtml({ page, seo, pageContent = "", bodyPage = "seo", noi
     const copy = require("./site-language").en;
     html = html.replace(/(<(a|button|span|p|h[1-6]|strong|small|summary|option)\b[^>]*?\bdata-i18n="([^"]+)"[^>]*>)[^<]*(<\/\2>)/g, (whole,tag,_name,key,close) => copy[key] ? tag + escapeHtml(copy[key]) + close : whole);
     html = html.replace(/<input\b[^>]*data-i18n-placeholder="([^"]+)"[^>]*>/g, (tag,key) => copy[key] ? tag.replace(/\splaceholder="[^"]*"/, ` placeholder="${escapeHtml(copy[key])}"`) : tag);
+    html = html.replace(/<[\w-]+\b[^>]*data-i18n-aria-label="([^"]+)"[^>]*>/g, (tag,key) => copy[key] ? tag.replace(/\saria-label="[^"]*"/, ` aria-label="${escapeHtml(copy[key])}"`) : tag);
     html = html.replace(/(<a\b[^>]*\bhref=")(\/[^"#?]*)([^"]*)"/g, (whole,start,pathname,suffix) => { const route = getPageByPath(pathname); return route?.lang === "es" && route.alternate ? start + route.alternate + suffix + '"' : whole; });
     html = html.replace(/(id="languageToggle"[^>]*>)[\s\S]*?<\/button>/, "$1Español</button>");
   }
