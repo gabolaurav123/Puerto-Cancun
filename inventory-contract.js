@@ -7,7 +7,7 @@
 
   const VERSION = "2026-10-29.2";
   const LOCATIONS = [
-    { id: "zona-hotelera", name: "Zona Hotelera (ZH)", description: "Zona Hotelera de Cancún, Costa Mujeres y Punta Sam. Puerto Cancún se consulta por separado.", descriptionEn: "Cancun Hotel Zone, Costa Mujeres and Punta Sam. Puerto Cancun is listed separately." },
+    { id: "zona-hotelera", name: "Zona Hotelera (ZH)", description: "La zona hotelera de Cancún. Puerto Cancún y los destinos del norte se consultan por separado.", descriptionEn: "Cancun’s Hotel Zone. Puerto Cancun and destinations to the north are listed separately." },
     { id: "puerto-cancun", name: "Puerto Cancún", description: "Únicamente Puerto Cancún; conserva sus subzonas y desarrollos.", descriptionEn: "Puerto Cancun only, retaining its neighborhoods and developments." },
     { id: "cancun-city", name: "Cancún City", description: "Ciudad de Cancún, Huayacán, corredor Colosio y subzonas urbanas confirmadas.", descriptionEn: "Cancun city, Huayacan, the Colosio corridor and confirmed urban neighborhoods." },
     { id: "fuera-de-cancun", name: "Fuera de Cancún", description: "Tulum, Playa del Carmen, Mérida, Ciudad de México y otros destinos fuera de las tres agrupaciones anteriores.", descriptionEn: "Tulum, Playa del Carmen, Merida, Mexico City and destinations outside the other three groups." },
@@ -26,7 +26,7 @@
   const metadataOf = (p) => p.catalogData || p.catalog_data || {};
   const locationAliases = {
     "zona hotelera": "zona-hotelera", "zona hotelera cancun": "zona-hotelera", "zona hotelera de cancun": "zona-hotelera",
-    "hotel zone": "zona-hotelera", "costa mujeres": "zona-hotelera", "punta sam": "zona-hotelera", "punta sam / playa mujeres": "zona-hotelera",
+    "hotel zone": "zona-hotelera", "costa mujeres": "fuera-de-cancun", "punta sam": "fuera-de-cancun", "punta sam / playa mujeres": "fuera-de-cancun", "playa mujeres": "fuera-de-cancun",
     "puerto cancun": "puerto-cancun", "puerto-cancun": "puerto-cancun", "p cancun": "puerto-cancun",
     "cancun city": "cancun-city", "cancun centro": "cancun-city", "centro cancun": "cancun-city", "ciudad de cancun": "cancun-city",
     "huayacan": "cancun-city", "avenida huayacan": "cancun-city", "av. huayacan": "cancun-city", "av huayacan": "cancun-city",
@@ -63,14 +63,22 @@
     return { value: value.query, errors: value.errors.slice() };
   }
 
-  function locationId(value) {
+  function locationId(value, areas = LOCATIONS) {
     const normal = fold(value);
-    return LOCATIONS.find((item) => item.id === normal)?.id || aliasOf(normal);
+    return areas.find((item) => [item.id, item.name, item.nameEs, item.nameEn].some(name => name && fold(name) === normal))?.id
+      || (areas.some(item => item.id === aliasOf(normal)) ? aliasOf(normal) : "");
   }
 
-  function resolveLocation(p) {
-    const explicit = metadataOf(p).locationId || p.commercialLocationId;
-    if (explicit && LOCATIONS.some((item) => item.id === explicit)) return { id: explicit, status: "confirmed", source: "classification", reason: "Asignación comercial revisada" };
+  function resolveLocation(p, areas) {
+    if (owns(p, "portalAreaId")) {
+      const id = p.portalAreaId;
+      if (id && (!areas || areas.some(area => area.id === id))) return { id, status: "confirmed", source: "directory", reason: "Zona del directorio" };
+      return { id: "", status: "pending", source: "directory", reason: "Zona pendiente o inactiva" };
+    }
+    areas ||= LOCATIONS;
+    const explicit = p.portalAreaId || metadataOf(p).locationId || p.commercialLocationId;
+    if (explicit && areas.some((item) => item.id === explicit)) return { id: explicit, status: "confirmed", source: "classification", reason: "Asignación comercial revisada" };
+    if (explicit) return { id: "", status: "pending", source: "classification", reason: "Zona no activa" };
     const zone = fold(p.zone), city = fold(p.city);
     // Street aliases need the same city evidence as the ambiguous neighborhood name.
     if (colosioZones.has(zone)) {
@@ -113,7 +121,7 @@
     return { amount, currency, basis, operation, period: operation === "rent" ? metadataOf(p).rentPeriod || "unclassified" : "" };
   }
 
-  function parseQuery(input = {}, defaults = {}) {
+  function parseQuery(input = {}, defaults = {}, { areas = LOCATIONS } = {}) {
     const envelope = queryEnvelope(input);
     const defaultEnvelope = queryEnvelope(defaults);
     input = envelope.value;
@@ -153,6 +161,8 @@
       locations,
       bounds,
       zone: String(raw.zone || "").trim(),
+      subarea: String(raw.subarea || "").trim(),
+      gated: raw.gated === true || raw.gated === "1" || raw.gated === "true",
       development: String(raw.development || "").trim(),
       type: raw.type === "Desarrollo" || raw.type === "Preventa" ? "" : String(raw.type || ""),
       operation: String(raw.operation || ""),
@@ -168,8 +178,8 @@
       sort: String(raw.sort || "recent"),
       page: raw.page === undefined || raw.page === "" ? 1 : Number(raw.page),
     };
-    query.locations = [...new Set(query.locations.map((value) => locationId(value) || value))];
-    if (query.locations.some((value) => !LOCATIONS.some((location) => location.id === value))) errors.push("Location no reconocida");
+    query.locations = [...new Set(query.locations.map((value) => locationId(value, areas) || value))];
+    if (query.locations.some((value) => !areas.some((location) => location.id === value))) errors.push("Location no reconocida");
     if (!["properties", "developments"].includes(query.entity)) errors.push(query.entity === "typologies" ? "Tipologías pendientes de soporte; no son propiedades ni desarrollos" : "Tipo de inventario inválido");
     if (![undefined, null, "", true, false, "1", "0", "true", "false"].includes(raw.featured)) errors.push("Filtro de destacadas inválido");
     if (query.type && !TYPES.includes(query.type)) errors.push("Tipo de propiedad inválido");
@@ -185,31 +195,34 @@
     if ((query.min !== null || query.max !== null) && !query.currency) errors.push("Elige una moneda para aplicar el presupuesto");
     if ((query.min !== null || query.max !== null) && !query.operation) errors.push("Elige compra o renta para aplicar el presupuesto");
     if ((query.min !== null || query.max !== null) && query.operation === "rent" && !["month", "day", "year"].includes(query.rentPeriod)) errors.push("Elige un periodo de renta conocido para comparar precios");
-    if (!["recent", "oldest", "price-asc", "price-desc", "title"].includes(query.sort)) errors.push("Orden inválido");
+    if (!["recent", "oldest", "price-asc", "price-desc", "title", "featured", "lot-asc", "lot-desc"].includes(query.sort)) errors.push("Orden inválido");
     if (!Number.isInteger(query.page) || query.page < 1 || query.page > 10000) errors.push("Página inválida");
     return { query, errors: [...new Set(errors)] };
   }
 
-  function matches(p, query, { includePrivate = false } = {}) {
+  function matches(p, query, { includePrivate = false, areas = LOCATIONS } = {}) {
     if (query && (owns(query, "query") || owns(query, "errors"))) {
-      const parsed = parseQuery(query);
+      const parsed = parseQuery(query, {}, { areas });
       if (parsed.errors.length) return false;
       query = parsed.query;
     }
     if (!includePrivate && !isPublic(p)) return false;
     if (entityOf(p) !== query.entity) return false;
-    if (query.locations.length && !query.locations.includes(resolveLocation(p).id)) return false;
+    if (query.locations.length && !query.locations.includes(resolveLocation(p, areas).id)) return false;
     if (query.bounds) {
+      if (p.locationPrecision === "hidden" || p.portalHiddenBlocks?.includes("location")) return false;
       const latitude = optionalNumber(p.latitude), longitude = optionalNumber(p.longitude);
       if (latitude === null || longitude === null || !Number.isFinite(latitude) || !Number.isFinite(longitude) || Math.abs(latitude) > 90 || Math.abs(longitude) > 180) return false;
       const [west, south, east, north] = query.bounds;
       if (longitude < west || longitude > east || latitude < south || latitude > north) return false;
     }
     if (query.zone && fold(p.zone) !== fold(query.zone)) return false;
+    if (query.subarea && (p.portalSubareaId || metadataOf(p).subareaId) !== query.subarea) return false;
+    if (query.gated && p.portalGated !== true) return false;
     if (query.type && p.type !== query.type) return false;
     if (query.operation && p.operation !== query.operation) return false;
     if (query.modality && modalityOf(p) !== query.modality) return false;
-    if (query.development && ![p.developmentId, p.development_id, p.parent_development_id, p.parentDevelopment?.id, p.parentDevelopment?.propertyId].includes(query.development)) return false;
+    if (query.development && ![p.portalDevelopmentId, p.developmentId, p.development_id, p.parent_development_id, p.parentDevelopment?.id, p.parentDevelopment?.propertyId].includes(query.development)) return false;
     if (query.featured && !p.featured) return false;
     if (query.beds !== null && Number(p.beds || 0) < query.beds) return false;
     const price = priceOf(p);
@@ -229,13 +242,19 @@
   }
 
   function queryInventory(items, input = {}, options = {}) {
-    const parsed = parseQuery(input, options.defaults);
+    const parsed = parseQuery(input, options.defaults, options);
     if (parsed.errors.length) return { ...parsed, items: [], all: [], total: 0, page: 1, pages: 0 };
     const { query } = parsed;
     const unique = [...new Map(items.map((p) => [p.id, p])).values()];
     const all = unique.filter((p) => matches(p, query, options));
     const group = (p) => { const price = priceOf(p); return [price.currency, price.operation, price.basis, price.period].join("|"); };
+    const areaOrder = new Map((options.areas || LOCATIONS).map((area, index) => [area.id, index]));
+    const rankArea = property => areaOrder.get(resolveLocation(property, options.areas).id) ?? areaOrder.size;
     all.sort((a, b) => {
+      if (options.groupByArea) {
+        const order = rankArea(a) - rankArea(b);
+        if (order) return order;
+      }
       const exact = Number(fold(b.mls) === fold(query.text) && !!query.text) - Number(fold(a.mls) === fold(query.text) && !!query.text);
       if (exact) return exact;
       let order = 0;
@@ -244,8 +263,19 @@
         if (pa === null || pb === null) order = Number(pa === null) - Number(pb === null);
         if (!order) order = group(a).localeCompare(group(b));
         if (!order && pa !== null && pb !== null) order = (pa - pb) * (query.sort === "price-desc" ? -1 : 1);
-      } else if (query.sort === "title") order = fold(a.titleEs || a.title_es).localeCompare(fold(b.titleEs || b.title_es));
-      else order = ((Date.parse(b.createdAt || b.created_at) || 0) - (Date.parse(a.createdAt || a.created_at) || 0)) * (query.sort === "oldest" ? -1 : 1);
+      } else if (query.sort.startsWith("lot-")) {
+        const lotA = positiveAmount(a.lot), lotB = positiveAmount(b.lot);
+        order = Number(lotA === null) - Number(lotB === null);
+        if (!order && lotA !== null && lotB !== null) order = (lotA - lotB) * (query.sort === "lot-desc" ? -1 : 1);
+      } else if (query.sort === "featured") {
+        const rank = record => options.featureRanks?.get(record.id) ?? (record.featured ? Number.MAX_SAFE_INTEGER - 1 : Number.MAX_SAFE_INTEGER);
+        order = rank(a) - rank(b);
+      }
+      if (query.sort === "title" || (query.sort === "featured" && !order)) {
+        const title = record => options.lang === "en" ? record.titleEn || record.titleEs : record.titleEs || record.title_es;
+        order = fold(title(a)).localeCompare(fold(title(b)), options.lang === "en" ? "en" : "es");
+      }
+      if (query.sort === "recent" || query.sort === "oldest") order = ((Date.parse(b.createdAt || b.created_at) || 0) - (Date.parse(a.createdAt || a.created_at) || 0)) * (query.sort === "oldest" ? -1 : 1);
       return order || String(a.id).localeCompare(String(b.id));
     });
     const size = Math.max(1, Math.min(100, options.pageSize || 24));
@@ -261,7 +291,7 @@
       query = parsed.query;
     }
     const params = new URLSearchParams();
-    for (const [key, value] of Object.entries({ entity: query.entity, q: query.text, location: query.locations?.join(","), bounds: query.bounds?.join(","), zone: query.zone, type: query.type, operation: query.operation, modality: query.modality, development: query.development, currency: query.currency, min: query.min, max: query.max, priceBasis: query.priceBasisExplicit === false && query.priceBasis === "total" ? "" : query.priceBasis, rentPeriod: query.rentPeriod, beds: query.beds, featured: query.featured ? "1" : "", sort: query.sort, page: query.page })) {
+    for (const [key, value] of Object.entries({ entity: query.entity, q: query.text, location: query.locations?.join(","), bounds: query.bounds?.join(","), zone: query.zone, subarea: query.subarea, gated: query.gated ? "1" : "", type: query.type, operation: query.operation, modality: query.modality, development: query.development, currency: query.currency, min: query.min, max: query.max, priceBasis: query.priceBasisExplicit === false && query.priceBasis === "total" ? "" : query.priceBasis, rentPeriod: query.rentPeriod, beds: query.beds, featured: query.featured ? "1" : "", sort: query.sort, page: query.page })) {
       if (value !== "" && value !== null && value !== undefined) params.set(key, String(value));
     }
     return params;
@@ -316,14 +346,14 @@
     return /^(?:(?:por definir|pendiente|por completar|to be defined|pending|sin descripcion|n\/?a)(?:[.!;,:\s-]+|$))+$/.test(fold(value));
   }
 
-  function reconcile(items) {
+  function reconcile(items, areas = LOCATIONS) {
     const unique = [...new Map(items.map((p) => [p.id, p])).values()];
     const mls = new Map();
     for (const p of unique) if (p.mls) mls.set(fold(p.mls), [...(mls.get(fold(p.mls)) || []), p.id]);
     const allRecords = unique.map((p) => ({ id: p.id, title: p.titleEs || p.title_es, mls: p.mls, entity: entityOf(p), status: p.status, public: isPublic(p), zone: p.zone, city: p.city, location: resolveLocation(p), quality: quality(p), price: priceOf(p), duplicateMlsIds: mls.get(fold(p.mls))?.length > 1 ? mls.get(fold(p.mls)) : [] }));
     const records = allRecords.filter((p) => p.entity !== "typologies");
     const pendingRecords = allRecords.filter((p) => p.entity === "typologies");
-    const counts = ["properties", "developments"].map((entity) => ({ entity, total: records.filter((p) => p.entity === entity).length, locations: [...LOCATIONS, { id: "", name: "Pendiente de clasificar" }].map((location) => ({ id: location.id, name: location.name, total: records.filter((p) => p.entity === entity && p.location.id === location.id).length, public: records.filter((p) => p.entity === entity && p.location.id === location.id && p.public).length })) }));
+    const counts = ["properties", "developments"].map((entity) => ({ entity, total: records.filter((p) => p.entity === entity).length, locations: [...areas, { id: "", name: "Pendiente de clasificar" }].map((location) => ({ id: location.id, name: location.name || location.nameEs, total: records.filter((p) => p.entity === entity && p.location.id === location.id).length, public: records.filter((p) => p.entity === entity && p.location.id === location.id && p.public).length })) }));
     return { version: VERSION, total: records.length, counts, records, pendingRecords };
   }
 

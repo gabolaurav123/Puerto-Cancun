@@ -1,0 +1,36 @@
+.contextual-inquiry {
+  color: #15343d; background: #fff; border: 0; border-radius: 14px;
+  padding: 0; width: min(520px, calc(100vw - 24px)); max-height: calc(100dvh - 24px);
+  box-shadow: 0 18px 70px #102d3d40; overflow: hidden;
+}
+.contextual-inquiry[open] { display: flex; flex-direction: column; }
+.contextual-inquiry::backdrop { background: #092b36b8; }
+.contextual-inquiry header { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 20px; border-bottom: 1px solid #d6e3e4; }
+.contextual-inquiry h2 { margin: 0; font-size: clamp(20px, 4vw, 27px); }
+.contextual-inquiry h3 { margin: 4px 0 16px; font-size: 19px; }
+.contextual-inquiry header button { width: 44px; height: 44px; padding: 0; background: transparent; border: 0; font-size: 29px; cursor: pointer; }
+.contextual-inquiry .inquiry-scroll { overflow-y: auto; overscroll-behavior: contain; padding: 16px 20px max(16px, env(safe-area-inset-bottom)); }
+.contextual-inquiry section, .contextual-inquiry form { display: grid; gap: 12px; min-width: 0; }
+.contextual-inquiry [hidden] { display: none !important; }
+.contextual-inquiry label { display: grid; gap: 4px; font-weight: 650; min-width: 0; }
+.contextual-inquiry :is(input:not([type="checkbox"]), select, textarea) { width: 100%; min-height: 44px; font: inherit; font-weight: 400; font-size: 16px; color: inherit; padding: 9px 11px; border: 1px solid #a6babb; border-radius: 5px; background: white; }
+.contextual-inquiry textarea { resize: vertical; }
+.contextual-inquiry :is(input,select,textarea,a,summary,button):focus-visible { outline: 3px solid #156e79; outline-offset: 2px; }
+.contextual-inquiry summary { min-height: 44px; padding: 10px 0; cursor: pointer; font-weight: 650; }
+.contextual-inquiry details label + label { margin-top: 10px; }
+.contextual-inquiry .inquiry-budget { display: grid; grid-template-columns: minmax(0,2fr) minmax(90px,1fr); gap: 8px; align-items: end; }
+.contextual-inquiry .inquiry-consent { display: flex; align-items: center; gap: 8px; min-height: 44px; font-size: 14px; font-weight: 400; }
+.contextual-inquiry .inquiry-consent input { width: 20px; height: 20px; flex-shrink: 0; }
+.contextual-inquiry .inquiry-buttons { display: flex; flex-wrap: wrap; gap: 8px; }
+.contextual-inquiry :is(.primary-button,.ghost-button) { justify-self: start; min-height: 44px; }
+.contextual-inquiry .inquiry-status { margin: 0; }
+.contextual-inquiry .inquiry-context { margin: 0; overflow-wrap: anywhere; }
+.inquiry-admin-filters { display: flex; gap: 12px; flex-wrap: wrap; align-items: end; margin: 12px 0; }
+.inquiry-admin-filters label { display: grid; gap: 4px; }
+.inquiry-admin-note { display: grid; gap: 6px; margin: 8px 0; }
+.inquiry-admin-note textarea { width: 100%; }
+.inquiry-saved-link { margin-top: 8px; }
+@media (max-height: 460px) {
+  .contextual-inquiry { max-height: 100dvh; }
+  .contextual-inquiry header { padding-block: 3px; }
+}

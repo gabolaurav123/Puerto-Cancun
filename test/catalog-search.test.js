@@ -34,8 +34,8 @@ const cases = [
   ["E04 ES puntos de millares", "Comprar departamento en Puerto Cancun hasta 700.000 USD", purchase],
   ["E05 ES contexto reventa", "Ahora solo reventa", resale, purchase],
   ["E06 EN contexto reventa", "Now resale only", resale, purchase],
-  ["E07 ES union Punta Sam limitada por contrato", "Incluye tambi\u00e9n Punta Sam", { ...resale, locations: ["puerto-cancun", "zona-hotelera"] }, resale, true, /Elige una sola subzona/],
-  ["E08 EN union Punta Sam", "Also include Punta Sam", { ...purchase, locations: ["puerto-cancun", "zona-hotelera"] }, purchase, true, /Elige una sola subzona/],
+  ["E07 ES union Punta Sam limitada por contrato", "Incluye tambi\u00e9n Punta Sam", { ...resale, locations: ["puerto-cancun", "fuera-de-cancun"] }, resale, true, /Elige una sola subzona/],
+  ["E08 EN union Punta Sam", "Also include Punta Sam", { ...purchase, locations: ["puerto-cancun", "fuera-de-cancun"] }, purchase, true, /Elige una sola subzona/],
   ["E09 ES unidades de un desarrollo", "Renta mensual en SLS Harbour Beach", filters({ operation: "rent", rentPeriod: "month", development: "fixture-sls" })],
   ["E10 EN unidades de un desarrollo", "Monthly rent in SLS Harbour Beach", filters({ operation: "rent", rentPeriod: "month", development: "fixture-sls" })],
   ["E11 ES casa preventa subzona", "Casas en preventa en Huayac\u00e1n", filters({ type: "Casa", operation: "sale", modality: "presale", locations: ["cancun-city"], zone: "Huayac\u00e1n" })],
@@ -65,7 +65,7 @@ const cases = [
   ["E35 EN limite inferior", "Buy houses from 500000 USD to 700000 USD", filters({ type: "Casa", operation: "sale", currency: "USD", min: 500000, max: 700000 })],
   ["E36 ES unidades selector no entidad proyecto", "Departamentos del desarrollo SLS Harbour Beach", filters({ type: "Departamento", development: "fixture-sls" })],
   ["E37 ES proyectos nunca suman unidades", "Desarrollo SLS Harbour Beach", filters({ entity: "developments", text: "SLS Harbour Beach" })],
-  ["E38 EN sustituir zona preserva presupuesto", "Now only Costa Mujeres", { ...purchase, locations: ["zona-hotelera"], zone: "Costa Mujeres" }, purchase],
+  ["E38 EN sustituir zona preserva presupuesto", "Now only Costa Mujeres", { ...purchase, locations: ["fuera-de-cancun"], zone: "Costa Mujeres" }, purchase],
   ["E39 ES alias sin acentos", "Departamentos en ZH", filters({ type: "Departamento", locations: ["zona-hotelera"] })],
   ["E40 EN dos agrupaciones representables", "Buy a house in Puerto Cancun and Cancun City", filters({ type: "Casa", operation: "sale", locations: ["puerto-cancun", "cancun-city"] })],
 ];
@@ -293,7 +293,7 @@ test("Colosio y Cancun no se asignan por suposicion", () => {
 });
 
 test("una adicion ya incluida no reduce el grupo existente", () => {
-  const prior = filters({ locations: ["zona-hotelera"], type: "Casa" });
+  const prior = filters({ locations: ["fuera-de-cancun"], type: "Casa" });
   const result = interpret("Incluye tambien Punta Sam", prior);
   assert.deepEqual(result.filters, prior);
   assert.equal(result.clarificationRequired, false);
@@ -301,7 +301,7 @@ test("una adicion ya incluida no reduce el grupo existente", () => {
 
 test("dos subzonas nunca se convierten en una interseccion imposible", () => {
   const result = interpret("Punta Sam y Costa Mujeres");
-  assert.deepEqual(result.filters, filters({ locations: ["zona-hotelera"] }));
+  assert.deepEqual(result.filters, filters({ locations: ["fuera-de-cancun"] }));
   assert.equal(result.clarificationRequired, true);
 });
 

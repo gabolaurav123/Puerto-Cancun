@@ -17,7 +17,7 @@ const { Pool } = require("pg");
 const { createExchangeRateService } = require("./exchange-rate");
 const { render: renderExchangeRate } = require("./exchange-rate-view");
 const { ensureDailyBlogSchema, createDailyBlogService, renderBlogParagraph, renderBlogSources } = require("./daily-blog");
-const { blogListQuery, paginateBlogRows, renderBlogList } = require("./blog-list-view");
+const { blogListQuery, paginateBlogRows, renderBlogList, blogArchiveHref } = require("./blog-list-view");
 const { applyDevelopmentCoverBatch } = require("./development-cover-publish");
 const { buildLocationSeedOptions, reconcileLocationSeedOptions } = require("./location-catalog");
 const packageMetadata = require("./package.json");
@@ -101,18 +101,24 @@ const databasePoolMax = Math.max(1, Math.min(20, Number(process.env.DATABASE_POO
 const visitorAnalyticsRetentionDays = Math.max(30, Math.min(1095, Number(process.env.VISITOR_ANALYTICS_RETENTION_DAYS || 365)));
 const indexPath = path.join(__dirname, "index.html");
 const inventoryContract = require("./inventory-contract");
+const portalDirectoryModel = require("./portal-directory");
+const portalDirectoryStore = require("./portal-directory-store");
 const { interpretCatalogSearch, localizeCatalogError } = require("./catalog-search");
 const { savedCatalogQuery } = require("./saved-catalog-search");
 const { normalizeCatalogData, publicProperty } = require("./inventory-metadata");
 const { qualityQuery } = require("./admin-quality-query");
 const { analyzeDemand } = require("./demand-analysis");
 const csvUtils = require("./csv-utils");
+const { businessPhoneLabel, contactRouting, contactPhone, readContactRouting, registerInquiries, inquiryAction, serviceChannel, sourcePath: inquirySourcePath } = require("./contact-inquiries");
 const staticAssetVersion = require("./asset-version").computeAssetVersion(__dirname);
 const publicStaticFiles = new Set([
   "/app.js",
+  "/site-language.js",
   "/styles.css",
   "/inventory-contract.js",
   "/contact-config.js",
+  "/contextual-contact.js",
+  "/contextual-contact.css",
   "/exchange-rate-view.js",
   "/csv-utils.js",
   "/catalog-ui.js",
@@ -122,6 +128,8 @@ const publicStaticFiles = new Set([
   "/catalog.css",
   "/catalog-assistant.js",
   "/admin-inventory-ui.js",
+  "/portal-directory.js",
+  "/admin-portal-directory.js",
   "/admin-inventory.css",
   "/favicon.png",
   "/apple-touch-icon.png",
@@ -707,14 +715,21 @@ async function upsertContact(client, contact) {
   const email = String(contact.email || "").trim().toLowerCase();
   const phone = String(contact.phone || "").trim();
   if (!email && !phone) return null;
-  const existing = await client.query(
-    `SELECT * FROM contacts
-     WHERE ($1 <> '' AND lower(email) = lower($1))
-        OR ($2 <> '' AND phone = $2)
-     ORDER BY updated_at DESC
-     LIMIT 1`,
-    [email, phone]
-  );
+  let existing;
+  if (contact.source === "portal_inquiry" || contact.source === "guest_sale_request" || contact.phonePrimary) {
+    const equivalents = [phone];
+    if (/^52\d{10}$/.test(phone)) equivalents.push("521" + phone.slice(2));
+    existing = await client.query(`SELECT * FROM contacts WHERE regexp_replace(phone,'[^0-9]','','g')=ANY($1::text[])
+      OR ($2<>'' AND lower(email)=lower($2) AND COALESCE(phone,'')='')
+      ORDER BY (COALESCE(phone,'')<>'') DESC,updated_at DESC LIMIT 1`, [equivalents, email]);
+    const saved = existing.rows[0];
+    if (saved) contact = { ...contact, source: saved.source || contact.source,
+      name: contact.source === "guest_sale_request" ? "" : contact.name,
+      contactType: saved.contact_type && saved.contact_type !== "unclassified" ? saved.contact_type : contact.contactType,
+      propertyType: saved.property_type || contact.propertyType,
+      preferredZones: [...new Set([...(Array.isArray(saved.preferred_zones) ? saved.preferred_zones : []), ...(contact.preferredZones || [])])],
+    };
+  } else existing = await client.query(`SELECT * FROM contacts WHERE ($1 <> '' AND lower(email)=lower($1)) OR ($2 <> '' AND phone=$2) ORDER BY updated_at DESC LIMIT 1`, [email,phone]);
   const zones = JSON.stringify(contact.preferredZones || []);
   if (existing.rows[0]) {
     const result = await client.query(
@@ -899,12 +914,15 @@ function toProperty(row) {
         (_value, index) => `/media/properties/${encodeURIComponent(parentDevelopment.propertyId)}/${index}`
       )
     : [];
+  // The owner's Spanish description and both listing titles identify MLS N1412 as an apartment.
+  const isVerifiedXTowersApartment = row.id === "prop-2fe947ab-d263-4b7d-a710-26fc983b0010" && row.mls === "N1412" && row.type === "Casa"
+    && /departamento/i.test(row.title_es) && /departamento/i.test(row.description_es);
   const property = {
     id: row.id,
     titleEs: row.title_es,
     titleEn: english.title,
     titleEnStored: row.title_en || "",
-    type: row.type,
+    type: isVerifiedXTowersApartment ? "Departamento" : row.type,
     publicationSection: row.publication_section || (row.type === "Desarrollo" ? "developments" : "properties"),
     state: row.state ?? null,
     city: row.city ?? null,
@@ -988,6 +1006,8 @@ function toValuation(row) {
     propertyId: row.property_id || "",
     ownerName: row.owner_name || "",
     phone: row.phone || "",
+    country: row.inquiry_country || "",
+    prefix: row.inquiry_prefix || "",
     email: row.email || "",
     zone: row.zone || "",
     propertyType: row.property_type || "",
@@ -1542,6 +1562,8 @@ function toGuestSaleRequest(row) {
     preferredContact: row.preferred_contact,
     email: row.email || "",
     countryCode: row.country_code || "",
+    country: row.inquiry_context?.country || "",
+    inquiry: row.inquiry_context || {},
     phone: row.phone || "",
     contactId: row.contact_id || "",
     status: row.status || "pending",
@@ -1733,6 +1755,7 @@ const SELLER_REQUEST_SUMMARY_COLUMNS = `
 
 const GUEST_SALE_REQUEST_SUMMARY_COLUMNS = `
   g.id, g.title, g.type, g.location, g.description, g.preferred_contact, g.email, g.country_code,
+  (SELECT a.new_value FROM activity_logs a WHERE a.id='guest-inquiry:' || g.id) AS inquiry_context,
   g.phone, g.contact_id, g.state, g.city, g.zone, g.neighborhood, g.address, g.latitude, g.longitude,
   g.map_place, g.location_precision, g.google_maps_url, g.status, g.priority, g.internal_notes,
   g.created_at, g.updated_at, g.reviewed_at,
@@ -1762,6 +1785,7 @@ async function getSellerRequestSummary(id, client = { query }) {
 }
 
 let publicPropertyCache = { expiresAt: 0, items: [] };
+let publicPropertyGeneration = 0;
 let publishedBlogCache = {
   es: { expiresAt: 0, value: false },
   en: { expiresAt: 0, value: false },
@@ -1769,26 +1793,38 @@ let publishedBlogCache = {
 
 async function getPublicProperties() {
   if (publicPropertyCache.expiresAt > Date.now()) return publicPropertyCache.items;
+  const generation = publicPropertyGeneration;
   const result = await query(
     `SELECT ${PROPERTY_SUMMARY_COLUMNS} FROM properties p WHERE p.is_public = TRUE AND p.status = ANY($1::text[]) ORDER BY p.featured DESC, p.updated_at DESC`,
     [Array.from(PUBLIC_PROPERTY_STATUSES)]
   );
   const publicRows = result.rows.filter(inventoryContract.isPublic);
-  const publicIds = new Set(publicRows.map(row => row.id));
+  const publicDevelopmentIds = new Set(publicRows.filter(row => inventoryContract.entityOf(row) === "developments").map(row => row.id));
   const items = publicRows.map(withPropertyMediaPlaceholders).map(toProperty).map(item => {
-    if (item.parentDevelopment && !publicIds.has(item.parentDevelopment.propertyId)) {
+    const hiddenParent = Boolean(item.developmentId || item.parentDevelopment) && !publicDevelopmentIds.has(item.parentDevelopment?.propertyId);
+    if (hiddenParent) {
       item.parentDevelopment = null;
       item.developmentImages = [];
       item.developmentId = null;
     }
-    return publicProperty(item);
+    const visible = publicProperty(item);
+    if (hiddenParent) Object.defineProperty(visible,"portalSuppressInferredLink",{value:true});
+    return visible;
   });
-  publicPropertyCache = { expiresAt: Date.now() + 300_000, items };
-  return publicPropertyCache.items;
+  const directory = await getPublicPortalDirectory(items);
+  if (generation !== publicPropertyGeneration) return getPublicProperties();
+  const enriched = portalDirectoryModel.enrichProperties(items, directory);
+  publicPropertyCache = { expiresAt: Date.now() + 300_000, items: enriched, directory };
+  return enriched;
 }
 
 function invalidatePublicPropertyCache() {
+  publicPropertyGeneration++;
   publicPropertyCache = { expiresAt: 0, items: [] };
+}
+
+async function getPublicPortalDirectory(properties) {
+  return portalDirectoryModel.publicDirectory(await portalDirectoryStore.readStored({query}), properties);
 }
 
 function withGuestRequestMediaPlaceholders(row) {
@@ -3601,6 +3637,7 @@ app.use("/api/geocode", createRateLimiter({ windowMs: 10 * 60 * 1000, max: 80, m
 app.use("/api/reverse-geocode", createRateLimiter({ windowMs: 10 * 60 * 1000, max: 120, message: "Se alcanzó el límite temporal de consultas del mapa." }));
 app.use("/api/search/intelligent", createRateLimiter({ windowMs: 10 * 60 * 1000, max: 30, message: "Se alcanzó el límite temporal de búsquedas inteligentes." }));
 app.use("/api/leads", createRateLimiter({ windowMs: 10 * 60 * 1000, max: 12, message: "Se recibieron demasiadas solicitudes desde esta conexión." }));
+app.post("/api/inquiries", createRateLimiter({ windowMs: 10 * 60 * 1000, max: 12, message: "Too many requests. Intenta nuevamente en unos minutos." }));
 app.use("/api/guest-sale-requests", createRateLimiter({ windowMs: 15 * 60 * 1000, max: 6, message: "Se recibieron demasiadas solicitudes de venta desde esta conexión. Espera unos minutos antes de volver a intentar." }));
 app.use("/api/analytics", createRateLimiter({ windowMs: 5 * 60 * 1000, max: 180 }));
 app.use("/api/metrics", createRateLimiter({ windowMs: 5 * 60 * 1000, max: 180 }));
@@ -3687,7 +3724,7 @@ app.get("/api/config", async (_req, res) => {
 app.get("/api/blog", async (req, res, next) => {
   try {
     const lang = req.query.lang === "en" ? "en" : "es";
-    const listingQuery = blogListQuery({ lang, page: req.query.page, limit: req.query.limit || 24 });
+    const listingQuery = blogListQuery({ lang, topic: req.query.topic, page: req.query.page, limit: req.query.limit || 24 });
     const result = await query(listingQuery.text, listingQuery.values);
     const listing = paginateBlogRows(result.rows, listingQuery.pagination);
     res.json({ posts: listing.rows.map(row => toBlogPost(row, false)), pagination: listing.pagination });
@@ -4443,7 +4480,8 @@ app.get("/api/properties", async (req, res, next) => {
     }
     // Public pages must never receive drafts, disabled records or archived inventory,
     // including when the current browser also has an administrator session.
-    res.json({ properties: await getPublicProperties() });
+    const properties = await getPublicProperties();
+    res.json({ properties, directory: publicPropertyCache.directory });
   } catch (error) {
     next(error);
   }
@@ -4451,8 +4489,8 @@ app.get("/api/properties", async (req, res, next) => {
 
 app.get("/api/admin/properties", requireRole("admin"), async (_req, res, next) => {
   try {
-    const result = await query(`SELECT ${PROPERTY_SUMMARY_COLUMNS} FROM properties p ORDER BY p.created_at DESC`);
-    res.json({ properties: result.rows.map(withPropertyMediaPlaceholders).map(toProperty) });
+    const [result,stored] = await Promise.all([query(`SELECT ${PROPERTY_SUMMARY_COLUMNS} FROM properties p ORDER BY p.created_at DESC`), portalDirectoryStore.readStored({query})]);
+    res.json(portalDirectoryModel.adminInventory(stored,result.rows.map(withPropertyMediaPlaceholders).map(toProperty)));
   } catch (error) {
     next(error);
   }
@@ -4713,10 +4751,10 @@ app.post("/api/search/intelligent", async (req, res, next) => {
     if (!queryText || queryText.length > 600) return res.status(400).json({ error: "Escribe una búsqueda de entre 1 y 600 caracteres." });
     const properties = await getPublicProperties();
     const language = req.body?.language === "en" || req.body?.lang === "en" ? "en" : "es";
-    const interpretation = interpretCatalogSearch(queryText, req.body?.filters || {}, { properties, language });
+    const interpretation = interpretCatalogSearch(queryText, req.body?.filters || {}, { properties, language, areas: publicPropertyCache.directory?.areas });
     const result = interpretation.clarificationRequired
       ? { items: [], total: null, errors: [], query: interpretation.filters }
-      : inventoryContract.queryInventory(properties, interpretation.filters);
+      : inventoryContract.queryInventory(properties, interpretation.filters, {areas: publicPropertyCache.directory?.areas, lang: language});
     result.errors = result.errors.map(error => localizeCatalogError(error, language));
     const needsChoice = interpretation.clarificationRequired || result.errors.length > 0;
     const params = inventoryContract.toSearchParams(interpretation.filters);
@@ -4731,7 +4769,7 @@ app.post("/api/search/intelligent", async (req, res, next) => {
 
 app.get("/api/catalog", async (req, res, next) => {
   try {
-    const result = inventoryContract.queryInventory(await getPublicProperties(), req.query);
+    const result = inventoryContract.queryInventory(await getPublicProperties(), req.query, {areas: publicPropertyCache.directory?.areas, lang: req.query.lang});
     res.status(result.errors.length ? 400 : 200).json({ ...result, all: undefined, contractVersion: inventoryContract.VERSION });
   } catch (error) { next(error); }
 });
@@ -5008,17 +5046,8 @@ app.post("/api/guest-sale-requests", async (req, res, next) => {
   let inTransaction = false;
   try {
     client = await pool.connect();
-    if (idempotencyKey) {
-      const existing = await client.query(
-        `SELECT ${GUEST_SALE_REQUEST_SUMMARY_COLUMNS} FROM guest_sale_requests g WHERE g.idempotency_key = $1`,
-        [idempotencyKey]
-      );
-      if (existing.rows[0]) {
-        res.json({ request: toGuestSaleRequest(withGuestRequestMediaPlaceholders(existing.rows[0])), idempotent: true });
-        return;
-      }
-    }
     const rawBody = req.body || {};
+    const lang = rawBody.lang === "en" ? "en" : "es";
     if (String(rawBody.website || "").trim()) {
       res.status(201).json({ ok: true });
       return;
@@ -5047,39 +5076,50 @@ app.post("/api/guest-sale-requests", async (req, res, next) => {
     const mapPlace = String(body.mapPlace || "").trim().slice(0, 400);
     const googleMapsUrl = validCoordinates ? `https://www.google.com/maps/search/?api=1&query=${latitude},${longitude}` : "";
     const description = String(body.description || "").trim().slice(0, 4000);
-    const preferredContact = body.preferredContact === "whatsapp" ? "whatsapp" : "email";
+    const preferredContact = body.preferredContact === "email" ? "email" : "whatsapp";
     const email = String(body.email || "").trim().toLowerCase();
-    const countryCode = String(body.countryCode || "").replace(/[^+\d]/g, "").slice(0, 8);
-    const nationalPhone = String(body.phone || "").trim();
-    const phone = preferredContact === "whatsapp" ? normalizePhone(`${countryCode}${nationalPhone}`) : "";
+    let phoneInfo;
+    try { phoneInfo = contactPhone(body.phone, body.country, lang); } catch (error) { return res.status(400).json({ error: error.message }); }
+    const { phone, prefix: countryCode } = phoneInfo;
     const images = parseUploadedImages(body, []);
     if (!title || !type || !location) {
       res.status(400).json({ error: "Agrega título, tipo y ubicación de la propiedad." });
       return;
     }
-    if ((preferredContact === "email" && !isValidEmail(email)) || (preferredContact === "whatsapp" && !phone)) {
-      res.status(400).json({ error: preferredContact === "email" ? "Revisa el correo electrónico." : "Revisa el prefijo y el número de WhatsApp." });
+    if ((preferredContact === "email" || email) && !isValidEmail(email)) {
+      res.status(400).json({ error: lang === "en" ? "Check the email address." : "Revisa el correo electrónico." });
       return;
+    }
+    await client.query("BEGIN");
+    inTransaction = true;
+    await client.query("SELECT pg_advisory_xact_lock(hashtext($1))", ["pcc-inquiry:" + phone]);
+    if (idempotencyKey) {
+      const existing = await client.query("SELECT g.id, a.new_value AS inquiry_context FROM guest_sale_requests g LEFT JOIN activity_logs a ON a.id='guest-inquiry:' || g.id WHERE g.idempotency_key=$1 AND g.phone=$2", [idempotencyKey, phone]);
+      if (existing.rows[0]) {
+        const row = existing.rows[0];
+        await client.query("COMMIT"); inTransaction = false;
+        return res.json({ request: { id: row.id }, action: inquiryAction(row.id, row.inquiry_context, siteUrl, row.inquiry_context?.sourcePath, sessionSecret), idempotent: true });
+      }
     }
     const duplicate = await client.query(
       `SELECT ${GUEST_SALE_REQUEST_SUMMARY_COLUMNS}
        FROM guest_sale_requests g
        WHERE lower(g.title) = lower($1)
-         AND (($2 <> '' AND lower(g.email) = lower($2)) OR ($3 <> '' AND g.phone = $3))
+         AND g.phone = $2 AND lower(g.location) = lower($3) AND lower(g.type) = lower($4)
          AND g.created_at > NOW() - INTERVAL '90 seconds'
        ORDER BY g.created_at DESC LIMIT 1`,
-      [title, email, phone]
+      [title, phone, location, type]
     );
     if (duplicate.rows[0]) {
-      res.json({ request: toGuestSaleRequest(withGuestRequestMediaPlaceholders(duplicate.rows[0])), duplicate: true });
+      const row = duplicate.rows[0];
+      await client.query("COMMIT"); inTransaction = false;
+      res.json({ request: { id: row.id }, action: inquiryAction(row.id, row.inquiry_context, siteUrl, row.inquiry_context?.sourcePath, sessionSecret), duplicate: true });
       return;
     }
-    await client.query("BEGIN");
-    inTransaction = true;
+    const inquiry = { ...await serviceChannel(client, phoneInfo.country), lang, intent: "sell", country: phoneInfo.country, prefix: countryCode, propertyTitle: title, propertyType: type, zone: zone || location, preferences: description, sourcePath: inquirySourcePath(body.sourcePath), origin: "guest-sale" };
     const contact = await upsertContact(client, {
       name: `Propietario · ${title}`,
-      email: preferredContact === "email" ? email : "",
-      phone: preferredContact === "whatsapp" ? phone : "",
+      email, phone,
       contactType: "seller",
       source: "guest_sale_request",
       propertyType: type,
@@ -5096,14 +5136,14 @@ app.post("/api/guest-sale-requests", async (req, res, next) => {
        RETURNING id`,
       [
         id, title, type, location, description, images[0] || null, JSON.stringify(images), preferredContact,
-        preferredContact === "email" ? email : null, preferredContact === "whatsapp" ? countryCode : null,
-        preferredContact === "whatsapp" ? phone : null, contact?.id || null,
+        email || null, countryCode, phone, contact?.id || null,
         state || null, city || null, zone || null, neighborhood || null, address || null,
         validCoordinates ? latitude : null, validCoordinates ? longitude : null, mapPlace || null,
         validCoordinates ? "exact" : "approximate", googleMapsUrl || null,
         images.length >= 5 ? "high" : "medium", idempotencyKey || null,
       ]
     );
+    await client.query("INSERT INTO activity_logs (id,action,entity_type,entity_id,new_value) VALUES ('guest-inquiry:' || $1,'guest_inquiry_saved','guest_sale_request',$1,$2::jsonb)", [id, JSON.stringify(inquiry)]);
     await client.query(
       `INSERT INTO notifications (id, type, title, message, related_entity_type, related_entity_id)
        VALUES ($1, 'guest_sale_request_created', 'Nueva venta sin registro', $2, 'guest_sale_request', $3)`,
@@ -5111,8 +5151,7 @@ app.post("/api/guest-sale-requests", async (req, res, next) => {
     );
     await client.query("COMMIT");
     inTransaction = false;
-    const saved = await client.query(`SELECT ${GUEST_SALE_REQUEST_SUMMARY_COLUMNS} FROM guest_sale_requests g WHERE g.id = $1`, [result.rows[0].id]);
-    res.status(201).json({ request: toGuestSaleRequest(withGuestRequestMediaPlaceholders(saved.rows[0])), message: "Solicitud recibida. Un asesor revisará la información antes de contactarte." });
+    res.status(201).json({ request: { id: result.rows[0].id }, action: inquiryAction(id, inquiry, siteUrl, inquiry.sourcePath, sessionSecret), message: lang === "en" ? "Request saved. An advisor will review your property details." : "Solicitud guardada. Un asesor revisará la información de tu propiedad." });
   } catch (error) {
     if (client && inTransaction) await client.query("ROLLBACK").catch(() => null);
     next(error);
@@ -5121,12 +5160,18 @@ app.post("/api/guest-sale-requests", async (req, res, next) => {
   }
 });
 
+registerInquiries(app, { pool, query, uuid, siteUrl, secret: sessionSecret, upsertContact, leadScoreFromData });
+
 app.post("/api/leads", async (req, res, next) => {
   const client = await pool.connect();
   try {
     await client.query("BEGIN");
     const body = req.body || {};
     let leadType = String(body.leadType || "general").trim().slice(0, 80);
+    if (["comprador-compra", "comprador-busca-renta", "vendedor-venta", "vendedor-ofrece-renta"].includes(leadType)) {
+      await client.query("ROLLBACK");
+      return res.status(400).json({ error: "Utiliza el formulario de contacto. Please use the inquiry form." });
+    }
     const developmentInquiry = leadType === "contacto-desarrollo";
     if (developmentInquiry) {
       const intentTypes = { buy: "comprador-desarrollo", rent: "contacto-desarrollo-renta", sell: "vendedor-desarrollo", let: "vendedor-desarrollo-renta" };
@@ -5144,11 +5189,12 @@ app.post("/api/leads", async (req, res, next) => {
     const name = suppliedName || (valuationInquiry ? "Propietario" : "Visitante web");
     const replyTo = valuationInquiry || developmentInquiry ? String(body.contact || "").trim() : "";
     const rawPhone = String(body.whatsapp || body.phone || (replyTo.includes("@") ? "" : replyTo)).trim();
-    const phone = rawPhone ? normalizePhone(rawPhone) : "";
+    let phone = rawPhone ? normalizePhone(rawPhone) : "";
     const email = String(body.email || (replyTo.includes("@") ? replyTo : "")).trim().toLowerCase() || null;
     const sourcePath = String(body.sourcePath || "").trim().slice(0, 220) || null;
     const propertyId = String(body.propertyId || "").trim() || null;
     const consent = body.consent === true || body.consent === "true" || body.consent === "on";
+    const inquiryLang = body.lang === "en" || sourcePath?.startsWith("/en/") ? "en" : "es";
     const formStartedAt = Number(body.formStartedAt || 0);
 
     if (String(body.website || "").trim()) {
@@ -5167,7 +5213,16 @@ app.post("/api/leads", async (req, res, next) => {
       return;
     }
 
-    if ((valuationInquiry || developmentInquiry) && !phone && !email && !rawPhone) {
+    let phoneInfo;
+    if (valuationInquiry) {
+      try { phoneInfo = contactPhone(rawPhone, body.country, inquiryLang); } catch (error) {
+        await client.query("ROLLBACK");
+        return res.status(400).json({ error: error.message });
+      }
+      phone = phoneInfo.phone;
+      await client.query("SELECT pg_advisory_xact_lock(hashtext($1))", ["pcc-inquiry:" + phone]);
+    }
+    if (developmentInquiry && !phone && !email && !rawPhone) {
       await client.query("ROLLBACK");
       res.status(400).json({ error: sourcePath?.startsWith("/en/") ? "Enter an email address or WhatsApp number." : "Indica un correo o número de WhatsApp." });
       return;
@@ -5191,6 +5246,12 @@ app.post("/api/leads", async (req, res, next) => {
     delete payload.website;
     delete payload.formStartedAt;
     delete payload.consent;
+    for (const key of ["inquiryFingerprint", "whatsappRef", "destination", "whatsappClickedAt", "whatsappReceivedAt"]) delete payload[key];
+    if (valuationInquiry) {
+      Object.assign(payload, { lang: inquiryLang, intent: "sell", service: leadType.includes("precio") ? "price-review" : "valuation", country: phoneInfo.country, prefix: phoneInfo.prefix, origin: "valuation-form" });
+      delete payload.valuationKey;
+      payload.valuationKey = crypto.createHash("sha256").update(JSON.stringify(Object.keys(payload).filter(key => key !== "requestId").sort().map(key => [key,payload[key]]))).digest("hex");
+    }
     if (JSON.stringify(payload).length > 20_000) {
       await client.query("ROLLBACK");
       res.status(413).json({ error: "La información del formulario es demasiado extensa." });
@@ -5202,20 +5263,24 @@ app.post("/api/leads", async (req, res, next) => {
        WHERE lead_type = $1
          AND (($2::text IS NOT NULL AND lower(email) = lower($2)) OR ($3::text <> '' AND phone = $3))
          AND ($4::boolean = FALSE OR property_id = $5)
-         AND created_at > NOW() - INTERVAL '90 seconds'
+         AND ($6::text IS NULL OR (phone = $3 AND payload->>'valuationKey' = $6))
+         AND (created_at > NOW() - INTERVAL '90 seconds' OR ($7::text <> '' AND payload->>'requestId' = $7))
        ORDER BY created_at DESC LIMIT 1`,
-      [leadType, email, phone, developmentInquiry, propertyId]
+      [leadType, email, phone, developmentInquiry, propertyId, valuationInquiry ? payload.valuationKey : null, valuationInquiry ? String(payload.requestId || "").slice(0,80) : ""]
     );
     if (duplicate.rows[0]) {
       await client.query("COMMIT");
-      res.status(200).json({ lead: valuationInquiry ? { id: duplicate.rows[0].id } : toLead(duplicate.rows[0]), duplicate: true });
+      const existing = duplicate.rows[0];
+      res.status(200).json({ lead: valuationInquiry ? { id: existing.id } : toLead(existing), action: valuationInquiry ? inquiryAction(existing.id, existing.payload, siteUrl, sourcePath, sessionSecret) : undefined, duplicate: true });
       return;
     }
 
+    if (valuationInquiry) Object.assign(payload, await serviceChannel(client, phoneInfo.country));
     const leadScore = leadScoreFromData({ leadType, phone, email, payload, propertyId });
     const priority = leadScore === "premium" ? "premium" : leadScore === "hot" ? "high" : "medium";
     const contact = await upsertContact(client, {
       name: suppliedName,
+      phonePrimary: valuationInquiry,
       email,
       phone,
       contactType: contactTypeFromLead(leadType),
@@ -5287,7 +5352,8 @@ app.post("/api/leads", async (req, res, next) => {
       ]
     );
     await client.query("COMMIT");
-    res.status(201).json({ lead: toLead(result.rows[0]) });
+    const savedLead = toLead(result.rows[0]);
+    res.status(201).json({ lead: savedLead, action: valuationInquiry ? inquiryAction(savedLead.id, payload, siteUrl, sourcePath, sessionSecret) : undefined });
   } catch (error) {
     await client.query("ROLLBACK");
     next(error);
@@ -5390,7 +5456,7 @@ async function evaluateSavedSearch(row, { createAlerts = false } = {}) {
   const publicProperties = await getPublicProperties();
   const filters = savedCatalogQuery(row.filters || {}, { queryText: row.query_text || "", properties: publicProperties });
   if (filters.errors.length) throw Object.assign(new Error(filters.errors.join(" ")), { status: 400 });
-  const matches = inventoryContract.queryInventory(publicProperties, filters, { pageSize: 100 }).all;
+  const matches = inventoryContract.queryInventory(publicProperties, filters, { pageSize: 100, areas: publicPropertyCache.directory?.areas }).all;
   const alertResults = [];
   if (createAlerts && row.alerts_enabled) {
     for (const property of matches) {
@@ -6877,7 +6943,7 @@ function buildInstagramFallbackCaption(property, hashtags = "") {
 app.get("/api/admin/valuations", requireRole("admin"), async (_req, res, next) => {
   try {
     const [valuationRows, valuationLeads] = await Promise.all([
-      query("SELECT * FROM valuations ORDER BY updated_at DESC, created_at DESC LIMIT 200"),
+      query("SELECT v.*, l.payload->>'country' AS inquiry_country, l.payload->>'prefix' AS inquiry_prefix FROM valuations v LEFT JOIN lead_requests l ON l.id=v.request_id ORDER BY v.updated_at DESC, v.created_at DESC LIMIT 200"),
       query(
         `SELECT l.*
          FROM lead_requests l
@@ -7492,7 +7558,7 @@ app.get("/api/admin/contacts/:id/intelligence", requireRole("admin"), async (req
     const sellerId = sellerResult.rows[0]?.id || null;
     const [leadResult, valuationResult, tourResult, taskResult, matchResult, whatsappResult, analyticsResult, activityResult, savedSearchResult, favoriteResult] = await Promise.all([
       query(
-        `SELECT id, lead_type, status, priority, property_id, source_path, last_response, created_at, updated_at
+        `SELECT id, lead_type, status, priority, property_id, source_path, payload, last_response, created_at, updated_at
          FROM lead_requests WHERE ${identitySql} ORDER BY created_at DESC LIMIT 100`,
         identityParams
       ),
@@ -7554,6 +7620,7 @@ app.get("/api/admin/contacts/:id/intelligence", requireRole("admin"), async (req
         : Promise.resolve({ rows: [] }),
     ]);
     const leadIds = leadResult.rows.map((row) => row.id);
+    const guestSales = await query("SELECT id,title,type,location,status,created_at FROM guest_sale_requests WHERE contact_id=$1 ORDER BY created_at DESC LIMIT 100", [contact.id]);
     const messageResult = leadIds.length
       ? await query(
           `SELECT id, request_id, sender_type, sender_name, message, created_at
@@ -7569,7 +7636,8 @@ app.get("/api/admin/contacts/:id/intelligence", requireRole("admin"), async (req
     });
     const timeline = [
       { type: "contact_created", title: "Contacto creado", detail: contact.source || "CRM", date: contact.createdAt, entityType: "contact", entityId: contact.id },
-      ...leadResult.rows.map((row) => ({ type: "lead", title: `Solicitud: ${row.lead_type}`, detail: `Estado ${row.status} · prioridad ${row.priority}`, date: row.created_at, status: row.status, entityType: "lead_request", entityId: row.id })),
+      ...guestSales.rows.map(row => ({ type: "guest_sale", title: "Venta sin registro: " + row.title, detail: [row.type,row.location,row.status].filter(Boolean).join(" · "), date: row.created_at, status: row.status, entityType: "guest_sale_request", entityId: row.id })),
+      ...leadResult.rows.map((row) => ({ type: "lead", title: `Solicitud: ${row.lead_type}`, detail: [row.payload?.project, row.payload?.propertyTitle, row.payload?.development, row.payload?.zone, row.payload?.preferences, `Estado ${row.status} · prioridad ${row.priority}`].filter(Boolean).join(" · "), date: row.created_at, status: row.status, entityType: "lead_request", entityId: row.id })),
       ...messageResult.rows.map((row) => ({ type: "message", title: row.sender_type === "admin" ? "Respuesta del equipo" : "Mensaje del contacto", detail: String(row.message || "").slice(0, 240), date: row.created_at, entityType: "lead_request", entityId: row.request_id })),
       ...valuationResult.rows.map((row) => ({ type: "valuation", title: "Valoración inmobiliaria", detail: `${row.zone || "Sin zona"} · ${row.property_type || "Propiedad"} · ${row.status}`, date: row.created_at, status: row.status, entityType: "valuation", entityId: row.id })),
       ...tourResult.rows.map((row) => ({ type: "tour", title: "Solicitud de visita", detail: `${row.property_title} · ${row.status}`, date: row.created_at, status: row.status, entityType: "tour_request", entityId: row.id })),
@@ -7813,9 +7881,13 @@ app.get("/api/admin/requests", requireRole("admin"), async (_req, res, next) => 
   }
 });
 
-app.get("/api/admin/leads", requireRole("admin"), async (_req, res, next) => {
+app.get("/api/admin/leads", requireRole("admin"), async (req, res, next) => {
   try {
-    const result = await query("SELECT * FROM lead_requests ORDER BY created_at DESC LIMIT 120");
+    const intent = String(req.query.intent || ""), interest = String(req.query.interest || "").trim().slice(0,160);
+    const result = intent || interest ? await query(
+      `SELECT * FROM lead_requests WHERE ($1='' OR payload->>'intent'=$1)
+       AND ($2='' OR strpos(lower(concat_ws(' ',property_id,payload->>'propertyTitle',payload->>'mls',payload->>'zone',payload->>'subzone',payload->>'development',payload->>'project',payload->>'reference',payload->>'propertyType',payload->>'preferences')),lower($2))>0)
+       ORDER BY created_at DESC LIMIT 120`, [intent, interest]) : await query("SELECT * FROM lead_requests ORDER BY created_at DESC LIMIT 120");
     res.json({ leads: result.rows.map(toLead) });
   } catch (error) {
     next(error);
@@ -8034,13 +8106,13 @@ app.get("/api/admin/visitor-leads", requireRole("admin"), async (req, res, next)
 
 app.patch("/api/admin/leads/:id", requireRole("admin"), async (req, res, next) => {
   try {
-    const status = normalizeStatus(req.body?.status, REQUEST_STATUSES, "contacted");
+    const status = req.body?.status === undefined ? null : normalizeStatus(req.body.status, REQUEST_STATUSES, "contacted");
     const priority = req.body?.priority === undefined ? null : normalizePriority(req.body.priority);
     const internalNotes = req.body?.internalNotes === undefined ? null : String(req.body.internalNotes || "").trim();
     const assignedTo = req.body?.assignedTo === undefined ? null : String(req.body.assignedTo || "").trim();
     const result = await query(
       `UPDATE lead_requests
-       SET status = $2,
+       SET status = COALESCE($2, status),
            priority = COALESCE($3, priority),
            internal_notes = COALESCE($4, internal_notes),
            assigned_to = COALESCE($5, assigned_to),
@@ -9133,10 +9205,18 @@ app.delete("/api/admin/listing-drafts/:key", requireRole("admin"), async (req, r
   } catch (error) { next(error); }
 });
 
+portalDirectoryStore.registerPortalDirectory({
+  app, pool, query, requireRole, getPublicProperties,
+  publicSnapshot: () => publicPropertyCache.directory,
+  invalidate: invalidatePublicPropertyCache,
+});
+
 app.get("/api/admin/settings", requireRole("admin"), async (_req, res, next) => {
   try {
     const result = await query("SELECT key, value, updated_at FROM app_settings ORDER BY key");
-    res.json({ settings: Object.fromEntries(result.rows.map((row) => [row.key, row.value])) });
+    const settings = Object.fromEntries(result.rows.map((row) => [row.key, row.value]));
+    settings.contact_routing = contactRouting(settings.contact_routing, false, settings.site?.whatsapp);
+    res.json({ settings });
   } catch (error) {
     next(error);
   }
@@ -9171,16 +9251,20 @@ app.get("/api/admin/activity", requireRole("admin"), async (req, res, next) => {
 app.put("/api/admin/settings/:key", requireRole("admin"), async (req, res, next) => {
   try {
     const key = String(req.params.key || "").trim();
-    if (!["site", "maps", "seo", "forms", "whatsapp", "images", "pdf", "ai"].includes(key)) {
+    if (!["site", "maps", "seo", "forms", "whatsapp", "images", "pdf", "ai", "contact_routing"].includes(key)) {
       res.status(400).json({ error: "Sección de configuración no válida." });
       return;
+    }
+    let value = req.body || {};
+    if (key === "contact_routing") {
+      try { value = contactRouting(value, true); } catch (error) { return res.status(400).json({ error: error.message }); }
     }
     const result = await query(
       `INSERT INTO app_settings (key, value, updated_by)
        VALUES ($1, $2::jsonb, $3)
-       ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_by = EXCLUDED.updated_by, updated_at = NOW()
+       ON CONFLICT (key) DO UPDATE SET value = CASE WHEN app_settings.key='site' THEN app_settings.value || EXCLUDED.value ELSE EXCLUDED.value END, updated_by = EXCLUDED.updated_by, updated_at = NOW()
        RETURNING *`,
-      [key, JSON.stringify(req.body || {}), req.session.user.id]
+      [key, JSON.stringify(value), req.session.user.id]
     );
     res.json({ key: result.rows[0].key, value: result.rows[0].value });
   } catch (error) {
@@ -9694,10 +9778,15 @@ app.post("/api/admin/documents/generate", requireRole("admin"), async (req, res,
     };
     let entity;
     let propertyPdfImages = [];
+    let businessPhone;
     if (documentType === "property") {
       const result = await query("SELECT * FROM properties WHERE id = $1", [String(req.body.propertyId || "")]);
       entity = result.rows[0] ? toProperty(result.rows[0]) : null;
       if (result.rows[0]) {
+        if (options.brandMode !== "neutral") {
+          const routing = await readContactRouting({ query });
+          businessPhone = businessPhoneLabel(routing.mx || routing.us);
+        }
         const imageLimit = options.brandMode === "neutral" ? 6 : 4;
         propertyPdfImages = await preparePropertyPdfImages(mergeLegacyImages(result.rows[0].images, result.rows[0].image), imageLimit);
       }
@@ -9713,6 +9802,7 @@ app.post("/api/admin/documents/generate", requireRole("admin"), async (req, res,
       if (documentType === "property") {
         drawPropertyPdf(document, {
           property: entity,
+          businessPhone,
           images: propertyPdfImages,
           propertyUrl: absoluteUrl(
             entity.urlEs,
@@ -10693,6 +10783,9 @@ app.post("/api/admin/campaigns/:id/send-email", requireRole("admin"), async (req
       return;
     }
     const messageHtml = escapeHtml(campaign.message).replace(/\n/g, "<br>");
+    const inquiryLink = new URL("/contacto", siteUrl);
+    inquiryLink.searchParams.set("inquiry", "1");
+    inquiryLink.searchParams.set("origin", "campaign-" + campaign.id);
     const sendOne = async (contact) => {
       const response = await fetch("https://api.resend.com/emails", {
         method: "POST",
@@ -10704,7 +10797,7 @@ app.post("/api/admin/campaigns/:id/send-email", requireRole("admin"), async (req
           from: process.env.MAIL_FROM,
           to: [contact.email],
           subject: campaign.name,
-          html: `<!doctype html><html><body style="margin:0;background:#edf7f5;font-family:Arial,sans-serif;color:#12343b"><table role="presentation" width="100%" cellspacing="0" cellpadding="0"><tr><td align="center" style="padding:28px 14px"><table role="presentation" width="620" cellspacing="0" cellpadding="0" style="max-width:620px;background:#fff;border-top:6px solid #0a8292"><tr><td style="padding:28px"><p style="margin:0 0 8px;color:#0a8292;font-weight:700">PUERTO CANCÚN CENTER</p><h1 style="margin:0 0 20px;font-family:Georgia,serif;color:#032f3a">${escapeHtml(campaign.name)}</h1><p style="line-height:1.7">Hola ${escapeHtml(contact.name || "")},</p><p style="line-height:1.7">${messageHtml}</p><p style="margin-top:28px"><a href="https://wa.me/5219982166563" style="display:inline-block;padding:13px 18px;background:#128c4b;color:#fff;text-decoration:none;font-weight:700">Contactar por WhatsApp</a></p><p style="margin-top:30px;color:#5d7478;font-size:12px">Puerto Cancún Center · Cancún, Quintana Roo</p></td></tr></table></td></tr></table></body></html>`,
+          html: `<!doctype html><html><body style="margin:0;background:#edf7f5;font-family:Arial,sans-serif;color:#12343b"><table role="presentation" width="100%" cellspacing="0" cellpadding="0"><tr><td align="center" style="padding:28px 14px"><table role="presentation" width="620" cellspacing="0" cellpadding="0" style="max-width:620px;background:#fff;border-top:6px solid #0a8292"><tr><td style="padding:28px"><p style="margin:0 0 8px;color:#0a8292;font-weight:700">PUERTO CANCÚN CENTER</p><h1 style="margin:0 0 20px;font-family:Georgia,serif;color:#032f3a">${escapeHtml(campaign.name)}</h1><p style="line-height:1.7">Hola ${escapeHtml(contact.name || "")},</p><p style="line-height:1.7">${messageHtml}</p><p style="margin-top:28px"><a href="${escapeHtml(inquiryLink.href)}" style="display:inline-block;padding:13px 18px;background:#128c4b;color:#fff;text-decoration:none;font-weight:700">Hablar con un asesor</a></p><p style="margin-top:30px;color:#5d7478;font-size:12px">Puerto Cancún Center · Cancún, Quintana Roo</p></td></tr></table></td></tr></table></body></html>`,
         }),
         signal: AbortSignal.timeout(20000),
       });
@@ -12003,6 +12096,15 @@ function replaceMetaTag(html, pattern, replacement) {
 function decoratePublicHtml({ page, seo, pageContent = "", bodyPage = "seo", noindex = false, includePrivatePanel = false, showBlog = true }) {
   let html = fs.readFileSync(indexPath, "utf8");
   html = html.replace(/(<div class="exchange-rate-panel" data-exchange-rate[^>]*>)[\s\S]*?<\/div>/, (_match, opening) => opening + renderExchangeRate(exchangeRateService.getSnapshot(), seo.lang) + "</div>");
+  const directory = publicPropertyCache.directory || portalDirectoryModel.publicDirectory(null, []);
+  if (bodyPage !== "panel") {
+    const exploration = require("./exploration-view");
+    const language = seo.lang === "en" ? "en" : "es";
+    html = html.replace(/(<div class="public-nav-popover public-nav-communities">)[\s\S]*?<\/div>/, (_m, start) => start + exploration.areaNav(directory, language) + "</div>");
+    html = html.replace(/(<h3 data-i18n="footerCommunities">[^<]*<\/h3>)[\s\S]*?<\/div>/, (_m, start) => start + exploration.areaNav(directory, language, true) + "</div>");
+    html = html.replace(/(<div class="zone-grid">)[\s\S]*?<\/div>/, (_m, start) => start + exploration.areaCards(directory, language) + "</div>");
+    if (bodyPage === "home") html = html.replace("<!-- HOME_FEATURED -->", () => exploration.featuredSection(directory, publicPropertyCache.items, language, "home"));
+  }
   if (bodyPage !== "home") {
     html = html.replace(/\s*<link rel="preload" as="image" href="\/assets\/cancun-hotel-zone-hero-[^"]+"[^>]*>/g, "");
   }
@@ -12012,6 +12114,7 @@ function decoratePublicHtml({ page, seo, pageContent = "", bodyPage = "seo", noi
   }
   if (!includePrivatePanel) {
     html = html.replace(/<!-- PRIVATE_PANEL_START -->[\s\S]*?<!-- PRIVATE_PANEL_END -->/, "");
+    html = html.replace(/\s*<script src="\/admin-portal-directory\.js[^"]*"><\/script>/g, "");
   }
   if (!showBlog) {
     html = html
@@ -12020,8 +12123,18 @@ function decoratePublicHtml({ page, seo, pageContent = "", bodyPage = "seo", noi
   } else if (seo.lang === "en") {
     html = html.replace(/href="\/blog"/g, 'href="/en/blog"');
   }
+  if (seo.lang === "en") {
+    const copy = require("./site-language").en;
+    html = html.replace(/(<(a|button|span|p|h[1-6]|strong|small|summary|option)\b[^>]*?\bdata-i18n="([^"]+)"[^>]*>)[^<]*(<\/\2>)/g, (whole,tag,_name,key,close) => copy[key] ? tag + escapeHtml(copy[key]) + close : whole);
+    html = html.replace(/<input\b[^>]*data-i18n-placeholder="([^"]+)"[^>]*>/g, (tag,key) => copy[key] ? tag.replace(/\splaceholder="[^"]*"/, ` placeholder="${escapeHtml(copy[key])}"`) : tag);
+    html = html.replace(/(<a\b[^>]*\bhref=")(\/[^"#?]*)([^"]*)"/g, (whole,start,pathname,suffix) => { const route = getPageByPath(pathname); return route?.lang === "es" && route.alternate ? start + route.alternate + suffix + '"' : whole; });
+    html = html.replace(/(id="languageToggle"[^>]*>)[\s\S]*?<\/button>/, "$1Español</button>");
+  }
   const assetVersion = encodeURIComponent(staticAssetVersion);
+  html = html.replace(/(admin-portal-directory\.js|portal-directory\.js)\?v=[^"']+/g, `$1?v=${assetVersion}`);
+  html = html.replace(/(contextual-contact\.(?:js|css))\?v=[^"']+/g, `$1?v=${assetVersion}`);
   html = html.replace(/styles\.css\?v=[^"']+/g, `styles.css?v=${assetVersion}`);
+  html = html.replace(/site-language\.js\?v=[^"']+/g, `site-language.js?v=${assetVersion}`);
   html = html.replace(/app\.js\?v=[^"']+/g, `app.js?v=${assetVersion}`);
   html = html.replace(/exchange-rate-view\.js\?v=[^"']+/g, `exchange-rate-view.js?v=${assetVersion}`);
   html = html.replace(/(catalog\.css|catalog-ui\.js|catalog-map\.js|catalog-assistant\.js|admin-inventory-ui\.js|admin-inventory\.css|comparison-ui\.js|comparison\.css|inventory-contract\.js|contact-config\.js|csv-utils\.js)\?v=[^"']+/g, `$1?v=${assetVersion}`);
@@ -12037,7 +12150,7 @@ function decoratePublicHtml({ page, seo, pageContent = "", bodyPage = "seo", noi
   html = replaceMetaTag(html, /<link\s+rel="canonical"[\s\S]*?\/>/, `<link rel="canonical" href="${escapeHtml(seo.canonical)}" />`);
   html = html.replace(
     /<link rel="canonical"[^>]+>/,
-    (canonical) => `${canonical}\n    <link rel="alternate" hreflang="es-MX" href="${escapeHtml(spanishUrl)}" />\n    <link rel="alternate" hreflang="en" href="${escapeHtml(englishUrl)}" />\n    <link rel="alternate" hreflang="x-default" href="${escapeHtml(spanishUrl)}" />`
+    (canonical) => `${canonical}\n    <link rel="alternate" hreflang="es-MX" href="${escapeHtml(spanishUrl)}" />\n    <link rel="alternate" hreflang="en" href="${escapeHtml(englishUrl)}" />\n    <link rel="alternate" hreflang="x-default" href="${escapeHtml(englishUrl)}" />`
   );
   html = replaceMetaTag(
     html,
@@ -12082,16 +12195,27 @@ function decoratePublicHtml({ page, seo, pageContent = "", bodyPage = "seo", noi
 }
 
 async function renderPublicHtml(requestPath, noindex = false, params = {}) {
-  const page = require("./catalog-view").catalogPresentation(getPageByPath(requestPath) || {}, params);
-  if (!page.path) return null;
+  const basePage = getPageByPath(requestPath);
+  if (!basePage) return null;
+  const isHome = basePage.path === "/" || basePage.path === "/en";
+  let properties = [];
+  try {
+    properties = await getPublicProperties();
+  } catch (error) {
+    if (basePage.category) throw error;
+  }
+  const directory = publicPropertyCache.directory || portalDirectoryModel.publicDirectory(null, properties);
+  const page = require("./catalog-view").catalogPresentation({ ...basePage, catalogAreas: directory.areas, portalDirectory: directory }, params);
   const seo = renderSeoHead(page, siteUrl);
-  const isHome = page.path === "/" || page.path === "/en";
-  let pageContent = isHome ? "" : renderSeoPage(page.path);
+  let pageContent = isHome ? "" : renderSeoPage(page.path, { directory, properties });
   if (page.category) {
-    pageContent = renderCategoryPage(page, await getPublicProperties(), params);
+    pageContent = renderCategoryPage(page, properties, params);
+    const area = params.location || page.category?.location || inventoryContract.locationId(page.category?.zone);
+    if (["/propiedades/destacadas-cancun", "/en/properties/featured-cancun"].includes(page.path)) pageContent += require("./exploration-view").featuredSection(directory, properties, page.lang, "home");
+    if (area && typeof area === "string") pageContent += require("./exploration-view").featuredSection(directory, properties, page.lang, "area", area);
   }
   if (["/blog", "/en/blog"].includes(page.path)) {
-    const listingQuery = blogListQuery({ lang: page.lang, page: params.page, limit: 24 });
+    const listingQuery = blogListQuery({ lang: page.lang, topic: params.topic, page: params.page, limit: 24 });
     const result = await query(listingQuery.text, listingQuery.values);
     const listing = paginateBlogRows(result.rows, listingQuery.pagination);
     pageContent = pageContent.replace(/<section class="public-blog-grid" id="publicBlogList">[\s\S]*?<\/section>/, renderBlogList(listing.rows.map(row => toBlogPost(row, false)), page.lang, listing.pagination));
@@ -12255,7 +12379,7 @@ app.get(["/blog/:slug", "/en/blog/:slug"], async (req, res, next) => {
       h1: title,
       intro: excerpt || "",
       cta: lang === "en" ? "Back to the blog" : "Volver al blog",
-      ctaHref: indexPage.path,
+      ctaHref: blogArchiveHref(lang, req.query),
     };
     const baseHtml = indexPage.render.call(page);
     const textBlocks = String(content || "").split(/\n+/).filter(Boolean);
@@ -12271,7 +12395,7 @@ app.get(["/blog/:slug", "/en/blog/:slug"], async (req, res, next) => {
       return block;
     }).join("");
     const remainingImages = contentImages.slice(imageIndex).map((image, index) => `<figure class="blog-content-figure"><img src="${escapeHtml(image)}?w=1440" alt="${escapeHtml(`${title} - ${lang === "en" ? "article image" : "imagen del artículo"} ${imageIndex + index + 1}`)}" loading="lazy" /></figure>`).join("");
-    const article = `<article class="blog-post-public">${post.coverImage ? `<img class="blog-post-cover" src="${escapeHtml(post.coverImage)}" alt="${escapeHtml(title)}" />` : ""}<div class="blog-post-body"><span class="seo-eyebrow">${escapeHtml(post.authorName || "Puerto Cancun Center")} · ${escapeHtml(new Date(post.publishedAt || post.updatedAt).toLocaleDateString(lang === "en" ? "en-US" : "es-MX", { timeZone: "America/Cancun", year: "numeric", month: "long", day: "numeric" }))}</span>${paragraphs}${remainingImages}${renderBlogSources(post.sources, lang)}<a class="primary-button" href="${lang === "en" ? "/en/contact" : "/contacto"}">${lang === "en" ? "Talk to an advisor" : "Hablar con un asesor"}</a></div></article>`;
+    const article = `<article class="blog-post-public"><img class="blog-post-cover" src="${escapeHtml(require("./blog-list-view").editorialCover(post))}" alt="" width="720" height="450" /><div class="blog-post-body"><span class="seo-eyebrow">${escapeHtml(post.authorName || "Puerto Cancun Center")} · ${escapeHtml(new Date(post.publishedAt || post.updatedAt).toLocaleDateString(lang === "en" ? "en-US" : "es-MX", { timeZone: "America/Cancun", year: "numeric", month: "long", day: "numeric" }))}</span>${paragraphs}${remainingImages}${renderBlogSources(post.sources, lang)}<a class="primary-button" href="${lang === "en" ? "/en/contact" : "/contacto"}">${lang === "en" ? "Talk to an advisor" : "Hablar con un asesor"}</a></div></article>`;
     const pageContent = baseHtml.replace(/<section class="public-blog-grid" id="publicBlogList">[\s\S]*?<\/section>/, article);
     const seo = {
       ...renderSeoHead(page, siteUrl),
@@ -12308,12 +12432,14 @@ app.get(["/propiedades/:slug", "/en/properties/:slug"], async (req, res, next) =
     const developmentId = property.developmentData?.id || `dev-${property.id}`;
     const similar = developmentMode
       ? publicProperties
-          .filter((item) => item.publicationSection !== "developments" && item.developmentId === developmentId)
+          .filter((item) => item.publicationSection !== "developments" && (item.portalDevelopmentId === property.id || (!item.portalDevelopmentId && item.developmentId === developmentId)))
           .sort((a, b) => Number(b.featured) - Number(a.featured) || String(a.titleEs || "").localeCompare(String(b.titleEs || ""), "es"))
       : publicProperties
           .filter((item) => item.id !== property.id && item.publicationSection !== "developments" && (item.zone === property.zone || item.type === property.type))
           .sort((a, b) => Number(b.zone === property.zone) - Number(a.zone === property.zone));
-    const rendered = renderPropertyPage(property, lang, similar);
+    const directory = publicPropertyCache.directory;
+    const rendered = renderPropertyPage(property, lang, similar, directory);
+    if (developmentMode) rendered.html += require("./exploration-view").featuredSection(directory, publicProperties, lang, "development", property.id);
     const seo = renderPropertyHead(property, siteUrl, lang);
     res.set("Cache-Control", "public, max-age=0, must-revalidate");
     res.send(decoratePublicHtml({
@@ -12368,6 +12494,11 @@ app.get("/panel", async (req, res, next) => {
 
 app.get("*", async (req, res, next) => {
   try {
+    if (req.path === "/" && !/(?:^|;\s*)pcc_lang=es(?:;|$)/.test(req.headers.cookie || "")) {
+      res.vary("Cookie").set("Cache-Control", "private, no-store");
+      return res.redirect(302, `/en${req.originalUrl.slice(1)}`);
+    }
+    if (req.path === "/") res.vary("Cookie");
     let html = await renderPublicHtml(req.path, false, req.query);
     if (!html) {
       res.status(404).send(await renderNotFoundHtml(req.path));

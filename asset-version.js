@@ -7,15 +7,17 @@ const path = require("node:path");
 // Explicit runtime sources only: never enumerate the checkout or read environment files.
 const RUNTIME_FILES = Object.freeze([
   "admin-inventory-ui.js", "admin-inventory.css", "admin-quality-query.js",
+  "admin-portal-directory.js", "portal-directory.js", "portal-directory-store.js",
   "ai-prompts.js", "app.js", "asset-version.js", "auth-utils.js",
-  "blog-list-view.js", "catalog-assistant.js", "catalog-map.js", "catalog-search.js", "catalog-ui.js",
+  "blog-list-view.js", "catalog-directory.js", "catalog-assistant.js", "catalog-map.js", "catalog-search.js", "catalog-ui.js",
   "catalog-view.js", "catalog.css", "comparison-ui.js", "comparison.css",
   "completion-utils.js", "contact-config.js", "csv-utils.js", "daily-blog.js", "demand-analysis.js",
+  "contact-inquiries.js", "contextual-contact.js", "contextual-contact.css",
   "development-cover-publish.js", "development-cover-recovery.js", "external-property-utils.js", "exchange-rate.js", "exchange-rate-view.js", "feature-registry.js", "index.html",
   "intelligence-utils.js", "inventory-contract.js", "inventory-metadata.js",
   "location-catalog.js", "pdf-property-sheet.js", "pdf-retention.js",
   "photo-analysis.js", "platform-utils.js", "saved-catalog-search.js",
-  "seo-pages.js", "server.js", "site.webmanifest", "styles.css",
+  "seo-pages.js", "server.js", "site.webmanifest", "site-language.js", "exploration-view.js", "styles.css",
   "visitor-analytics.js", "whatsapp-service.js", "package.json", "package-lock.json",
   "db/migrations.js", "db/schema.sql",
 ]);

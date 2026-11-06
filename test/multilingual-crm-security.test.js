@@ -4,6 +4,7 @@ const path = require("node:path");
 const test = require("node:test");
 
 const root = path.resolve(__dirname, "..");
+const sharedCopy = fs.readFileSync(require.resolve("../site-language.js"), "utf8");
 const appSource = fs.readFileSync(path.join(root, "app.js"), "utf8");
 const indexSource = fs.readFileSync(path.join(root, "index.html"), "utf8");
 const seoSource = fs.readFileSync(path.join(root, "seo-pages.js"), "utf8");
@@ -24,8 +25,8 @@ test("el idioma se guarda antes de navegar y tambien se controla desde los panel
   assert.match(serverSource, /function propertyEnglishFallback/);
   assert.match(appSource, /descriptionSummary = truncateText\(localizedDescription\(property\), 190\)/);
   assert.match(appSource, /class="property-description">\$\{escapeHtml\(descriptionSummary\)\}/);
-  assert.match(seoSource, /descriptionSummary = excerptText\(description\)/);
-  assert.match(seoSource, /class="seo-property-description">\$\{escapeHtml\(descriptionSummary\)\}/);
+  assert.match(seoSource, /excerptText\(/);
+  assert.match(seoSource, /class="seo-property-description">\$\{escapeHtml\(description\)\}/);
 });
 
 test("las traducciones manuales se conservan y las copias del espanol usan un fallback ingles", () => {
@@ -72,7 +73,7 @@ test("desarrollos usa un formulario reducido sin datos propios de una unidad", (
   assert.match(appSource, /developmentMode \? 0 : Number\(field\("beds"\)/);
   assert.match(serverSource, /developmentMode \? 0 : parseNonNegativeInteger\(body\.beds/);
   assert.match(indexSource, /id="listingSubmitButton"/);
-  assert.match(appSource, /publishDevelopment: "Publicar desarrollo"/);
+  assert.match(sharedCopy, /publishDevelopment: "Publicar desarrollo"/);
   assert.match(appSource, /resetButton\.hidden = developmentMode/);
   assert.match(appSource, /properties: \["properties", "properties"\]/);
   assert.match(appSource, /"new-development": \["properties"\]/);

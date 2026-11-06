@@ -3,7 +3,7 @@
 const { fold } = require("./intelligence-utils");
 const inventory = require("./inventory-contract");
 
-const FILTER_KEYS = ["entity", "text", "locations", "bounds", "zone", "type", "operation", "modality", "currency", "min", "max", "beds", "development", "featured", "priceBasis", "priceBasisExplicit", "rentPeriod"];
+const FILTER_KEYS = ["entity", "text", "locations", "bounds", "zone", "subarea", "gated", "type", "operation", "modality", "currency", "min", "max", "beds", "development", "featured", "priceBasis", "priceBasisExplicit", "rentPeriod"];
 const SUBAREA_CHOICE = "Elige una sola subzona o confirma que quieres buscar en todas las ubicaciones seleccionadas.";
 const MESSAGES = [
   ["input_type", "La consulta debe ser texto.", "The search must be text."],
@@ -100,8 +100,8 @@ const PLACES = [
   { aliases: ["fuera de cancun", "outside cancun"], location: "fuera-de-cancun" },
   { aliases: ["avenida huayacan", "av. huayacan", "av huayacan", "huayacan"], location: "cancun-city", zone: "Huayac\u00e1n" },
   { aliases: ["corredor colosio", "boulevard colosio", "colosio cancun"], location: "cancun-city", zone: "Colosio" },
-  { aliases: ["punta sam"], location: "zona-hotelera", zone: "Punta Sam" },
-  { aliases: ["costa mujeres"], location: "zona-hotelera", zone: "Costa Mujeres" },
+  { aliases: ["punta sam"], location: "fuera-de-cancun", zone: "Punta Sam" },
+  { aliases: ["costa mujeres"], location: "fuera-de-cancun", zone: "Costa Mujeres" },
   { aliases: ["lagos del sol"], location: "cancun-city", zone: "Lagos del Sol" },
   { aliases: ["tulum"], location: "fuera-de-cancun", text: "Tulum" },
   { aliases: ["playa del carmen"], location: "fuera-de-cancun", text: "Playa del Carmen" },
@@ -114,16 +114,17 @@ const unique = (values) => [...new Set(values)];
 const blankFilters = () => ({ entity: "properties", locations: [] });
 const hasBudget = (filters) => filters.min !== undefined || filters.max !== undefined;
 
-function previousFilters(previous) {
+function previousFilters(previous, areas) {
   const source = previous?.filters || previous || {};
   const filters = blankFilters();
   for (const key of FILTER_KEYS) {
     const value = source[key];
+    if (key === "gated" && !value) continue;
     // Keep the interpreter's sparse filter shape, including absent numeric bounds.
     if (value !== undefined && value !== null && value !== "") filters[key] = Array.isArray(value) ? [...value] : value;
   }
   const locations = Array.isArray(filters.locations) ? filters.locations : String(filters.locations).split(",").filter(Boolean);
-  filters.locations = unique(locations.map((value) => inventory.locationId(value) || value));
+  filters.locations = unique(locations.map((value) => inventory.locationId(value, areas) || value));
   return filters;
 }
 
@@ -160,12 +161,13 @@ function namesOf(properties) {
   return names.sort((a, b) => b.key.length - a.key.length || a.key.localeCompare(b.key));
 }
 
-function describe(filters, language = "es") {
+function describe(filters, language = "es", areas = inventory.LOCATIONS) {
   if (language === "en") {
     const labels = [filters.entity === "developments" ? "Developments" : "Properties"];
     labels.push({ sale: "Operation: Purchase", rent: "Operation: Rent" }[filters.operation] || "Operation: Purchase and rent");
     if (filters.type) labels.push(`Type: ${{ Casa: "Home", Departamento: "Apartment", Terreno: "Land", Comercial: "Commercial" }[filters.type] || filters.type}`);
-    for (const location of filters.locations || []) labels.push(`Location: ${{ "zona-hotelera": "Hotel Zone", "puerto-cancun": "Puerto Cancun", "cancun-city": "Cancun City", "fuera-de-cancun": "Outside Cancun" }[location] || location}`);
+    for (const location of filters.locations || []) labels.push(`Area: ${areas.find(area => area.id === location)?.nameEn || { "zona-hotelera": "Hotel Zone", "puerto-cancun": "Puerto Cancun", "cancun-city": "Cancun City", "fuera-de-cancun": "Outside Cancun" }[location] || location}`);
+    if (filters.subarea) labels.push(`Subarea: ${areas.flatMap(area => area.subareas || []).find(item => item.id === filters.subarea)?.nameEn || filters.subarea}`);
     if (filters.zone) labels.push(`Subarea: ${filters.zone}`);
     if (filters.development) labels.push(`Units in development: ${filters.development}`);
     if (filters.modality) labels.push(`Sales mode: ${{ presale: "Presale", direct: "Direct sale", resale: "Resale", unclassified: "Unclassified" }[filters.modality] || filters.modality}`);
@@ -182,7 +184,8 @@ function describe(filters, language = "es") {
   const labels = [filters.entity === "developments" ? "Desarrollos" : "Propiedades"];
   labels.push({ sale: "Operacion: Venta", rent: "Operacion: Renta" }[filters.operation] || "Operacion: Compra y renta");
   if (filters.type) labels.push(`Tipo: ${filters.type}`);
-  for (const location of filters.locations || []) labels.push(`Location: ${inventory.LOCATIONS.find((item) => item.id === location)?.name || location}`);
+  for (const location of filters.locations || []) { const area = areas.find(item => item.id === location); labels.push(`Zona: ${area?.nameEs || area?.name || location}`); }
+  if (filters.subarea) labels.push(`Subzona: ${areas.flatMap(area => area.subareas || []).find(item => item.id === filters.subarea)?.nameEs || filters.subarea}`);
   if (filters.zone) labels.push(`Subzona: ${filters.zone}`);
   if (filters.development) labels.push(`Unidades del desarrollo: ${filters.development}`);
   if (filters.modality) labels.push(`Modalidad: ${{ presale: "Preventa", direct: "Venta directa", resale: "Reventa", unclassified: "Sin clasificar" }[filters.modality] || filters.modality}`);
@@ -199,7 +202,8 @@ function describe(filters, language = "es") {
 
 /** Interpret only. Never fetch inventory, rank results, relax limits or grant access. */
 function interpretCatalogSearch(input, previous = {}, options = {}) {
-  let filters = previousFilters(previous);
+  const areas = options?.areas || inventory.LOCATIONS;
+  let filters = previousFilters(previous, areas);
   const language = catalogLanguage(options, previous);
   const warnings = [];
   // Pending requirements are separate from executable filters and survive JSON round trips.
@@ -237,13 +241,13 @@ function interpretCatalogSearch(input, previous = {}, options = {}) {
     if (blocking && persist && !entry?.validation) remember(added, entry?.code || "conversation_invalid", typeof input === "string" && input.length <= 600 ? [input] : []);
   };
   const finish = () => {
-    const parsed = inventory.parseQuery(filters);
+    const parsed = inventory.parseQuery(filters, {}, { areas });
     for (const error of parsed.errors) warn(error, true, false);
     for (const [code, sources] of added) remember(carried, code, sources);
     const pending = [...carried].map(([code, sources]) => ({ code, sources }));
     for (const item of pending) warnings.push(MESSAGE_BY_CODE.get(item.code)[language]);
     return { filters, warnings: unique(warnings), clarificationRequired: clarificationRequired || pending.length > 0,
-      understood: describe(filters, language), conversation: { version: 1, language, pending } };
+      understood: describe(filters, language, areas), conversation: { version: 1, language, pending } };
   };
   if (typeof input !== "string") {
     warn("La consulta debe ser texto.");
@@ -277,7 +281,7 @@ function interpretCatalogSearch(input, previous = {}, options = {}) {
 
   const addLocations = /\b(tambien|ademas|incluye|incluir|also|include|add)\b/.test(remaining);
   if (take(/\b(sin (?:limite de precio|presupuesto)|cualquier precio|quita (?:el )?presupuesto|no (?:price limit|budget)|any price|remove (?:the )?budget)\b/).length) { drop("min", "max"); resolve("budget_conflict", "negative_budget", "invalid_amount"); }
-  if (take(/\b(todas las zonas|cualquier (?:zona|ubicacion)|all locations|any location|anywhere)\b/).length) { filters.locations = []; drop("zone"); resolve("subzone_union", "zone_alias", "cancun", "colosio"); }
+  if (take(/\b(todas las zonas|cualquier (?:zona|ubicacion)|all locations|all areas|any area|any location|anywhere)\b/).length) { filters.locations = []; drop("zone", "subarea"); resolve("subzone_union", "zone_alias", "cancun", "colosio"); }
   if (take(/\b(todas las modalidades|cualquier modalidad|any modality|all modalities)\b/).length) { drop("modality"); resolve("modality_conflict"); }
   if (take(/\b(cualquier tipo|todos los tipos|any type|all types)\b/).length) { drop("type"); resolve("type_conflict"); }
   if (take(/\b(cualquier desarrollo|todos los desarrollos|any development|all developments)\b/).length) { drop("development"); resolve("name_conflict", "development_identity", "name_entity"); }
@@ -354,7 +358,16 @@ function interpretCatalogSearch(input, previous = {}, options = {}) {
   }
 
   const places = [];
-  const aliases = PLACES.flatMap((place) => place.aliases.map((alias) => ({ ...place, alias }))).sort((a, b) => b.alias.length - a.alias.length);
+  let knownPlaces = PLACES;
+  if (options?.areas) {
+    const curated = areas.flatMap(area => [
+      { location: area.id, aliases: [area.id, area.nameEs, area.nameEn].filter(Boolean).map(fold) },
+      ...(area.subareas || []).map(sub => ({ location:area.id, subarea:sub.id, aliases:[sub.nameEs,sub.nameEn].filter(Boolean).map(fold) })),
+    ]);
+    const legacy = PLACES.filter(place => areas.some(area => area.id === place.location));
+    knownPlaces = [...curated, ...legacy];
+  }
+  const aliases = knownPlaces.flatMap((place) => place.aliases.map((alias) => ({ ...place, alias }))).sort((a, b) => b.alias.length - a.alias.length);
   for (const place of aliases) {
     const matches = take(new RegExp(`(?<![a-z0-9])${escapeRegex(place.alias)}(?![a-z0-9])`));
     if (matches.length) places.push({ ...place, index: matches[0].index });
@@ -366,11 +379,11 @@ function interpretCatalogSearch(input, previous = {}, options = {}) {
     const oldLocations = Array.isArray(filters.locations) ? filters.locations : [];
     const oldZone = filters.zone;
     const newLocations = unique(places.map((place) => place.location));
-    const restrictive = places.filter((place) => place.zone || place.text);
+    const restrictive = places.filter((place) => place.zone || place.subarea || place.text);
     const redundantAddition = addLocations && !oldZone && !filters.text && newLocations.every((id) => oldLocations.includes(id));
     filters.locations = unique([...(addLocations ? oldLocations : []), ...newLocations]);
     if (!redundantAddition) {
-      drop("zone");
+      drop("zone", "subarea");
       if (PLACES.some((place) => place.text && fold(place.text) === fold(filters.text))) drop("text");
       const sameZone = restrictive.length === 1 && oldZone && fold(oldZone) === fold(restrictive[0].zone);
       const multiple = places.length > 1 || (addLocations && oldLocations.length > 0 && !sameZone);
@@ -378,6 +391,7 @@ function interpretCatalogSearch(input, previous = {}, options = {}) {
         warn(SUBAREA_CHOICE);
       } else if (restrictive.length === 1) {
         const place = restrictive[0];
+        if (place.subarea) filters.subarea = place.subarea;
         if (place.zone) {
           const zones = unique(properties.map((p) => p.zone).filter((zone) => place.aliases.includes(fold(zone))));
           filters.zone = zones.length === 1 ? zones[0] : place.zone;

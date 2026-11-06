@@ -4,7 +4,7 @@ const seo = require('../seo-pages');
 const { publicProperty } = require('../inventory-metadata');
 
 // Opt-in browser regression on the full local Express shell. Only synthetic GET responses are replaced.
-test('mobile catalog: filters, history, pagination, touch map and optional comparison on full SSR', { skip: process.env.PCC_MOBILE_BROWSER !== '1', timeout: 180000 }, async (t) => {
+test('mobile catalog: filters, history, pagination, touch map and contextual inquiries on full SSR', { skip: process.env.PCC_MOBILE_BROWSER !== '1', timeout: 180000 }, async (t) => {
   const { chromium } = require('playwright');
   const base = process.env.PCC_TEST_BASE;
   assert.ok(base && ['127.0.0.1', 'localhost'].includes(new URL(base).hostname), 'Use a disposable local HTTP server');
@@ -14,9 +14,9 @@ test('mobile catalog: filters, history, pagination, touch map and optional compa
       id: `qa-mobile-${i}`, status: 'active', isPublic: true, publicationSection: development ? 'developments' : 'properties',
       titleEs: `${development ? 'Desarrollo' : 'Casa'} de prueba ${String(i).padStart(3, '0')}`, titleEn: `${development ? 'Development' : 'Home'} sample ${String(i).padStart(3, '0')}`,
       descriptionEs: 'Publicación sintética para verificar el catálogo.', descriptionEn: 'Synthetic listing for catalog checks.',
-      type: development ? 'Desarrollo' : 'Casa', zone: 'Puerto Cancún', operation: 'sale', currency: i % 2 ? 'USD' : 'MXN', price: 1000000 + i,
+      type: development ? 'Desarrollo' : 'Casa', zone: i === 87 ? 'Ciudad de Cancún' : 'Puerto Cancún', operation: 'sale', currency: i % 2 ? 'USD' : 'MXN', price: 1000000 + i,
       beds: 3, images: ['/assets/og-puerto-cancun-center.webp'], latitude: 21.161234 + i / 100000, longitude: -86.812345,
-      locationPrecision: i === 0 ? 'hidden' : i % 2 ? 'approximate' : 'exact', catalogData: { locationId: 'puerto-cancun' },
+      locationPrecision: i === 0 ? 'hidden' : i % 2 ? 'approximate' : 'exact', catalogData: { locationId: i === 87 ? 'cancun-city' : 'puerto-cancun' },
       developmentData: development ? { id: `dev-${i}`, stage: 'presale' } : {},
     });
     return { ...row, urlEs: seo.propertyPath(row, 'es'), urlEn: seo.propertyPath(row, 'en') };
@@ -44,9 +44,9 @@ test('mobile catalog: filters, history, pagination, touch map and optional compa
         const en = lang === 'en', path = en ? '/en/properties' : '/propiedades';
         await page.goto(base + path + (en ? '/homes-cancun' : '/casas-cancun'));
         const cookie = page.locator('[data-cookie-choice=essential]'); if (await cookie.isVisible()) await cookie.click();
-        await page.waitForFunction(() => document.documentElement.classList.contains('pcc-comparison-ready'));
+        await page.waitForFunction(() => window.PccCatalog);
         const root = page.locator('[data-catalog-root]');
-        assert.equal(await root.locator('[data-compare-id]:visible').count(), 0, 'comparison stays opt-in');
+        assert.equal(await root.locator('[data-compare-id], [data-start-comparison]').count(), 0);
         assert.equal(await root.locator('[data-category-property]').count(), 24);
         const image = root.locator('.seo-property-image img').first();
         assert.equal(await image.evaluate(el => getComputedStyle(el).objectFit), 'contain');
@@ -117,14 +117,29 @@ test('mobile catalog: filters, history, pagination, touch map and optional compa
         await page.goto(base + path + '?entity=developments');
         assert.equal(await root.locator('[data-category-property]').count(), 8);
         assert.equal(await root.locator('.seo-property-price').count(), 0, 'developments do not imply a unit price');
-        await page.goto(base + path + '?compare=qa-mobile-1,qa-mobile-2'); await page.waitForFunction(() => window.pccComparison);
-        await page.evaluate(() => pccComparison.open());
-        const favorite = page.locator('[data-pcc-action=favorite]').first(); await favorite.click();
-        assert.equal(await favorite.getAttribute('aria-pressed'), 'true');
-        assert.ok(await page.locator('.pcc-comparison-scroll').evaluate(el => innerWidth >= 600 || el.scrollWidth > el.clientWidth));
+        assert.equal(await root.locator('#catalogFilters select[name=currency], #catalogFilters input[name=beds]').count(), 0);
+        const contact = root.locator('[data-category-property] [data-contact-inquiry]').first();
+        assert.equal(await contact.getAttribute('data-intent'), 'buy');
+        assert.ok(await contact.getAttribute('data-development'));
+        await page.goto(base + path + '?location=puerto-cancun');
+        await root.locator('.catalog-entity-nav a[href*="entity=developments"]').click();
+        await page.waitForURL(/entity=developments/);
+        assert.equal(new URL(page.url()).searchParams.get('location'),'puerto-cancun');
+        assert.equal(await root.locator('[data-category-property]').count(), 7);
+        await root.locator('.catalog-entity-nav a[href*="entity=properties"]').click();
+        await page.waitForURL(/entity=properties/);
+        await root.locator('.catalog-filter-panel>summary').click();
+        await root.locator('[name=development]').selectOption('qa-mobile-80');
+        await page.waitForURL(/development=qa-mobile-80/);
+        await root.locator('[name=location][value=cancun-city]').check();
+        await page.waitForURL(url => url.searchParams.get('location')?.includes('cancun-city'));
+        await root.locator('[name=location][value=puerto-cancun]').uncheck();
+        await page.waitForURL(url => url.searchParams.get('location') === 'cancun-city' && !url.searchParams.has('development'));
+        assert.match(await root.locator('.catalog-request-status').textContent(), en ? /area cleared/ : /zona cambió/);
+        assert.equal(await root.locator('.catalog-demand [data-intent=buy]').getAttribute('data-zone'),en ? 'Cancun City' : 'Ciudad de Cancún');
         assert.ok(await root.evaluate(el => [...el.querySelectorAll('.seo-property-card,.catalog-pagination,.catalog-view-toggle')].every(node => node.getBoundingClientRect().right <= innerWidth + 1)));
         assert.deepEqual(errors, []);
-        t.diagnostic(`${lang} ${width}×${height}: full SSR + 88 synthetic publications; filters/pagination/history, page swipe, map zoom/pinch, 8 developments and favorite passed`);
+        t.diagnostic(`${lang} ${width}×${height}: filters, pagination/history, maps, 8 developments and contextual contact passed`);
       } finally { await context.close(); }
     });
   }

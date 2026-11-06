@@ -60,7 +60,9 @@ test("el desarrollo administra enlaces, traducciones de imágenes y video sin ca
   assert.match(schema, /CREATE TABLE IF NOT EXISTS property_videos/);
   assert.match(server, /app\.get\("\/media\/properties\/:id\/video"/);
   assert.match(server, /express\.raw\(\{ type: \["video\/mp4", "video\/webm"\]/);
-  assert.match(seo, /\$\{gallery\}\$\{summary\}<\/div>\$\{videoSection\}/);
+  const { renderPropertyPage } = require("../seo-pages");
+  const renderedHtml = renderPropertyPage({ id: "dev", type: "Desarrollo", publicationSection: "developments", titleEs: "Proyecto", images: ["/media/properties/dev/0"], videoUrl: "/media/properties/dev/video" }).html;
+  assert.ok(renderedHtml.indexOf("property-page-gallery") < renderedHtml.indexOf("property-page-video") && renderedHtml.includes("/media/properties/dev/video"));
   assert.match(seo, /Propiedades disponibles en este desarrollo/);
   assert.match(server, /item\.developmentId === developmentId/);
 });

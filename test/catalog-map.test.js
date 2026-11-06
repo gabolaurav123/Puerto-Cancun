@@ -205,6 +205,12 @@ test("browser: mapa real, privacidad, teclado, bbox, filtros, fallos y ciclo de 
   const before = await page.locator("[data-catalog-list]").innerHTML();
   const initialForm = await page.evaluate(() => [...new FormData(document.querySelector('form'))]);
   await page.locator(".pcc-catalog-map-pin", { hasText: "2" }).focus();
+  assert.ok(await page.locator(".pcc-catalog-map-pin", { hasText:"2" }).evaluate(pin => {
+    const range = new Range(); range.selectNodeContents(pin.firstElementChild);
+    const text = range.getBoundingClientRect(), bounds = pin.getBoundingClientRect();
+    return text.width > 0 && text.height > 0 && text.left >= bounds.left && text.right <= bounds.right &&
+      text.top >= bounds.top && text.bottom <= bounds.bottom;
+  }), "the numeric cluster label fits inside its marker");
   await page.keyboard.press("Enter");
   assert.equal(await page.locator(".pcc-catalog-map-popup [data-catalog-map-id]").count(), 2);
   assert.equal(await page.locator(".pcc-catalog-map-popup [data-catalog-map-id='fixture-b']").getAttribute("href"), "/en/properties/unit-b");

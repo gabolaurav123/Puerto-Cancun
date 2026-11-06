@@ -39,80 +39,61 @@ test("CommonJS and browser contacts preserve actual MX/USA numbers and encode co
   assert.equal(contacts.whatsappUrl("unknown"), contacts.whatsappUrl("mx"));
 });
 
-test("Spanish and English contact pages expose both countries from central config", () => {
+test("Spanish and English contact pages open the inquiry before offering WhatsApp", () => {
   for (const [route, lang] of [["/contacto", "es"], ["/en/contact", "en"]]) {
-    const page = seo.getPageByPath(route);
     const html = seo.renderSeoPage(route);
-    const links = whatsappLinks(html);
-    assert.equal(links.length, 4);
-    for (const contact of contacts.contacts) {
-      const countryLinks = links.filter(({ url }) => url.pathname === `/${contact.number}`);
-      assert.equal(countryLinks.length, 2);
-      assert.ok(countryLinks.every(({ url, label }) => url.searchParams.get("text") === page.whatsappMessage && label.includes(lang === "en" ? contact.labelEn : contact.label)));
-      assert.ok(countryLinks.some(({ label }) => label.includes(contact.display)));
-    }
+    assert.equal(whatsappLinks(html).length, 0);
+    assert.ok(html.includes('href="' + route + '?inquiry=1" data-contact-inquiry data-origin="contact-page"'));
+    assert.ok(html.includes(lang === "en" ? "Talk to an advisor" : "Hablar con un asesor"));
   }
   assert.equal(seo.business.telephone, contacts.contacts.find(({ id }) => id === "mx").display);
   assert.doesNotMatch(read("seo-pages.js"), /wa\.me\/\d+|5219982166563|19562518956/);
 });
 
-test("property and development WhatsApp links retain localized title and canonical context for both countries", () => {
+test("property and development inquiries retain the localized title and listing reference", () => {
   for (const lang of ["es", "en"]) {
     for (const publicationSection of ["properties", "developments"]) {
       const item = { ...property, publicationSection };
       const html = seo.renderPropertyPage(item, lang).html;
       const links = whatsappLinks(html);
       const title = lang === "en" ? item.titleEn : item.titleEs;
-      assert.equal(links.length, contacts.contacts.length, "Each country has one contextual link in the listing");
-      for (const contact of contacts.contacts) assert.ok(links.some(({ url }) => url.pathname === `/${contact.number}`));
-      for (const { url } of links) {
-        const message = url.searchParams.get("text");
-        assert.ok(message.includes(title));
-        assert.ok(message.includes(seo.absoluteUrl(seo.propertyPath(item, lang))));
-        assert.equal([...url.searchParams].length, 1);
-        assert.equal(url.hash, "");
-      }
+      assert.equal(links.length, 0);
+      assert.ok(html.includes('data-property-id="' + item.id + '"'));
+      assert.ok(html.includes('data-property-title="' + title.replace(/&/g, "&amp;").replace(/"/g, "&quot;") + '"'));
+      for (const intent of publicationSection === "developments" ? ["buy","rent","sell","let"] : ["buy"]) assert.ok(html.includes('data-intent="' + intent + '"'));
       assert.doesNotMatch(html, /data-business-contact=/, "Catalog hydration must not remove contextual messages");
     }
   }
 });
 
-test("catalog cards offer both destinations without mixing the property context", () => {
+test("catalog cards offer one inquiry preserving the original listing and its language", () => {
   for (const lang of ["es", "en"]) {
     const page = { path: lang === "en" ? "/en/properties" : "/propiedades", lang, h1: "Inventory", filter: {} };
     const html = seo.renderCategoryPage(page, [property], {});
     const card = html.match(/<article class="seo-property-card"[\s\S]*?<\/article>/)[0];
-    const links = whatsappLinks(card);
-    assert.equal(links.length, 2);
-    for (const contact of contacts.contacts) {
-      const { url } = links.find(({ url }) => url.pathname === `/${contact.number}`);
-      assert.ok(url.searchParams.get("text").includes(lang === "en" ? property.titleEn : property.titleEs));
-      assert.ok(url.searchParams.get("text").includes(seo.absoluteUrl(seo.propertyPath(property, lang))));
-    }
+    assert.equal(whatsappLinks(card).length, 0);
+    const cta = card.match(/<a\b[^>]+data-contact-inquiry[^>]*>/g);
+    assert.equal(cta.length, 1);
+    const href = new URL(cta[0].match(/href="([^"]+)"/)[1].replace(/&amp;/g, "&"), "https://example.invalid");
+    assert.equal(href.pathname, lang === "en" ? "/en/contact" : "/contacto");
+    assert.equal(href.searchParams.get("propertyId"), property.id);
+    assert.equal(href.searchParams.get("propertyTitle"), lang === "en" ? property.titleEn : property.titleEs);
     assert.doesNotMatch(card, /data-business-contact=/);
   }
 });
 
-test("public browser helpers delegate to contact config, preserve settings and only track clicks", () => {
+test("legacy listing and general contact helpers open the same inquiry with the correct context", () => {
   const source = read("app.js");
   const start = source.indexOf("function openPropertyWhatsApp(");
   const end = source.indexOf("function closeMobileNav(", start);
   assert.ok(start > 0 && end > start);
   const helpers = source.slice(start, end);
-  const requests = [], events = [], opened = [], calls = [];
-  const state = { settings: { site: { phone: "keep-phone", whatsapp: "keep-whatsapp" } } };
-  const before = JSON.stringify(state);
+  const calls = [];
   const context = {
-    state,
     window: {
-      location: { pathname: "/propiedades" },
-      PccContacts: { whatsappUrl: (id, message) => { calls.push({ id, message }); return contacts.whatsappUrl(id, message); } },
-      open: (...args) => opened.push(args),
+      PccInquiry: { open: data => calls.push(data) },
     },
-    api: (route, options) => { requests.push({ route, options }); return Promise.resolve({}); },
-    trackAnalyticsEvent: (event) => { events.push(event); return Promise.resolve(); },
-    localizedTitle: (item) => item.titleEs, formatPriceSummary: () => "USD $1,000,000",
-    displayLocation: (item) => item.zone, displayType: (type) => type,
+    localizedTitle: (item) => item.titleEs,
   };
   vm.runInNewContext(helpers, context);
   context.openPropertyWhatsApp(property);
@@ -120,14 +101,9 @@ test("public browser helpers delegate to contact config, preserve settings and o
   context.openGeneralWhatsApp({ preventDefault: () => { prevented = true; } });
   assert.ok(prevented);
   assert.equal(calls.length, 2);
-  assert.ok(calls.every(({ id }) => id === "mx"));
-  assert.ok(calls[0].message.includes(property.titleEs));
-  assert.equal(new URL(opened[0][0]).searchParams.get("text"), calls[0].message);
-  assert.ok(opened.every(([url, target, rel]) => new URL(url).pathname === "/5219982166563" && target === "_blank" && rel === "noopener,noreferrer"));
-  assert.deepEqual(events, ["property_contact_clicked", "whatsapp_clicked"]);
-  assert.equal(requests.length, 1);
-  assert.equal(requests[0].route, "/api/leads");
-  assert.equal(requests[0].options.body.propertyId, property.id);
-  assert.equal(JSON.stringify(state), before);
+  assert.equal(calls[0].propertyTitle, property.titleEs);
+  assert.equal(calls[0].propertyId, property.id);
+  assert.equal(calls[0].intent, "buy");
+  assert.equal(calls[1].origin, "general-contact");
   assert.doesNotMatch(helpers, /wa\.me|sent|delivered|sendMessage/);
 });

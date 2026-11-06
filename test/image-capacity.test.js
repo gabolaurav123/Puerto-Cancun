@@ -88,6 +88,6 @@ test("60 maximum-size optimized photos and captions fit the existing JSON reques
 test("published form labels and translations consistently advertise 60 photos", () => {
   const html = fs.readFileSync(require.resolve("../index.html"), "utf8");
   assert.doesNotMatch(app + html, /(?:20 imagenes|20 images)/);
-  assert.match(app, /Up to 60 images/);
+  assert.match(require("../site-language").en.imageHelp || JSON.stringify(require("../site-language").en), /Up to 60 images/);
   assert.match(html, /Maximo 60 imagenes/);
 });

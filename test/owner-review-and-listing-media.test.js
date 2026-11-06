@@ -23,7 +23,8 @@ test("cada revisión de precio conserva idioma, campos comerciales y moneda", ()
       assert.match(optional, /name="propertyType"/);
       assert.match(optional, /name="ownerEstimate"/);
       const main = valuationForm.replace(optional, "");
-      assert.deepEqual([...main.matchAll(/name="([^"]+)"[^>]*?\brequired\b/g)].map(m => m[1]), ["contact", "zone"]);
+      assert.deepEqual([...main.matchAll(/name="([^"]+)"[^>]*?\brequired\b/g)].map(m => m[1]), ["country", "phone", "zone"]);
+      assert.match(main, /value="MX"/);
     }
     assert.match(fullPage, /name="leadType" value="valuacion-inmobiliaria"/);
     assert.match(form, review.startsWith("/en") ? /Which references/ : /Qué referencias/);
@@ -83,7 +84,7 @@ test("la valoración conserva la moneda original y un importe antiguo sin moneda
     return data;
   };
   await request("/api/session");
-  const inquiry = { leadType: "valuacion-inmobiliaria", zone: "Zona QA", consent: true, formStartedAt: Date.now() - 3000 };
+  const inquiry = { leadType: "valuacion-inmobiliaria", zone: "Zona QA", country: "MX", consent: true, formStartedAt: Date.now() - 3000 };
   await request("/api/leads", { ...inquiry, name: "Solo nombre" }, 400);
   await request("/api/leads", { ...inquiry, contact: "abc1234567890def" }, 400);
   const contact = `+52 998 ${String(Date.now()).slice(-7)}`;
@@ -95,7 +96,7 @@ test("la valoración conserva la moneda original y un importe antiguo sin moneda
   assert.deepEqual((await request("/api/leads", { ...inquiry, contact }, 200)).lead, { id: minimal.id });
   const expected = [];
   for (const currency of ["MXN", "USD", null]) {
-    const lead = await request("/api/leads", { name: "QA", email: `owner-${Date.now()}-${currency}@example.test`, consent: true,
+    const lead = await request("/api/leads", { name: "QA", phone: contact, country: "MX", email: `owner-${Date.now()}-${currency}@example.test`, consent: true,
       formStartedAt: Date.now() - 3000, leadType: "validar-precio", ownerEstimate: 123456.5, ...(currency && { currency }) });
     expected.push([lead.lead.id, currency]);
   }

@@ -40,7 +40,7 @@ for (const lang of ["es", "en"]) {
     assert.ok(cards.includes(`href="${propertyPath(unit, lang)}"`));
     assert.equal((html.match(/class="similar-properties"/g) || []).length, 1);
     assert.equal((html.match(/class="property-lead"/g) || []).length, 1);
-    assert.ok(html.slice(leadIndex).includes(`name="propertyId" value="${development.id}"`));
+    assert.ok(html.slice(leadIndex).includes(`data-property-id="${development.id}"`));
   });
 
   test(`development without linked properties keeps the visit form (${lang})`, () => {

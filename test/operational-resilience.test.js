@@ -210,7 +210,7 @@ test("la experiencia pública en inglés traduce confianza, legales y controles 
     "saveFavorite",
     "addComparison",
   ]) {
-    assert.match(app, new RegExp(`${key}:`), `falta la traducción ${key}`);
+    assert.ok(require("../site-language").en[key], `falta la traducción ${key}`);
   }
   assert.match(app, /data-i18n-aria-label/);
   assert.match(html, /data-i18n-aria-label="trustSignalsLabel"/);
@@ -237,7 +237,7 @@ test("el administrador tiene auditoría y un criterio único de propiedades inco
   const app = read("app.js");
   assert.match(server, /app\.get\("\/api\/admin\/activity"/);
   assert.match(server, /unitItems\.filter\(\(property\) => !inventoryContract\.quality\(property\)\.complete\)/);
-  assert.match(app, /inventoryModule\?\.currentSnapshot\(state\.properties\)\.records/);
+  assert.match(app, /inventoryModule\?\.currentSnapshot\(state\.properties,\s*state\.adminPortalAreas\)\.records/);
   assert.match(app, /inventoryModule\.selectRecords\(records, filters,/);
   assert.match(app, /data-admin-metric/);
 });
@@ -288,5 +288,5 @@ test("la portada no renderiza destacadas y mantiene el acceso al catálogo compl
   const index = read("index.html");
   assert.match(app, /if \(isHome\) \{\s*grid\.innerHTML = ""/);
   assert.match(index, /href="\/propiedades"[^>]*data-i18n="navSearch"/);
-  assert.match(index, /href="\/comprar-casa-cancun"[^>]*data-i18n="heroBuyCta"/);
+  assert.match(index, /href="\/propiedades\/en-venta"[^>]*data-i18n="heroBuyCta"/);
 });

@@ -10,6 +10,23 @@
   max-width: 100%;
   margin-block: 12px;
 }
+
+/* Editorial directory inside the private panel. */
+.portal-admin { min-width: 0; }
+.portal-admin .portal-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.portal-admin .portal-actions button { min-height: 44px; padding: 6px 12px; }
+.portal-admin .portal-rows { list-style: none; padding: 0; margin: 12px 0 22px; }
+.portal-admin .portal-rows li { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; padding: 12px 0; border-bottom: 1px solid var(--line); }
+.portal-admin .portal-rows li > div:first-child { min-width: 0; overflow-wrap: anywhere; }
+.portal-admin .portal-rows small { display: block; color: var(--muted); }
+.portal-admin .portal-edit { display: grid; gap: 12px; padding: 16px; margin: 12px 0; border: 1px solid var(--line); border-radius: 6px; }
+.portal-admin .portal-fields { display:grid; grid-template-columns:repeat(auto-fit,minmax(min(210px,100%),1fr)); gap:12px; }
+.portal-admin .portal-edit label { display: grid; gap: 4px; min-width: 0; }
+.portal-admin .portal-edit :is(input:not([type=checkbox]), select, textarea) { min-width: 0; width: 100%; max-width: 100%; min-height: 44px; }
+.portal-admin .portal-edit fieldset { min-width: 0; }
+.portal-admin .portal-edit .portal-check { display: flex; align-items: center; min-height: 44px; gap: 8px; }
+.portal-admin [data-portal-message]:not(:empty) { margin-block: 12px; padding: 10px; background: #eef5f3; }
+.portal-preview-image { display: block; max-width: 100%; max-height: 250px; object-fit: contain; }
 .pcc-inventory *, .pcc-inventory *::before, .pcc-inventory *::after { box-sizing: border-box; letter-spacing: 0; }
 .pcc-inventory[hidden], .pcc-inventory [hidden] { display: none !important; }
 .pcc-inventory h2, .pcc-inventory h3, .pcc-inventory h4 { margin: 0; font-size: 16px; line-height: 1.4; }

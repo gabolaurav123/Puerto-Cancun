@@ -115,6 +115,19 @@ test("an unused new source cannot disguise a previously covered daily edition", 
   assert.throws(() => validateArticle(article, article.sources, "2026-11-03"), { code: "BLOG_UNUSED_SOURCE" });
 });
 
+test("one updated story may cite prior context, but a new URL elsewhere cannot repeat an old section", () => {
+  const priorUrl = sources[0].url.replace(/\/$/, "");
+  assert.throws(() => validateArticle(candidate(), sources, "2026-11-03", [priorUrl]), { code: "BLOG_DUPLICATE_NEWS" });
+  const update = candidate();
+  update.sections = [{ ...update.sections[1], sourceIds: [1, 2] }];
+  const result = validateArticle(update, sources, "2026-11-03", [priorUrl]);
+  assert.equal(result.sources.length, 2);
+  assert.match(result.contentEs, /\[1\] \[2\]/);
+  const repeated = { ...sources[0], url: priorUrl };
+  update.sources = [sources[0], repeated];
+  assert.throws(() => validateArticle(update, [sources[0], repeated], "2026-11-03"), { code: "BLOG_UNVERIFIED_SOURCE" });
+});
+
 test("generation requires completed web research and validates structured bilingual output", async () => {
   const requests = [];
   const replies = [

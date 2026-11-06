@@ -7,7 +7,6 @@ const LISTING_DRAFT_KEY = "pcc.admin.listingDraft.v2";
 const SELLER_DRAFT_KEY = "pcc.seller.requestDraft.v1";
 const DRAFT_DB_NAME = "puertoCancunDrafts";
 const IMAGE_TYPES = new Set(["image/jpeg", "image/jpg", "image/png", "image/webp"]);
-const WHATSAPP_NUMBER = "5219982166563";
 const LOCATION_FIELD_ORDER = ["state", "city", "zone", "neighborhood"];
 
 const keys = {
@@ -72,1221 +71,7 @@ const fallbackIcons = {
   x: '<path d="M18 6 6 18"></path><path d="m6 6 12 12"></path>',
 };
 
-const translations = {
-  es: {
-    currencyLabel: "Seleccione una moneda:",
-    navSearch: "Buscar",
-    navAllProperties: "Ver todas las propiedades",
-    navQuick: "Accesos rápidos",
-    navResourcesAdvice: "Recursos y asesoría",
-    publicNavLabel: "Navegación principal",
-    navProperties: "Propiedades",
-    navExplore: "Explorar",
-    navForSale: "En venta",
-    navHotelZone: "Zona Hotelera",
-    navCancunCity: "Ciudad de Cancún",
-    navOutsideCancun: "Fuera de Cancún",
-    navHotelZoneDescription: "Zona Hotelera, Costa Mujeres y Punta Sam",
-    navPuertoDescription: "Marina, canales y comunidades residenciales",
-    navCityDescription: "Centro, Huayacán y corredor Colosio",
-    navOutsideDescription: "Riviera Maya y otros destinos",
-    navInPuerto: "En Puerto Cancún",
-    navAdvice: "Asesoría",
-    navPriceReview: "Revisar mi precio",
-    navCall: "Llamar",
-    localPriceCopy: "Si ya tienes una cifra en mente, un asesor la comparará con propiedades similares en tu zona.",
-    navFeatured: "Destacadas",
-    navPropertyType: "Tipo de propiedad",
-    menuAllSale: "Ver todo en venta",
-    typeHouses: "Casas",
-    typeLand: "Terrenos",
-    typePresales: "Preventas",
-    typeRentals: "Rentas",
-    typeCondos: "Departamentos",
-    typeCommercial: "Comercial",
-    typeDevelopments: "Desarrollos",
-    navPuerto: "Puerto Cancún",
-    navZones: "Zonas",
-    navDevelopments: "Desarrollos",
-    navResources: "Recursos",
-    resourceMortgage: "Calculadora hipotecaria",
-    resourceBlog: "Blog",
-    resourceBuyerRequirements: "Búsquedas de clientes",
-    footerBlog: "Blog inmobiliario",
-    navAbout: "Nosotros",
-    menuAllZones: "Ver todas las zonas",
-    navSell: "Vender",
-    navLogin: "Iniciar sesión",
-    heroKicker: "Propiedades de lujo en Cancún",
-    heroTitle: "Compra o vende tu propiedad en Cancún",
-    heroSubtitle:
-      "Te ayudamos a validar precios, preparar tu propiedad, encontrar compradores reales y tomar mejores decisiones inmobiliarias en Cancún.",
-    heroSellCta: "Quiero vender mi propiedad",
-    sellerOptionsEyebrow: "ELIGE CÓMO EMPEZAR",
-    sellerOptionsTitle: "¿Cómo quieres vender tu propiedad?",
-    sellerOptionsCopy: "Elige una solicitud breve sin cuenta o regístrate para publicar más información, guardar avances y dar seguimiento desde tu panel de vendedor.",
-    guestSaleName: "Venta sin registro",
-    guestSaleSummary: "Título, tipo, ubicación y fotos. No necesitas crear una cuenta.",
-    guidedSaleName: "Venta con registro",
-    guidedSaleSummary: "La opción más completa para presentar y seguir tu propiedad.",
-    guidedSaleBenefitDetails: "Agrega información detallada y más fotografías.",
-    guidedSaleBenefitProgress: "Guarda avances sin perder lo que ya capturaste.",
-    guidedSaleBenefitPanel: "Consulta solicitudes y seguimiento en tu panel de vendedor.",
-    valuationSaleName: "Solicitar valoración",
-    valuationOptionalDetails: "Añadir datos opcionales",
-    valuationSaleSummary: "Valida el precio antes de preparar la publicación.",
-    guestSaleEyebrow: "VENTA SIN REGISTRO",
-    guestSaleTitle: "Envíanos los datos esenciales",
-    guestSaleIntro: "No necesitas una cuenta. Un asesor revisará la información antes de solicitarte cualquier dato adicional.",
-    guestLocation: "Ubicación",
-    guestImages: "Imágenes de la propiedad",
-    guestImagesHelp: "Puedes seleccionar varias fotos JPG, PNG o WEBP.",
-    optionalDescription: "Descripción opcional",
-    continueContact: "Enviar solicitud",
-    confirmSendRequest: "Confirmar y enviar",
-    contactPreferenceEyebrow: "ÚLTIMO PASO",
-    contactPreferenceTitle: "¿Por dónde prefieres que te contactemos?",
-    contactPreferenceCopy: "Si precisamos más datos sobre tu propiedad, te contactaremos únicamente por el medio que elijas.",
-    countryPrefix: "Prefijo",
-    nationalNumber: "Número nacional",
-    guestConsent: "Acepto el aviso de privacidad y que un asesor me contacte sobre esta solicitud.",
-    back: "Volver",
-    heroBuyCta: "Quiero comprar en Cancún",
-    heroPriceReviewCta: "Revisar mi estimación",
-    searchPlaceholder: "Zona o propiedad",
-    homeSearchLabel: "Busca una propiedad",
-    searchButton: "Buscar",
-    contactToday: "Contáctanos Hoy",
-    operationType: "Tipo de operación",
-    sellOperation: "Vender",
-    buyOperation: "Comprar",
-    investOperation: "Invertir",
-    aiResponseField: "Referencia anterior",
-    validateWithAdvisor: "Consultar mi estimación",
-    sellerAudienceTitle: "Para propietarios que quieren vender mejor",
-    sellerAudienceCopy:
-      "Te ayudamos a definir un precio competitivo, preparar tu propiedad, crear una estrategia de difusión y negociar con compradores.",
-    buyerAudienceTitle: "Para compradores que buscan elegir bien",
-    buyerAudienceCopy:
-      "Te ayudamos a encontrar propiedades según tu presupuesto, zona, estilo de vida y objetivo de inversión.",
-    valuationRequest: "Solicitar valoración",
-    searchProperty: "Buscar propiedad",
-    aiResourcesTitle: "Compra o vende tu propiedad en Cancún",
-    resourceProperties: "Ver propiedades disponibles",
-    resourceSellHere: "Vender mi propiedad aquí",
-    resourceBuyGuide: "Guía para comprar casa en Cancún",
-    resourceValuation: "Valoración inmobiliaria",
-    resourceFaq: "Preguntas frecuentes",
-    resourceZones: "Zonas de Cancún",
-    featuredZones: "Ubicaciones",
-    allZones: "Todas las zonas",
-    zonePresales: "Preventas | Presales",
-    welcomeTitle: "Bienvenido a Puerto Cancún Center!",
-    welcomeCopy:
-      "Con años de experiencia en el ramo inmobiliario de lujo en Cancún, Puerto Cancún y la Zona Hotelera, Puerto Cancún Center representa propiedades seleccionadas con inventario actualizado, asesoría profesional y seguimiento cercano para compradores, vendedores e inversionistas.",
-    featuredProperties: "Propiedades destacadas",
-    featuredCopy:
-      "Explora desarrollos frente al mar, residencias en canales y condominios con distintas amenidades.",
-    seeMore: "Ver más",
-    searchByType: "Busca por tipo",
-    presaleTitle: "Pre-ventas",
-    presaleCopy:
-      "Conozca de la mano de nuestros expertos opciones en preventa, con información clara de entrega, plusvalía y esquema de pago.",
-    allProperties: "Todas las propiedades",
-    keywordSearchLabel: "Buscar propiedades por palabra clave",
-    keywordSearchPlaceholder: "Título, MLS, zona o palabra clave",
-    guidedKicker: "Búsqueda guiada",
-    guidedTitle: "Encuentra tu propiedad ideal",
-    guidedOperation: "Comprar o rentar",
-    guidedBoth: "Ambas",
-    guidedBuy: "Comprar",
-    guidedRent: "Rentar",
-    guidedBudget: "Presupuesto máximo USD",
-    guidedBedrooms: "Recámaras",
-    guidedGoal: "Objetivo",
-    goalLive: "Vivir",
-    goalInvest: "Invertir",
-    goalVacation: "Vacacionar",
-    goalIncome: "Generar renta",
-    viewProperties: "Ver propiedades",
-    alertKicker: "Alerta de propiedades",
-    alertTitle: "Recibe opciones compatibles",
-    alertCopy: "Registraremos tu zona, tipo y presupuesto para que un asesor pueda avisarte.",
-    alertCreate: "Crear alerta",
-    fieldName: "Nombre",
-    fieldEmail: "Correo",
-    clearFilters: "Limpiar filtros",
-    sortBy: "Ordenar por:",
-    sortHigh: "Precio alto a bajo",
-    sortLow: "Precio bajo a alto",
-    sortNew: "Más recientes",
-    filterType: "Tipo",
-    filterZone: "Zona",
-    filterOperation: "Operacion",
-    allTypes: "Todos",
-    allZonesShort: "Todas",
-    allOperations: "Todas",
-    activeFilters: "Filtro activo",
-    requestInfo: "Solicitar informacion",
-    moreProperties: "Ver más propiedades",
-    teamTitle: "Habla con un asesor local",
-    teamKicker: "Asesoría local",
-    teamCopy: "Te ayudamos a elegir una zona, preparar una visita o dar el siguiente paso para vender.",
-    teamCta: "Contactar al equipo",
-    trustSignalsLabel: "Señales de confianza",
-    trustInventoryTitle: "Inventario revisado",
-    trustInventoryCopy: "Precio, moneda, ubicación y disponibilidad se presentan sujetos a verificación documental.",
-    trustPrivacyTitle: "Datos protegidos",
-    trustPrivacyCopy: "Los formularios explican su finalidad y permiten ejercer derechos de privacidad.",
-    trustTrackingTitle: "Atención identificable",
-    trustTrackingCopy: "Cada solicitud queda registrada para que el equipo pueda dar seguimiento por el canal elegido.",
-    teamRoleSales: "Asesor inmobiliario senior",
-    teamRoleListings: "Coordinadora de propiedades",
-    teamRoleInvestment: "Consultor de inversión",
-    sellTitle: "Quieres vender una propiedad?",
-    sellCopy:
-      "Conoce el proceso, los beneficios y el acompañamiento que recibirás antes de registrarte para anunciar tu propiedad.",
-    startSellerRequest: "Conocer cómo vender",
-    footerCommunities: "Comunidades",
-    footerBuy: "Compra de propiedad",
-    footerSell: "Asesoría de venta",
-    footerAbout: "Nosotros",
-    saleProperty: "Venta de propiedad",
-    aboutPuerto: "Sobre Puerto Cancún Center",
-    location: "Ubicación",
-    rights: "Todos los derechos reservados.",
-    privacyNotice: "Aviso de privacidad",
-    termsConditions: "Términos y condiciones",
-    cookiePolicy: "Política de cookies",
-    saveFavorite: "Guardar favorito",
-    removeFavorite: "Quitar favorito",
-    addComparison: "Agregar a comparación",
-    removeComparison: "Quitar de comparación",
-    backToSite: "Volver al sitio",
-    logout: "Cerrar sesión",
-    sellerRequestTitle: "Enviar solicitud de venta",
-    sellerGuideTitle: "Guía rápida para vender",
-    sellerGuideCopy:
-      "Completa los datos principales, agrega una imagen clara y deja un mensaje para que el equipo pueda pedirte más información antes de publicar.",
-    sellerHelpTitle: "¿Necesitas asesoría para llenar el formulario?",
-    sellerHelpCopy: "Un asesor puede ayudarte a preparar la información, fotos y ubicación antes de enviar la solicitud.",
-    sellerHelpCta: "Solicitar guía por WhatsApp",
-    sellerContactTitle: "Datos de contacto para esta solicitud",
-    propertyTitle: "Título de la propiedad",
-    propertyTitleEs: "Título de la propiedad en español",
-    propertyTitleEn: "Título de la propiedad en inglés",
-    publicationDestination: "Dónde se publica",
-    publicationProperties: "Propiedades",
-    publicationDevelopments: "Desarrollos",
-    bilingualFieldHelp: "Este texto se muestra cuando el visitante navega en inglés.",
-    propertyType: "Tipo de propiedad",
-    zone: "Zona",
-    stateField: "Estado",
-    cityField: "Ciudad / municipio",
-    neighborhoodField: "Colonia / desarrollo",
-    price: "Precio",
-    currency: "Moneda",
-    address: "Dirección",
-    mapPickerTitle: "Ubicación en mapa",
-    mapPickerCopy: "Arrastra el pin o haz clic en el mapa para definir la ubicación exacta.",
-    mapPickerHelp:
-      "Arrastra el pin o haz clic en el mapa para ajustar la ubicación exacta. También puedes escribir las coordenadas manualmente.",
-    useCurrentLocation: "Usar mi ubicacion",
-    locateAddress: "Ubicar dirección",
-    openGoogleMaps: "Abrir Google Maps",
-    latitudeField: "Latitud",
-    longitudeField: "Longitud",
-    locationDetected: "Ubicación detectada. Revisa el mapa antes de guardar.",
-    locationUnavailable: "No se pudo obtener tu ubicacion. Puedes escribir las coordenadas manualmente.",
-    mapLoadUnavailable: "No se pudo cargar el mapa interactivo. Puedes usar el mapa visible o escribir las coordenadas manualmente.",
-    mapSearching: "Buscando la dirección y actualizando el pin...",
-    mapAddressFound: "Dirección localizada. Confirma o ajusta el pin antes de guardar.",
-    mapAddressNotFound: "No encontramos esa dirección automáticamente. Ajusta el pin en el mapa o escribe las coordenadas.",
-    mapAddressChanged: "Dirección modificada. Esperando para actualizar el mapa...",
-    bedrooms: "Recámaras",
-    bathrooms: "Baños",
-    area: "M2 construcción",
-    description: "Descripción",
-    descriptionEs: "Descripción en español",
-    descriptionEn: "Descripción en inglés",
-    mapSearchLabel: "Buscar una ubicación en el mapa",
-    mapSearchPlaceholder: "Dirección, ciudad, estado o país",
-    mapSearchAction: "Buscar y mover el pin",
-    sendRequest: "Enviar solicitud",
-    myRequests: "Mis solicitudes",
-    adminRequestsTitle: "Solicitudes de vendedores",
-    manageListings: "Administrar publicaciones",
-    operation: "Operación",
-    sale: "Venta",
-    rent: "Renta",
-    priceUsd: "Precio USD",
-    priceMxn: "Precio MXN",
-    imageUpload: "Imagenes de la propiedad",
-    imageHelp: "JPG, PNG o WEBP. Maximo 60 imagenes. Se optimizan antes de guardarse.",
-    imageGalleryTitle: "Galería y orden de publicación",
-    imageGalleryHelp: "La primera imagen será la portada. Arrastra las fotos o usa las flechas para cambiar su orden.",
-    currentImage: "Imagen actual",
-    selectedImage: "Imagenes seleccionadas",
-    removeImage: "Quitar imagenes",
-    imageRemoved: "Imagenes quitadas. Puedes seleccionar otras antes de guardar.",
-    imageTooLarge: "La imagen no debe superar 1.5 MB.",
-    tooManyImages: "Solo puedes cargar hasta 60 imagenes por publicacion.",
-    invalidImageType: "La imagen debe ser JPG, JPEG, PNG o WEBP.",
-    missingPrice: "Agrega al menos un precio: USD o MXN.",
-    markFeatured: "Marcar como destacada",
-    saveListing: "Guardar publicación",
-    newListing: "Nueva publicación",
-    publishDevelopment: "Publicar desarrollo",
-    saveDevelopmentChanges: "Guardar cambios del desarrollo",
-    inventoryOf: "de",
-    developmentEntity: "Desarrollo",
-    unverifiedInventory: "Sin verificar",
-    verifiedDayAgo: "Verificada hace 1 día",
-    verifiedDaysAgo: "Verificada hace {days} días",
-    reviewAvailabilityDays: "Revisar disponibilidad · {days} días",
-    noListingMatches: "No se encontraron publicaciones con esa búsqueda.",
-    inventoryView: "Vista / estado",
-    inventoryGeneral: "Inventario general",
-    inventoryDrafts: "Borradores",
-    removeFeatured: "Quitar destacada",
-    featureListing: "Destacar",
-    duplicateListing: "Duplicar",
-    institutionalPdf: "PDF institucional",
-    neutralPdf: "PDF neutro",
-    configurePdf: "Configurar PDF",
-    publicDetail: "Ver detalle público",
-    reviewQuality: "Revisar calidad",
-    confirmAvailability: "Confirmar vigencia",
-    listingHistory: "Historial",
-    authTitle: "Acceso Puerto Cancún Center",
-    authIntro: "Regístrate y anuncia con nosotros. Podrás enviar tu propiedad, agregar fotografías y seguir el proceso con un asesor.",
-    createAccount: "Crear cuenta",
-    emailOrUser: "Correo o usuario",
-    password: "Contraseña",
-    confirmPassword: "Confirmar contraseña",
-    showPassword: "Mostrar contraseña",
-    hidePassword: "Ocultar contraseña",
-    currentPassword: "Contraseña actual",
-    newPassword: "Nueva contraseña",
-    passwordRule: "Mínimo 6 caracteres. No es obligatorio combinar letras, números y símbolos.",
-    forgotPassword: "¿Olvidaste tu contraseña?",
-    forgotPasswordIntro: "Te enviaremos un enlace seguro que vence en 45 minutos.",
-    sendRecovery: "Enviar enlace de recuperación",
-    resetPassword: "Crear nueva contraseña",
-    cookieBannerTitle: "Tu privacidad importa",
-    cookieBannerCopy: "Usamos cookies para tu sesión. Tú eliges si permites medir las visitas.",
-    cookieLearnMore: "Política de cookies",
-    cookieEssential: "Solo esenciales",
-    cookieAccept: "Aceptar medición",
-    updateExistingPassword: "¿Ya tenías cuenta? Actualizar contraseña",
-    updatePasswordTitle: "Actualizar contraseña",
-    updatePasswordIntro: "Confirma tu contraseña actual y crea una nueva de al menos 6 caracteres.",
-    updatePasswordAction: "Actualizar contraseña",
-    backToLogin: "Volver a iniciar sesión",
-    passwordUpdated: "Contraseña actualizada. Ya puedes iniciar sesión.",
-    adminPasswordManaged: "La contraseña de la cuenta administradora se cambia en ADMIN_PASSWORD dentro de Seenode y requiere un nuevo despliegue.",
-    noAccount: "No tienes cuenta? Crear una cuenta para vender",
-    googleAuthCopy: "Tambien puedes entrar con tu cuenta de Google.",
-    googleLoginUnavailable: "Configura GOOGLE_CLIENT_ID para activar el acceso con Google.",
-    googleLoginError: "No se pudo iniciar sesion con Google.",
-    firstName: "Nombre",
-    lastName: "Apellido",
-    email: "Dirección de correo",
-    phone: "Teléfono",
-    preferredContact: "Método de contacto preferido",
-    contactEmail: "Correo",
-    contactPhone: "Celular",
-    noResults: "No se encontraron propiedades con esos filtros.",
-    resultText: "propiedades",
-    viewDetails: "Ver detalle",
-    contactAdvisor: "WhatsApp",
-    contactWhatsApp: "Contactar por WhatsApp",
-    new: "Nuevo",
-    reduced: "Precio reducido",
-    pending: "Pendiente",
-    approved: "Aprobada",
-    rejected: "Rechazada",
-    noRequests: "No hay solicitudes registradas.",
-    sellerPanelTitle: "Panel de vendedor",
-    sellerPanelSubtitle: "Envía solicitudes de venta y revisa el estado de cada propiedad.",
-    adminPanelTitle: "Panel administrativo",
-    adminPanelSubtitle: "Revisa solicitudes, analiza actividad y administra las publicaciones del sitio.",
-    adminWorkspaceTitle: "Accesos rápidos",
-    adminWorkspaceCopy: "Elige una tarea para ir directamente al apartado correspondiente.",
-    adminJumpRequests: "Solicitudes de venta",
-    adminJumpListings: "Propiedades",
-    adminJumpCatalogs: "Catálogos",
-    adminJumpNew: "Nueva propiedad",
-    adminJumpPrompts: "Herramientas IA",
-    adminJumpLeads: "Asesorías",
-    adminMenuLabel: "Menú",
-    adminExpandMenu: "Ampliar menú",
-    navDaily: "Mi jornada",
-    navClients: "Atención a clientes",
-    navInventory: "Inventario",
-    navOutreach: "Comunicación",
-    navControl: "Análisis y administración",
-    homeAdminTitle: "Resumen del día",
-    homeInventoryTitle: "Tu inventario",
-    openTasksFilter: "Abiertas",
-    askAdvisorTitle: "Consultar a un asesor",
-    askAdvisorDescription: "Describe una duda sobre la venta o la negociación. Un asesor revisará tu caso y te responderá aquí.",
-    askAdvisorAction: "Hacer una consulta",
-    homeAdminGuide: "Empieza por las solicitudes que necesitan respuesta o revisa el inventario. Selecciona un indicador para abrir las fichas que forman ese total.",
-    adminRequestGuide: "Son propiedades que un vendedor con cuenta envió para revisión. Abre «Responder» para pedir datos o enviarle un mensaje. Revisa las fotos y el precio antes de aprobar: si hay una foto, la aprobación puede publicar la ficha.",
-    guestRequestGuide: "Una persona sin cuenta envió los datos básicos de su propiedad. Revisa su medio de contacto, registra el seguimiento y solicita la información que falta para preparar la ficha.",
-    estimateKicker: "Revisión de precio",
-    estimateTitle: "¿Cuál es tu precio estimado?",
-    estimateIntro: "Cuéntanos cuánto crees que vale la propiedad y en qué zona se encuentra. Un asesor comparará tu estimación con propiedades similares y te explicará qué factores influyen en el precio.",
-    ownerEstimateLabel: "Precio estimado",
-    shareEstimate: "Compartir mi estimación",
-    adminJumpDashboard: "Inicio",
-    adminJumpContacts: "CRM / Contactos",
-    adminJumpValuations: "Valoraciones",
-    adminJumpBuyers: "Compradores",
-    adminJumpSellers: "Vendedores",
-    adminJumpMatches: "Match",
-    adminJumpMap: "Mapa inteligente",
-    adminJumpMarketing: "Contenido promocional",
-    adminJumpPdf: "Fichas PDF",
-    adminJumpAnalytics: "Analítica",
-    adminJumpTasks: "Tareas",
-    adminJumpFiles: "Archivos",
-    adminJumpSettings: "Configuración",
-    adminJumpRoles: "Usuarios y accesos",
-    adminSidebarCollapse: "Contraer menu",
-    adminSidebarExpand: "Expandir menu",
-    adminAttentionTitle: "Que necesita atencion hoy",
-    adminQuickActions: "Accesos rapidos",
-    adminOpsSubtitle: "Operacion comercial, publicaciones, contactos y seguimiento desde un solo lugar.",
-    leadCenterTitle: "Centro de Leads",
-    leadCenterHint: "Bandeja amplia con prioridad, score, datos de contacto y siguiente accion sugerida.",
-    valuationTitle: "Valoraciones inmobiliarias",
-    valuationHint: "Aquí se estima el valor de una propiedad. Registra el precio que espera el propietario, compáralo con inmuebles similares y guarda el rango que le explicarás.",
-    noValuations: "No hay valoraciones pendientes.",
-    createValuation: "Crear valoración manual",
-    suggestedPrice: "Precio sugerido",
-    lowRange: "Rango bajo",
-    highRange: "Rango alto",
-    confidenceLevel: "Confianza",
-    saveValuation: "Guardar valoración",
-    taskTitle: "Tareas / Seguimiento",
-    taskHint: "Seguimientos comerciales para leads, contactos, propiedades y valoraciones.",
-    noTasks: "No hay tareas registradas.",
-    createTask: "Crear tarea",
-    taskDue: "Fecha limite",
-    taskCompleted: "Completada",
-    taskInProgress: "En proceso",
-    matchTitle: "Match comprador-propiedad",
-    matchHint: "Cruza compradores con propiedades activas por zona, tipo y presupuesto.",
-    noMatches: "No hay matches suficientes todavia.",
-    matchScore: "compatibilidad",
-    prepareMessage: "Preparar mensaje",
-    smartMapTitle: "Mapa inteligente",
-    smartMapHint: "Vista operativa por zonas, inventario y leads registrados.",
-    analyticsTitle: "Analítica comercial",
-    analyticsHint: "Eventos, busquedas, zonas solicitadas y propiedades con mayor actividad.",
-    visitorLeadsMenu: "Leads",
-    visitorLeadsEyebrow: "AUDIENCIA Y RECORRIDO",
-    visitorLeadsTitle: "Leads y visitantes",
-    visitorLeadsHint: "Distingue personas, sesiones y páginas vistas para analizar procedencia e interés sin duplicar cada visita como un contacto nuevo.",
-    visitorLeadsExport: "Exportar CSV",
-    visitorLeadsRefresh: "Actualizar",
-    visitorLeadsPrivacy: "La medición se registra solo cuando el visitante acepta las cookies de analítica. La ubicación procede de cabeceras del servidor y puede no estar disponible o ser aproximada.",
-    visitorPeriod: "Periodo",
-    visitorPeriodToday: "Hoy",
-    visitorPeriod7: "Últimos 7 días",
-    visitorPeriod30: "Últimos 30 días",
-    visitorPeriod90: "Últimos 90 días",
-    visitorPeriodAll: "Todo el historial",
-    visitorIdentity: "Tipo de visitante",
-    visitorIdentityAll: "Todos",
-    visitorIdentityRegistered: "Registrados",
-    visitorIdentityAnonymous: "Anónimos",
-    visitorIdentityReturning: "Recurrentes",
-    visitorCountry: "País",
-    visitorDevice: "Dispositivo",
-    visitorDeviceAll: "Todos",
-    visitorDeviceDesktop: "Escritorio",
-    visitorDeviceMobile: "Móvil",
-    visitorDeviceTablet: "Tableta",
-    visitorSearch: "Buscar",
-    visitorIncludeBots: "Incluir tráfico automatizado",
-    visitorDirectoryTitle: "Directorio de visitantes",
-    visitorColumnIdentity: "Visitante",
-    visitorColumnLocation: "Ubicación",
-    visitorColumnActivity: "Actividad",
-    visitorColumnFirst: "Primera visita",
-    visitorColumnLast: "Última visita",
-    visitorColumnPage: "Última página",
-    visitorColumnDetail: "Detalle",
-    marketingTitle: "Campañas / Marketing",
-    marketingHint: "Segmentos listos para contactar compradores, vendedores y propietarios en valoración.",
-    pdfTitle: "Fichas PDF",
-    pdfHint: "Preparación de fichas comerciales para propiedades y valoraciones.",
-    filesTitle: "Archivos",
-    filesHint: "Documentos, imagenes y respuestas adjuntas quedaran asociados a solicitudes y propiedades.",
-    settingsTitle: "Configuración",
-    settingsHint: "Parametros de sitio, WhatsApp, moneda, SEO y avisos.",
-    rolesTitle: "Roles / usuarios internos",
-    rolesHint: "Base para super admin, administrador, asesor y editor.",
-    buyerPanelTitle: "Compradores",
-    sellerOpsTitle: "Vendedores / Propietarios",
-    tableLead: "Lead",
-    tableContact: "Contacto",
-    tableSource: "Fuente",
-    nextAction: "Siguiente accion",
-    propertyQualityMissing: "Faltan",
-    qualityPremium: "Premium",
-    qualityReady: "Lista",
-    qualityNeedsWork: "Mejorable",
-    qualityIncomplete: "Incompleta",
-    exportCsv: "Exportar CSV",
-    adminPromptLibraryTitle: "Herramientas IA internas para publicaciones y asesorías",
-    adminPromptLibraryCopy:
-      "Usa estos textos como apoyo interno para valorar, redactar y revisar propiedades antes de publicar. No son una sección pública.",
-    adminPromptsEmpty: "No hay herramientas internas configuradas.",
-    adminLeadsTitle: "Asesorías",
-    adminLeadSummary: "solicitudes de asesoria",
-    adminLeadsHint: "Aquí llegan las consultas sobre compras, visitas y precios. Abre la solicitud para leer qué necesita la persona, responderle y registrar el siguiente paso.",
-    adminNoLeads: "No hay solicitudes de asesoria.",
-    leadFilterAll: "Todas",
-    leadFilterSeller: "Vender",
-    leadFilterValuation: "Valoracion",
-    leadFilterAi: "Revisar precio",
-    leadFilterBuyer: "Compradores",
-    leadFilterProperty: "Propiedad",
-    leadFilterWhatsApp: "WhatsApp / ayuda",
-    crmTitle: "CRM / Contactos",
-    crmSummary: "contactos registrados",
-    crmHint: "Contactos generados desde formularios, vendedor, comprador y WhatsApp.",
-    noContacts: "No hay contactos registrados.",
-    contactTypeBuyer: "Comprador",
-    contactTypeSeller: "Vendedor",
-    contactTypeUnclassified: "Sin clasificar",
-    leadScoreCold: "Frio",
-    leadScoreWarm: "Tibio",
-    leadScoreHot: "Caliente",
-    leadScorePremium: "Premium",
-    listingStatus: "Estado de publicacion",
-    publicListing: "Visible en web publica",
-    statusDraft: "Borrador",
-    statusPending: "Pendiente",
-    statusActive: "Activa",
-    statusDisabled: "Deshabilitada",
-    statusSold: "Vendida",
-    statusRented: "Rentada",
-    statusArchived: "Archivada",
-    statusRejected: "Rechazada",
-    qualityScore: "Calidad",
-    markActive: "Activar",
-    markDisabled: "Deshabilitar",
-    markSold: "Vendida",
-    duplicateListing: "Duplicar",
-    adminScrollableHint: "Desplaza dentro de esta lista para ver más.",
-    adminListingsHint: "Edita, revisa y elimina publicaciones existentes.",
-    adminInsightPending: "Pendientes por revisar",
-    adminInsightLeads: "Asesorias nuevas",
-    adminInsightFeatured: "Propiedades destacadas",
-    adminInsightAverage: "Precio promedio",
-    adminInsightSearches: "Búsquedas registradas",
-    adminRequestSummary: "solicitudes totales",
-    adminListingSummary: "publicaciones activas",
-    adminNoPending: "No hay solicitudes pendientes.",
-    adminTopZones: "Zonas con inventario",
-    adminOperations: "Operación",
-    adminInventory: "Inventario",
-    adminSellerContact: "Contacto del vendedor",
-    adminPropertyFacts: "Datos de la propiedad",
-    adminRequestMeta: "Solicitud",
-    locationCatalogTitle: "Catálogos de ubicación",
-    locationCatalogCopy: "Da de alta estados, ciudades, zonas y colonias para registrar direcciones más precisas en cada inmueble.",
-    catalogType: "Tipo",
-    catalogParent: "Pertenece a",
-    catalogName: "Nombre",
-    catalogSortOrder: "Orden",
-    catalogActive: "Activo",
-    catalogState: "Estado",
-    catalogCity: "Ciudad / municipio",
-    catalogZone: "Zona",
-    catalogNeighborhood: "Colonia / desarrollo",
-    saveCatalog: "Guardar catálogo",
-    newCatalog: "Nuevo catálogo",
-    editCatalog: "Editar",
-    disableCatalog: "Desactivar",
-    enableCatalog: "Activar",
-    catalogSaved: "Catálogo guardado.",
-    catalogDeleted: "Catálogo eliminado.",
-    catalogEmpty: "No hay opciones registradas.",
-    noParent: "Sin superior",
-    optionalLocation: "Sin seleccionar",
-    showMore: "Mostrar más",
-    sellerRole: "Cuenta de vendedor",
-    adminRole: "Cuenta administradora",
-    accountPrompt: "Completa estos datos para crear tu cuenta de vendedor.",
-    requestSent: "Solicitud enviada. El administrador podrá revisarla en su panel.",
-    leadSent: "Solicitud enviada. Un asesor puede revisar tu información.",
-    loginError: "La contraseña no coincide con esa cuenta.",
-    loginUnavailable: "La base de datos no está disponible en este momento. Tus cuentas y publicaciones no fueron eliminadas; vuelve a intentar después del redeploy.",
-    accountExists: "Ya existe una cuenta con ese correo.",
-    accountCreated: "Cuenta creada. Bienvenido al panel de vendedor.",
-    listingSaved: "Publicación guardada.",
-    listingDeleted: "Registro eliminado del inventario activo. Puedes restaurarlo desde el filtro Archivada.",
-    requestApproved: "Solicitud aprobada y publicada.",
-    requestRejected: "Solicitud rechazada.",
-    leadUpdated: "Solicitud de asesoria actualizada.",
-    leadDeleted: "Solicitud de asesoria eliminada.",
-    confirmDeleteLead: "Borrar esta solicitud de asesoria?",
-    leadStatusNew: "Nueva",
-    leadStatusContacted: "Atendida",
-    leadStatusClosed: "Cerrada",
-    leadTypeGeneral: "General",
-    leadTypeAiValidation: "Revisión de precio",
-    leadTypeValuation: "Valoracion",
-    leadTypeBuyer: "Compra",
-    leadTypeSeller: "Venta",
-    respondWhatsApp: "Responder WhatsApp",
-    respondEmail: "Responder correo",
-    markContacted: "Marcar atendida",
-    markClosed: "Cerrar",
-    adminRespond: "Responder",
-    responsePrompt: "Escribe la respuesta interna/para cliente:",
-    noEmail: "Sin correo",
-    whatsAppPending: "Abrir WhatsApp",
-    statProperties: "Publicaciones",
-    statRequests: "Solicitudes pendientes",
-    statLeads: "Asesorias nuevas",
-    statSearches: "Busquedas",
-    statUsers: "Cuentas vendedor",
-    statVisits: "Visitas demo",
-    priority: "Prioridad",
-    edit: "Editar",
-    delete: "Borrar",
-    archiveListing: "Eliminar",
-    restoreListing: "Restaurar",
-    approve: "Aprobar",
-    reject: "Rechazar",
-    requestBy: "Solicitud de",
-    preferred: "Prefiere",
-    listingsEmpty: "No hay publicaciones.",
-    perMonth: " / mes",
-    bedShort: "recámaras",
-    bathShort: "baños",
-    sqmBuild: "m2 con",
-    sqmLot: "m2 lote",
-    mls: "MLS#",
-    sellerPanelShort: "Panel vendedor",
-    adminPanelShort: "Panel admin",
-    confirmDelete: "¿Eliminar este registro del inventario activo? Dejará de ser público, pero podrás restaurarlo desde el filtro Archivada.",
-    apiError: "No se pudo conectar con la base de datos. Revisa DATABASE_URL y el servidor.",
-    partialLoadError: "Algunos datos tardaron en responder. El portal continúa disponible y puedes reintentar.",
-  },
-  en: {
-    currencyLabel: "Select currency:",
-    navSearch: "Search",
-    navAllProperties: "View all properties",
-    navQuick: "Quick links",
-    navResourcesAdvice: "Resources and advice",
-    publicNavLabel: "Main navigation",
-    navProperties: "Properties",
-    navExplore: "Explore",
-    navForSale: "For sale",
-    navHotelZone: "Hotel Zone",
-    navCancunCity: "Cancun City",
-    navOutsideCancun: "Outside Cancun",
-    navHotelZoneDescription: "Hotel Zone, Costa Mujeres and Punta Sam",
-    navPuertoDescription: "Marina, canals and residential communities",
-    navCityDescription: "Downtown, Huayacan and the Colosio corridor",
-    navOutsideDescription: "Riviera Maya and other destinations",
-    navInPuerto: "In Puerto Cancun",
-    navAdvice: "Local advice",
-    navPriceReview: "Review my price",
-    navCall: "Call",
-    localPriceCopy: "If you have a price in mind, an advisor can compare it with similar properties in your area.",
-    navFeatured: "Featured",
-    navPropertyType: "Property type",
-    menuAllSale: "View all for sale",
-    typeHouses: "Homes",
-    typeLand: "Land",
-    typePresales: "Presales",
-    typeRentals: "Rentals",
-    typeCondos: "Condos",
-    typeCommercial: "Commercial",
-    typeDevelopments: "Developments",
-    navPuerto: "Puerto Cancun",
-    navZones: "Areas",
-    navDevelopments: "Developments",
-    navResources: "Resources",
-    resourceMortgage: "Mortgage calculator",
-    resourceBlog: "Blog",
-    resourceBuyerRequirements: "Client requirements",
-    footerBlog: "Real estate blog",
-    navAbout: "About us",
-    menuAllZones: "View all areas",
-    navSell: "Sell",
-    navLogin: "Log in",
-    heroKicker: "Luxury properties in Cancun",
-    heroTitle: "Buy or sell your Cancun property",
-    heroSubtitle:
-      "We help you validate pricing, prepare your property, find real buyers, and make better real estate decisions in Cancun.",
-    heroSellCta: "I want to sell my property",
-    sellerOptionsEyebrow: "CHOOSE HOW TO START",
-    sellerOptionsTitle: "How would you like to sell your property?",
-    sellerOptionsCopy: "Choose a brief request without an account, or register to add more details, save progress and track everything from your seller dashboard.",
-    guestSaleName: "Sell without registering",
-    guestSaleSummary: "Title, type, location and photos. No account is required.",
-    guidedSaleName: "Registered sale",
-    guidedSaleSummary: "The most complete option to present and track your property.",
-    guidedSaleBenefitDetails: "Add detailed information and more photographs.",
-    guidedSaleBenefitProgress: "Save your progress without losing completed information.",
-    guidedSaleBenefitPanel: "Review requests and follow-up from your seller dashboard.",
-    valuationSaleName: "Request valuation",
-    valuationOptionalDetails: "Add optional details",
-    valuationSaleSummary: "Validate the price before preparing the listing.",
-    guestSaleEyebrow: "NO-ACCOUNT SALE",
-    guestSaleTitle: "Send us the essential details",
-    guestSaleIntro: "You do not need an account. An advisor will review the information before requesting anything else.",
-    guestLocation: "Location",
-    guestImages: "Property images",
-    guestImagesHelp: "You can select multiple JPG, PNG or WEBP photos.",
-    optionalDescription: "Optional description",
-    continueContact: "Submit property",
-    confirmSendRequest: "Confirm and send",
-    contactPreferenceEyebrow: "FINAL STEP",
-    contactPreferenceTitle: "How would you prefer us to contact you?",
-    contactPreferenceCopy: "If we need more information about your property, we will contact you only through your selected channel.",
-    countryPrefix: "Prefix",
-    nationalNumber: "National number",
-    guestConsent: "I accept the privacy notice and agree to be contacted by an advisor about this request.",
-    back: "Back",
-    heroBuyCta: "I want to buy in Cancun",
-    heroPriceReviewCta: "Review my estimate",
-    searchPlaceholder: "Area or property",
-    homeSearchLabel: "Find a property",
-    searchButton: "Search",
-    contactToday: "Contact Us Today",
-    operationType: "Operation type",
-    sellOperation: "Sell",
-    buyOperation: "Buy",
-    investOperation: "Invest",
-    aiResponseField: "Previous reference",
-    validateWithAdvisor: "Review my estimate",
-    sellerAudienceTitle: "For owners who want to sell better",
-    sellerAudienceCopy:
-      "We help define a competitive price, prepare your property, create a marketing strategy, and negotiate with buyers.",
-    buyerAudienceTitle: "For buyers who want to choose well",
-    buyerAudienceCopy: "We help find properties by budget, area, lifestyle, and investment objective.",
-    valuationRequest: "Request valuation",
-    searchProperty: "Search property",
-    aiResourcesTitle: "Buy or sell your property in Cancun",
-    resourceProperties: "View available properties",
-    resourceSellHere: "Sell my property here",
-    resourceBuyGuide: "Guide to buying a home in Cancun",
-    resourceValuation: "Property valuation",
-    resourceFaq: "Frequently asked questions",
-    resourceZones: "Cancun areas",
-    featuredZones: "Locations",
-    allZones: "All areas",
-    zonePresales: "Presales",
-    welcomeTitle: "Welcome to Puerto Cancun Center!",
-    welcomeCopy:
-      "With years of experience in luxury real estate across Cancun, Puerto Cancun, and the Hotel Zone, Puerto Cancun Center represents selected properties with updated inventory, professional guidance, and close follow-up for buyers, sellers, and investors.",
-    featuredProperties: "Featured properties",
-    featuredCopy:
-      "Explore oceanfront developments, canal residences, and condos with a variety of amenities.",
-    seeMore: "See more",
-    searchByType: "Search by type",
-    presaleTitle: "Presales",
-    presaleCopy:
-      "Review presale opportunities with expert guidance, clear delivery information, appreciation potential, and payment structures.",
-    allProperties: "All properties",
-    keywordSearchLabel: "Search properties by keyword",
-    keywordSearchPlaceholder: "Title, MLS, area or keyword",
-    guidedKicker: "Guided search",
-    guidedTitle: "Find your ideal property",
-    guidedOperation: "Buy or rent",
-    guidedBoth: "Both",
-    guidedBuy: "Buy",
-    guidedRent: "Rent",
-    guidedBudget: "Maximum budget USD",
-    guidedBedrooms: "Bedrooms",
-    guidedGoal: "Goal",
-    goalLive: "Primary residence",
-    goalInvest: "Investment",
-    goalVacation: "Vacation home",
-    goalIncome: "Rental income",
-    viewProperties: "View properties",
-    alertKicker: "Property alert",
-    alertTitle: "Receive compatible options",
-    alertCopy: "We will save your preferred area, type and budget so an advisor can contact you.",
-    alertCreate: "Create alert",
-    fieldName: "Name",
-    fieldEmail: "Email",
-    clearFilters: "Clear filters",
-    sortBy: "Sort by:",
-    sortHigh: "Price high to low",
-    sortLow: "Price low to high",
-    sortNew: "Newest",
-    filterType: "Type",
-    filterZone: "Area",
-    filterOperation: "Operation",
-    allTypes: "All",
-    allZonesShort: "All",
-    allOperations: "All",
-    activeFilters: "Active filter",
-    requestInfo: "Request information",
-    moreProperties: "See more properties",
-    teamTitle: "Talk to a local advisor",
-    teamKicker: "Local advisory",
-    teamCopy: "We can help you choose an area, arrange a viewing, or take the next step toward selling.",
-    teamCta: "Contact the team",
-    trustSignalsLabel: "Trust signals",
-    trustInventoryTitle: "Reviewed inventory",
-    trustInventoryCopy: "Price, currency, location and availability are presented subject to documentary verification.",
-    trustPrivacyTitle: "Protected data",
-    trustPrivacyCopy: "Forms explain their purpose and provide a way to exercise privacy rights.",
-    trustTrackingTitle: "Traceable service",
-    trustTrackingCopy: "Every request is recorded so the team can follow up through the selected channel.",
-    teamRoleSales: "Senior real estate advisor",
-    teamRoleListings: "Property coordinator",
-    teamRoleInvestment: "Investment consultant",
-    sellTitle: "Want to sell a property?",
-    sellCopy: "Learn about the process, benefits and support you will receive before registering to list your property.",
-    startSellerRequest: "Learn how to sell",
-    footerCommunities: "Communities",
-    footerBuy: "Property purchase",
-    footerSell: "Seller advisory",
-    footerAbout: "About",
-    saleProperty: "Property sale",
-    aboutPuerto: "About Puerto Cancun Center",
-    location: "Location",
-    rights: "All rights reserved.",
-    privacyNotice: "Privacy notice",
-    termsConditions: "Terms and conditions",
-    cookiePolicy: "Cookie policy",
-    saveFavorite: "Save favorite",
-    removeFavorite: "Remove favorite",
-    addComparison: "Add to comparison",
-    removeComparison: "Remove from comparison",
-    backToSite: "Back to site",
-    logout: "Log out",
-    sellerRequestTitle: "Submit sale request",
-    sellerGuideTitle: "Quick selling guide",
-    sellerGuideCopy:
-      "Complete the key details, add a clear image, and leave a message so the team can request more information before publishing.",
-    sellerHelpTitle: "Need help filling out the form?",
-    sellerHelpCopy: "An advisor can help prepare the information, photos, and location before you submit the request.",
-    sellerHelpCta: "Request WhatsApp guidance",
-    sellerContactTitle: "Contact details for this request",
-    propertyTitle: "Property title",
-    propertyTitleEs: "Property title in Spanish",
-    propertyTitleEn: "Property title in English",
-    publicationDestination: "Publish in",
-    publicationProperties: "Properties",
-    publicationDevelopments: "Developments",
-    bilingualFieldHelp: "This copy is shown when visitors browse in English.",
-    propertyType: "Property type",
-    zone: "Area",
-    stateField: "State",
-    cityField: "City / municipality",
-    neighborhoodField: "Neighborhood / development",
-    price: "Price",
-    currency: "Currency",
-    address: "Address",
-    mapPickerTitle: "Map location",
-    mapPickerCopy: "Drag the pin or click the map to set the exact property location.",
-    mapPickerHelp: "Drag the pin or click the map to set the exact location. You can also enter the coordinates manually.",
-    useCurrentLocation: "Use my location",
-    locateAddress: "Locate address",
-    openGoogleMaps: "Open Google Maps",
-    latitudeField: "Latitude",
-    longitudeField: "Longitude",
-    locationDetected: "Location detected. Review the map before saving.",
-    locationUnavailable: "Could not get your location. You can enter coordinates manually.",
-    mapLoadUnavailable: "The interactive map could not be loaded. Use the visible map or enter the coordinates manually.",
-    mapSearching: "Finding the address and updating the pin...",
-    mapAddressFound: "Address found. Confirm or adjust the pin before saving.",
-    mapAddressNotFound: "We could not find that address automatically. Adjust the pin or enter the coordinates.",
-    mapAddressChanged: "Address changed. Waiting to update the map...",
-    bedrooms: "Bedrooms",
-    bathrooms: "Bathrooms",
-    area: "Built m2",
-    description: "Description",
-    descriptionEs: "Description in Spanish",
-    descriptionEn: "Description in English",
-    mapSearchLabel: "Search for a location on the map",
-    mapSearchPlaceholder: "Address, city, state or country",
-    mapSearchAction: "Search and move pin",
-    sendRequest: "Submit request",
-    myRequests: "My requests",
-    adminRequestsTitle: "Seller requests",
-    manageListings: "Manage listings",
-    operation: "Operation",
-    sale: "Sale",
-    rent: "Rent",
-    priceUsd: "USD price",
-    priceMxn: "MXN price",
-    imageUpload: "Property images",
-    imageHelp: "JPG, PNG or WEBP. Up to 60 images. They are optimized before saving.",
-    imageGalleryTitle: "Gallery and publication order",
-    imageGalleryHelp: "The first image will be the cover. Drag photos or use the arrows to change their order.",
-    currentImage: "Current image",
-    selectedImage: "Selected images",
-    removeImage: "Remove images",
-    imageRemoved: "Images removed. You can select others before saving.",
-    imageTooLarge: "Image must not exceed 1.5 MB.",
-    tooManyImages: "You can upload up to 60 images per listing.",
-    invalidImageType: "Image must be JPG, JPEG, PNG, or WEBP.",
-    missingPrice: "Add at least one price: USD or MXN.",
-    markFeatured: "Mark as featured",
-    saveListing: "Save listing",
-    newListing: "New listing",
-    publishDevelopment: "Publish development",
-    saveDevelopmentChanges: "Save development changes",
-    inventoryOf: "of",
-    developmentEntity: "Development",
-    unverifiedInventory: "Not verified",
-    verifiedDayAgo: "Verified 1 day ago",
-    verifiedDaysAgo: "Verified {days} days ago",
-    reviewAvailabilityDays: "Review availability · {days} days",
-    noListingMatches: "No listings match this search.",
-    inventoryView: "View / status",
-    inventoryGeneral: "General inventory",
-    inventoryDrafts: "Drafts",
-    removeFeatured: "Remove featured status",
-    featureListing: "Feature",
-    duplicateListing: "Duplicate",
-    institutionalPdf: "Institutional PDF",
-    neutralPdf: "Neutral PDF",
-    configurePdf: "Configure PDF",
-    publicDetail: "View public page",
-    reviewQuality: "Review quality",
-    confirmAvailability: "Confirm availability",
-    listingHistory: "History",
-    authTitle: "Puerto Cancun Center access",
-    authIntro: "Register and list with us. You can submit your property, add photos, and follow the process with an advisor.",
-    createAccount: "Create account",
-    emailOrUser: "Email or user",
-    password: "Password",
-    confirmPassword: "Confirm password",
-    showPassword: "Show password",
-    hidePassword: "Hide password",
-    currentPassword: "Current password",
-    newPassword: "New password",
-    passwordRule: "At least 6 characters. No required combination of letters, numbers or symbols.",
-    forgotPassword: "Forgot your password?",
-    forgotPasswordIntro: "We will email you a secure link that expires in 45 minutes.",
-    sendRecovery: "Send recovery link",
-    resetPassword: "Create new password",
-    cookieBannerTitle: "Your privacy matters",
-    cookieBannerCopy: "We use cookies for your session. You choose whether to allow visit measurement.",
-    cookieLearnMore: "Cookie policy",
-    cookieEssential: "Essential only",
-    cookieAccept: "Accept measurement",
-    updateExistingPassword: "Already have an account? Update password",
-    updatePasswordTitle: "Update password",
-    updatePasswordIntro: "Confirm your current password and choose a new one with at least 6 characters.",
-    updatePasswordAction: "Update password",
-    backToLogin: "Back to sign in",
-    passwordUpdated: "Password updated. You can now sign in.",
-    adminPasswordManaged: "The administrator password is changed through ADMIN_PASSWORD in Seenode and requires a new deployment.",
-    noAccount: "No account? Create a seller account",
-    googleAuthCopy: "You can also continue with your Google account.",
-    googleLoginUnavailable: "Set GOOGLE_CLIENT_ID to enable Google sign-in.",
-    googleLoginError: "Could not sign in with Google.",
-    firstName: "First name",
-    lastName: "Last name",
-    email: "Email address",
-    phone: "Phone",
-    preferredContact: "Preferred contact method",
-    contactEmail: "Email",
-    contactPhone: "Phone",
-    noResults: "No properties matched those filters.",
-    resultText: "properties",
-    viewDetails: "View details",
-    contactAdvisor: "WhatsApp",
-    contactWhatsApp: "Contact on WhatsApp",
-    new: "New",
-    reduced: "Reduced price",
-    pending: "Pending",
-    approved: "Approved",
-    rejected: "Rejected",
-    noRequests: "No requests registered.",
-    sellerPanelTitle: "Seller panel",
-    sellerPanelSubtitle: "Submit sale requests and review each property's status.",
-    adminPanelTitle: "Admin panel",
-    adminPanelSubtitle: "Review requests, monitor activity, and manage site listings.",
-    adminWorkspaceTitle: "Quick actions",
-    adminWorkspaceCopy: "Choose a task to open its workspace.",
-    adminJumpRequests: "Sale requests",
-    adminJumpListings: "Properties",
-    adminJumpCatalogs: "Catalogs",
-    adminJumpNew: "New property",
-    adminJumpPrompts: "AI tools",
-    adminJumpLeads: "Client inquiries",
-    adminMenuLabel: "Menu",
-    adminExpandMenu: "Expand menu",
-    navDaily: "My day",
-    navClients: "Client services",
-    navInventory: "Inventory",
-    navOutreach: "Communications",
-    navControl: "Reporting and administration",
-    homeAdminTitle: "Daily overview",
-    homeInventoryTitle: "Your inventory",
-    openTasksFilter: "Open",
-    askAdvisorTitle: "Ask an advisor",
-    askAdvisorDescription: "Ask about selling or negotiating. An advisor will review your question and reply here.",
-    askAdvisorAction: "Ask a question",
-    homeAdminGuide: "Start with requests waiting for a reply, or review your inventory. Select a number to open the listings included in that total.",
-    adminRequestGuide: "These are properties submitted by registered owners. Open Reply to request details or send a message. Check the photos and price before approval. Approving a submission with a photo can publish the listing.",
-    guestRequestGuide: "These owners submitted basic details without an account. Check their contact preference, record the follow-up and request the information needed to prepare their listing.",
-    estimateKicker: "Price review",
-    estimateTitle: "What is your estimated price?",
-    estimateIntro: "Tell us your estimate and where the property is located. An advisor will compare it with similar properties and explain which factors affect the price.",
-    ownerEstimateLabel: "Estimated price",
-    shareEstimate: "Share my estimate",
-    adminJumpDashboard: "Home",
-    adminJumpContacts: "CRM / Contacts",
-    adminJumpValuations: "Valuations",
-    adminJumpBuyers: "Buyers",
-    adminJumpSellers: "Sellers",
-    adminJumpMatches: "Match",
-    adminJumpMap: "Smart map",
-    adminJumpMarketing: "Promotional content",
-    adminJumpPdf: "PDF sheets",
-    adminJumpAnalytics: "Analytics",
-    adminJumpTasks: "Tasks",
-    adminJumpFiles: "Files",
-    adminJumpSettings: "Settings",
-    adminJumpRoles: "Users and access",
-    adminSidebarCollapse: "Collapse menu",
-    adminSidebarExpand: "Expand menu",
-    adminAttentionTitle: "What needs attention today",
-    adminQuickActions: "Quick actions",
-    adminOpsSubtitle: "Sales operation, listings, contacts and follow-up in one place.",
-    leadCenterTitle: "Lead Center",
-    leadCenterHint: "Wide inbox with priority, score, contact data and suggested next action.",
-    valuationTitle: "Property valuations",
-    valuationHint: "Estimate the value of a property here. Record the owner’s expected price, compare similar properties and save the range you will discuss.",
-    noValuations: "No pending valuations.",
-    createValuation: "Create manual valuation",
-    suggestedPrice: "Suggested price",
-    lowRange: "Low range",
-    highRange: "High range",
-    confidenceLevel: "Confidence",
-    saveValuation: "Save valuation",
-    taskTitle: "Tasks / Follow-up",
-    taskHint: "Commercial follow-ups for leads, contacts, properties and valuations.",
-    noTasks: "No tasks yet.",
-    createTask: "Create task",
-    taskDue: "Due date",
-    taskCompleted: "Completed",
-    taskInProgress: "In progress",
-    matchTitle: "Buyer-property match",
-    matchHint: "Crosses buyers with active listings by zone, type and budget.",
-    noMatches: "No strong matches yet.",
-    matchScore: "compatibility",
-    prepareMessage: "Prepare message",
-    smartMapTitle: "Smart map",
-    smartMapHint: "Operational view by zones, inventory and registered leads.",
-    analyticsTitle: "Commercial analytics",
-    analyticsHint: "Events, searches, requested zones and properties with more activity.",
-    visitorLeadsMenu: "Leads",
-    visitorLeadsEyebrow: "AUDIENCE AND JOURNEY",
-    visitorLeadsTitle: "Leads and visitors",
-    visitorLeadsHint: "Separates people, sessions, and page views to analyze origin and interest without treating every visit as a new contact.",
-    visitorLeadsExport: "Export CSV",
-    visitorLeadsRefresh: "Refresh",
-    visitorLeadsPrivacy: "Measurement is recorded only when the visitor accepts analytics cookies. Location comes from server headers and may be unavailable or approximate.",
-    visitorPeriod: "Period",
-    visitorPeriodToday: "Today",
-    visitorPeriod7: "Last 7 days",
-    visitorPeriod30: "Last 30 days",
-    visitorPeriod90: "Last 90 days",
-    visitorPeriodAll: "All history",
-    visitorIdentity: "Visitor type",
-    visitorIdentityAll: "All",
-    visitorIdentityRegistered: "Registered",
-    visitorIdentityAnonymous: "Anonymous",
-    visitorIdentityReturning: "Returning",
-    visitorCountry: "Country",
-    visitorDevice: "Device",
-    visitorDeviceAll: "All",
-    visitorDeviceDesktop: "Desktop",
-    visitorDeviceMobile: "Mobile",
-    visitorDeviceTablet: "Tablet",
-    visitorSearch: "Search",
-    visitorIncludeBots: "Include automated traffic",
-    visitorDirectoryTitle: "Visitor directory",
-    visitorColumnIdentity: "Visitor",
-    visitorColumnLocation: "Location",
-    visitorColumnActivity: "Activity",
-    visitorColumnFirst: "First visit",
-    visitorColumnLast: "Last visit",
-    visitorColumnPage: "Last page",
-    visitorColumnDetail: "Details",
-    marketingTitle: "Campaigns / Marketing",
-    marketingHint: "Segments ready to contact buyers, sellers and owners in valuation.",
-    pdfTitle: "PDF sheets",
-    pdfHint: "Commercial sheet preparation for listings and valuations.",
-    filesTitle: "Files",
-    filesHint: "Documents, images and attached responses stay linked to requests and listings.",
-    settingsTitle: "Settings",
-    settingsHint: "Site, WhatsApp, currency, SEO and notice settings.",
-    rolesTitle: "Roles / internal users",
-    rolesHint: "Foundation for super admin, administrator, advisor and editor.",
-    buyerPanelTitle: "Buyers",
-    sellerOpsTitle: "Sellers / Owners",
-    tableLead: "Lead",
-    tableContact: "Contact",
-    tableSource: "Source",
-    nextAction: "Next action",
-    propertyQualityMissing: "Missing",
-    qualityPremium: "Premium",
-    qualityReady: "Ready",
-    qualityNeedsWork: "Needs work",
-    qualityIncomplete: "Incomplete",
-    exportCsv: "Export CSV",
-    adminPromptLibraryTitle: "Internal AI tools for listings and advisory",
-    adminPromptLibraryCopy:
-      "Use these texts as internal support to value, write, and review properties before publishing. This is not a public section.",
-    adminPromptsEmpty: "No internal tools configured.",
-    adminLeadsTitle: "Client inquiries",
-    adminLeadSummary: "advisor requests",
-    adminLeadsHint: "People use these forms to ask about buying, visits and prices. Open a request to read their question, reply and record the next step.",
-    adminNoLeads: "No advisor requests.",
-    leadFilterAll: "All",
-    leadFilterSeller: "Seller",
-    leadFilterValuation: "Valuation",
-    leadFilterAi: "Price reviews",
-    leadFilterBuyer: "Buyers",
-    leadFilterProperty: "Property",
-    leadFilterWhatsApp: "WhatsApp / help",
-    crmTitle: "CRM / Contacts",
-    crmSummary: "registered contacts",
-    crmHint: "Contacts generated from forms, sellers, buyers, and WhatsApp.",
-    noContacts: "No contacts registered.",
-    contactTypeBuyer: "Buyer",
-    contactTypeSeller: "Seller",
-    contactTypeUnclassified: "Unclassified",
-    leadScoreCold: "Cold",
-    leadScoreWarm: "Warm",
-    leadScoreHot: "Hot",
-    leadScorePremium: "Premium",
-    listingStatus: "Listing status",
-    publicListing: "Visible on public site",
-    statusDraft: "Draft",
-    statusPending: "Pending",
-    statusActive: "Active",
-    statusDisabled: "Disabled",
-    statusSold: "Sold",
-    statusRented: "Rented",
-    statusArchived: "Archived",
-    statusRejected: "Rejected",
-    qualityScore: "Quality",
-    markActive: "Activate",
-    markDisabled: "Disable",
-    markSold: "Sold",
-    duplicateListing: "Duplicate",
-    adminScrollableHint: "Scroll inside this list to see more.",
-    adminListingsHint: "Edit, review, and delete existing listings.",
-    adminInsightPending: "Pending review",
-    adminInsightLeads: "New advisor requests",
-    adminInsightFeatured: "Featured properties",
-    adminInsightAverage: "Average price",
-    adminInsightSearches: "Recorded searches",
-    adminRequestSummary: "total requests",
-    adminListingSummary: "active listings",
-    adminNoPending: "No pending requests.",
-    adminTopZones: "Inventory areas",
-    adminOperations: "Operation",
-    adminInventory: "Inventory",
-    adminSellerContact: "Seller contact",
-    adminPropertyFacts: "Property facts",
-    adminRequestMeta: "Request",
-    locationCatalogTitle: "Location catalogs",
-    locationCatalogCopy: "Add states, cities, areas, and neighborhoods to register more precise property addresses.",
-    catalogType: "Type",
-    catalogParent: "Belongs to",
-    catalogName: "Name",
-    catalogSortOrder: "Order",
-    catalogActive: "Active",
-    catalogState: "State",
-    catalogCity: "City / municipality",
-    catalogZone: "Area",
-    catalogNeighborhood: "Neighborhood / development",
-    saveCatalog: "Save catalog",
-    newCatalog: "New catalog",
-    editCatalog: "Edit",
-    disableCatalog: "Disable",
-    enableCatalog: "Enable",
-    catalogSaved: "Catalog saved.",
-    catalogDeleted: "Catalog deleted.",
-    catalogEmpty: "No options registered.",
-    noParent: "No parent",
-    optionalLocation: "Not selected",
-    showMore: "Show more",
-    sellerRole: "Seller account",
-    adminRole: "Admin account",
-    accountPrompt: "Complete these details to create your seller account.",
-    requestSent: "Request submitted. The administrator can review it in the panel.",
-    leadSent: "Request submitted. An advisor can review your information.",
-    loginError: "The password does not match that account.",
-    loginUnavailable: "The database is currently unavailable. Your accounts and listings were not deleted; try again after the redeploy.",
-    accountExists: "An account already exists with that email.",
-    accountCreated: "Account created. Welcome to the seller panel.",
-    listingSaved: "Listing saved.",
-    listingDeleted: "Record removed from active inventory. You can restore it from the Archived filter.",
-    requestApproved: "Request approved and published.",
-    requestRejected: "Request rejected.",
-    leadUpdated: "Advisor request updated.",
-    leadDeleted: "Advisor request deleted.",
-    confirmDeleteLead: "Delete this advisor request?",
-    leadStatusNew: "New",
-    leadStatusContacted: "Handled",
-    leadStatusClosed: "Closed",
-    leadTypeGeneral: "General",
-    leadTypeAiValidation: "Price review",
-    leadTypeValuation: "Valuation",
-    leadTypeBuyer: "Buyer",
-    leadTypeSeller: "Seller",
-    respondWhatsApp: "Reply WhatsApp",
-    respondEmail: "Reply email",
-    markContacted: "Mark handled",
-    markClosed: "Close",
-    adminRespond: "Reply",
-    responsePrompt: "Write the internal/client response:",
-    noEmail: "No email",
-    whatsAppPending: "Open WhatsApp",
-    statProperties: "Listings",
-    statRequests: "Pending requests",
-    statLeads: "New advisory",
-    statSearches: "Searches",
-    statUsers: "Seller accounts",
-    statVisits: "Demo visits",
-    priority: "Priority",
-    edit: "Edit",
-    delete: "Delete",
-    archiveListing: "Delete",
-    restoreListing: "Restore",
-    approve: "Approve",
-    reject: "Reject",
-    requestBy: "Request from",
-    preferred: "Prefers",
-    listingsEmpty: "No listings.",
-    perMonth: " / month",
-    bedShort: "beds",
-    bathShort: "baths",
-    sqmBuild: "m2 built",
-    sqmLot: "m2 lot",
-    mls: "MLS#",
-    sellerPanelShort: "Seller panel",
-    adminPanelShort: "Admin panel",
-    confirmDelete: "Remove this record from active inventory? It will no longer be public, but you can restore it from the Archived filter.",
-    apiError: "Could not connect to the database. Check DATABASE_URL and the server.",
-    partialLoadError: "Some data took too long to respond. The portal remains available and you can retry.",
-  },
-};
+const translations = window.PccSiteLanguage;
 
 const storedLanguage = localStorage.getItem(keys.lang);
 const urlLanguage = window.location.pathname === "/en" || window.location.pathname.startsWith("/en/") ? "en" : "";
@@ -2460,6 +1245,8 @@ async function api(path, options = {}) {
   throw new Error("No fue posible completar la solicitud.");
 }
 
+window.PccInquiryRequest = (path, body) => api(path, { method: "POST", body, keepalive: path.endsWith("/whatsapp-click") });
+
 function safeParseImageMetadata(value) {
   try {
     const parsed = typeof value === "string" ? JSON.parse(value || "[]") : value;
@@ -3005,6 +1792,73 @@ function sortedProperties(properties) {
   return sorted;
 }
 
+function restoreCatalogBackLink() {
+  const back = document.querySelector("[data-return-catalog]");
+  if (!back || !document.referrer) return;
+  const previous = new URL(document.referrer);
+  if (previous.origin !== location.origin) return;
+  const path = previous.pathname.replace(/\/$/, "");
+  const isCatalog = /^(?:\/en\/properties|\/propiedades)(?:\/|$)/.test(path)
+    && (Object.hasOwn(localizedRoutes, path) || Object.values(localizedRoutes).includes(path));
+  if (!isCatalog && !["/en/cancun-presales","/preventas-cancun","/en/cancun-areas","/zonas-cancun"].includes(path)) return;
+  back.href = previous.pathname + previous.search + previous.hash;
+  back.dataset.routeBase = localizedRoute(back.getAttribute("href"), "es");
+  back.textContent = state.lang === "en" ? "← Back to results" : "← Volver a los resultados";
+}
+
+function bindHomeSuggestions() {
+  const input = document.getElementById("searchInput");
+  const list = document.getElementById("homeSearchSuggestions");
+  if (!input || !list) return;
+  const close = () => { list.hidden = true; input.setAttribute("aria-expanded", "false"); };
+  const suggest = () => {
+    const contract = window.PccInventory;
+    if (!contract) return;
+    const term = contract.fold(input.value.trim());
+    if (term.length < 2) return close();
+    const en = state.lang === "en";
+    const base = en ? "/en/properties" : "/propiedades";
+    const areas = (state.portalDirectory?.areas || []).map(area => ({
+      label: en ? area.nameEn || area.nameEs : area.nameEs, kind: en ? "Area" : "Zona",
+      href: base + "?location=" + encodeURIComponent(area.id), words: [area.nameEs,area.nameEn],
+    }));
+    const items = state.properties.filter(contract.isPublic).map(item => ({
+      label: localizedTitle(item), kind: contract.entityOf(item) === "developments" ? (en ? "Development" : "Desarrollo") : (en ? "Property" : "Propiedad"),
+      href: base + "/" + encodeURIComponent(item.slug || item.id), words: [item.titleEs,item.titleEn,item.mls],
+    }));
+    const byKind = new Map();
+    for (const option of [...areas, ...items]) {
+      if (!option.words.some(word => word && contract.fold(word).includes(term))) continue;
+      const group = byKind.get(option.kind) || [];
+      if (group.length < 3) group.push(option);
+      byKind.set(option.kind, group);
+    }
+    const results = [...byKind.values()].flat();
+    list.replaceChildren(...results.map(option => {
+      const link = document.createElement("a");
+      const kind = document.createElement("small");
+      kind.textContent = option.kind;
+      link.href = option.href; link.append(kind, document.createTextNode(option.label));
+      return link;
+    }));
+    list.hidden = !results.length;
+    input.setAttribute("aria-expanded", String(Boolean(results.length)));
+  };
+  input.setAttribute("aria-controls", list.id);
+  input.addEventListener("input", suggest);
+  input.addEventListener("focus", suggest);
+  document.addEventListener("pointerdown", event => { if (!input.closest("form")?.contains(event.target)) close(); });
+  input.closest("form")?.addEventListener("focusout", event => { if (!event.currentTarget.contains(event.relatedTarget)) close(); });
+  input.closest("form")?.addEventListener("keydown", event => {
+    if (event.key === "Escape") { close(); input.focus(); close(); return; }
+    if (list.hidden || !["ArrowDown","ArrowUp"].includes(event.key)) return;
+    const links = Array.from(list.querySelectorAll("a"));
+    const next = links.indexOf(document.activeElement) + (event.key === "ArrowDown" ? 1 : -1);
+    event.preventDefault();
+    if (next < 0) input.focus(); else links[Math.min(next,links.length-1)]?.focus();
+  });
+}
+
 function updateHomeEditorialImages() {
   const contract = window.PccInventory;
   if (!contract) return;
@@ -3018,13 +1872,15 @@ function updateHomeEditorialImages() {
     [".type-grid .type-tile:nth-child(2)", (property) => property.type === "Departamento"],
     [".type-grid .type-tile:nth-child(3)", (property) => property.type === "Terreno"],
     [".type-grid .type-tile:nth-child(4)", (property) => property.type === "Comercial"],
-    ...["zona-hotelera", "puerto-cancun", "cancun-city", "fuera-de-cancun"].map((id, index) => [`.zone-grid .zone-card:nth-child(${index + 1})`, (property) => window.PccInventory?.resolveLocation(property).id === id]),
+    ...(state.portalDirectory?.areas || contract.LOCATIONS).map(area => [
+      `.zone-grid [data-commercial-location="${area.id}"]`, property => (property.portalAreaId || contract.resolveLocation(property).id) === area.id,
+    ]),
     [".presale-feature", (property) => contract.modalityOf(property) === "presale"],
   ];
   assignments.forEach(([selector, matches]) => {
     const card = document.querySelector(selector);
     const image = card?.querySelector('[data-home-cover]');
-    if (!image) return;
+    if (!image || card.dataset?.editorialCover) return;
     const matching = candidates.filter(candidate => matches(candidate) && inventoryImages(candidate).length);
     const property = matching.find(candidate => !usedProperties.has(candidate.id) && inventoryImages(candidate).some(source => !usedImages.has(source))) || matching[0];
     const images = property ? inventoryImages(property) : [];
@@ -3913,6 +2769,7 @@ function openGuestSale() {
   closeSellerOptions();
   resetGuestSaleForm();
   $("#guestSaleModal").hidden = false;
+  void window.PccInquiry?.populatePhone($("#guestSaleForm"));
   document.body.classList.add("modal-open");
   bindMapPickers();
   $("#guestSaleForm [name=title]")?.focus();
@@ -3932,7 +2789,7 @@ function continueGuestSale() {
   if (invalid) return;
   setGuestSaleStep("contact");
   updateGuestContactFields();
-  form.querySelector('[data-guest-contact-field="email"] input')?.focus();
+  form.elements.country?.focus();
 }
 
 function updateGuestContactFields() {
@@ -3942,9 +2799,9 @@ function updateGuestContactFields() {
   const emailField = form.querySelector('[data-guest-contact-field="email"]');
   const whatsappField = form.querySelector('[data-guest-contact-field="whatsapp"]');
   emailField.hidden = method !== "email";
-  whatsappField.hidden = method !== "whatsapp";
+  whatsappField.hidden = false;
   formField(form, "email").required = method === "email";
-  formField(form, "phone").required = method === "whatsapp";
+  formField(form, "phone").required = true;
 }
 
 async function guestSaleSubmit(event) {
@@ -3961,6 +2818,8 @@ async function guestSaleSubmit(event) {
     const body = Object.fromEntries(new FormData(form).entries());
     body.images = safeParseImages(form.dataset.images);
     body.preferredContact = method;
+    body.lang = state.lang;
+    body.sourcePath = location.pathname + location.search;
     body.consent = formField(form, "consent").checked;
     const data = await api("/api/guest-sale-requests", {
       method: "POST",
@@ -3970,7 +2829,8 @@ async function guestSaleSubmit(event) {
     });
     setFormMessage(message, data.message || (state.lang === "en" ? "Request received." : "Solicitud recibida."));
     showToast(state.lang === "en" ? "Your property was sent for review." : "Tu propiedad fue enviada para revisión.");
-    window.setTimeout(closeGuestSale, 1200);
+    if (data.action) window.PccInquiry?.offerAction(message, data.action);
+    else window.setTimeout(closeGuestSale, 1200);
   } catch (error) {
     setFormMessage(message, error.message, true);
   } finally {
@@ -4195,6 +3055,8 @@ function leadStatusLabel(status) {
 
 function leadTypeLabel(type) {
   const value = String(type || "").toLowerCase();
+  const intentKey = { "comprador-compra": "inquiryBuy", "comprador-busca-renta": "inquiryRent", "vendedor-venta": "inquirySell", "vendedor-ofrece-renta": "inquiryLet" }[value];
+  if (intentKey) return t(intentKey);
   if (["validar-precio", "price_validation", "ai_validation"].includes(value) || value.includes("validacion")) return t("leadTypeAiValidation");
   if (value === "advice") return state.lang === "en" ? "Advisor inquiry" : "Consulta a un asesor";
   if (value === "valuation" || value.includes("valuacion")) return t("leadTypeValuation");
@@ -4266,17 +3128,28 @@ function leadPayloadLabel(key) {
     developmentName: state.lang === "en" ? "Development" : "Desarrollo",
     developmentIntent: state.lang === "en" ? "Request" : "Solicitud",
     comments: state.lang === "en" ? "Comments" : "Comentarios",
+    lang: state.lang === "en" ? "Language" : "Idioma", intent: t("inquiryIntent"), country: state.lang === "en" ? "Phone country" : "País del teléfono",
+    prefix: state.lang === "en" ? "Dialing code" : "Prefijo", preferences: state.lang === "en" ? "Preferences" : "Preferencias",
+    propertyTitle: state.lang === "en" ? "Listing" : "Publicación", project: state.lang === "en" ? "Presale project" : "Proyecto de preventa",
+    development: state.lang === "en" ? "Development" : "Desarrollo", subzone: state.lang === "en" ? "Subarea" : "Subzona",
+    origin: state.lang === "en" ? "Source button" : "Botón de origen", reference: state.lang === "en" ? "Project reference" : "Referencia de proyecto",
+    viewedPropertyTitle: state.lang === "en" ? "Originally viewed listing" : "Publicación de origen",
+    viewedProject: state.lang === "en" ? "Originally viewed project" : "Proyecto de origen",
+    viewedReference: state.lang === "en" ? "Original project reference" : "Referencia de origen",
+    viewedZone: state.lang === "en" ? "Original area" : "Zona de origen",
+    viewedDevelopment: state.lang === "en" ? "Original development" : "Desarrollo de origen",
   };
   return labels[key] || key.replace(/([A-Z])/g, " $1").replace(/^./, (letter) => letter.toUpperCase());
 }
 
 function renderLeadPayload(lead) {
   const payload = lead.payload && typeof lead.payload === "object" ? lead.payload : {};
-  const entries = Object.entries(payload).filter(([, value]) => value !== undefined && value !== null && String(value).trim() !== "");
+  const privateKeys = new Set(["inquiryFingerprint", "valuationKey", "requestId", "whatsappRef", "destination", "whatsappClickedAt", "whatsappReceivedAt"]);
+  const entries = Object.entries(payload).filter(([key, value]) => !privateKeys.has(key) && value !== undefined && value !== null && String(value).trim() !== "");
   if (!entries.length) return "";
   const rows = entries.map(([key, value]) => {
     const intentLabels = state.lang === "en" ? { buy: "Buy", rent: "Rent", sell: "Sell", let: "List for rent" } : { buy: "Comprar", rent: "Rentar", sell: "Vender", let: "Poner en renta" };
-    const text = key === "developmentIntent" && intentLabels[value] ? intentLabels[value] : Array.isArray(value) ? value.join(", ") : typeof value === "object" ? JSON.stringify(value) : String(value);
+    const text = ["developmentIntent", "intent"].includes(key) && intentLabels[value] ? intentLabels[value] : Array.isArray(value) ? value.join(", ") : typeof value === "object" ? JSON.stringify(value) : String(value);
     const isLong = text.length > 160;
     return `
       <div>
@@ -4300,7 +3173,13 @@ function leadPhoneForWhatsApp(phone) {
 }
 
 function leadWhatsAppUrl(lead) {
-  const phone = leadPhoneForWhatsApp(lead.phone);
+  const phone = lead.payload?.country ? String(lead.phone || "").replace(/\D/g, "") : leadPhoneForWhatsApp(lead.phone);
+  if (lead.payload?.intent) {
+    const en = lead.payload.lang === "en";
+    const interest = lead.payload.project || lead.payload.propertyTitle || lead.payload.development || lead.payload.zone;
+    const message = en ? "Hello, I am an advisor at Puerto Cancún Center. We received your inquiry" : "Hola, soy asesor de Puerto Cancún Center. Recibimos tu consulta";
+    return `https://wa.me/${phone}?text=${encodeURIComponent(message + (interest ? (en ? " about " : " sobre ") + interest : "") + ".")}`;
+  }
   const message = [
     `Hola ${lead.name || ""}, soy asesor de Puerto Cancun Center.`,
     "Recibimos tu solicitud y quiero apoyarte con la informacion que enviaste.",
@@ -4310,6 +3189,35 @@ function leadWhatsAppUrl(lead) {
   return `https://wa.me/${phone}?text=${encodeURIComponent(message)}`;
 }
 
+let inquiryFilterTimer, inquiryFilterRevision = 0, inquiryFilterResults = null;
+async function refreshInquiryFilters() {
+  const revision = ++inquiryFilterRevision;
+  const params = new URLSearchParams();
+  const intent = $("#inquiryIntentFilter")?.value, interest = $("#inquiryInterestFilter")?.value.trim();
+  if (intent) params.set("intent", intent);
+  if (interest) params.set("interest", interest);
+  try {
+    const results = params.size ? (await api("/api/admin/leads?" + params)).leads : null;
+    if (revision !== inquiryFilterRevision) return;
+    inquiryFilterResults = results;
+    renderAdminLeads();
+  } catch (error) { if (revision === inquiryFilterRevision) showToast(error.message, "error"); }
+}
+
+async function saveInquiryNote(button) {
+  const note = button.closest(".lead-admin-entry").querySelector("textarea[data-inquiry-note]");
+  button.disabled = true;
+  try {
+    const { lead } = await api("/api/admin/leads/" + encodeURIComponent(button.dataset.saveInquiryNote), { method: "PATCH", body: { internalNotes: note.value } });
+    for (const list of [state.leads, inquiryFilterResults]) {
+      const saved = list?.find(item => item.id === lead.id);
+      if (saved) Object.assign(saved, lead);
+    }
+    showToast(state.lang === "en" ? "Note saved." : "Nota guardada.");
+  } catch (error) { showToast(error.message, "error"); }
+  finally { button.disabled = false; }
+}
+
 function renderAdminLeads() {
   const list = $("#adminLeads");
   if (!list) return;
@@ -4317,9 +3225,10 @@ function renderAdminLeads() {
     button.classList.toggle("active", button.dataset.leadFilter === state.leadFilter);
   });
   const summary = $("#adminLeadSummary");
-  const newCount = state.leads.filter((lead) => lead.status === "new").length;
+  const sourceLeads = inquiryFilterResults || state.leads;
+  const newCount = sourceLeads.filter((lead) => lead.status === "new").length;
   let leads =
-    state.leadFilter === "all" ? state.leads : state.leads.filter((lead) => leadCategory(lead.leadType) === state.leadFilter);
+    state.leadFilter === "all" ? sourceLeads : sourceLeads.filter((lead) => leadCategory(lead.leadType) === state.leadFilter);
   if (state.adminLeadStatusFilter !== "all") leads = leads.filter((lead) => lead.status === state.adminLeadStatusFilter);
   if (state.adminLeadPriorityFilter !== "all") leads = leads.filter((lead) => lead.priority === state.adminLeadPriorityFilter || lead.leadScore === state.adminLeadPriorityFilter);
   if (summary) {
@@ -4373,7 +3282,10 @@ function renderAdminLeads() {
             </div>
           </div>
           ${renderLeadPayload(lead)}
+          ${lead.payload?.intent ? `<p>${state.lang === "en" ? "Inquiry saved" : "Consulta guardada"} · ${lead.payload.whatsappClickedAt ? (state.lang === "en" ? "WhatsApp link clicked" : "Clic en WhatsApp") : (state.lang === "en" ? "No WhatsApp click recorded" : "Sin clic registrado en WhatsApp")}${lead.payload.whatsappReceivedAt ? " · " + (state.lang === "en" ? "Message received" : "Mensaje recibido") : ""}</p>` : ""}
+          <details class="inquiry-admin-note"><summary>${state.lang === "en" ? "Internal notes" : "Notas internas"}</summary><textarea data-inquiry-note maxlength="4000" aria-label="${state.lang === "en" ? "Internal notes" : "Notas internas"}">${escapeHtml(lead.internalNotes || "")}</textarea><button class="mini-button" type="button" data-save-inquiry-note="${escapeHtml(lead.id)}">${state.lang === "en" ? "Save note" : "Guardar nota"}</button></details>
           <div class="item-actions lead-actions">
+            ${lead.contactId ? `<button class="mini-button" type="button" data-contact-intelligence="${escapeHtml(lead.contactId)}">${state.lang === "en" ? "Contact history" : "Historial del contacto"}</button>` : ""}
             ${
               phoneUrl
                 ? `<a class="mini-button primary" href="${escapeHtml(phoneUrl)}" target="_blank" rel="noopener noreferrer">${escapeHtml(t("respondWhatsApp"))}</a>`
@@ -4456,11 +3368,16 @@ function guestSaleStatusLabel(status) {
 }
 
 function guestSaleContactActions(request) {
-  const whatsappNumber = leadPhoneForWhatsApp(request.phone);
+  const whatsappNumber = request.country ? String(request.phone || "").replace(/\D/g, "") : leadPhoneForWhatsApp(request.phone);
+  const reply = request.inquiry?.lang === "en" ? "Hello, this is Puerto Cancún Center regarding " + request.title + "." : "Hola, te contactamos de Puerto Cancún Center acerca de " + request.title + ".";
   const whatsappUrl = whatsappNumber
-    ? `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(`Hola, te contactamos de Puerto Cancun Center acerca de ${request.title}. Queremos completar algunos datos de la propiedad.`)}`
+    ? `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(reply)}`
     : "";
   return `
+    ${request.country ? `<span>${escapeHtml(request.country)} (${escapeHtml(request.countryCode)}) · ${escapeHtml(request.inquiry?.lang?.toUpperCase() || "")}</span>` : ""}
+    ${request.inquiry?.whatsappClickedAt ? `<span>${state.lang === "en" ? "WhatsApp link clicked" : "Clic en WhatsApp"}</span>` : ""}
+    ${request.inquiry?.whatsappReceivedAt ? `<span>${state.lang === "en" ? "Message received" : "Mensaje recibido"}</span>` : ""}
+    ${request.contactId ? `<button class="mini-button" type="button" data-contact-intelligence="${escapeHtml(request.contactId)}">${state.lang === "en" ? "Contact history" : "Historial del contacto"}</button>` : ""}
     ${request.email ? `<button class="mini-button" type="button" data-compose-email data-email="${escapeHtml(request.email)}" data-email-name="Propietario" data-email-context="Venta sin registro · ${escapeHtml(request.title)}"><i data-lucide="mail"></i> Contactar por correo</button>` : ""}
     ${whatsappUrl ? `<a class="mini-button whatsapp-action" href="${escapeHtml(whatsappUrl)}" target="_blank" rel="noopener noreferrer"><i data-lucide="message-circle"></i> Contactar por WhatsApp</a>` : ""}
   `;
@@ -4642,7 +3559,7 @@ function mountAdminInventory() {
 
 function renderStats() {
   const records = typeof window !== "undefined" && window.PccAdminInventory
-    ? window.PccAdminInventory.currentSnapshot(state.properties).records : null;
+    ? window.PccAdminInventory.currentSnapshot(state.properties, state.adminPortalAreas).records : null;
   const stats = ["properties", "developments"].flatMap((entity) => {
     const rows = records?.filter((record) => record.entity === entity);
     const label = entity === "properties" ? "Propiedades" : "Desarrollos";
@@ -4713,7 +3630,7 @@ function renderAdminInsights() {
   const container = $("#adminInsights");
   if (!container) return;
   const records = typeof window !== "undefined" && window.PccAdminInventory
-    ? window.PccAdminInventory.currentSnapshot(state.properties).records : [];
+    ? window.PccAdminInventory.currentSnapshot(state.properties, state.adminPortalAreas).records : [];
   const pending = state.requests.filter((request) => request.status === "pending").length;
   const newLeads = state.leads.filter((lead) => lead.status === "new").length;
   const openTasks = state.tasks.filter((task) => ["pending", "in_progress"].includes(task.status)).length;
@@ -5311,7 +4228,7 @@ function renderAdminListings() {
   const inventoryModule = typeof window !== "undefined" ? window.PccAdminInventory : null;
   const contract = typeof window !== "undefined" ? window.PccInventory : null;
   const priceSort = ["price_asc", "price_desc"].includes(state.adminListingSort);
-  const records = inventoryModule?.currentSnapshot(state.properties).records;
+  const records = inventoryModule?.currentSnapshot(state.properties, state.adminPortalAreas).records;
   const source = records ? records.map((record) => record.property) : state.properties;
   const sorted = priceSort && inventoryModule
     ? inventoryModule.sortListingsByPrice(source, state.adminListingSort === "price_desc" ? "desc" : "asc")
@@ -5939,7 +4856,8 @@ function renderAdminValuations() {
           </div>
           <p>${escapeHtml(truncateText(valuation.comments || "", 220))}</p>
           <div class="item-actions">
-            ${valuation.phone ? `<a class="mini-button primary" href="https://wa.me/${leadPhoneForWhatsApp(valuation.phone)}" target="_blank" rel="noopener noreferrer">${escapeHtml(t("respondWhatsApp"))}</a>` : ""}
+            ${valuation.country ? `<span>${escapeHtml(valuation.country)} (${escapeHtml(valuation.prefix)})</span>` : ""}
+            ${valuation.phone ? `<a class="mini-button primary" href="https://wa.me/${valuation.country ? String(valuation.phone).replace(/\D/g, "") : leadPhoneForWhatsApp(valuation.phone)}" target="_blank" rel="noopener noreferrer">${escapeHtml(t("respondWhatsApp"))}</a>` : ""}
             ${valuation.email ? `<button class="mini-button" type="button" data-compose-email data-email="${escapeHtml(valuation.email)}" data-email-name="${escapeHtml(valuation.ownerName || "")}" data-email-context="Valoracion inmobiliaria">${escapeHtml(t("respondEmail"))}</button>` : ""}
             <button class="mini-button" type="button" data-task-from="valuation" data-task-title="${escapeHtml(`Seguimiento valoracion ${valuation.ownerName || ""}`)}" data-related-id="${escapeHtml(valuation.requestId || valuation.id)}">${escapeHtml(t("createTask"))}</button>
             ${!String(valuation.id).startsWith("lead-") ? `<button class="mini-button" type="button" data-pdf-valuation="${escapeHtml(valuation.id)}">Generar PDF</button>` : ""}
@@ -8271,10 +7189,16 @@ async function toggleInternalUser(id) {
 }
 
 const settingsFieldConfig = {
+  contact_routing: [
+    ["mx", "WhatsApp comercial de México (con prefijo)", "tel"],
+    ["us", "WhatsApp comercial de Estados Unidos (con prefijo)", "tel"],
+    ["rule", "Destino de las solicitudes", "select", { country: "Por país: EE. UU. y Canadá → EE. UU., los demás → México", mx: "Siempre México", us: "Siempre Estados Unidos" }],
+    ["fallback", "Destino de respaldo", "select", { mx: "México", us: "Estados Unidos" }],
+    ["featuredCountry", "Cuarto país destacado (código de dos letras, por ejemplo ES)", "text"],
+  ],
   site: [
     ["siteName", "Nombre del sitio", "text"],
     ["phone", "Teléfono principal", "text"],
-    ["whatsapp", "WhatsApp (solo números)", "text"],
     ["email", "Correo principal", "email"],
     ["address", "Dirección comercial", "text"],
     ["publicSiteUrl", "Dominio público", "url"],
@@ -8324,7 +7248,8 @@ function renderSettingsFields(section = $("#settingsForm")?.elements.section.val
   form.elements.section.value = section;
   const values = state.settings[section] || {};
   container.innerHTML = (settingsFieldConfig[section] || [])
-    .map(([key, label, type]) => {
+    .map(([key, label, type, choices]) => {
+      if (type === "select") return `<label><span>${escapeHtml(label)}</span><select name="${escapeHtml(key)}">${Object.entries(choices).map(([value, copy]) => `<option value="${escapeHtml(value)}" ${value === values[key] ? "selected" : ""}>${escapeHtml(copy)}</option>`).join("")}</select></label>`;
       if (type === "checkbox") {
         return `<label class="checkbox-row"><input name="${escapeHtml(key)}" type="checkbox" ${values[key] ? "checked" : ""} /><span>${escapeHtml(label)}</span></label>`;
       }
@@ -8345,8 +7270,11 @@ async function settingsSubmit(event) {
     const field = form.elements[key];
     body[key] = type === "checkbox" ? field.checked : type === "number" ? Number(field.value || 0) : field.value.trim();
   });
-  await api(`/api/admin/settings/${encodeURIComponent(section)}`, { method: "PUT", body });
-  state.settings[section] = body;
+  try {
+    const data = await api(`/api/admin/settings/${encodeURIComponent(section)}`, { method: "PUT", body });
+    state.settings[section] = data.value || body;
+    setFormMessage($("#settingsFormMessage"), "");
+  } catch (error) { setFormMessage($("#settingsFormMessage"), error.message, true); return; }
   form.dataset.edited = "false";
   showToast("Configuración guardada.");
 }
@@ -8750,6 +7678,7 @@ async function loadPublicData() {
   const locationData = value(2, { options: [] });
   const configData = value(3, state.config);
   state.properties = propertiesData?.properties || [];
+  state.portalDirectory = propertiesData?.directory || null;
   state.publicInventoryStatus = results[0].status === "fulfilled" ? "ready" : "error";
   state.session = sessionData.user;
   state.csrfToken = sessionData.csrfToken || state.csrfToken;
@@ -8771,7 +7700,7 @@ function mountPublicComparison(publicProperties, requested = false) {
   if (!window.PccComparison || window.location.pathname === "/panel") return;
   const ready = state.publicInventoryStatus === "ready";
   document.documentElement.classList.toggle("pcc-comparison-ready", ready);
-  if (!ready) return;
+  if (!ready || document.querySelector("[data-catalog-root]")) return;
   if (window.pccComparison) {
     window.pccComparison.updateProperties(publicProperties);
     return;
@@ -8795,6 +7724,7 @@ function mountPublicComparison(publicProperties, requested = false) {
 
 // Each resource updates only its own data. Sections share fresh reads without waiting for unrelated modules.
 const adminResources = {
+  portalDirectory: ["portal-directory", null, "adminPortalDirectory"],
   stats: ["stats"], properties: ["properties", "properties"],
   requests: ["requests", "requests"], guests: ["guest-sale-requests", "requests", "guestSaleRequests"],
   leads: ["leads", "leads"], contacts: ["contacts", "contacts"], valuations: ["valuations", "valuations"],
@@ -8813,6 +7743,7 @@ const adminResources = {
   developmentFolders: ["file-folders?scope=development", "folders", "fileFolders", "development"],
 };
 const adminSectionResources = {
+  "portal-areas":["portalDirectory"], "portal-presales":["portalDirectory"], "portal-featured":["portalDirectory"],
   dashboard: ["stats", "properties", "requests", "guests", "leads", "tasks", "valuations", "whatsapp", "notifications"],
   statistics: ["stats", "properties"], analytics: ["analytics"], "data-quality": ["quality", "properties"],
   properties: ["properties"], developments: ["properties"], "new-property": ["properties"], "new-development": ["properties"],
@@ -8841,6 +7772,7 @@ function readAdminResource(key, routeOverride, force = false) {
   adminResourceReads.set(key, entry);
   entry.promise = api(route.startsWith("/") ? route : `/api/admin/${route}`, { timeoutMs: 25000, retry: false }).then((data) => {
     if (state.session?.id !== user.id || state.session?.role !== "admin" || adminResourceReads.get(key) !== entry) return;
+    if (key === "properties" && Array.isArray(data.areas)) state.adminPortalAreas = data.areas;
     if (key === "external") {
       state.externalProperties = data.externalProperties || [];
       state.externalPropertyFacets = data.facets || state.externalPropertyFacets;
@@ -9044,6 +7976,7 @@ function updateAdminShell() {
   $$("[data-admin-section-link]").filter(button => ["new-property", "new-development", "new-external-property"].includes(button.dataset.adminSectionLink)).forEach(button => { button.hidden = !canManageListings(); });
   $$("[data-admin-section]").forEach((button) => {
     const isCurrent = button.dataset.adminSection === section;
+    if (button.dataset.adminSection.startsWith("portal-")) button.hidden = !canManageListings() && state.session?.internalRole !== "viewer";
     const subnav = button.nextElementSibling;
     const active = isCurrent || (subnav?.matches(".admin-sidebar-subnav") && Array.from(subnav.querySelectorAll("[data-admin-section-link]")).some(item => !item.hidden && item.dataset.adminSectionLink === section));
     button.classList.toggle("active", active);
@@ -9296,7 +8229,7 @@ async function returnToAdminListings(showIncomplete = false) {
     form.dataset.dirty = "false";
     const section = listingFormIsDevelopment(form) ? "developments" : "properties";
     const inventory = showIncomplete && window.PccAdminInventory;
-    const filters = inventory ? inventory.qualitySelection(inventory.currentSnapshot(state.properties).records, section, "incomplete") : undefined;
+    const filters = inventory ? inventory.qualitySelection(inventory.currentSnapshot(state.properties, state.adminPortalAreas).records, section, "incomplete") : undefined;
     return restoreListingReturnContext(section, filters);
   } finally { form.dataset.returning = "false"; }
 }
@@ -9442,6 +8375,9 @@ const panelStaticEnglish = {
   "Calidad": "Quality",
   "Accesos rápidos": "Quick actions",
   "Configuración": "Settings",
+  "Zonas y subzonas": "Areas and subareas",
+  "Destacados": "Featured",
+  "Preventas": "Presales",
   "Roles / usuarios internos": "Roles / internal users",
   "Vender mi propiedad": "Sell my property",
   "Solicitar valoración": "Request valuation",
@@ -9462,6 +8398,23 @@ function translatePanelStaticCopy() {
 
 function renderActiveAdminSection(section) {
   switch (section) {
+    case "portal-areas": case "portal-featured": case "portal-presales":
+      window.PccAdminPortal?.mount(section, state.adminPortalDirectory, {
+        editable:canManageListings(), lang:state.lang, userId:state.session?.id,
+        save: async config => {
+          const result = await api("/api/admin/portal-directory",{method:"PUT",body:config});
+          adminResourceReads.delete("portalDirectory");
+          adminResourceReads.delete("properties");
+          state.adminPortalDirectory = result;
+          return result;
+        },
+        reload: async () => {
+          await readAdminResource("portalDirectory", undefined, true);
+          return state.adminPortalDirectory;
+        },
+        editRecord: async id => { adminResourceReads.delete("portalDirectory"); await loadAdminResources(["properties"],section); editListing(id); },
+      });
+      break;
     case "dashboard": renderStats(); renderAdminInsights(); renderAdminNotifications(); break;
     case "statistics": renderStats(); break;
     case "properties": case "developments":
@@ -9789,6 +8742,7 @@ function applyTranslations({ renderPanelContent = true } = {}) {
 function toggleLanguage() {
   const nextLanguage = state.lang === "es" ? "en" : "es";
   localStorage.setItem(keys.lang, nextLanguage);
+  document.cookie = `pcc_lang=${nextLanguage}; Path=/; Max-Age=31536000; SameSite=Lax`;
   if (window.location.pathname === "/panel" || ($("#panelView") && !$("#panelView").hidden)) {
     state.lang = nextLanguage;
     applyTranslations();
@@ -10262,16 +9216,21 @@ async function leadFormSubmit(event) {
   const payload = Object.fromEntries(new FormData(form).entries());
   try {
     setButtonLoading(button, true, state.lang === "en" ? "Sending..." : "Enviando...");
-    await api("/api/leads", {
+    const result = await api("/api/leads", {
       method: "POST",
       body: {
         ...payload,
+        lang: state.lang,
+        ...(form.elements.country ? { requestId: form.dataset.inquiryRequestId ||= crypto.randomUUID() } : {}),
         sourcePath: `${window.location.pathname}${window.location.hash || ""}`,
       },
     });
     form.reset();
+    delete form.dataset.inquiryRequestId;
+    if (form.elements.country) void window.PccInquiry?.populatePhone(form);
     if (form.elements.formStartedAt) form.elements.formStartedAt.value = String(Date.now());
     if (message) setFormMessage(message, t("leadSent"));
+    if (message && result.action) window.PccInquiry?.offerAction(message, result.action);
   } catch (error) {
     if (message) setFormMessage(message, error.message, true);
     else showToast(error.message, "error");
@@ -11986,6 +10945,7 @@ async function updateLeadStatus(id, status) {
       body: { status },
     });
     await renderPanel();
+    if (inquiryFilterResults) await refreshInquiryFilters();
     showToast(t("leadUpdated"));
   } catch (error) {
     showToast(error.message, "error");
@@ -11997,6 +10957,7 @@ async function deleteLead(id) {
   try {
     await api(`/api/admin/leads/${encodeURIComponent(id)}`, { method: "DELETE" });
     await renderPanel();
+    if (inquiryFilterResults) await refreshInquiryFilters();
     showToast(t("leadDeleted"));
   } catch (error) {
     showToast(error.message, "error");
@@ -12274,41 +11235,12 @@ function renderPropertyDetail(property) {
 }
 
 function openPropertyWhatsApp(property) {
-  void api("/api/leads", {
-    method: "POST",
-    body: {
-      leadType: "contacto-propiedad",
-      name: "Contacto por propiedad",
-      sourcePath: window.location.pathname,
-      propertyId: property.id,
-      propertyTitle: localizedTitle(property),
-      zone: property.zone,
-      propertyType: property.type,
-      budgetOrPrice: formatPriceSummary(property),
-    },
-  }).catch(() => null);
-  void trackAnalyticsEvent("property_contact_clicked", property);
-  const message = [
-    "Hola, estoy interesado/a en esta propiedad:",
-    "",
-    localizedTitle(property),
-    `Precio: ${formatPriceSummary(property)}`,
-    `Ubicacion: ${displayLocation(property) || ""}`,
-    `Tipo: ${displayType(property.type)}`,
-    `Dormitorios: ${property.beds || 0}`,
-    `Baños: ${property.baths || 0}`,
-    `M2 construcción: ${property.area || 0}`,
-    "",
-    "Quisiera recibir más información.",
-  ].join("\n");
-  window.open(window.PccContacts.whatsappUrl("mx", message), "_blank", "noopener,noreferrer");
+  window.PccInquiry?.open({ propertyId: property.id, propertyTitle: localizedTitle(property), mls: property.mls, propertyType: property.type, zone: property.zone, development: property.parentDevelopment?.nameEs, intent: property.operation === "rent" ? "rent" : "buy", origin: "property-preview" });
 }
 
 function openGeneralWhatsApp(event) {
   event?.preventDefault();
-  void trackAnalyticsEvent("whatsapp_clicked");
-  const message = "Hola, quiero recibir informacion de Puerto Cancun Center.";
-  window.open(window.PccContacts.whatsappUrl("mx", message), "_blank", "noopener,noreferrer");
+  window.PccInquiry?.open({ origin: "general-contact" }, event?.currentTarget);
 }
 
 function closeMobileNav() {
@@ -13309,6 +12241,8 @@ function bindEvents() {
   $("#internalUserForm")?.addEventListener("submit", internalUserSubmit);
   $("#settingsForm")?.addEventListener("input", () => { $("#settingsForm").dataset.edited = "true"; });
   $("#settingsForm")?.addEventListener("submit", settingsSubmit);
+  $("#inquiryIntentFilter")?.addEventListener("change", refreshInquiryFilters);
+  $("#inquiryInterestFilter")?.addEventListener("input", () => { clearTimeout(inquiryFilterTimer); inquiryFilterTimer = setTimeout(refreshInquiryFilters, 200); });
   $("#refreshSystemHealth")?.addEventListener("click", (event) => void refreshSystemHealth(event.currentTarget));
   $("#whatsappChatbotForm")?.addEventListener("submit", whatsappChatbotSubmit);
   $("#whatsappMessageForm")?.addEventListener("submit", whatsappMessageSubmit);
@@ -13725,6 +12659,8 @@ function bindEvents() {
     if (editContactButton) editContact(editContactButton.dataset.editContact);
 
     const contactIntelligenceButton = event.target.closest("[data-contact-intelligence]");
+    const inquiryNoteButton = event.target.closest("[data-save-inquiry-note]");
+    if (inquiryNoteButton) void saveInquiryNote(inquiryNoteButton);
     if (contactIntelligenceButton) void openContactIntelligence(contactIntelligenceButton.dataset.contactIntelligence);
 
     if (event.target.closest("[data-close-contact-intelligence]") || event.target.id === "contactIntelligenceModal") closeContactIntelligenceModal();
@@ -14021,7 +12957,14 @@ async function loadPublicBuyerRequirements() {
 }
 
 async function init() {
-  // Public URLs define their language; a saved preference only applies inside the panel.
+  // Migrate a language chosen before the home entry started using a cookie.
+  if (["en", "es"].includes(storedLanguage) && !/(?:^|;\s*)pcc_lang=/.test(document.cookie)) {
+    document.cookie = `pcc_lang=${storedLanguage}; Path=/; Max-Age=31536000; SameSite=Lax`;
+    if (storedLanguage === "es" && document.body.dataset.page === "home" && /^\/en\/?$/.test(location.pathname)) {
+      window.location.replace("/" + location.search + location.hash);
+      return;
+    }
+  }
   observePublicHeaderHeight();
   installImageFallbacks();
   installPasswordVisibilityToggles();
@@ -14030,6 +12973,8 @@ async function init() {
   initializeCookiePreferences();
   bindEvents();
   bindPublicAreaMap();
+  bindHomeSuggestions();
+  restoreCatalogBackLink();
   applyTranslations({ renderPanelContent: false });
   initializePropertyGallery();
   updateNetworkStatus(navigator.onLine);

@@ -65,26 +65,21 @@ test("las publicaciones usan carrusel y no muestran fecha de modificación", () 
   assert.equal((spanish.match(/data-gallery-slide=/g) || []).length, 3);
   assert.match(spanish, /Descripción completa de la propiedad\./);
   assert.match(spanish, /class="property-location-map"/);
-  assert.match(spanish, /class="primary-button property-whatsapp"/);
+  assert.match(spanish, /data-contact-inquiry data-intent="buy"/);
   assert.ok(spanish.indexOf("property-page-gallery") < spanish.indexOf("property-page-summary"));
-  assert.ok(spanish.indexOf("property-whatsapp") < spanish.indexOf("property-long-description"));
+  assert.ok(spanish.indexOf("property-contact-cta") < spanish.indexOf("property-long-description"));
   assert.ok(spanish.indexOf("property-long-description") < spanish.indexOf("property-amenities"));
   assert.ok(spanish.indexOf("property-amenities") < spanish.indexOf("property-location-map"));
 });
 
-test("la guía de zonas ofrece las nueve tarjetas y su catálogo en cada idioma", () => {
-  for (const [path, en] of [["/zonas-cancun", false], ["/en/cancun-areas", true]]) {
-    const html = renderSeoPage(path);
-    const cards = [...html.matchAll(/<article class="zone-info-card">([\s\S]*?)<\/article>/g)];
-    assert.equal(cards.length, 9);
-    for (const [, card] of cards) {
-      assert.equal((card.match(/<dt>/g) || []).length, 5);
-      assert.equal((card.match(/<dd>/g) || []).length, 5);
-      assert.match(card, en ? /Buyer profile/ : /Perfil del comprador/);
-      const link = card.match(/<a class="mini-button primary" href="([^"]+)"/)?.[1];
-      assert.ok(link.startsWith(en ? "/en/properties" : "/propiedades"));
-      assert.ok(link.includes("?q=") || link.split("/").length === (en ? 4 : 3));
-    }
+test("la guía enlaza los dos inventarios de cada zona activa, en ambos idiomas", () => {
+  const directory = { areas: [{ id:"test-area", nameEs:"Zona de prueba", nameEn:"Test area", subareas:[] }] };
+  for (const [path,en] of [["/zonas-cancun",false],["/en/cancun-areas",true]]) {
+    const html = renderSeoPage(path,{directory});
+    assert.equal((html.match(/class="exploration-area"/g)||[]).length,1);
+    assert.match(html,en ? /Test area/ : /Zona de prueba/);
+    assert.match(html,/location=test-area&amp;entity=properties/);
+    assert.match(html,/location=test-area&amp;entity=developments/);
   }
 });
 
@@ -124,7 +119,8 @@ test("la navegación explica cómo vender y presenta un Nosotros completo", () =
   const adviceSection = indexSource.match(/<section class="team-section home-only">[\s\S]*?<\/section>/)[0];
   assert.match(adviceSection, /¿Cuál es tu precio estimado\?[\s\S]*href="\/revisar-precio-propiedad"/);
   assert.doesNotMatch(indexSource, /class="audience-section home-only"/);
-  assert.match(sellingPage, /Regístrate y anuncia con nosotros/);
+  assert.match(sellingPage, /data-contact-inquiry data-origin="owner-guide" data-intent="sell"/);
+  assert.match(sellingPage, /data-intent="let"/);
   assert.match(sellingPage, /data-seller-access="register"/);
   assert.match(sellingPage, /data-seller-access="login"/);
   assert.match(aboutPage, /about-story/);

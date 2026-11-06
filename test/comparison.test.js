@@ -176,7 +176,7 @@ test("English projection localizes titles, type, Location, links, prices and rea
   const result = comparison.buildComparison(records, ["a", "b"], { lang: "en-US" });
   assert.equal(result.items[0].title, "Marina apartment");
   assert.equal(result.items[0].type, "Apartment");
-  assert.equal(result.items[0].location.name, "Hotel Zone (HZ)");
+  assert.equal(result.items[0].location.name, "Outside Cancun");
   assert.equal(result.items[0].href, "/en/properties/marina-apartment");
   assert.equal(comparison.priceText(result.items[0]), "USD 5,000.25 total / month");
   assert.ok(result.pairs[0].price.reasons.includes("Different currencies"));

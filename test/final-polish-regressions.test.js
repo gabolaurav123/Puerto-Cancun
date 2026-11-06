@@ -23,8 +23,9 @@ test("el formulario de contacto de una ficha conserva la propiedad de origen", (
     images: ["/assets/og-puerto-cancun-center.webp"],
   }, "es").html;
 
-  assert.match(html, /name="leadType" value="comprador"/);
-  assert.match(html, /name="propertyId" value="prop-123"/);
+  assert.match(html, /data-contact-inquiry data-intent="buy"/);
+  assert.match(html, /data-property-id="prop-123"/);
+  assert.match(html, /sourcePath=%2Fpropiedades%2Fdepartamento-prueba/);
 });
 
 test("una publicación administrativa nueva inicia como borrador privado", () => {
