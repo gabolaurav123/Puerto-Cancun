@@ -2521,6 +2521,14 @@ async function updateAdminTourStatus(id, status) {
   }
 }
 
+document.addEventListener("pcc:commercial-updated", async () => {
+  if (state.session?.role !== "admin") return;
+  try {
+    await Promise.all([readAdminResource("leads", undefined, true), readAdminResource("tours", undefined, true)]);
+    renderAdminLeads(); renderAdminTours();
+  } catch { showToast("El seguimiento se guardó. Actualiza la sección para ver la agenda reciente.", "error"); }
+});
+
 async function savedSearchSubmit(event) {
   event.preventDefault();
   const form = event.currentTarget;
@@ -9736,6 +9744,8 @@ function listingDraftSnapshot(form) {
   fields.id = listingFormRecordId(form);
   fields.publicationSection = listingFormIsDevelopment(form) ? "developments" : "properties";
   fields.linkedPropertyIds = selectedDevelopmentPropertyIds(form);
+  fields._developmentLinksDirty = form.dataset.developmentLinksDirty === "true";
+  fields._developmentLinkDirty = form.dataset.developmentLinkDirty === "true";
   const unavailableGallery = form.dataset.missingDraftMedia === "true" && form.dataset.unavailableDraftGallery
     ? JSON.parse(form.dataset.unavailableDraftGallery) : null;
   return {
@@ -9793,20 +9803,20 @@ async function saveListingProgress(button = $("#saveListingProgress")) {
     const mediaTask = queueDraftOperation(() => writePersistentDraft(storageKey, snapshot));
     const task = listingCloudQueue.catch(() => null).then(async () => {
       if (state.session?.id !== userId) throw new Error("La sesión cambió. El borrador local sigue disponible.");
-      await api(`/api/admin/listing-drafts/${encodeURIComponent(slot)}`, { method: "PUT", body: { ...snapshot, images: undefined } });
+      await api(`/api/admin/listing-drafts/${encodeURIComponent(slot)}`, { method: "PUT", body: snapshot, timeoutMs: 60000 });
     });
     listingCloudQueue = task.catch(() => null);
-    const [mediaSaved] = await Promise.all([mediaTask, task]);
+    await Promise.all([mediaTask, task]);
     if (state.session?.id !== userId || listingDraftSlot(form) !== slot || form.dataset.draftGeneration !== generation) return false;
     if (revision !== listingDraftContentKey(listingDraftSnapshot(form))) {
       listingDraftStatus("Se sincronizó una versión anterior del borrador. Hay cambios nuevos; vuelve a guardar antes de salir.", slot);
       return false;
     }
-    const recoverable = mediaSaved || !snapshot.images.length;
-    const message = recoverable ? "Borrador sincronizado. Puedes continuarlo desde el inventario. Las fotos nuevas están en este dispositivo; el video se sube al publicar." : "Texto sincronizado, pero no se pudieron guardar las fotos localmente. No cierres esta ventana antes de publicar.";
+    form.dataset.cloudGalleryRevision = snapshot.galleryRevision;
+    const message = "Borrador y fotos guardados en el servidor. Puedes continuarlo desde el inventario en otro dispositivo. El video se sube al guardar la ficha.";
     listingDraftStatus(message, slot);
-    showToast(recoverable ? "Progreso guardado sin publicar." : message, recoverable ? "success" : "error");
-    return recoverable;
+    showToast("Borrador y fotos guardados sin publicar.");
+    return true;
   } catch (error) {
     listingDraftStatus(`No se pudo sincronizar: ${error.message}`, slot);
     showToast("No se pudo sincronizar el borrador. Mantén abierto el formulario y vuelve a intentarlo.", "error");
@@ -9872,8 +9882,10 @@ function saveListingDraft({ sync = true } = {}) {
     listingCloudQueue = listingCloudQueue.catch(() => null).then(async () => {
       if (state.session?.id !== userId) return;
       try {
-        await api(`/api/admin/listing-drafts/${encodeURIComponent(slot)}`, { method: "PUT", body: { ...snapshot, images: undefined } });
-        listingDraftStatus("Borrador sincronizado. Las fotos nuevas se conservan en este dispositivo; el video se sube al guardar.", slot);
+        const includeImages = !snapshot.missingDraftMedia && snapshot.mediaDirty && form.dataset.cloudGalleryRevision !== snapshot.galleryRevision;
+        await api(`/api/admin/listing-drafts/${encodeURIComponent(slot)}`, { method: "PUT", body: { ...snapshot, images: includeImages ? snapshot.images : undefined }, timeoutMs: 60000 });
+        if (includeImages && listingDraftSlot(form) === slot) form.dataset.cloudGalleryRevision = snapshot.galleryRevision;
+        listingDraftStatus(snapshot.missingDraftMedia ? "Texto sincronizado. Recupera las fotos pendientes antes de guardar la ficha." : "Borrador sincronizado. Las fotos nuevas se respaldan en el servidor; el video se sube al guardar.", slot);
       } catch {
         listingDraftStatus(localSaved ? "Sin sincronizar. El borrador local sigue disponible; revisa tu conexión o sesión." : "No se pudo guardar el borrador. No cierres el formulario; revisa tu conexión y el almacenamiento del navegador.", slot);
       }
@@ -9948,18 +9960,24 @@ async function restoreListingDraft(slot = listingDraftSlot()) {
     let localDraft = null;
     try { localDraft = JSON.parse(localStorage.getItem(key) || "null"); } catch { /* Fall back to the server copy. */ }
     const richDraft = await readPersistentDraft(key);
-    const cloudDraft = state.listingDrafts.find((draft) => draft.key === slot);
+    let cloudDraft = state.listingDrafts.find((draft) => draft.key === slot);
+    try {
+      const result = await api(`/api/admin/listing-drafts/${encodeURIComponent(slot)}`, { retry: false });
+      if (result.draft) cloudDraft = result.draft;
+    } catch { /* The local copy remains usable offline. */ }
     const latest = [localDraft, richDraft, cloudDraft].filter(Boolean).sort((a, b) => String(b.savedAt).localeCompare(String(a.savedAt)))[0];
     const draft = latest ? { ...latest } : null;
     // A late storage read must never overwrite typing or a different record.
     if (listingDraftSlot(form) !== slot || form.dataset.draftGeneration !== generation || form.dataset.dirty === "true") return;
-    const sameEntity = richDraft && (!draft || (richDraft.fields?.id || "") === (draft.fields?.id || ""));
-    const sameNewDraft = richDraft && (!draft || richDraft.idempotencyKey === draft.idempotencyKey);
-    const sameGallery = richDraft && (richDraft.galleryRevision || "") === (draft?.galleryRevision || "");
-    if (draft && sameEntity && sameNewDraft && sameGallery && Array.isArray(richDraft.images)) {
-      draft.images = richDraft.images;
-      draft.imageMetadata ??= richDraft.imageMetadata;
-      draft.mediaDirty ??= richDraft.mediaDirty;
+    const mediaDraft = [richDraft, cloudDraft].find(candidate => candidate && Array.isArray(candidate.images)
+      && (candidate.fields?.id || "") === (draft?.fields?.id || "")
+      && candidate.idempotencyKey === draft?.idempotencyKey
+      && (candidate.galleryRevision || "") === (draft?.galleryRevision || "")
+      && (!Number.isInteger(draft?.imageCount) || candidate.images.length === draft.imageCount));
+    if (draft && mediaDraft) {
+      draft.images = mediaDraft.images;
+      draft.imageMetadata ??= mediaDraft.imageMetadata;
+      draft.mediaDirty ??= mediaDraft.mediaDirty;
     }
     if (!draft?.fields || !Object.values(draft.fields).some((value) => value !== "" && value !== false)) return;
     const source = draft.fields;
@@ -9979,6 +9997,8 @@ async function restoreListingDraft(slot = listingDraftSlot()) {
     });
     setListingFormRecordId(form, source.id || "");
     setSelectedDevelopmentPropertyIds(source.linkedPropertyIds || [], form);
+    form.dataset.developmentLinksDirty = String(source._developmentLinksDirty === true);
+    form.dataset.developmentLinkDirty = String(source._developmentLinkDirty === true);
     const sourceProperty = state.properties.find((property) => property.id === source.id);
     const availableImages = Array.isArray(draft.images) ? draft.images : [];
     const missingMedia = Boolean(draft.missingDraftMedia || (draft.mediaDirty && (Number.isInteger(draft.imageCount) ? availableImages.length !== draft.imageCount : !availableImages.length)));
@@ -10016,6 +10036,7 @@ function resetListingForm(clearDraft = true) {
   delete form.dataset.draftSlot;
   delete form.dataset.expectedUpdatedAt;
   delete form.dataset.galleryRevision;
+  delete form.dataset.cloudGalleryRevision;
   delete form.dataset.missingDraftMedia;
   delete form.dataset.unavailableDraftGallery;
   if ($("#listingConflict")) $("#listingConflict").hidden = true;
@@ -10037,6 +10058,8 @@ function resetListingForm(clearDraft = true) {
   form.dataset.mediaDirty = "false";
   form.dataset.contentDirty = "false";
   form.dataset.persistentMediaDirty = "false";
+  form.dataset.developmentLinksDirty = "false";
+  form.dataset.developmentLinkDirty = "false";
   setSelectedDevelopmentPropertyIds([], form);
   clearListingVideoObjectUrl(form);
   form.dataset.removeVideo = "false";
@@ -10542,6 +10565,11 @@ async function listingSubmit(event) {
       homeOrder: field("homeOrder")?.value || "",
     },
   };
+  if (currentProperty && form.dataset.developmentLinksDirty !== "true") delete payload.linkedPropertyIds;
+  if (currentProperty && !developmentMode && !payload.developmentId) {
+    if (form.dataset.developmentLinkDirty === "true") payload.unlinkDevelopment = true;
+    else delete payload.developmentId;
+  }
   const idempotencyKey = id ? "" : form.dataset.idempotencyKey || globalThis.crypto?.randomUUID?.() || `listing-${Date.now()}-${Math.random().toString(16).slice(2)}`;
   if (!id) form.dataset.idempotencyKey = idempotencyKey;
   form.dataset.saving = "true";
@@ -10745,6 +10773,8 @@ function editListing(id) {
   form.dataset.draftSlot = `edit-${id}`;
   form.dataset.draftSection = editSection;
   form.dataset.expectedUpdatedAt = property.updatedAt || "";
+  form.dataset.developmentLinksDirty = "false";
+  form.dataset.developmentLinkDirty = "false";
   const field = (name) => formField(form, name);
   setListingFormRecordId(form, property.id);
   field("title").value = property.titleEs || property.title || "";
@@ -10765,6 +10795,10 @@ function editListing(id) {
   }
   field("type").value = property.type;
   if (field("developmentId")) field("developmentId").value = property.developmentId || "";
+  if (property.developmentId && field("developmentId")?.value !== property.developmentId) {
+    field("developmentId").append(new Option(property.parentDevelopment?.nameEs || "Desarrollo vinculado (conservado)", property.developmentId));
+    field("developmentId").value = property.developmentId;
+  }
   setLocationFormValues(form, property);
   field("operation").value = property.operation;
   if (field("commercialLocationId")) field("commercialLocationId").value = property.catalogData?.locationId || "";
@@ -11655,11 +11689,21 @@ function bindEvents() {
   $("#listingDraftList")?.addEventListener("click", async (event) => {
     const preview = event.target.closest("[data-preview-listing-draft]");
     if (preview) {
-      const draft = state.listingDrafts.find((item) => item.key === preview.dataset.previewListingDraft);
+      let draft = state.listingDrafts.find((item) => item.key === preview.dataset.previewListingDraft);
       if (!draft) return;
+      const userId = state.session?.id;
       const local = await readPersistentDraft(listingDraftStorageKey(draft.key));
-      const images = local?.galleryRevision === draft.galleryRevision ? local.images || [] : [];
-      $("#draftPreviewContent").innerHTML = '<p class="eyebrow">BORRADOR PRIVADO</p><h3>' + escapeHtml(draft.fields.title) + '</h3><p>' + escapeHtml([draft.fields.zone, draft.fields.city].filter(Boolean).join(" · ")) + '</p>' + (images[0] ? '<img class="draft-preview-image" src="' + escapeHtml(images[0]) + '" alt="Portada del borrador" />' : '<p>La galería nueva está disponible en el dispositivo donde se cargó.</p>') + '<p class="draft-preview-description">' + escapeHtml(draft.fields.description || "Descripción pendiente") + '</p>';
+      let cloud = null;
+      try { cloud = (await api(`/api/admin/listing-drafts/${encodeURIComponent(draft.key)}`, { retry: false })).draft; } catch { /* Show a recoverable local preview while offline. */ }
+      if (state.session?.id !== userId) return;
+      draft = [draft, local, cloud].filter(Boolean).sort((a, b) => String(b.savedAt).localeCompare(String(a.savedAt)))[0];
+      const matchingMedia = [local, cloud].find(candidate => Array.isArray(candidate?.images)
+        && candidate.idempotencyKey === draft.idempotencyKey
+        && candidate.galleryRevision === draft.galleryRevision
+        && (!Number.isInteger(draft.imageCount) || candidate.images.length === draft.imageCount));
+      const original = state.properties.find(property => property.id === draft.fields.id);
+      const images = matchingMedia?.images || (!draft.mediaDirty && original ? storedImages(original) : []);
+      $("#draftPreviewContent").innerHTML = '<p class="eyebrow">BORRADOR PRIVADO</p><h3>' + escapeHtml(draft.fields.title) + '</h3><p>' + escapeHtml([draft.fields.zone, draft.fields.city].filter(Boolean).join(" · ")) + '</p>' + (images[0] ? '<img class="draft-preview-image" src="' + escapeHtml(images[0]) + '" alt="Portada del borrador" /><p>' + images.length + ' imágenes recuperadas del borrador.</p>' : '<p>' + (draft.imageCount ? 'No se pudo recuperar la galería de este borrador. Comprueba la conexión o continúa desde el dispositivo donde se cargaron las fotos; las imágenes publicadas se conservan.' : 'Este borrador todavía no tiene imágenes.') + '</p>') + '<p class="draft-preview-description">' + escapeHtml(draft.fields.description || "Descripción pendiente") + '</p>';
       $("#draftPreviewDialog").showModal();
     }
     const open = event.target.closest("[data-open-listing-draft]");
@@ -12368,9 +12412,14 @@ function bindEvents() {
     setFormMessage($("#listingFormMessage"), t("imageRemoved"));
   });
   $("#developmentPropertySearch")?.addEventListener("input", renderDevelopmentPropertyLinker);
+  formField($("#listingForm"), "developmentId")?.addEventListener("change", () => {
+    $("#listingForm").dataset.developmentLinkDirty = "true";
+    saveListingDraft();
+  });
   $("#developmentPropertyResults")?.addEventListener("change", (event) => {
     const checkbox = event.target.closest("[data-link-development-property]");
     if (!checkbox) return;
+    $("#listingForm").dataset.developmentLinksDirty = "true";
     const selected = new Set(selectedDevelopmentPropertyIds());
     if (checkbox.checked) selected.add(checkbox.dataset.linkDevelopmentProperty);
     else selected.delete(checkbox.dataset.linkDevelopmentProperty);
@@ -12381,6 +12430,7 @@ function bindEvents() {
   $("#developmentLinkedSelection")?.addEventListener("click", (event) => {
     const button = event.target.closest("[data-unlink-development-property]");
     if (!button) return;
+    $("#listingForm").dataset.developmentLinksDirty = "true";
     setSelectedDevelopmentPropertyIds(selectedDevelopmentPropertyIds().filter((id) => id !== button.dataset.unlinkDevelopmentProperty));
     renderDevelopmentPropertyLinker();
     saveListingDraft();

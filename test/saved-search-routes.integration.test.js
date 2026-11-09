@@ -44,6 +44,7 @@ async function harness(t, { row = {}, exists = true, beforeDisable = () => {} } 
       };
     },
     inventoryContract: inventory,
+    publicPropertyCache: { directory: { areas: inventory.LOCATIONS } },
     savedCatalogQuery: (input, options) => {
       parserInputs.push(copy({ input, queryText: options.queryText }));
       return savedCatalogQuery(input, options);

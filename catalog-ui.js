@@ -97,6 +97,15 @@
     if (!event.target.closest("#catalogFilters")) return;
     const form = event.target.form;
     let notice = "";
+    if (["operation", "currency", "rentPeriod", "priceBasis"].includes(event.target.name)) {
+      const applied = new URLSearchParams(root()?.dataset.catalogQuery || "");
+      const previous = applied.get(event.target.name) || (event.target.name === "priceBasis" ? "total" : "");
+      const next = event.target.value || (event.target.name === "priceBasis" ? "total" : "");
+      if (previous && previous !== next && ["min", "max"].some(name => form.elements[name]?.value)) {
+        for (const name of ["min", "max"]) if (form.elements[name]) form.elements[name].value = "";
+        notice = t("Se quitó el presupuesto anterior porque cambiaste la operación, moneda o base del precio. Indica el nuevo importe; no se convierte automáticamente.", "The previous budget was cleared because the transaction, currency or price basis changed. Enter the new amount; it is not converted automatically.");
+      }
+    }
     if (event.target.name === "operation" && event.target.value === "rent" && form.elements.modality) form.elements.modality.value = "";
     if (event.target.name === "operation" && event.target.value !== "rent" && form.elements.rentPeriod) form.elements.rentPeriod.value = "";
     if (event.target.name === "location") {
@@ -113,7 +122,7 @@
       }
       if (removed.length) notice = t("La nueva zona cambió estos filtros: ", "Changing the zone cleared these filters: ") + removed.join(", ") + ".";
     }
-    if (["location", "type", "entity", "operation", "featured", "gated", "sort", "zone", "subarea", "development", "modality"].includes(event.target.name)) {
+    if (["location", "type", "entity", "operation", "currency", "rentPeriod", "priceBasis", "featured", "gated", "sort", "zone", "subarea", "development", "modality"].includes(event.target.name)) {
       clearTimeout(debounce); navigate(formUrl(form), true, event.target.name, false, notice);
     }
   });

@@ -55,6 +55,8 @@ function alerts(publicRows, searches, { inserted = true, enabled = true, queryTe
     featureEnabled: () => enabled, process: { env: {} },
     PUBLIC_PROPERTY_STATUSES: new Set(["active", "featured"]), inventoryContract: inventory,
     savedCatalogQuery,
+    publicPropertyCache: { directory: { areas: inventory.LOCATIONS } },
+    commercialWorkflow: { evaluateWatches: async () => {} },
     getPublicProperties: async () => { calls.projections++; return publicRows; },
     query: async (sql) => {
       assert.equal(sql, "SELECT * FROM saved_searches WHERE alerts_enabled = TRUE");
