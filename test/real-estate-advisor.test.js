@@ -87,6 +87,39 @@ test("a preference-only follow-up cannot discard unresolved exclusions", async (
   assert.match(next.reply,/exclusiones/);
 });
 
+test("real provider field-label output cannot add lexical filters or false inventory conflicts", async () => {
+  for (const [message,query,ids] of [
+    ["Comprar departamento en Puerto Cancun hasta 700000 USD","operation=sale zone=Puerto Cancun property_type=Departamento price<=700000 currency=USD rental_period= min_bedrooms=",["no-pets","public-unit","unknown-pets"]],
+    ["Monthly rental apartment in Puerto Cancun under 5000 USD","operation rent zone/ Puerto Cancun type apartment price 5000 original currency USD period monthly bedrooms not specified",["rental-month"]],
+  ]) {
+    const result = await ask({message},{interpret:async()=>({intent:"search",query,facts:[],preferences:[]})});
+    assert.equal(result.provider,"ai");assert.equal(result.needsClarification,false);
+    assert.equal(result.state.filters.text,undefined);
+    assert.deepEqual(result.cards.map(card=>card.id).sort(),ids.sort());
+  }
+});
+
+test("AI can still simplify unstructured conversational wording without changing prior requirements", async () => {
+  const first=await ask({message:"Comprar departamento en Puerto Cancun hasta 700000 USD"});
+  const result=await ask({message:"Me gustaría que me enseñaras algunas opciones agradables",state:first.state},{interpret:async()=>({intent:"search",query:"opciones",facts:[],preferences:[]})});
+  assert.equal(result.needsClarification,false);assert.equal(result.total,3);
+  assert.equal(result.state.filters.max,700000);assert.deepEqual(result.state.filters.locations,["puerto-cancun"]);
+});
+
+test("Mondrian amenities can cite the public description with qualification when the structured list is empty", async () => {
+  const description="El proyecto anuncia rooftop con alberca infinity, áreas de bienestar, opciones de acceso al club de playa Ennea Beach Club, experiencias de golf y servicios asociados al esquema residencial-hotelero.";
+  const mondrian={...properties.at(-1),id:"mondrian",titleEs:"Mondrian Residences",price:null,amenities:[],descriptionEs:description};
+  const result=await askAdvisor({message:"¿Qué amenidades tiene este desarrollo y cuál es el precio?",context:{propertyId:"mondrian"}},{properties:[mondrian]});
+  assert.match(result.reply,/Precio por confirmar/);assert.match(result.reply,/La descripción publicada menciona:/);
+  assert.ok(result.reply.includes(description));assert.match(result.reply,/confirmar las condiciones/);
+  assert.doesNotMatch(result.reply,/No hay amenidades verificadas/);
+  for (const block of ["amenities", "description"]) {
+    const hidden=await askAdvisor({message:"¿Qué amenidades tiene este desarrollo?",context:{propertyId:"mondrian"}},{properties:[{...mondrian,portalHiddenBlocks:[block]}]});
+    assert.doesNotMatch(hidden.reply,/rooftop|infinity|Ennea|bienestar/);
+    assert.match(hidden.reply,/no incluye información publicada sobre amenidades/);
+  }
+});
+
 test("advisor filters the real inventory by currency, operation and budget", async () => {
   const result = await ask({ message: "Comprar departamento en Puerto Cancun hasta 700000 USD" });
   assert.deepEqual(result.cards.map(card => card.id).sort(), ["no-pets", "public-unit", "unknown-pets"]);
