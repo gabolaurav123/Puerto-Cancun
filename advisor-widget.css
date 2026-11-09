@@ -7,6 +7,7 @@
 .advisor-dialog[open] { display: flex; flex-direction: column; }
 .advisor-dialog::backdrop { background: #092b36b8; }
 .advisor-dialog * { box-sizing: border-box; }
+.advisor-dialog [hidden] { display: none !important; }
 .advisor-dialog header { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; padding: 16px 18px; border-bottom: 1px solid #d9e5e5; }
 .advisor-dialog header h2 { font-size: 22px; line-height: 1.3; margin: 0 0 4px; }
 .advisor-dialog header p { margin: 0; font-size: 12px; line-height: 1.5; }
@@ -15,12 +16,17 @@
 .advisor-message { margin: 0 0 12px; font-size: 15px; line-height: 1.6; white-space: pre-line; overflow-wrap: anywhere; }
 .advisor-message-user { padding: 10px 14px; border-radius: 12px; background: #edf4f3; margin-left: 25px; }
 .advisor-cards { display: grid; gap: 10px; margin-bottom: 12px; }
+.advisor-cards:empty { display: none; }
 .advisor-card { border: 1px solid #ccdedd; padding: 13px; border-radius: 8px; min-width: 0; }
 .advisor-card h3, .advisor-cards > h3 { margin: 0 0 7px; font-family: inherit; font-weight: 700; font-size: 16px; line-height: 1.4; overflow-wrap: anywhere; }
 .advisor-card p { margin: 0 0 10px; font-size: 14px; line-height: 1.5; }
 .advisor-card .advisor-differences { color: #755417; }
 .advisor-card-actions, .advisor-next-actions { display: flex; flex-wrap: wrap; gap: 8px; }
 .advisor-next-actions { margin: 0 0 18px; }
+.advisor-suggestions { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 16px; }
+.advisor-suggestions button { flex: 0 1 auto; max-width: 100%; min-width: 0; min-height: 44px; padding: 10px 14px; border: 1px solid #0b6370; border-radius: 22px; background: #edf7f5; color: #064b57; font-family: inherit; font-size: 14px; font-weight: 700; line-height: 1.35; white-space: normal; overflow-wrap: anywhere; text-align: center; cursor: pointer; }
+.advisor-suggestions button:hover { background: #d8eeea; }
+.advisor-dialog button:disabled { opacity: .55; cursor: wait; }
 .advisor-dialog :is(.advisor-card-actions,.advisor-next-actions) :is(a,button) { display: inline-flex; align-items: center; min-height: 44px; border-radius: 5px; border: 1px solid #bdd0d1; background: #f7fafa; color: #075565; padding: 8px 10px; font-family: inherit; font-weight: 700; font-size: 13px; line-height: 1.3; text-decoration: none; cursor: pointer; }
 .advisor-compose { flex-shrink: 0; padding: 12px 16px max(10px, env(safe-area-inset-bottom)); border-top: 1px solid #d9e5e5; }
 .advisor-compose form { display: grid; gap: 7px; }
@@ -31,7 +37,10 @@
 .advisor-compose [type="submit"]:disabled { opacity: .55; cursor: wait; }
 .advisor-compose [data-advisor-status] { margin: 0 0 7px; font-size: 13px; }
 .advisor-compose [data-advisor-status]:empty { display: none; }
-.advisor-compose .advisor-restart { margin-top: 4px; min-height: 36px; padding: 5px 0; background: none; border: 0; font-size: 12px; text-decoration: underline; color: #275763; cursor: pointer; }
+.advisor-footer-actions { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; column-gap: 12px; }
+.advisor-compose .advisor-footer-actions button { min-height: 44px; max-width: 100%; padding: 7px 0; background: none; border: 0; font-family: inherit; font-size: 12px; line-height: 1.4; text-decoration: underline; color: #275763; cursor: pointer; }
+.advisor-compose [data-advisor-contact] { font-weight: 700; }
+.advisor-compose [data-advisor-retry] { min-height: 44px; padding: 8px 14px; margin: 0 0 8px; border: 1px solid #799da3; border-radius: 5px; background: #fff; color: #075565; font: inherit; font-size: 14px; font-weight: 650; cursor: pointer; }
 .advisor-dialog :is(button,a,textarea):focus-visible, .advisor-launch:focus-visible { outline: 3px solid #c7982d; outline-offset: 2px; }
 @media(max-width: 480px) {
   .advisor-launch { max-width: calc(100vw - 110px); font-size: 12px; padding: 10px 13px; }
@@ -41,5 +50,5 @@
   .advisor-scroll { padding: 12px; }
   .advisor-compose { padding: 10px 12px max(8px, env(safe-area-inset-bottom)); }
 }
-@media(max-height: 430px) { .advisor-dialog { height: 100dvh; max-height: 100dvh; } .advisor-compose textarea { min-height: 44px; } .advisor-compose .advisor-restart { min-height: 28px; } .advisor-dialog header { padding-block: 5px; } }
+@media(max-height: 430px) { .advisor-dialog { height: 100dvh; max-height: 100dvh; } .advisor-compose textarea { min-height: 44px; } .advisor-dialog header { padding-block: 5px; } }
 @media print { .advisor-launch, .advisor-dialog { display: none !important; } }
