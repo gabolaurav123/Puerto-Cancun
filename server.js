@@ -12249,6 +12249,7 @@ function decoratePublicHtml({ page, seo, pageContent = "", bodyPage = "seo", noi
   const assetVersion = encodeURIComponent(staticAssetVersion);
   html = html.replace(/(admin-portal-directory\.js|portal-directory\.js)\?v=[^"']+/g, `$1?v=${assetVersion}`);
   html = html.replace(/(contextual-contact\.(?:js|css))\?v=[^"']+/g, `$1?v=${assetVersion}`);
+  html = html.replace(/(advisor-widget\.(?:js|css))\?v=[^"']+/g, `$1?v=${assetVersion}`);
   html = html.replace(/styles\.css\?v=[^"']+/g, `styles.css?v=${assetVersion}`);
   html = html.replace(/site-language\.js\?v=[^"']+/g, `site-language.js?v=${assetVersion}`);
   html = html.replace(/app\.js\?v=[^"']+/g, `app.js?v=${assetVersion}`);
