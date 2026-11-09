@@ -57,3 +57,19 @@ test("server definition delegates to the same helper without importing the serve
   assert.equal(calls, 1);
   assert.match(computeAssetVersion(), /^[a-f0-9]{12}$/, "The real checkout contains all runtime sources");
 });
+
+test("rendered advisor script and stylesheet URLs change with each deployed version", () => {
+  const source = fs.readFileSync(require.resolve("../server"), "utf8");
+  const template = fs.readFileSync(path.join(__dirname, "../index.html"), "utf8");
+  const start = source.indexOf("  const assetVersion = encodeURIComponent(staticAssetVersion);");
+  const end = source.indexOf("  const alternateUrl =", start);
+  assert.ok(start >= 0 && end > start);
+  const renderVersionedAssets = source.slice(start, end);
+  for (const version of ["release-a", "release-b"]) {
+    const rendered = vm.runInNewContext(`${renderVersionedAssets}\nhtml`, { html: template, staticAssetVersion: version });
+    for (const extension of ["js", "css"]) {
+      assert.ok(rendered.includes(`/advisor-widget.${extension}?v=${version}`));
+      assert.ok(!rendered.includes(`/advisor-widget.${extension}?v=1`));
+    }
+  }
+});
