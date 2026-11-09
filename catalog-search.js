@@ -3,7 +3,7 @@
 const { fold } = require("./intelligence-utils");
 const inventory = require("./inventory-contract");
 
-const FILTER_KEYS = ["entity", "text", "locations", "bounds", "zone", "subarea", "gated", "type", "operation", "modality", "currency", "min", "max", "beds", "development", "featured", "priceBasis", "priceBasisExplicit", "rentPeriod"];
+const FILTER_KEYS = ["entity", "text", "locations", "bounds", "zone", "subarea", "gated", "type", "operation", "modality", "currency", "min", "max", "beds", "baths", "parking", "minBuilt", "maxBuilt", "minLot", "maxLot", "development", "featured", "priceBasis", "priceBasisExplicit", "rentPeriod"];
 const SUBAREA_CHOICE = "Elige una sola subzona o confirma que quieres buscar en todas las ubicaciones seleccionadas.";
 const MESSAGES = [
   ["input_type", "La consulta debe ser texto.", "The search must be text."],
@@ -48,6 +48,7 @@ const MESSAGES = [
   ["invalid_entity", "Tipo de inventario invalido", "Invalid inventory entity.", true],
   ["typologies", "Tipologias pendientes de soporte; no son propiedades ni desarrollos", "Typologies are not supported; they are neither properties nor developments.", true],
   ["invalid_featured", "Filtro de destacadas invalido", "Invalid featured filter.", true],
+  ["invalid_gated", "Filtro de acceso controlado invalido", "Invalid gated-community filter.", true],
   ["invalid_type", "Tipo de propiedad invalido", "Invalid property type.", true],
   ["invalid_operation", "Operacion invalida", "Invalid operation.", true],
   ["invalid_modality", "Modalidad invalida", "Invalid sales mode.", true],
@@ -55,6 +56,7 @@ const MESSAGES = [
   ["invalid_currency", "Moneda invalida", "Invalid currency.", true],
   ["invalid_basis", "Base de precio invalida", "Invalid price basis.", true],
   ["invalid_period", "Periodo de renta invalido", "Invalid rental period.", true],
+  ["sale_period", "El periodo de renta no corresponde a venta", "A rental period cannot be applied to a sale.", true],
   ["invalid_min", "min: valor invalido", "min: invalid value.", true],
   ["invalid_max", "max: valor invalido", "max: invalid value.", true],
   ["invalid_beds", "beds: valor invalido", "beds: invalid value.", true],
@@ -84,6 +86,10 @@ function catalogLanguage(...sources) {
 function localizeCatalogError(message, language = "es") {
   const entry = MESSAGE_BY_TEXT.get(fold(message));
   if (entry) return entry[catalogLanguage(language)];
+  const fieldLabels = { baths: "bathrooms", parking: "parking spaces", minBuilt: "minimum built area", maxBuilt: "maximum built area", minLot: "minimum land area", maxLot: "maximum land area" };
+  const field = String(message).split(":")[0];
+  if (catalogLanguage(language) === "en" && fieldLabels[field]) return `Invalid ${fieldLabels[field]}.`;
+  if (catalogLanguage(language) === "en" && /^(minBuilt\/maxBuilt|minLot\/maxLot):/.test(message)) return "The minimum area exceeds the maximum.";
   return catalogLanguage(language) === "en" ? "A search criterion needs review; it cannot be ignored." : String(message);
 }
 const NUMBER_WORDS = { un: 1, una: 1, uno: 1, one: 1, dos: 2, two: 2, tres: 3, three: 3, cuatro: 4, four: 4, cinco: 5, five: 5, seis: 6, six: 6, siete: 7, seven: 7, ocho: 8, eight: 8, nueve: 9, nine: 9, diez: 10, ten: 10 };
@@ -166,7 +172,7 @@ function describe(filters, language = "es", areas = inventory.LOCATIONS) {
     const labels = [filters.entity === "developments" ? "Developments" : "Properties"];
     labels.push({ sale: "Operation: Purchase", rent: "Operation: Rent" }[filters.operation] || "Operation: Purchase and rent");
     if (filters.type) labels.push(`Type: ${{ Casa: "Home", Departamento: "Apartment", Terreno: "Land", Comercial: "Commercial" }[filters.type] || filters.type}`);
-    for (const location of filters.locations || []) labels.push(`Area: ${areas.find(area => area.id === location)?.nameEn || { "zona-hotelera": "Hotel Zone", "puerto-cancun": "Puerto Cancun", "cancun-city": "Cancun City", "fuera-de-cancun": "Outside Cancun" }[location] || location}`);
+    for (const location of filters.locations || []) labels.push(`Zone: ${areas.find(area => area.id === location)?.nameEn || { "zona-hotelera": "Hotel Zone", "puerto-cancun": "Puerto Cancun", "cancun-city": "Cancun City", "fuera-de-cancun": "Outside Cancun" }[location] || location}`);
     if (filters.subarea) labels.push(`Subzone: ${areas.flatMap(area => area.subareas || []).find(item => item.id === filters.subarea)?.nameEn || filters.subarea}`);
     if (filters.zone) labels.push(`Subzone: ${filters.zone}`);
     if (filters.development) labels.push(`Units in development: ${filters.development}`);
@@ -177,6 +183,7 @@ function describe(filters, language = "es", areas = inventory.LOCATIONS) {
     if (filters.rentPeriod) labels.push(`Period: ${{ month: "Monthly", day: "Daily", year: "Yearly", unclassified: "Unclassified" }[filters.rentPeriod] || filters.rentPeriod}`);
     if (filters.priceBasis === "sqm") labels.push("Price per sqm");
     if (filters.beds !== undefined) labels.push(`Minimum bedrooms: ${filters.beds}`);
+    for (const [key,label] of [["baths","Minimum bathrooms"],["parking","Minimum parking spaces"],["minBuilt","Minimum built area (m²)"],["maxBuilt","Maximum built area (m²)"],["minLot","Minimum land area (m²)"],["maxLot","Maximum land area (m²)"]]) if (filters[key] != null) labels.push(`${label}: ${filters[key]}`);
     if (filters.featured) labels.push("Featured only");
     if (filters.text) labels.push(`Text: ${filters.text}`);
     return labels;
@@ -195,6 +202,7 @@ function describe(filters, language = "es", areas = inventory.LOCATIONS) {
   if (filters.rentPeriod) labels.push(`Periodo: ${{ month: "Mensual", day: "Diario", year: "Anual" }[filters.rentPeriod] || filters.rentPeriod}`);
   if (filters.priceBasis === "sqm") labels.push("Precio por m2");
   if (filters.beds !== undefined) labels.push(`Recamaras minimas: ${filters.beds}`);
+  for (const [key,label] of [["baths","Baños mínimos"],["parking","Estacionamientos mínimos"],["minBuilt","Construcción mínima (m²)"],["maxBuilt","Construcción máxima (m²)"],["minLot","Terreno mínimo (m²)"],["maxLot","Terreno máximo (m²)"]]) if (filters[key] != null) labels.push(`${label}: ${filters[key]}`);
   if (filters.featured) labels.push("Solo destacadas");
   if (filters.text) labels.push(`Texto: ${filters.text}`);
   return labels;
@@ -300,7 +308,12 @@ function interpretCatalogSearch(input, previous = {}, options = {}) {
     warn("Vista o acceso al mar no verificados: no se aplican ni se deducen de texto o fotos.", !optionalView);
     take(/\b(si tiene|si hay|mejor|preferiblemente|de preferencia|preferably|ideally|nice to have|preferred)\b/);
   }
-  if (take(/\b(?:\d+\s*)?(?:banos?|bathrooms?|baths?|albercas?|piscinas?|pools?|gimnasio|gym|mascotas|pets?)\b/).length) warn("Ese atributo no tiene un filtro verificado en el contrato; elige criterios disponibles.");
+  for (const [key, names] of [["baths", "banos?|bathrooms?|baths?"], ["parking", "estacionamientos?|cajones(?: de estacionamiento)?|parking spaces?|car spaces?"]]) {
+    const counts = take(new RegExp(`\\b(?:(exactamente|exactly|maximo(?: de)?|maximum(?: of)?|menos de|under|at most)\\s+)?(\\d+(?:[.,]\\d+)?|${Object.keys(NUMBER_WORDS).join("|")})\\s*(?:${names})\\b`));
+    if (counts.length && (counts.length > 1 || counts.some(match => match[1]))) warn("Ese atributo no tiene un filtro verificado en el contrato; elige criterios disponibles.");
+    else if (counts.length) filters[key] = NUMBER_WORDS[counts[0][2]] ?? Number(counts[0][2].replace(",", "."));
+  }
+  if (take(/\b(?:\d+\s*)?(?:banos?|bathrooms?|baths?|estacionamientos?|parking spaces?|albercas?|piscinas?|pools?|gimnasio|gym|mascotas|pets?)\b/).length) warn("Ese atributo no tiene un filtro verificado en el contrato; elige criterios disponibles.");
   if (take(/\b(no|sin|excepto|excluir|excluye|not|without|except|exclude|non)\s+(?:casas?|houses?|homes?|departamentos?|apartments?|condos?|terrenos?|land|lots?|comercial|commercial|destacad[oa]s?|featured|rent\w*|renta|venta|sale|preventa|presale|reventa|resale|puerto cancun|punta sam|costa mujeres|huayacan|zona hotelera)\b/).length) warn("No se aplican exclusiones como inclusiones; confirma el filtro positivo deseado.");
 
   const properties = Array.isArray(options?.properties) ? options.properties.filter((p) => p && inventory.isPublic(p)) : [];
@@ -510,4 +523,9 @@ function interpretCatalogSearch(input, previous = {}, options = {}) {
   return finish();
 }
 
-module.exports = { interpretCatalogSearch, catalogLanguage, localizeCatalogError };
+function describeCatalogFilters(filters = {}, language = "es", areas = inventory.LOCATIONS) {
+  const sparse = Object.fromEntries(Object.entries(filters).filter(([,value]) => value !== null && value !== undefined && value !== ""));
+  return describe(sparse, catalogLanguage(language), areas);
+}
+
+module.exports = { interpretCatalogSearch, catalogLanguage, localizeCatalogError, describeCatalogFilters };

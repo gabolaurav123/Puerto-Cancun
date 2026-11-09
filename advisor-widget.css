@@ -1,0 +1,45 @@
+.advisor-launch {
+  position: fixed; left: max(12px, env(safe-area-inset-left)); bottom: max(16px, env(safe-area-inset-bottom)); z-index: 950;
+  border: 1px solid #d7b65a; border-radius: 24px; background: #073e4a; color: #fff;
+  padding: 11px 17px; min-height: 46px; font-family: inherit; font-weight: 700; font-size: 14px; line-height: 1.3; box-shadow: 0 4px 20px #06333c30; cursor: pointer;
+}
+.advisor-dialog { width: min(570px, calc(100vw - 24px)); height: min(760px, calc(100dvh - 24px)); max-height: calc(100dvh - 24px); max-width: none; padding: 0; border: 0; border-radius: 15px; background: #fff; color: #123943; overflow: hidden; box-shadow: 0 16px 65px #082e3a55; }
+.advisor-dialog[open] { display: flex; flex-direction: column; }
+.advisor-dialog::backdrop { background: #092b36b8; }
+.advisor-dialog * { box-sizing: border-box; }
+.advisor-dialog header { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; padding: 16px 18px; border-bottom: 1px solid #d9e5e5; }
+.advisor-dialog header h2 { font-size: 22px; line-height: 1.3; margin: 0 0 4px; }
+.advisor-dialog header p { margin: 0; font-size: 12px; line-height: 1.5; }
+.advisor-dialog header button { flex: 0 0 44px; height: 44px; border: 0; background: transparent; color: inherit; font-size: 28px; cursor: pointer; }
+.advisor-scroll { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 16px; }
+.advisor-message { margin: 0 0 12px; font-size: 15px; line-height: 1.6; white-space: pre-line; overflow-wrap: anywhere; }
+.advisor-message-user { padding: 10px 14px; border-radius: 12px; background: #edf4f3; margin-left: 25px; }
+.advisor-cards { display: grid; gap: 10px; margin-bottom: 12px; }
+.advisor-card { border: 1px solid #ccdedd; padding: 13px; border-radius: 8px; min-width: 0; }
+.advisor-card h3, .advisor-cards > h3 { margin: 0 0 7px; font-family: inherit; font-weight: 700; font-size: 16px; line-height: 1.4; overflow-wrap: anywhere; }
+.advisor-card p { margin: 0 0 10px; font-size: 14px; line-height: 1.5; }
+.advisor-card .advisor-differences { color: #755417; }
+.advisor-card-actions, .advisor-next-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.advisor-next-actions { margin: 0 0 18px; }
+.advisor-dialog :is(.advisor-card-actions,.advisor-next-actions) :is(a,button) { display: inline-flex; align-items: center; min-height: 44px; border-radius: 5px; border: 1px solid #bdd0d1; background: #f7fafa; color: #075565; padding: 8px 10px; font-family: inherit; font-weight: 700; font-size: 13px; line-height: 1.3; text-decoration: none; cursor: pointer; }
+.advisor-compose { flex-shrink: 0; padding: 12px 16px max(10px, env(safe-area-inset-bottom)); border-top: 1px solid #d9e5e5; }
+.advisor-compose form { display: grid; gap: 7px; }
+.advisor-compose label { font-size: 14px; font-weight: 650; }
+.advisor-compose form > div { display: grid; grid-template-columns: minmax(0,1fr) auto; gap: 8px; align-items: stretch; }
+.advisor-compose textarea { width: 100%; min-width: 0; min-height: 64px; max-height: 120px; resize: vertical; border: 1px solid #9bb6b9; border-radius: 6px; padding: 9px; font: inherit; font-size: 16px; line-height: 1.4; }
+.advisor-compose [type="submit"] { border: 0; border-radius: 6px; padding: 9px 13px; background: #075565; color: #fff; font-weight: 700; cursor: pointer; }
+.advisor-compose [type="submit"]:disabled { opacity: .55; cursor: wait; }
+.advisor-compose [data-advisor-status] { margin: 0 0 7px; font-size: 13px; }
+.advisor-compose [data-advisor-status]:empty { display: none; }
+.advisor-compose .advisor-restart { margin-top: 4px; min-height: 36px; padding: 5px 0; background: none; border: 0; font-size: 12px; text-decoration: underline; color: #275763; cursor: pointer; }
+.advisor-dialog :is(button,a,textarea):focus-visible, .advisor-launch:focus-visible { outline: 3px solid #c7982d; outline-offset: 2px; }
+@media(max-width: 480px) {
+  .advisor-launch { max-width: calc(100vw - 110px); font-size: 12px; padding: 10px 13px; }
+  .advisor-dialog { width: calc(100vw - 12px); height: calc(100dvh - 12px); max-height: calc(100dvh - 12px); border-radius: 10px; }
+  .advisor-dialog header { padding: 10px 12px; }
+  .advisor-dialog header h2 { font-size: 20px; }
+  .advisor-scroll { padding: 12px; }
+  .advisor-compose { padding: 10px 12px max(8px, env(safe-area-inset-bottom)); }
+}
+@media(max-height: 430px) { .advisor-dialog { height: 100dvh; max-height: 100dvh; } .advisor-compose textarea { min-height: 44px; } .advisor-compose .advisor-restart { min-height: 28px; } .advisor-dialog header { padding-block: 5px; } }
+@media print { .advisor-launch, .advisor-dialog { display: none !important; } }

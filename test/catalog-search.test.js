@@ -163,7 +163,7 @@ test("precio por m2 no se confunde con total ni superficie", () => {
 
 test("superficie y banos no se convierten en precios", () => {
   const result = interpret("Casa de 200 m2 con 3 banos");
-  assert.deepEqual(result.filters, filters({ type: "Casa" }));
+  assert.deepEqual(result.filters, filters({ type: "Casa", baths: 3 }));
   assert.equal(result.clarificationRequired, true);
 });
 
@@ -431,7 +431,7 @@ test("lang funciona en opciones y en el envelope del endpoint existente", () => 
 for (const [query, code] of [
   ["House with sea view under 700000", "sea_view"],
   ["House within 20 minutes of the airport under 700000", "travel_time"],
-  ["House with 2 bathrooms under 700000", "unsupported_attribute"],
+  ["House with exactly 2 bathrooms under 700000", "unsupported_attribute"],
   ["House of 200 m2 under 700000", "area"],
   ["House missing cover under 700000", "editorial"],
   ["Not houses under 700000", "exclusion"],

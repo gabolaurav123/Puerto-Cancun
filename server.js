@@ -111,6 +111,8 @@ const { qualityQuery } = require("./admin-quality-query");
 const { analyzeDemand } = require("./demand-analysis");
 const csvUtils = require("./csv-utils");
 const { businessPhoneLabel, contactRouting, contactPhone, readContactRouting, registerInquiries, inquiryAction, serviceChannel, sourcePath: inquirySourcePath } = require("./contact-inquiries");
+const { registerCommercialRoutes } = require("./commercial-workflow");
+const { registerAdvisorRoutes } = require("./real-estate-advisor");
 const staticAssetVersion = require("./asset-version").computeAssetVersion(__dirname);
 const publicStaticFiles = new Set([
   "/app.js",
@@ -120,6 +122,11 @@ const publicStaticFiles = new Set([
   "/contact-config.js",
   "/contextual-contact.js",
   "/contextual-contact.css",
+  "/advisor-widget.js",
+  "/advisor-widget.css",
+  "/commercial-panel.js",
+  "/commercial-panel.css",
+  "/search-watch-unsubscribe.js",
   "/exchange-rate-view.js",
   "/csv-utils.js",
   "/catalog-ui.js",
@@ -653,10 +660,12 @@ function mergeLegacyImages(images, image) {
   return list.slice(0, IMAGE_MAX_COUNT);
 }
 
-function publicMediaUrls(images, entity, id) {
-  return images.map((image, index) =>
-    /^data:image\//i.test(String(image || "")) ? `/media/${entity}/${encodeURIComponent(id)}/${index}` : image
-  );
+function publicMediaUrls(images, entity, id, revision = "") {
+  return images.map((image, index) => {
+    const source = /^data:image\//i.test(String(image || "")) ? `/media/${entity}/${encodeURIComponent(id)}/${index}` : image;
+    return revision && String(source).startsWith(`/media/${entity}/${encodeURIComponent(id)}/`)
+      ? `${String(source).split("?")[0]}?v=${encodeURIComponent(new Date(revision).getTime())}` : source;
+  });
 }
 
 function decodeDataImage(value) {
@@ -901,7 +910,7 @@ function toBlogPost(row, includeContent = true) {
 
 function toProperty(row) {
   const stored = mergeLegacyImages(row.images, row.image);
-  const images = publicMediaUrls(stored, "properties", row.id);
+  const images = publicMediaUrls(stored, "properties", row.id, row.updated_at);
   const imageMetadata = normalizeImageMetadata(row.image_metadata, images.length);
   const quality = propertyQuality(row);
   const price = inventoryContract.priceOf(row);
@@ -912,7 +921,7 @@ function toProperty(row) {
   const developmentImages = parentDevelopment?.propertyId
     ? Array.from(
         { length: Math.max(0, Number(parentDevelopment.imageCount || 0)) },
-        (_value, index) => `/media/properties/${encodeURIComponent(parentDevelopment.propertyId)}/${index}`
+        (_value, index) => `/media/properties/${encodeURIComponent(parentDevelopment.propertyId)}/${index}${parentDevelopment.updatedAt ? `?v=${encodeURIComponent(new Date(parentDevelopment.updatedAt).getTime())}` : ""}`
       )
     : [];
   // The owner's Spanish description and both listing titles identify MLS N1412 as an apartment.
@@ -1613,6 +1622,7 @@ const PROPERTY_SUMMARY_COLUMNS = `
   (SELECT jsonb_build_object(
     'id', d.id,
     'propertyId', dp.id,
+    'updatedAt', dp.updated_at,
     'nameEs', d.name_es,
     'nameEn', d.name_en,
     'developer', COALESCE(d.developer, ''),
@@ -3639,6 +3649,7 @@ app.use("/api/reverse-geocode", createRateLimiter({ windowMs: 10 * 60 * 1000, ma
 app.use("/api/search/intelligent", createRateLimiter({ windowMs: 10 * 60 * 1000, max: 30, message: "Se alcanzó el límite temporal de búsquedas inteligentes." }));
 app.use("/api/leads", createRateLimiter({ windowMs: 10 * 60 * 1000, max: 12, message: "Se recibieron demasiadas solicitudes desde esta conexión." }));
 app.post("/api/inquiries", createRateLimiter({ windowMs: 10 * 60 * 1000, max: 12, message: "Too many requests. Intenta nuevamente en unos minutos." }));
+app.post("/api/advisor/chat", createRateLimiter({ windowMs: 10 * 60 * 1000, max: 35, message: "Espera unos minutos antes de continuar. Please wait a few minutes." }));
 app.use("/api/guest-sale-requests", createRateLimiter({ windowMs: 15 * 60 * 1000, max: 6, message: "Se recibieron demasiadas solicitudes de venta desde esta conexión. Espera unos minutos antes de volver a intentar." }));
 app.use("/api/analytics", createRateLimiter({ windowMs: 5 * 60 * 1000, max: 180 }));
 app.use("/api/metrics", createRateLimiter({ windowMs: 5 * 60 * 1000, max: 180 }));
@@ -3961,7 +3972,7 @@ app.get("/media/properties/:id/:index", async (req, res, next) => {
       : decoded.buffer;
     res.set({
       "Content-Type": width ? "image/webp" : decoded.type,
-      "Cache-Control": "public, max-age=86400, stale-while-revalidate=604800",
+      "Cache-Control": canViewPrivate || !property.is_public ? "private, no-store" : "public, max-age=0, must-revalidate",
       ETag: `W/\"${property.id}-${imageIndex}-${width || "original"}-${new Date(property.updated_at || 0).getTime()}\"`,
     });
     res.send(buffer);
@@ -5161,7 +5172,10 @@ app.post("/api/guest-sale-requests", async (req, res, next) => {
   }
 });
 
-registerInquiries(app, { pool, query, uuid, siteUrl, secret: sessionSecret, upsertContact, leadScoreFromData });
+const inquiryChannels = () => ({ email: transactionalEmailConfigured(), whatsapp: whatsappService.getStatus().connection === "connected" });
+registerInquiries(app, { pool, query, uuid, siteUrl, secret: sessionSecret, upsertContact, leadScoreFromData, getPublicProperties, getAreas: () => publicPropertyCache.directory?.areas, channels: inquiryChannels });
+const commercialWorkflow = registerCommercialRoutes(app, { pool, query, uuid, siteUrl, secret: sessionSecret, requireRole, getPublicProperties, getAreas: () => publicPropertyCache.directory?.areas, channels: inquiryChannels, sendEmail: sendTransactionalEmail, sendWhatsapp: (phone, message) => whatsappService.sendMessage(`${phone}@s.whatsapp.net`, message) });
+registerAdvisorRoutes(app, { getPublicProperties, getAreas: () => publicPropertyCache.directory?.areas, apiKey: process.env.OPENAI_API_KEY, model: process.env.OPENAI_MODEL || "gpt-5-mini" });
 
 app.post("/api/leads", async (req, res, next) => {
   const client = await pool.connect();
@@ -5455,7 +5469,7 @@ async function createSavedSearchMatch(search, property) {
 
 async function evaluateSavedSearch(row, { createAlerts = false } = {}) {
   const publicProperties = await getPublicProperties();
-  const filters = savedCatalogQuery(row.filters || {}, { queryText: row.query_text || "", properties: publicProperties });
+  const filters = savedCatalogQuery(row.filters || {}, { queryText: row.query_text || "", properties: publicProperties, areas: publicPropertyCache.directory?.areas });
   if (filters.errors.length) throw Object.assign(new Error(filters.errors.join(" ")), { status: 400 });
   const matches = inventoryContract.queryInventory(publicProperties, filters, { pageSize: 100, areas: publicPropertyCache.directory?.areas }).all;
   const alertResults = [];
@@ -5475,10 +5489,11 @@ async function createSavedSearchAlertsForProperty(property) {
   const publicProperties = await getPublicProperties();
   const visibleProperty = publicProperties.find((item) => item.id === property.id);
   if (!visibleProperty) return 0;
+  void commercialWorkflow.evaluateWatches().catch(error => console.warn("Commercial search alerts:", error.message));
   const searches = await query("SELECT * FROM saved_searches WHERE alerts_enabled = TRUE");
   let created = 0;
   for (const search of searches.rows) {
-    const filters = savedCatalogQuery(search.filters || {}, { queryText: search.query_text || "", properties: publicProperties });
+    const filters = savedCatalogQuery(search.filters || {}, { queryText: search.query_text || "", properties: publicProperties, areas: publicPropertyCache.directory?.areas });
     if (filters.errors.length || !inventoryContract.matches(visibleProperty, filters)) continue;
     if (await createSavedSearchMatch(search, visibleProperty)) created += 1;
   }
@@ -5555,7 +5570,7 @@ app.post("/api/seller/saved-searches", requireRole("seller"), async (req, res, n
     const queryText = req.body?.query === undefined ? "" : req.body.query;
     if (typeof queryText !== "string") return res.status(400).json({ error: "La consulta debe ser texto." });
     if (queryText.length > 600) return res.status(400).json({ error: "La consulta no puede superar 600 caracteres; conserva todos los requisitos al acortarla." });
-    const filters = savedCatalogQuery(rawFilters, { queryText, properties: await getPublicProperties() });
+    const filters = savedCatalogQuery(rawFilters, { queryText, properties: await getPublicProperties(), areas: publicPropertyCache.directory?.areas });
     if (filters.errors.length) return res.status(400).json({ error: filters.errors.join(" ") });
     filters.contractVersion = inventoryContract.VERSION;
     const alertsEnabled = req.body?.alertsEnabled === true;
@@ -5620,7 +5635,7 @@ app.patch("/api/seller/saved-searches/:id", requireRole("seller"), async (req, r
     const queryText = req.body?.query === undefined ? row.query_text : req.body.query;
     if (typeof queryText !== "string") return res.status(400).json({ error: "La consulta debe ser texto." });
     if (queryText.length > 600) return res.status(400).json({ error: "La consulta no puede superar 600 caracteres; conserva todos los requisitos al acortarla." });
-    const filters = savedCatalogQuery(rawFilters, { queryText, properties: await getPublicProperties() });
+    const filters = savedCatalogQuery(rawFilters, { queryText, properties: await getPublicProperties(), areas: publicPropertyCache.directory?.areas });
     if (filters.errors.length) return res.status(400).json({ error: filters.errors.join(" ") });
     filters.contractVersion = inventoryContract.VERSION;
     const result = await query(
@@ -8106,12 +8121,16 @@ app.get("/api/admin/visitor-leads", requireRole("admin"), async (req, res, next)
 });
 
 app.patch("/api/admin/leads/:id", requireRole("admin"), async (req, res, next) => {
+  let client;
   try {
     const status = req.body?.status === undefined ? null : normalizeStatus(req.body.status, REQUEST_STATUSES, "contacted");
     const priority = req.body?.priority === undefined ? null : normalizePriority(req.body.priority);
     const internalNotes = req.body?.internalNotes === undefined ? null : String(req.body.internalNotes || "").trim();
     const assignedTo = req.body?.assignedTo === undefined ? null : String(req.body.assignedTo || "").trim();
-    const result = await query(
+    client = await pool.connect();
+    await client.query("BEGIN");
+    const before = (await client.query("SELECT status,priority,internal_notes,assigned_to FROM lead_requests WHERE id=$1 FOR UPDATE", [req.params.id])).rows[0];
+    const result = await client.query(
       `UPDATE lead_requests
        SET status = COALESCE($2, status),
            priority = COALESCE($3, priority),
@@ -8123,13 +8142,17 @@ app.patch("/api/admin/leads/:id", requireRole("admin"), async (req, res, next) =
       [req.params.id, status, priority, internalNotes, assignedTo]
     );
     if (!result.rows[0]) {
+      await client.query("ROLLBACK");
       res.status(404).json({ error: "Lead not found" });
       return;
     }
+    await client.query("INSERT INTO activity_logs(id,user_id,action,entity_type,entity_id,old_value,new_value) VALUES($1,$2,'lead_followup','lead_request',$3,$4::jsonb,$5::jsonb)", [uuid("log"), req.session.user.id, req.params.id, JSON.stringify(before), JSON.stringify({ status: result.rows[0].status, priority: result.rows[0].priority, notes: result.rows[0].internal_notes, assignedTo: result.rows[0].assigned_to })]);
+    await client.query("COMMIT");
     res.json({ lead: toLead(result.rows[0]) });
   } catch (error) {
+    if (client) await client.query("ROLLBACK");
     next(error);
-  }
+  } finally { client?.release(); }
 });
 
 app.delete("/api/admin/leads/:id", requireRole("admin"), async (req, res, next) => {
@@ -8498,6 +8521,17 @@ app.post("/api/admin/properties", requireRole("admin"), async (req, res, next) =
       }
     }
     const property = normalizePropertyInput(safeBody, uuid("prop"));
+    if (property.publicationSection === "developments") {
+      // Serialize attempts to create the same development; linking a unit must
+      // use its existing ID rather than generating another master record.
+      const identity = `${property.titleEs.trim().replace(/\s+/g, " ").toLocaleLowerCase("es-MX")}|${property.zone.trim().toLocaleLowerCase("es-MX")}`;
+      await client.query("SELECT pg_advisory_xact_lock(hashtext($1))", [`development:${identity}`]);
+      const duplicate = await client.query(
+        "SELECT id FROM properties WHERE publication_section = 'developments' AND lower(regexp_replace(btrim(title_es), '\\s+', ' ', 'g')) = $1 AND lower(btrim(zone)) = $2 LIMIT 1",
+        [property.titleEs.trim().replace(/\s+/g, " ").toLocaleLowerCase("es-MX"), property.zone.trim().toLocaleLowerCase("es-MX")]
+      );
+      if (duplicate.rows[0]) throw Object.assign(new Error("Ya existe un desarrollo con ese nombre en esta zona. Abre la ficha existente o selecciónalo en el campo Desarrollo de la propiedad. Tu borrador se conserva."), { status: 409 });
+    }
     await validateParentDevelopment(property, client);
     const result = await client.query(
       `INSERT INTO properties
@@ -8828,11 +8862,15 @@ app.put("/api/admin/properties/:id", requireRole("admin"), async (req, res, next
 });
 
 app.patch("/api/admin/properties/:id/images", requireRole("admin"), async (req, res, next) => {
+  let client;
   try {
     const safeBody = await sanitizePropertyImageBody(req.body || {});
-    const existing = await query("SELECT id, image, images, image_metadata, status, is_public, updated_at FROM properties WHERE id = $1", [req.params.id]);
+    client = await pool.connect();
+    await client.query("BEGIN");
+    const existing = await client.query("SELECT id, image, images, image_metadata, status, is_public, updated_at FROM properties WHERE id = $1 FOR UPDATE", [req.params.id]);
     const row = existing.rows[0];
     if (!row) {
+      await client.query("ROLLBACK");
       res.status(404).json({ error: "Property not found" });
       return;
     }
@@ -8840,6 +8878,7 @@ app.patch("/api/admin/properties/:id/images", requireRole("admin"), async (req, 
     if (expectedUpdatedAt && Number.isFinite(expectedUpdatedAt.getTime())) {
       const storedUpdatedAt = new Date(row.updated_at);
       if (Math.abs(storedUpdatedAt.getTime() - expectedUpdatedAt.getTime()) > 1) {
+        await client.query("ROLLBACK");
         res.status(409).json({ error: "Esta propiedad fue modificada en otra sesión. Recarga el panel antes de cambiar sus imágenes." });
         return;
       }
@@ -8847,10 +8886,11 @@ app.patch("/api/admin/properties/:id/images", requireRole("admin"), async (req, 
     const images = parseUploadedImages(safeBody, mergeLegacyImages(row.images, row.image), req.params.id);
     const imageMetadata = normalizeImageMetadata(safeBody.imageMetadata ?? row.image_metadata, images.length);
     if (!images.length && row.is_public && PUBLIC_PROPERTY_STATUSES.has(row.status)) {
+      await client.query("ROLLBACK");
       res.status(400).json({ error: "Una publicación visible debe conservar al menos una imagen. Despublícala antes de eliminar la última." });
       return;
     }
-    const result = await query(
+    const result = await client.query(
       `UPDATE properties
        SET image = $2, images = $3::jsonb, image_metadata = $5::jsonb, updated_at = NOW()
        WHERE id = $1 AND ($4::timestamptz IS NULL OR date_trunc('milliseconds', updated_at) = date_trunc('milliseconds', $4::timestamptz))
@@ -8858,21 +8898,26 @@ app.patch("/api/admin/properties/:id/images", requireRole("admin"), async (req, 
       [req.params.id, images[0] || null, JSON.stringify(images), expectedUpdatedAt, JSON.stringify(imageMetadata)]
     );
     if (!result.rows[0]) {
+      await client.query("ROLLBACK");
       res.status(409).json({ error: "Esta propiedad cambió en otra sesión. Recarga el panel antes de guardar la galería." });
       return;
     }
-    const property = toProperty(await getPropertySummary(result.rows[0].id));
-    invalidatePublicPropertyCache();
-    if (property.isPublic && PUBLIC_PROPERTY_STATUSES.has(property.status)) void notifyIndexNow(propertyIndexPaths(property));
-    await query(
+    const property = toProperty(await getPropertySummary(result.rows[0].id, client));
+    await client.query(
       `INSERT INTO property_versions (id, property_id, changed_by, change_type, changed_fields, snapshot)
        VALUES ($1, $2, $3, 'gallery_update', $4::jsonb, $5::jsonb)`,
       [uuid("version"), property.id, req.session.user.id, JSON.stringify({ imageCount: property.images.length }), JSON.stringify({ previousImages: mergeLegacyImages(row.images, row.image).length })]
     );
+    await client.query("COMMIT");
+    invalidatePublicPropertyCache();
+    if (property.isPublic && PUBLIC_PROPERTY_STATUSES.has(property.status)) void notifyIndexNow(propertyIndexPaths(property));
     void automaticallyTranslateProperty(property.id).catch((error) => console.warn("Automatic image description translation failed:", error.message));
     res.json({ property });
   } catch (error) {
+    if (client) await client.query("ROLLBACK").catch(() => null);
     next(error);
+  } finally {
+    client?.release();
   }
 });
 
@@ -9169,8 +9214,15 @@ app.patch("/api/admin/users/:id", requireRole("admin"), async (req, res, next) =
 
 app.get("/api/admin/listing-drafts", requireRole("admin"), async (req, res, next) => {
   try {
-    const result = await query("SELECT draft_key, payload, updated_at FROM admin_listing_drafts WHERE user_id=$1 ORDER BY updated_at DESC", [req.session.user.id]);
+    const result = await query("SELECT draft_key, payload - 'images' AS payload, updated_at FROM admin_listing_drafts WHERE user_id=$1 ORDER BY updated_at DESC", [req.session.user.id]);
     res.json({ drafts: result.rows });
+  } catch (error) { next(error); }
+});
+
+app.get("/api/admin/listing-drafts/:key", requireRole("admin"), async (req, res, next) => {
+  try {
+    const result = await query("SELECT payload FROM admin_listing_drafts WHERE user_id=$1 AND draft_key=$2", [req.session.user.id, req.params.key]);
+    res.set("Cache-Control", "private, no-store").json({ draft: result.rows[0]?.payload || null });
   } catch (error) { next(error); }
 });
 
@@ -9180,8 +9232,16 @@ app.put("/api/admin/listing-drafts/:key", requireRole("admin"), async (req, res,
     if (!/^(new-(properties|developments)|edit-[a-zA-Z0-9-]+)$/.test(req.params.key) || !draft?.fields || !String(draft.fields.title || "").trim()) {
       res.status(400).json({ error: "El borrador necesita un título." }); return;
     }
-    if (JSON.stringify(draft).length > 250000) { res.status(413).json({ error: "El texto del borrador es demasiado grande." }); return; }
-    // Unsaved media stays in IndexedDB; autosave must never publish or overwrite inventory.
+    if (JSON.stringify({ ...draft, images: undefined }).length > 250000) { res.status(413).json({ error: "El texto del borrador es demasiado grande." }); return; }
+    // Draft media is stored in the existing private draft document. This does not
+    // publish or change the inventory, and is recoverable on another device.
+    let draftImages;
+    if (Array.isArray(draft.images)) {
+      const propertyId = req.params.key.startsWith("edit-") ? req.params.key.slice(5) : "";
+      const existing = propertyId ? (await query("SELECT image, images FROM properties WHERE id=$1", [propertyId])).rows[0] : null;
+      const safe = await sanitizePropertyImageBody({ images: draft.images });
+      draftImages = draft.images.length ? parseUploadedImages(safe, mergeLegacyImages(existing?.images, existing?.image), propertyId) : [];
+    }
     const payload = {
       fields: draft.fields, idempotencyKey: String(draft.idempotencyKey || ""), savedAt: draft.savedAt,
       mediaDirty: draft.mediaDirty === true,
@@ -9193,9 +9253,16 @@ app.put("/api/admin/listing-drafts/:key", requireRole("admin"), async (req, res,
         descriptionEn: String(image?.descriptionEn || "").slice(0, 1000),
       })) : undefined,
     };
+    if (draftImages !== undefined) {
+      if (payload.mediaDirty && payload.imageCount !== draftImages.length) throw Object.assign(new Error("El borrador no contiene todas las fotos. Se conserva la copia anterior; vuelve a guardar la galería completa."), { status: 400 });
+      payload.images = draftImages;
+    }
     await query(`INSERT INTO admin_listing_drafts (user_id,draft_key,payload) VALUES ($1,$2,$3::jsonb)
-      ON CONFLICT (user_id,draft_key) DO UPDATE SET payload=EXCLUDED.payload, updated_at=NOW()`, [req.session.user.id, req.params.key, JSON.stringify(payload)]);
-    res.json({ ok: true });
+      ON CONFLICT (user_id,draft_key) DO UPDATE SET payload=CASE
+        WHEN NOT (EXCLUDED.payload ? 'images') AND admin_listing_drafts.payload->>'galleryRevision' = EXCLUDED.payload->>'galleryRevision'
+          THEN EXCLUDED.payload || jsonb_build_object('images', COALESCE(admin_listing_drafts.payload->'images', '[]'::jsonb))
+        ELSE EXCLUDED.payload END, updated_at=NOW()`, [req.session.user.id, req.params.key, JSON.stringify(payload)]);
+    res.json({ ok: true, imagesSaved: draftImages !== undefined });
   } catch (error) { next(error); }
 });
 
@@ -10151,21 +10218,29 @@ app.get("/api/admin/tours", requireRole("admin"), async (_req, res, next) => {
 });
 
 app.patch("/api/admin/tours/:id", requireRole("admin"), async (req, res, next) => {
+  let client;
   try {
     const status = ["requested", "contacted", "confirmed", "completed", "cancelled"].includes(req.body?.status) ? req.body.status : null;
     if (!status) {
       res.status(400).json({ error: "Estado de visita no válido." });
       return;
     }
-    const result = await query("UPDATE tour_requests SET status = $2, updated_at = NOW() WHERE id = $1 RETURNING *", [req.params.id, status]);
+    client = await pool.connect(); await client.query("BEGIN");
+    const result = await client.query("UPDATE tour_requests SET status = $2, updated_at = NOW() WHERE id = $1 RETURNING *", [req.params.id, status]);
     if (!result.rows[0]) {
+      await client.query("ROLLBACK");
       res.status(404).json({ error: "Visita no encontrada." });
       return;
     }
+    const stage = { requested: "visit_requested", contacted: "contacted", confirmed: "visit_confirmed", completed: "visit_completed", cancelled: "contacted" }[status];
+    const leads = await client.query("UPDATE lead_requests SET payload=payload || jsonb_build_object('visitStatus',$2::text,'commercialStage',$3::text),updated_at=NOW() WHERE payload->>'visitId'=$1 RETURNING id", [req.params.id, status, stage]);
+    for (const lead of leads.rows) await client.query("INSERT INTO activity_logs(id,user_id,action,entity_type,entity_id,new_value) VALUES($1,$2,'visit_status','lead_request',$3,$4::jsonb)", [uuid("log"), req.session.user.id, lead.id, JSON.stringify({ stage, visitStatus: status })]);
+    await client.query("COMMIT");
     res.json({ tour: result.rows[0] });
   } catch (error) {
+    if (client) await client.query("ROLLBACK");
     next(error);
-  }
+  } finally { client?.release(); }
 });
 
 app.get("/api/developments", async (_req, res, next) => {
@@ -11041,7 +11116,7 @@ async function automaticallyTranslateProperty(propertyId) {
         metadata.descriptionEn = item.descriptionEn;
       }
     });
-    await query("UPDATE properties SET image_metadata = $2::jsonb WHERE id = $1", [propertyId, JSON.stringify(imageMetadata)]);
+    await query("UPDATE properties SET image_metadata = $2::jsonb WHERE id = $1 AND image_metadata IS NOT DISTINCT FROM $3::jsonb", [propertyId, JSON.stringify(imageMetadata), JSON.stringify(row.image_metadata)]);
   }
   invalidatePublicPropertyCache();
   await logAiOperation({
@@ -11839,6 +11914,35 @@ function normalizeImageMetadata(value, count) {
 }
 
 function normalizePropertyInput(body, id, existingImages = [], existingProperty = null) {
+  // PUT may come from an older editor or a partial form. Missing controls must
+  // never reset the record, and clearing a relationship requires an explicit action.
+  body = { ...body };
+  if (existingProperty) {
+    const columns = {
+      title: "title_es", titleEn: "title_en", type: "type", publicationSection: "publication_section",
+      state: "state", city: "city", zone: "zone", neighborhood: "neighborhood", address: "address",
+      latitude: "latitude", longitude: "longitude", mapPlace: "map_place", locationPrecision: "location_precision",
+      googleMapsUrl: "google_maps_url", operation: "operation", beds: "beds", baths: "baths", parking: "parking",
+      area: "area", lot: "lot", mls: "mls", amenities: "amenities", keywords: "keywords", featured: "featured",
+      status: "status", isPublic: "is_public", badges: "badges", description: "description_es",
+      descriptionEn: "description_en", developmentData: "development_data", developmentId: "parent_development_id",
+      imageMetadata: "image_metadata",
+    };
+    for (const [key, column] of Object.entries(columns)) {
+      if (body[key] === undefined && !(key === "title" && body.titleEs !== undefined) && !(key === "description" && body.descriptionEs !== undefined)) body[key] = existingProperty[column];
+    }
+    if (!body.publicationSection && existingProperty.type === "Desarrollo") body.publicationSection = "developments";
+    for (const key of ["state", "city", "zone", "neighborhood", "address", "mapPlace", "googleMapsUrl"]) {
+      if (!String(body[key] ?? "").trim() && existingProperty[columns[key]]) body[key] = existingProperty[columns[key]];
+    }
+    if ((body.latitude == null || body.latitude === "") && (body.longitude == null || body.longitude === "")) {
+      body.latitude = existingProperty.latitude;
+      body.longitude = existingProperty.longitude;
+    }
+    if (!String(body.developmentId || "").trim() && body.unlinkDevelopment !== true) body.developmentId = existingProperty.parent_development_id;
+    body.catalogData = { ...(existingProperty.catalog_data || {}), ...(body.catalogData || {}) };
+    if (!body.catalogData.locationId && existingProperty.catalog_data?.locationId && body.clearCommercialLocation !== true) body.catalogData.locationId = existingProperty.catalog_data.locationId;
+  }
   const title = String(body.title || body.titleEs || "").trim();
   const type = String(body.type || "").trim();
   const publicationSection = body.publicationSection === "developments" ? "developments" : "properties";
@@ -11925,11 +12029,11 @@ function normalizePropertyInput(body, id, existingImages = [], existingProperty 
   const developmentId = publicationSection === "properties"
     ? String(body.developmentId || "").trim().slice(0, 180) || null
     : null;
-  const linkedPropertyIds = developmentMode
+  const linkedPropertyIds = developmentMode && Array.isArray(body.linkedPropertyIds)
     ? [...new Set((Array.isArray(body.linkedPropertyIds) ? body.linkedPropertyIds : [])
         .map((value) => String(value || "").trim().slice(0, 180))
         .filter(Boolean))].slice(0, 500)
-    : [];
+    : null;
 
   return {
     id,
@@ -11982,12 +12086,19 @@ function normalizePropertyInput(body, id, existingImages = [], existingProperty 
 
 async function syncDevelopmentEntity(property, client = pool) {
   if (property.publicationSection !== "developments") {
-    await client.query("DELETE FROM developments WHERE property_id = $1", [property.id]);
+    const existing = await client.query("SELECT id FROM developments WHERE property_id = $1", [property.id]);
+    if (existing.rows.length) throw Object.assign(new Error("Esta ficha es un desarrollo. Conserva su tipo para proteger las propiedades vinculadas; edita la unidad en su propia ficha."), { status: 400 });
     return;
   }
-  const data = property.developmentData || {};
-  const deliveryDate = /^\d{4}-\d{2}-\d{2}$/.test(String(data.deliveryDate || "")) ? data.deliveryDate : null;
-  const progressUpdatedAt = /^\d{4}-\d{2}-\d{2}$/.test(String(data.progressUpdatedAt || "")) ? data.progressUpdatedAt : null;
+  const existing = (await client.query("SELECT * FROM developments WHERE property_id = $1", [property.id])).rows[0];
+  const data = { ...(property.developmentData || {}) };
+  if (existing) {
+    const columns = { developer: "developer", stage: "stage", deliveryDate: "delivery_date", units: "total_units", availableUnits: "available_units", paymentPlan: "payment_plan_es", paymentPlanEn: "payment_plan_en", amenities: "amenities", constructionProgress: "construction_progress", progressUpdatedAt: "progress_updated_at", investmentHighlights: "investment_highlights_es", investmentHighlightsEn: "investment_highlights_en" };
+    for (const [key, column] of Object.entries(columns)) if (data[key] === undefined) data[key] = existing[column];
+  }
+  const dateValue = value => typeof value?.toISOString === "function" ? value.toISOString().slice(0, 10) : String(value || "").slice(0, 10);
+  const deliveryDate = /^\d{4}-\d{2}-\d{2}$/.test(dateValue(data.deliveryDate)) ? dateValue(data.deliveryDate) : null;
+  const progressUpdatedAt = /^\d{4}-\d{2}-\d{2}$/.test(dateValue(data.progressUpdatedAt)) ? dateValue(data.progressUpdatedAt) : null;
   await client.query(
     `INSERT INTO developments
       (id, property_id, slug, name_es, name_en, developer, stage, delivery_date, total_units,
@@ -12017,7 +12128,7 @@ async function syncDevelopmentEntity(property, client = pool) {
        investment_highlights_en = EXCLUDED.investment_highlights_en,
        updated_at = NOW()`,
     [
-      `dev-${property.id}`,
+      existing?.id || `dev-${property.id}`,
       property.id,
       propertySlug(property),
       property.titleEs,
@@ -12039,9 +12150,11 @@ async function syncDevelopmentEntity(property, client = pool) {
 }
 
 async function syncDevelopmentLinks(property, client = pool) {
-  if (property.publicationSection !== "developments") return;
-  const developmentId = `dev-${property.id}`;
-  const linkedIds = Array.isArray(property.linkedPropertyIds) ? property.linkedPropertyIds : [];
+  if (property.publicationSection !== "developments" || !Array.isArray(property.linkedPropertyIds)) return;
+  const storedDevelopment = (await client.query("SELECT id FROM developments WHERE property_id = $1", [property.id])).rows[0];
+  if (!storedDevelopment) throw Object.assign(new Error("No se encontró el desarrollo guardado. Tus cambios no se aplicaron; vuelve a intentarlo."), { status: 409 });
+  const developmentId = storedDevelopment.id;
+  const linkedIds = property.linkedPropertyIds;
   if (linkedIds.length) {
     const valid = await client.query(
       `SELECT id FROM properties
@@ -12068,6 +12181,7 @@ async function syncDevelopmentLinks(property, client = pool) {
       `UPDATE properties
        SET parent_development_id = $1, updated_at = NOW()
        WHERE id = ANY($2::text[])
+         AND parent_development_id IS DISTINCT FROM $1
          AND publication_section = 'properties'`,
       [developmentId, linkedIds]
     );
@@ -12544,6 +12658,7 @@ app.use((error, req, res, _next) => {
 
 let databaseRetryTimer = null;
 let documentRetentionTimer = null;
+let commercialWatchTimer = null;
 let documentRetentionRunning = false;
 
 async function cleanExpiredDocuments() {
@@ -12576,6 +12691,10 @@ async function initializeDatabaseWithRetry() {
     console.log("PostgreSQL schema and seed data are ready.");
     void exchangeRateService.start();
     dailyBlogService.start();
+    if (!commercialWatchTimer && featureEnabled(process.env.SAVED_SEARCH_ALERTS, true)) {
+      commercialWatchTimer = setInterval(() => void commercialWorkflow.evaluateWatches().catch(error => console.warn("Search watch evaluation:", error.message)), 60_000);
+      commercialWatchTimer.unref?.();
+    }
     if (!documentRetentionTimer) {
       void cleanExpiredDocuments();
       documentRetentionTimer = setInterval(() => void cleanExpiredDocuments(), 60_000);

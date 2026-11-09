@@ -219,13 +219,14 @@ function progressRuntime({ images = [], mediaSaved = true, fails = false, lateEd
   return { ...api, statuses, calls, form, storageKeys };
 }
 
-test("T21: progress success requires server confirmation and recoverable new media", async () => {
-  for (const [options, success] of [[{}, true], [{ fails: true }, false], [{ images: ["new.jpg"], mediaSaved: false }, false], [{ mediaSaved: false }, true], [{ lateEdit: true }, false], [{ accountChanges: true }, false]]) {
+test("T21: progress requires server confirmation and backs up photos even when browser storage fails", async () => {
+  for (const [options, success] of [[{}, true], [{ fails: true }, false], [{ images: ["new.jpg"], mediaSaved: false }, true], [{ mediaSaved: false }, true], [{ lateEdit: true }, false], [{ accountChanges: true }, false]]) {
     const api = progressRuntime(options);
     assert.equal(await api.saveListingProgress(), success);
     assert.equal(api.form.dataset.savingDraft, "false");
     assert.equal(api.form.dataset.expectedUpdatedAt, "original-version");
     assert.equal(api.calls[0].options.body.fields._expectedUpdatedAt, "original-version");
+    assert.deepEqual(api.calls[0].options.body.images, options.images || []);
     assert.deepEqual(api.storageKeys, ["draft.admin.edit-a"]);
     if (options.fails) assert.ok(api.statuses.every((value) => !value.startsWith("Borrador sincronizado")));
   }

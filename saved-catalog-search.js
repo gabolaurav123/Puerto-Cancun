@@ -4,7 +4,7 @@ const inventory = require("./inventory-contract");
 const { fold } = require("./intelligence-utils");
 const { interpretCatalogSearch, catalogLanguage, localizeCatalogError } = require("./catalog-search");
 
-const QUERY_KEYS = ["entity", "text", "locations", "bounds", "zone", "development", "type", "operation", "modality", "currency", "priceBasis", "priceBasisExplicit", "rentPeriod", "min", "max", "beds", "featured", "sort", "page"];
+const QUERY_KEYS = ["entity", "text", "locations", "bounds", "zone", "subarea", "gated", "development", "type", "operation", "modality", "currency", "priceBasis", "priceBasisExplicit", "rentPeriod", "min", "max", "beds", "baths", "parking", "minBuilt", "maxBuilt", "minLot", "maxLot", "featured", "sort", "page"];
 const LEGACY_KEYS = ["propertyType", "location", "minPrice", "maxPrice", "bedrooms", "q"];
 const META_KEYS = ["contractVersion", "queryText", "query_text", "language", "lang", "errors", "conversation", "warnings", "clarificationRequired", "needsChoice", "understood"];
 const KNOWN_KEYS = new Set([...QUERY_KEYS, ...LEGACY_KEYS, ...META_KEYS]);
@@ -19,6 +19,7 @@ function savedCatalogQuery(input = {}, options = {}) {
   if (typeof options === "string") options = { queryText: options };
   options = object(options) ? options : {};
   const language = catalogLanguage(options, input, input?.filters);
+  const areas = options.areas || inventory.LOCATIONS;
   const t = (es, en) => language === "en" ? en : es;
   const errors = [];
   const invalid = () => errors.push(t("Consulta guardada invalida; revisa sus criterios.", "Invalid saved search; review its criteria."));
@@ -54,9 +55,9 @@ function savedCatalogQuery(input = {}, options = {}) {
   if (present(source.location)) {
     if (typeof source.location !== "string") invalid();
     else {
-      const values = source.location.split(",").map((part) => inventory.locationId(part.trim()));
+      const values = source.location.split(",").map((part) => inventory.locationId(part.trim(), areas));
       if (values.every(Boolean)) {
-        const normalized = inventory.parseQuery({ locations: raw.locations }).query.locations;
+        const normalized = inventory.parseQuery({ locations: raw.locations }, {}, { areas }).query.locations;
         if (normalized.length && (normalized.length !== unique(values).length || values.some((id) => !normalized.includes(id)))) conflict("locations");
         else raw.locations = unique(values);
       } else if (source.location.includes(",")) conflict("locations");
@@ -74,7 +75,7 @@ function savedCatalogQuery(input = {}, options = {}) {
   if (texts.some((text) => typeof text !== "string")) invalid();
   if (texts.length > 1) conflict("queryText");
   const queryText = typeof texts[0] === "string" ? texts[0] : "";
-  const base = inventory.parseQuery(raw);
+  const base = inventory.parseQuery(raw, {}, { areas });
   // Missing budget dimensions may be supplied by queryText; malformed stored values may not be erased by it.
   errors.push(...base.errors.filter((error) => !/^Elige (?:una moneda|compra o renta|un periodo de renta|el periodo de renta)/.test(error)).map((error) => localizeCatalogError(error, language)));
   const context = { filters: raw, language };
@@ -82,12 +83,12 @@ function savedCatalogQuery(input = {}, options = {}) {
     if (owns(source, key)) context[key] = source[key];
     else if (owns(input, key)) context[key] = input[key];
   }
-  const interpreted = interpretCatalogSearch(queryText, context, { properties: options.properties, language });
+  const interpreted = interpretCatalogSearch(queryText, context, { properties: options.properties, language, areas });
   // Even optional unsupported wishes need review before an automated alert is called a match.
   errors.push(...interpreted.warnings);
   const merged = { ...interpreted.filters };
-  const normalized = inventory.parseQuery(merged).query;
-  for (const key of ["entity", "type", "operation", "modality", "currency", "rentPeriod", "zone", "development", "priceBasis"]) {
+  const normalized = inventory.parseQuery(merged, {}, { areas }).query;
+  for (const key of ["entity", "type", "operation", "modality", "currency", "rentPeriod", "zone", "subarea", "development", "priceBasis"]) {
     const implicitSale = key === "operation" && base.query.modality;
     const budgetBasis = key === "priceBasis" && (base.query.min !== null || base.query.max !== null);
     const constrained = present(raw[key]) && !(key === "priceBasis" && raw.priceBasisExplicit === false && raw.priceBasis === "total");
@@ -96,10 +97,10 @@ function savedCatalogQuery(input = {}, options = {}) {
     merged[key] = base.query[key];
     if (key === "priceBasis") merged.priceBasisExplicit = base.query.priceBasisExplicit || (normalized.priceBasis === base.query.priceBasis && normalized.priceBasisExplicit);
   }
-  for (const key of ["min", "max", "beds"]) {
+  for (const key of ["min", "max", "beds", "baths", "parking", "minBuilt", "maxBuilt", "minLot", "maxLot"]) {
     if (base.query[key] === null) continue;
     if (normalized[key] === null) conflict(key);
-    const combine = key === "max" ? Math.min : Math.max;
+    const combine = key.startsWith("max") ? Math.min : Math.max;
     merged[key] = normalized[key] === null ? base.query[key] : combine(base.query[key], normalized[key]);
   }
   if (base.query.locations.length) {
@@ -110,6 +111,10 @@ function savedCatalogQuery(input = {}, options = {}) {
   if (base.query.featured) {
     if (!normalized.featured) conflict("featured");
     merged.featured = true;
+  }
+  if (base.query.gated) {
+    if (!normalized.gated) conflict("gated");
+    merged.gated = true;
   }
   if (base.query.text) {
     if (!normalized.text) conflict("text");
@@ -124,7 +129,7 @@ function savedCatalogQuery(input = {}, options = {}) {
   merged.sort = base.query.sort;
   merged.page = base.query.page;
   if (merged.text?.length > 300) errors.push(t("El texto libre supera 300 caracteres; revisalo antes de guardar.", "Free text exceeds 300 characters; review it before saving."));
-  const parsed = inventory.parseQuery(merged);
+  const parsed = inventory.parseQuery(merged, {}, { areas });
   errors.push(...parsed.errors.map((error) => localizeCatalogError(error, language)));
   return { ...parsed.query, errors: unique(errors) };
 }

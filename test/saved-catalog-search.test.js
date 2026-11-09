@@ -53,7 +53,7 @@ for (const patch of [{}, { entity: "properties" }, { contractVersion: "2026-10-2
 for (const text of [
   "Buy house with sea view under 700000 USD",
   "Buy house within 20 minutes of the airport under 700000 USD",
-  "Buy house with 3 bathrooms under 700000 USD",
+  "Buy house with exactly 3 bathrooms under 700000 USD",
   "Buy house of 200 m2 under 700000 USD",
   "Buy house with exactly 2 bedrooms under 700000 USD",
   "Buy house under 700000",

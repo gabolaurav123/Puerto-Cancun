@@ -1075,6 +1075,7 @@ function localizedImageDescription(property, index, lang = "es") {
 function renderInventoryCards(properties, lang = "es", context = {}) {
   if (!properties.length) return "";
   const { areasFor, areaFor, areaName, subareaName, contactLink } = require("./catalog-directory");
+  const { describeCatalogFilters } = require("./catalog-search");
   const en = lang === "en", areas = context.areas || areasFor({});
   return `<div class="seo-property-grid">${properties.map(property => {
     if (property.featuredArea) {
@@ -1100,10 +1101,16 @@ function renderInventoryCards(properties, lang = "es", context = {}) {
       zone, subzone, development: development ? (project ? (en ? property.linkedDevelopment?.titleEn || property.linkedDevelopment?.titleEs : property.linkedDevelopment?.titleEs) : title) : parentName,
       propertyId: development ? "" : property.id, propertyTitle: development ? "" : title, mls: property.mls || "", project: project ? title : "",
       reference: project ? project.reference || project.id : "", propertyType: development ? "" : property.type, budget: context.query?.max, currency: context.query?.currency,
-      preferences: context.query?.text, origin: project ? "presale-card" : development ? "development-card" : "property-card", sourcePath: context.sourcePath,
+      preferences: context.query ? describeCatalogFilters({...context.query,development:""},lang,areas).join(" · ") : "", origin: project ? "presale-card" : development ? "development-card" : "property-card", sourcePath: context.sourcePath,
     };
-    const land = property.type === "Terreno" && Number(property.lot) > 0;
-    const meta = [zone, subzone && subzone !== zone ? subzone : "", !development && localizedPropertyType(property.type,lang), land && new Intl.NumberFormat(en ? "en-US" : "es-MX").format(property.lot) + " m²", property.mls && "MLS " + property.mls].filter(Boolean);
+    const meta = [zone, subzone && subzone !== zone ? subzone : "", !development && localizedPropertyType(property.type,lang), property.mls && "MLS " + property.mls].filter(Boolean);
+    const number = value => new Intl.NumberFormat(en ? "en-US" : "es-MX").format(value);
+    const measurements = development ? [] : [
+      Number(property.area) > 0 ? `${number(property.area)} m² ${en ? "built area" : "construcción"}` : "",
+      Number(property.lot) > 0 ? `${number(property.lot)} m² ${en ? "land" : "terreno"}` : "",
+      Number(property.beds) > 0 ? `${number(property.beds)} ${en ? "bedrooms" : "recámaras"}` : "",
+      Number(property.baths) > 0 ? `${number(property.baths)} ${en ? "bathrooms" : "baños"}` : "",
+    ].filter(Boolean);
     const explore = project ? (en ? "Explore presale" : "Explorar preventa") : development ? (en ? "Explore development" : "Explorar desarrollo") : (en ? "View property" : "Ver propiedad");
     const searchText = [title, rawDescription, property.type, property.zone, zone, subzone, property.city, property.mls, parentName, ...(property.keywords || [])].filter(Boolean).join(" ").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
     const photo = image ? `<img${project ? " data-presale-cover" : ""} src="${escapeHtml(image)}" width="640" height="420" loading="lazy" decoding="async" alt="${escapeHtml(localizedImageDescription(property,0,lang) || title)}" />` :
@@ -1112,6 +1119,7 @@ function renderInventoryCards(properties, lang = "es", context = {}) {
       <a class="seo-property-image" href="${escapeHtml(url)}" aria-label="${escapeHtml(title)}">${photo}</a>
       <div>${development ? "" : `<p class="seo-property-price">${escapeHtml(formatListingPrice(property,lang))}</p>`}
       <h2><a href="${escapeHtml(url)}">${escapeHtml(title)}</a></h2>${meta.length ? `<p>${escapeHtml(meta.join(" · "))}</p>` : ""}
+      ${measurements.length ? `<p class="seo-property-facts">${escapeHtml(measurements.join(" · "))}</p>` : ""}
       ${project && property.projectLocation ? `<p class="catalog-project-address">${escapeHtml(property.projectLocation)}</p>` : ""}
       ${description ? `<div class="seo-property-description">${escapeHtml(description)}</div>` : ""}
       <div class="seo-property-actions"><a class="text-link" href="${escapeHtml(url)}">${explore}</a>${contactLink(lang, en ? "Request information" : "Pedir información", contact, "outline-dark-button")}</div></div></article>`;
@@ -1146,7 +1154,7 @@ function propertySchema(property, baseUrl = DEFAULT_SITE_URL, lang = "es") {
   const offer = localizedPrice
     ? {
         "@type": "Offer",
-        availability: "https://schema.org/InStock",
+        availability: inventoryContract.isPublic(property) ? "https://schema.org/InStock" : "https://schema.org/OutOfStock",
         url,
         seller: { "@id": `${absoluteUrl("/", baseUrl)}#real-estate-agent` },
         ...(price.basis === "sqm"
@@ -1235,11 +1243,11 @@ function renderPropertyPage(property, lang = "es", similar = [], directory = {})
   const amenities = allAmenities.length ? `<section class="property-amenities"><h2>${english ? "Amenities" : "Amenidades"}</h2>${property.parentDevelopment?.nameEs ? `<p>${english ? "This unit belongs to" : "Esta unidad pertenece a"} <strong>${escapeHtml(english ? property.parentDevelopment.nameEn || property.parentDevelopment.nameEs : property.parentDevelopment.nameEs)}</strong>.</p>` : ""}<ul>${allAmenities.map((item) => `<li>${escapeHtml(localizedAmenity(item, lang))}</li>`).join("")}</ul></section>` : "";
   const leadTitle = developmentMode ? (english ? "Buy, rent or sell in this development" : "Compra, renta o vende en este desarrollo") : (english ? "Schedule a visit or request details" : "Agenda una visita o solicita información");
   const knownDevelopment = developmentMode ? title : property.parentDevelopment?.nameEs || "";
-  const actions = developmentMode ? [["buy", english ? "Buy here" : "Comprar aquí"], ["rent", english ? "Find a rental here" : "Buscar renta aquí"], ["sell", english ? "Sell here" : "Vender aquí"], ["let", english ? "List for rent here" : "Poner en renta aquí"]] : [[property.operation === "rent" ? "rent" : "buy", english ? "Request details or schedule a visit" : "Pedir información o agendar visita"]];
-  const contactContext = { zone: label(area) || property.zone, subzone: label(subarea), development: knownDevelopment, "property-id": property.id, "property-title": title, mls: property.mls, project: project ? label(project) : "", "project-reference": project?.reference, "property-type": developmentMode ? "" : property.type, origin: project ? "presale-detail" : developmentMode ? "development-detail" : "property-detail" };
+  const actions = developmentMode ? [["buy", english ? "I'm looking for a property here" : "Busco una propiedad aquí"], ["sell", english ? "I want to sell or rent out my property here" : "Quiero vender o rentar mi propiedad aquí"]] : [[property.operation === "rent" ? "rent" : "buy", english ? "Request details or schedule a visit" : "Pedir información o agendar visita"]];
+  const contactContext = { zone: label(area) || property.zone, subzone: label(subarea), development: knownDevelopment, "development-id": developmentMode ? property.id : property.portalDevelopmentId || property.parentDevelopment?.propertyId || "", "rent-period": property.operation === "rent" && property.catalogData?.rentPeriod !== "unclassified" ? property.catalogData?.rentPeriod : "", "property-id": property.id, "property-title": title, mls: property.mls, project: project ? label(project) : "", "project-reference": project?.reference, "property-type": developmentMode ? "" : property.type, origin: project ? "presale-detail" : developmentMode ? "development-detail" : "property-detail" };
   const contactHref = (intent, origin = contactContext.origin) => {
     const params = new URLSearchParams({ intent, sourcePath: path, origin });
-    const fields = { zone: contactContext.zone, subzone: contactContext.subzone, development: knownDevelopment, propertyId: property.id, propertyTitle: title, propertyType: contactContext["property-type"], mls: property.mls, project: contactContext.project, reference: project?.reference };
+    const fields = { zone: contactContext.zone, subzone: contactContext.subzone, development: knownDevelopment, developmentId: contactContext["development-id"], rentPeriod: contactContext["rent-period"], propertyId: property.id, propertyTitle: title, propertyType: contactContext["property-type"], mls: property.mls, project: contactContext.project, reference: project?.reference };
     for (const [key,value] of Object.entries(fields)) if (value) params.set(key, value);
     return escapeHtml((english ? "/en/contact?" : "/contacto?") + params);
   };

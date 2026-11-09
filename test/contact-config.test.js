@@ -73,7 +73,11 @@ test("property and development inquiries retain the localized title and listing 
       assert.equal(links.length, 0);
       assert.ok(html.includes('data-property-id="' + item.id + '"'));
       assert.ok(html.includes('data-property-title="' + title.replace(/&/g, "&amp;").replace(/"/g, "&quot;") + '"'));
-      for (const intent of publicationSection === "developments" ? ["buy","rent","sell","let"] : ["buy"]) assert.ok(html.includes('data-intent="' + intent + '"'));
+      for (const intent of publicationSection === "developments" ? ["buy","sell"] : ["buy"]) assert.ok(html.includes('data-intent="' + intent + '"'));
+      if (publicationSection === "developments") {
+        assert.ok(html.includes('data-development-id="' + item.id + '"'));
+        assert.match(html, lang === "en" ? /looking for a property here/ : /Busco una propiedad aquí/);
+      }
       assert.doesNotMatch(html, /data-business-contact=/, "Catalog hydration must not remove contextual messages");
     }
   }

@@ -1,5 +1,5 @@
 const inventory = require("./inventory-contract");
-const { localizeCatalogError } = require("./catalog-search");
+const { localizeCatalogError, describeCatalogFilters } = require("./catalog-search");
 const { escape, areasFor, areaName, areaFor, subareaName, contactLink, presalePath, projectRecords, projectDetail } = require("./catalog-directory");
 
 function categoryDefaults(filter = {}, areas = inventory.LOCATIONS) {
@@ -26,16 +26,15 @@ function catalogContext(page, params, areas) {
   if (presales) input.entity = "developments";
   if (page.category?.type === "Terreno") input.entity = "properties";
   const projects = (input.entity || defaults.entity) === "developments";
+  const unitFilterKeys = ["type", "operation", "modality", "currency", "min", "max", "priceBasis", "rentPeriod", "beds", "baths", "parking", "minBuilt", "maxBuilt", "minLot", "maxLot", "development"];
+  const unsupportedProjectFilters = projects ? unitFilterKeys.filter(key => input[key] !== undefined && input[key] !== null && input[key] !== "") : [];
   if (projects) {
-    for (const key of ["type", "operation", "modality", "currency", "min", "max", "priceBasis", "rentPeriod", "beds", "development"]) {
-      delete input[key]; delete defaults[key];
-    }
+    for (const key of unitFilterKeys) delete defaults[key];
     if (!["featured", "title"].includes(input.sort)) input.sort = "featured";
   } else {
-    delete input.gated;
     if (page.category?.type === "Terreno") input.type = "Terreno";
   }
-  return { lang, base, path, presales, projects, featuredPage, defaults, input };
+  return { lang, base, path, presales, projects, featuredPage, defaults, input, unsupportedProjectFilters };
 }
 
 function selectionUrl(path, query, view) {
@@ -95,13 +94,11 @@ function catalogFilters(ctx, publicRows) {
   const ops = [["", t("Comprar o buscar renta", "Buy or find a rental")], ["sale", t("Comprar", "Buy")], ["rent", t("Buscar renta", "Find a rental")]];
   const currencies = [["", t("Todas", "All")], ["USD", "USD"], ["MXN", "MXN"]];
   const rentPeriod = choose("rentPeriod", t("Periodo de renta", "Rental period"), [["", t("Seleccionar", "Select")], ["month", t("Mensual", "Monthly")], ["day", t("Diario", "Daily")], ["year", t("Anual", "Annual")], ["unclassified", t("Por confirmar", "Unconfirmed")]]);
-  const advancedOpen = query.modality || query.beds !== null || query.priceBasisExplicit || query.zone;
+  const advancedOpen = query.modality || ["beds","baths","parking","minBuilt","maxBuilt","minLot","maxLot"].some(key => query[key] != null) || query.priceBasisExplicit || query.zone;
   let main;
   if (projects) {
     main = locations + subareas + legacy;
-    if (query.gated || scoped.some(row => inventory.entityOf(row) === "developments" && row.portalGated === true)) {
-      main += `<label class="catalog-featured"><input type="checkbox" name="gated" value="1"${query.gated ? " checked" : ""} /><span>${t("Acceso controlado", "Gated community")}</span></label>`;
-    }
+    for (const key of ctx.unsupportedProjectFilters) main += `<input type="hidden" name="${key}" value="${escape(ctx.input[key])}" />`;
   } else {
     const type = ctx.landRoute ? `<input type="hidden" name="type" value="Terreno" />` : choose("type", t("Tipo de propiedad", "Property type"), types);
     const development = devs.length || query.development ? choose("development", t("Desarrollo", "Development"), [["", t("Cualquiera, incluso sin desarrollo", "Any, including independent listings")], ...devs]) : "";
@@ -111,7 +108,12 @@ function catalogFilters(ctx, publicRows) {
       `<details class="catalog-advanced"${advancedOpen ? " open" : ""}><summary>${t("Más filtros", "More filters")}</summary><div class="catalog-advanced-fields">${legacy}
       ${query.operation !== "rent" ? choose("modality", t("Modalidad de venta", "Sales mode"), [["",t("Todas","All")],["presale",t("Preventa","Presale")],["direct",t("Venta directa","Direct sale")],["resale",t("Reventa","Resale")],["unclassified",t("Por clasificar","Unclassified")]]) : ""}
       ${select("priceBasis", t("Base del precio", "Price basis"), [["",t("Todas","All")],["total",t("Total","Total")],["sqm",t("Por m²","Per m²")]], query.priceBasisExplicit ? query.priceBasis : "", t)}
-      ${query.type !== "Terreno" ? number("beds", t("Recámaras mínimas", "Minimum bedrooms"), query.beds) : ""}</div></details>`;
+      ${query.type !== "Terreno" || ["beds","baths","parking"].some(key => query[key] != null) ? number("beds", t("Recámaras mínimas", "Minimum bedrooms"), query.beds) + number("baths", t("Baños mínimos", "Minimum bathrooms"), query.baths) + number("parking", t("Estacionamientos mínimos", "Minimum parking spaces"), query.parking) : ""}
+      ${number("minBuilt", t("Construcción mínima (m²)", "Minimum built area (m²)"), query.minBuilt)}${number("maxBuilt", t("Construcción máxima (m²)", "Maximum built area (m²)"), query.maxBuilt)}
+      ${number("minLot", t("Terreno mínimo (m²)", "Minimum land area (m²)"), query.minLot)}${number("maxLot", t("Terreno máximo (m²)", "Maximum land area (m²)"), query.maxLot)}</div></details>`;
+  }
+  if (query.gated || scoped.some(row => inventory.entityOf(row) === query.entity && row.portalGated === true)) {
+    main += `<label class="catalog-featured"><input type="checkbox" name="gated" value="1"${query.gated ? " checked" : ""} /><span>${t("Acceso controlado", "Gated community")}</span></label>`;
   }
   const sorts = projects ? [["featured",t("Destacados","Featured")],["title",t("Nombre A–Z","Name A–Z")]] : [["recent",t("Más recientes","Newest")],["price-asc",t("Precio menor por moneda y base","Lowest price within currency and basis")],["price-desc",t("Precio mayor por moneda y base","Highest price within currency and basis")]];
   if (ctx.featuredPage && !projects) sorts.unshift(["featured",t("Selección editorial","Editorial order")]);
@@ -130,7 +132,7 @@ function entityNavigation(ctx, records) {
   const { query, t, lang, base, view } = ctx;
   const entities = ctx.featuredPage ? ["all", "developments", "properties"] : ["developments", "properties"];
   const options = entities.map(entity => {
-    const params = new URLSearchParams({ entity });
+    const params = ctx.unsupportedProjectFilters.length && entity === "properties" ? inventory.toSearchParams({...query,entity,page:1}) : new URLSearchParams({ entity });
     if (query.locations.length) params.set("location", query.locations.join(","));
     if (query.subarea) params.set("subarea", query.subarea);
     if (query.zone) params.set("zone", query.zone);
@@ -152,22 +154,31 @@ function entityNavigation(ctx, records) {
 
 function suggestionLinks(ctx, rows) {
   const { query, areas, lang, t, base } = ctx;
+  if (ctx.result.errors.length) return "";
   const text = inventory.fold(query.text);
   if (text.length < 2) return "";
   const groups = [];
   const areaLinks = areas.filter(area => inventory.fold(areaName(area,lang)).includes(text) || inventory.fold(areaName(area,"es")).includes(text)).slice(0,4)
-    .map(area => navLink(base + "?" + new URLSearchParams({ entity: query.entity, location: area.id }), areaName(area,lang)));
-  if (areaLinks.length) groups.push([t("Zona","Zone"), areaLinks]);
+    .map(area => navLink(selectionUrl(base, { ...query, text:"", locations:[area.id], zone:"", subarea:"", page:1 }, ctx.view), areaName(area,lang)));
+  if (areaLinks.length) groups.push([t("Buscar en otra zona (sustituye el texto y la ubicación; conserva los demás filtros)","Search in a different zone (replaces text and location; keeps other filters)"), areaLinks]);
   for (const entity of ["developments","properties"]) {
-    const matches = rows.filter(row => inventory.entityOf(row) === entity && (!query.locations.length || query.locations.includes(areaFor(row,areas)?.id)) && inventory.fold([row.titleEs,row.titleEn,row.mls].join(" ")).includes(text));
+    const alternate = query.entity !== "all" && entity !== query.entity;
+    // Named projects can help orient an unconstrained name search. Never bypass a
+    // budget, property type, operation, or another restriction in suggested links.
+    if (alternate && ["type","operation","modality","currency","rentPeriod","development","zone","subarea"].some(key => query[key])) continue;
+    if (alternate && ["min","max","beds","baths","parking","minBuilt","maxBuilt","minLot","maxLot"].some(key => query[key] != null)) continue;
+    const matches = rows.filter(row => inventory.entityOf(row) === entity && inventory.matches(row, { ...query, entity }, {areas}));
     const links = matches.slice(0,4).flatMap(row => {
       const href = lang === "en" ? row.urlEn : row.urlEs;
       return href && href.startsWith("/") && !href.startsWith("//") ? [`<a href="${escape(href)}">${escape(lang === "en" ? row.titleEn || row.titleEs : row.titleEs)}</a>`] : [];
     });
-    if (links.length) groups.push([entity === "developments" ? t("Desarrollo","Development") : t("Propiedad","Property"),links]);
+    if (links.length) {
+      const label = entity === "developments" ? t("Desarrollo","Development") : t("Propiedad","Property");
+      groups.push([label, links, alternate ? t("Es otro tipo de ficha; no cuenta como una propiedad compatible.","This is a different listing type; it is not counted as a compatible property.") : ""]);
+    }
   }
   if (!groups.length) return "";
-  return `<nav class="catalog-suggestions" aria-label="${t("Sugerencias de búsqueda","Search suggestions")}">${groups.map(([label,links]) => `<div><strong>${label}</strong> ${links.join(" · ")}</div>`).join("")}</nav>`;
+  return `<nav class="catalog-suggestions" aria-label="${t("Sugerencias de búsqueda","Search suggestions")}">${groups.map(([label,links,note]) => `<div><strong>${label}</strong> ${links.join(" · ")}${note ? `<p>${note}</p>` : ""}</div>`).join("")}</nav>`;
 }
 
 function activeChips(ctx, rows) {
@@ -183,6 +194,9 @@ function activeChips(ctx, rows) {
     modality: ({presale:t("Preventa","Presale"),direct:t("Venta directa","Direct sale"),resale:t("Reventa","Resale"),unclassified:t("Por clasificar","Unclassified")})[query.modality],
     featured:t("Destacados","Featured"),gated:t("Acceso controlado","Gated community"),bounds:t("Área del mapa","Map area"),
     min:t("Desde ","From ") + query.min,max:t("Hasta ","Up to ") + query.max,beds:t("Recámaras mínimas: ","Minimum bedrooms: ") + query.beds,
+    baths:t("Baños mínimos: ","Minimum bathrooms: ") + query.baths,parking:t("Estacionamientos mínimos: ","Minimum parking spaces: ") + query.parking,
+    minBuilt:t("Construcción desde ","Built area from ") + query.minBuilt + " m²", maxBuilt:t("Construcción hasta ","Built area up to ") + query.maxBuilt + " m²",
+    minLot:t("Terreno desde ","Land area from ") + query.minLot + " m²", maxLot:t("Terreno hasta ","Land area up to ") + query.maxLot + " m²",
     priceBasis:query.priceBasis === "sqm" ? t("Por m²","Per m²") : t("Precio total","Total price"),
     rentPeriod:({month:t("Mensual","Monthly"),day:t("Diario","Daily"),year:t("Anual","Annual"),unclassified:t("Sin confirmar","Unconfirmed")})[query.rentPeriod],
   };
@@ -205,10 +219,8 @@ function catalogHelp(ctx, rows, sourcePath) {
   const zone = query.locations.map(id => areaName(areas.find(area => area.id === id),lang)).filter(Boolean).join(", ");
   const subarea = areas.flatMap(area => area.subareas || []).find(row => row.id === query.subarea);
   const development = rows.find(row => inventory.entityOf(row) === "developments" && [row.id,row.developmentData?.id].includes(query.development));
-  const mode = {presale:t("Preventa","Presale"),direct:t("Venta directa","Direct sale"),resale:t("Reventa","Resale"),unclassified:t("Modalidad por confirmar","Sales mode unconfirmed")}[query.modality];
-  const period = {month:t("Renta mensual","Monthly rental"),day:t("Renta diaria","Daily rental"),year:t("Renta anual","Annual rental")}[query.rentPeriod];
   const context = { zone, subzone: subarea ? areaName(subarea,lang) : query.zone, development: development && (lang === "en" ? development.titleEn || development.titleEs : development.titleEs), propertyType:query.type, budget:query.max, currency:query.currency,
-    preferences:[query.text,query.min != null ? t("Presupuesto mínimo","Minimum budget") + " " + query.min + " " + query.currency : "",query.beds != null ? t("Recámaras mínimas","Minimum bedrooms") + ": " + query.beds : "", mode, period].filter(Boolean).join(" · "), origin:ctx.presales ? "presale-directory" : "catalog-results", sourcePath };
+    preferences:describeCatalogFilters({...query,development:""},lang,areas).join(" · "), origin:ctx.presales ? "presale-directory" : "catalog-results", sourcePath };
   const rent = query.operation === "rent", land = query.type === "Terreno";
   const buyer = rent ? t("Busco una renta aquí","Find a rental here") : land ? t("Quiero comprar un terreno","I want to buy land") : t("Busco una propiedad aquí","Find a property here");
   const seller = rent ? t("Quiero poner mi propiedad en renta","I want to rent out my property") : land ? t("Quiero vender un terreno","I want to sell land") : t("Quiero vender aquí","I want to sell here");
@@ -251,6 +263,10 @@ function renderCatalog(page, properties, params = {}, renderCards) {
   const grouped = projects && !ctx.featuredPage && selectedLocations.length !== 1;
   const result = inventory.queryInventory(records, input, { defaults, areas, lang, featureRanks:ranks, groupByArea:grouped });
   result.errors = result.errors.map(error => localizeCatalogError(error,lang));
+  if (ctx.unsupportedProjectFilters.length) {
+    result.errors.push(t("Estos criterios corresponden a unidades: cambia a Propiedades o quita los filtros indicados. No se han ignorado tus requisitos.","These criteria apply to units: switch to Properties or remove the selected filters. Your requirements have not been ignored."));
+    result.items = []; result.all = []; result.total = 0; result.pages = 0;
+  }
   const { query, total } = result;
   const view = params.view === "map" ? "map" : "list";
   Object.assign(ctx,{areas,t,query,result,view,landRoute:page.category?.type === "Terreno"});
@@ -295,17 +311,20 @@ function renderCatalog(page, properties, params = {}, renderCards) {
   });
   const searchLabel = projects ? t("Buscar por nombre","Search by name") : t("Buscar por zona, desarrollo, título o MLS","Search by zone, development, title or MLS");
   const pagination = presales && params.project ? "" : paginated(result,path,lang,view);
+  const saveSearch = !result.errors.length && !total ? contactLink(lang,t("Guardar búsqueda y consultar avisos","Save search and check alerts"), {
+    service:"search-watch", intent:query.operation === "rent" ? "rent" : "buy", searchFilters:JSON.stringify(query), origin:"catalog-no-results", sourcePath,
+  }, "outline-dark-button").replace("data-contact-inquiry", "data-contact-inquiry data-save-search") : "";
   return `<section id="category-inventory" class="category-inventory catalog-experience" data-catalog-root data-catalog-query="${escape(inventory.toSearchParams(query))}" data-catalog-map-total="${mapItems.length}">
     ${entityNavigation(ctx,publicRows)}${areaIndex}<div class="catalog-controls"><div class="catalog-search-row">
       <input type="search" name="q" form="catalogFilters" value="${escape(query.text)}" aria-label="${searchLabel}" placeholder="${projects ? t("Nombre del proyecto","Project name") : t("Zona, desarrollo, título o MLS","Zone, development, title or MLS")}" autocomplete="off" />
       <button type="submit" form="catalogFilters" class="primary-button">${t("Buscar","Search")}</button></div>
       ${catalogFilters(ctx,presales ? records : publicRows)}
       ${projects ? "" : `<details class="catalog-conversation"><summary>${t("Búsqueda guiada","Guided search")}</summary><form data-catalog-assistant><label>${t("Describe lo que buscas","Describe what you are looking for")}<input name="query" maxlength="600" required /></label><button type="submit" class="primary-button">${t("Buscar","Search")}</button><div data-search-status aria-live="polite"></div></form></details>`}</div>
-    ${presales ? "" : suggestionLinks(ctx,publicRows)}<div class="catalog-active-filters">${activeChips(ctx,publicRows)}</div>
+    ${presales ? "" : suggestionLinks(ctx,records)}<div class="catalog-active-filters">${activeChips(ctx,publicRows)}</div>
     <div class="catalog-result-bar"><p id="categoryInventoryCount" role="status">${total} ${label}</p><div class="catalog-view-toggle" role="group" aria-label="${t("Vista","View")}"><button type="button" data-catalog-view="list" aria-pressed="true">${t("Lista","List")}</button><button type="button" data-catalog-view="map" aria-pressed="false">${t("Mapa","Map")}</button></div></div>
     <p class="catalog-request-status" aria-live="polite"></p>
     ${result.errors.length ? `<div class="catalog-errors" role="alert"><h3>${t("Revisa los filtros","Review filters")}</h3><ul>${result.errors.map(error => `<li>${escape(error)}</li>`).join("")}</ul></div>` : ""}
-    <div class="catalog-results"><div data-catalog-list>${cards || (result.errors.length ? "" : `<p class="inventory-empty">${t("Aún no hay publicaciones que coincidan con esta búsqueda.","There are no published matches for this search yet.")}</p>`)}${pagination}</div><div data-catalog-map hidden><div class="catalog-map-canvas" role="region" aria-label="${t("Mapa de resultados","Results map")}"></div><p class="catalog-map-status" role="status"></p></div></div>
+    <div class="catalog-results"><div data-catalog-list>${cards || (result.errors.length ? "" : `<p class="inventory-empty">${t("Aún no hay publicaciones que coincidan con esta búsqueda.","There are no published matches for this search yet.")}</p>${saveSearch}`)}${pagination}</div><div data-catalog-map hidden><div class="catalog-map-canvas" role="region" aria-label="${t("Mapa de resultados","Results map")}"></div><p class="catalog-map-status" role="status"></p></div></div>
     ${presales && params.project && result.items.length ? "" : catalogHelp(ctx,publicRows,sourcePath)}<script type="application/json" data-catalog-map-data>${JSON.stringify(mapItems).replace(/</g,"\\u003c")}</script></section>`;
 }
 

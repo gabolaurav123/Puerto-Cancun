@@ -174,6 +174,12 @@
       min: optionalNumber(raw.min),
       max: optionalNumber(raw.max),
       beds: optionalNumber(raw.beds),
+      baths: optionalNumber(raw.baths),
+      parking: optionalNumber(raw.parking),
+      minBuilt: optionalNumber(raw.minBuilt),
+      maxBuilt: optionalNumber(raw.maxBuilt),
+      minLot: optionalNumber(raw.minLot),
+      maxLot: optionalNumber(raw.maxLot),
       featured: raw.featured === true || raw.featured === "1" || raw.featured === "true",
       sort: String(raw.sort || "recent"),
       page: raw.page === undefined || raw.page === "" ? 1 : Number(raw.page),
@@ -182,6 +188,7 @@
     if (query.locations.some((value) => !areas.some((location) => location.id === value))) errors.push("Location no reconocida");
     if (!["properties", "developments"].includes(query.entity) && !(query.entity === "all" && query.featured)) errors.push(query.entity === "typologies" ? "Tipologías pendientes de soporte; no son propiedades ni desarrollos" : "Tipo de inventario inválido");
     if (![undefined, null, "", true, false, "1", "0", "true", "false"].includes(raw.featured)) errors.push("Filtro de destacadas inválido");
+    if (![undefined, null, "", true, false, "1", "0", "true", "false"].includes(raw.gated)) errors.push("Filtro de acceso controlado inválido");
     if (query.type && !TYPES.includes(query.type)) errors.push("Tipo de propiedad inválido");
     if (query.operation && !["sale", "rent"].includes(query.operation)) errors.push("Operación inválida");
     if (query.modality && !["presale", "direct", "resale", "unclassified"].includes(query.modality)) errors.push("Modalidad inválida");
@@ -190,7 +197,12 @@
     if (query.currency && !["USD", "MXN"].includes(query.currency)) errors.push("Moneda inválida");
     if (!["total", "sqm"].includes(query.priceBasis)) errors.push("Base de precio inválida");
     if (query.rentPeriod && !["month", "day", "year", "unclassified"].includes(query.rentPeriod)) errors.push("Periodo de renta inválido");
-    for (const key of ["min", "max", "beds"]) if (query[key] !== null && (!Number.isFinite(query[key]) || query[key] < 0)) errors.push(`${key}: valor inválido`);
+    if (query.rentPeriod && query.operation === "sale") errors.push("El periodo de renta no corresponde a venta");
+    if (query.rentPeriod && !query.operation) query.operation = "rent";
+    for (const key of ["min", "max", "beds", "baths", "parking", "minBuilt", "maxBuilt", "minLot", "maxLot"]) if (query[key] !== null && (!Number.isFinite(query[key]) || query[key] < 0)) errors.push(`${key}: valor inválido`);
+    for (const [min, max] of [["minBuilt", "maxBuilt"], ["minLot", "maxLot"]]) {
+      if (query[min] !== null && query[max] !== null && query[min] > query[max]) errors.push(`${min}/${max}: intervalo inválido`);
+    }
     if (query.min !== null && query.max !== null && query.min > query.max) errors.push("El precio mínimo supera el máximo");
     if ((query.min !== null || query.max !== null) && !query.currency) errors.push("Elige una moneda para aplicar el presupuesto");
     if ((query.min !== null || query.max !== null) && !query.operation) errors.push("Elige compra o renta para aplicar el presupuesto");
@@ -226,6 +238,14 @@
     if (query.development && ![p.portalDevelopmentId, p.developmentId, p.development_id, p.parent_development_id, p.parentDevelopment?.id, p.parentDevelopment?.propertyId].includes(query.development)) return false;
     if (query.featured && !p.featured) return false;
     if (query.beds !== null && Number(p.beds || 0) < query.beds) return false;
+    for (const key of ["baths", "parking"]) {
+      if (query[key] != null && (optionalNumber(p[key]) === null || !Number.isFinite(optionalNumber(p[key])) || Number(p[key]) < query[key])) return false;
+    }
+    for (const [key, min, max] of [["area", "minBuilt", "maxBuilt"], ["lot", "minLot", "maxLot"]]) {
+      if (query[min] == null && query[max] == null) continue;
+      const value = positiveAmount(p[key]);
+      if (value === null || (query[min] != null && value < query[min]) || (query[max] != null && value > query[max])) return false;
+    }
     const price = priceOf(p);
     if (query.currency && price.currency !== query.currency) return false;
     if (query.rentPeriod && price.period !== query.rentPeriod) return false;
@@ -292,6 +312,9 @@
       query = parsed.query;
     }
     const params = new URLSearchParams();
+    for (const key of ["baths", "parking", "minBuilt", "maxBuilt", "minLot", "maxLot"]) {
+      if (query[key] != null && query[key] !== "") params.set(key, String(query[key]));
+    }
     for (const [key, value] of Object.entries({ entity: query.entity, q: query.text, location: query.locations?.join(","), bounds: query.bounds?.join(","), zone: query.zone, subarea: query.subarea, gated: query.gated ? "1" : "", type: query.type, operation: query.operation, modality: query.modality, development: query.development, currency: query.currency, min: query.min, max: query.max, priceBasis: query.priceBasisExplicit === false && query.priceBasis === "total" ? "" : query.priceBasis, rentPeriod: query.rentPeriod, beds: query.beds, featured: query.featured ? "1" : "", sort: query.sort, page: query.page })) {
       if (value !== "" && value !== null && value !== undefined) params.set(key, String(value));
     }

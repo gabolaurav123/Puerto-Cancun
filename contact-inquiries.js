@@ -4,6 +4,10 @@ const crypto = require("node:crypto");
 const { getCountries, getCountryCallingCode, parsePhoneNumberFromString } = require("libphonenumber-js/max");
 const { contacts } = require("./contact-config");
 const { propertyPath } = require("./seo-pages");
+const { enrichCommercialInquiry } = require("./commercial-workflow");
+const inventoryContract = require("./inventory-contract");
+const { savedCatalogQuery } = require("./saved-catalog-search");
+const { describeCatalogFilters } = require("./catalog-search");
 
 const countries = getCountries().map(country => ({ country, prefix: "+" + getCountryCallingCode(country) }));
 const intentTypes = { buy: "comprador-compra", rent: "comprador-busca-renta", sell: "vendedor-venta", let: "vendedor-ofrece-renta" };
@@ -57,7 +61,7 @@ function sourcePath(input) {
   if (/^\/(?:api|panel|admin|seller|media|compartir|share)(?:\/|$)/.test(parsed.pathname)) return "/";
   const query = new URLSearchParams();
   for (const [key, value] of parsed.searchParams) {
-    if (/^(q|type|zone|location|development|subzone|entity|operation|currency|budget|minPrice|maxPrice|sort|view|page|beds|category|intent)$/.test(key)) query.set(key, value.slice(0, 140));
+    if (/^(q|text|type|zone|location|locations|development|subzone|subarea|entity|operation|modality|currency|budget|min|max|minPrice|maxPrice|rentPeriod|priceBasis|sort|view|page|beds|baths|parking|minBuilt|maxBuilt|minLot|maxLot|category|intent)$/.test(key)) query.append(key, value.slice(0, 300));
   }
   return parsed.pathname + (query.size ? "?" + query : "");
 }
@@ -74,7 +78,7 @@ function readInquiry(body) {
     if (!["mx", "us"].includes(body.office)) fail("Elige una oficina disponible.", "Choose an available office.", lang);
     data.office = body.office;
   }
-  const limits = { propertyType: 100, zone: 160, subzone: 160, development: 240, propertyTitle: 240, mls: 90, project: 240, reference: 140, preferences: 1200, area: 100, features: 400, origin: 120 };
+  const limits = { propertyType: 100, zone: 160, subzone: 160, development: 240, propertyTitle: 240, mls: 90, project: 240, reference: 140, preferences: 1200, summary: 1800, area: 100, features: 400, origin: 120 };
   Object.assign(limits, { viewedPropertyId: 140, viewedPropertyTitle: 240, viewedMls: 90, viewedProject: 240, viewedReference: 140, viewedZone: 160, viewedDevelopment: 240 });
   for (const [key, limit] of Object.entries(limits)) {
     const value = clean(body[key], limit);
@@ -91,6 +95,57 @@ function readInquiry(body) {
   return { phone: phone.phone, name: clean(body.name, 110), propertyId: clean(body.propertyId, 140), path: sourcePath(body.sourcePath), data };
 }
 
+function inquiryFingerprint(propertyId, path, data) {
+  const stableData = { ...data };
+  if (data.searchWatch) {
+    const watch = data.searchWatch;
+    stableData.searchWatch = { filters: watch.filters, preferences: watch.preferences, channel: watch.channel, email: watch.email, consented: Boolean(watch.consentAt) };
+  }
+  const stable = value => Array.isArray(value) ? value.map(stable) : value && typeof value === "object" ? Object.fromEntries(Object.keys(value).sort().map(key => [key, stable(value[key])])) : value;
+  return crypto.createHash("sha256").update(JSON.stringify(stable([propertyId, path, stableData]))).digest("hex");
+}
+
+function prepareSearchContext(body, data, properties, areas = inventoryContract.LOCATIONS) {
+  if (!body.searchFilters || body.service === "search-watch") return;
+  const parsed = savedCatalogQuery(body.searchFilters, { properties, areas, language: data.lang });
+  const { errors, ...source } = parsed;
+  if (errors.length) { data.originalSearchFilters = source; data.searchContextReview = errors; return; }
+  if (!["buy", "rent"].includes(data.intent)) { data.originalSearchFilters = source; return; }
+  const criteria = { ...source };
+  const operation = data.intent === "rent" ? "rent" : "sale";
+  if (source.operation && source.operation !== operation) {
+    data.originalSearchFilters = source;
+    criteria.min = null; criteria.max = null; criteria.currency = ""; criteria.modality = ""; criteria.rentPeriod = "";
+    if (data.budget === source.max || data.budget === source.min) { delete data.budget; delete data.currency; }
+    data.searchContextReview = [data.lang === "en" ? "Operation changed in the form; confirm the new budget and rental period." : "La operación cambió en el formulario; confirmar el nuevo presupuesto y periodo de renta."];
+  }
+  criteria.operation = operation;
+  if (Object.hasOwn(body, "propertyType")) criteria.type = data.propertyType || "";
+  const sourceArea = areas.find(area => source.locations?.includes(area.id));
+  const sourceZone = source.zone || sourceArea?.[data.lang === "en" ? "nameEn" : "nameEs"] || sourceArea?.name || "";
+  if (Object.hasOwn(body, "zone") && inventoryContract.fold(body.zone) !== inventoryContract.fold(sourceZone)) {
+    const location = inventoryContract.locationId(data.zone, areas);
+    criteria.locations = location ? [location] : []; criteria.zone = location ? "" : data.zone || "";
+    criteria.subarea = ""; criteria.bounds = null; criteria.development = "";
+  }
+  if (body.developmentId && data.developmentId) criteria.development = data.developmentId;
+  else if (Object.hasOwn(body, "development")) {
+    const development = properties.filter(property => inventoryContract.entityOf(property) === "developments" && [property.titleEs, property.titleEn].some(name => inventoryContract.fold(name) && inventoryContract.fold(name) === inventoryContract.fold(data.development)));
+    criteria.development = development.length === 1 ? development[0].developmentData?.id || development[0].id : data.development || "";
+  }
+  if (Object.hasOwn(body, "budget")) {
+    criteria.max = data.budget || null;
+    if (!data.budget || (criteria.min !== null && criteria.min > data.budget)) criteria.min = null;
+    criteria.currency = data.currency || "";
+  }
+  if (operation === "rent") criteria.rentPeriod = data.rentPeriod || "";
+  else criteria.rentPeriod = "";
+  const final = savedCatalogQuery(criteria, { properties, areas, language: data.lang });
+  if (final.errors.length) { data.originalSearchFilters ||= source; data.searchContextReview = [...new Set([...(data.searchContextReview || []), ...final.errors])]; return; }
+  delete final.errors;
+  data.searchFilters = final;
+}
+
 function messageFor(data, url) {
   const en = data.lang === "en";
   const propertyTypes = en ? { Casa: "a house", Departamento: "an apartment", Terreno: "land", Comercial: "commercial property", Oficina: "an office", Bodega: "a warehouse" }
@@ -99,14 +154,22 @@ function messageFor(data, url) {
   let introduction = intentPhrases[data.lang][data.intent] + " " + what + ".";
   if (data.service === "valuation") introduction = en ? "I would like a property valuation." : "Quiero solicitar una valoración inmobiliaria.";
   if (data.service === "price-review") introduction = en ? "I would like an advisor to review my estimated price." : "Quiero revisar mi precio estimado con un asesor.";
+  if (data.service === "visit") introduction = en ? "I would like to request a visit (pending team confirmation)." : "Quiero solicitar una visita (pendiente de confirmación del equipo).";
+  if (data.service === "search-watch") introduction = en ? "I saved my property search." : "Guardé mi búsqueda de propiedad.";
   const text = [(en ? "Hello. " : "Hola. ") + introduction];
   for (const [value, es, english] of [
     [data.propertyTitle, "Propiedad", "Listing"], [data.mls, "MLS", "MLS"], [data.project, "Preventa", "Presale"],
     [data.reference, "Referencia del proyecto", "Project reference"], [data.development, "Desarrollo", "Development"],
     [data.zone, "Zona", "Zone"], [data.subzone, "Subzona", "Subzone"], [data.area, "Superficie aproximada", "Approximate area"],
     [data.features, "Características", "Features"], [data.preferences, "Preferencias", "Preferences"],
+    [data.summary, "Resumen de la consulta", "Inquiry summary"],
   ]) if (value) text.push((en ? english : es) + ": " + value);
   if (data.budget) text.push((en ? "Budget: " : "Presupuesto: ") + new Intl.NumberFormat(en ? "en-US" : "es-MX").format(data.budget) + " " + data.currency);
+  if (data.askingPrice) text.push((en ? "Asking price: " : "Precio solicitado: ") + data.askingPrice + " " + data.currency);
+  if (data.rentPeriod) text.push((en ? "Rental period: " : "Periodo de renta: ") + ({ day: en ? "daily" : "día", month: en ? "monthly" : "mes", year: en ? "yearly" : "año" }[data.rentPeriod] || data.rentPeriod));
+  if (data.visitPreferredAt) text.push((en ? "Preferred date/time (Cancun): " : "Fecha/hora preferida (Cancún): ") + data.visitPreferredAt.replace("T", " "));
+  if (data.searchWatch || data.searchFilters) text.push((en ? "Search criteria: " : "Criterios de búsqueda: ") + describeCatalogFilters(data.searchWatch?.filters || data.searchFilters, data.lang).join(" · "));
+  if (data.searchContextReview?.length) text.push((en ? "To confirm: " : "Por confirmar: ") + data.searchContextReview.join(" "));
   if (data.ownerEstimate) text.push((en ? "My estimate: " : "Mi estimación: ") + String(data.ownerEstimate) + (data.currency ? " " + data.currency : ""));
   text.push((en ? "I saw this on Puerto Cancún Center: " : "Lo vi en Puerto Cancún Center: ") + url);
   text.push("Ref. PCC-" + data.whatsappRef);
@@ -136,10 +199,10 @@ async function serviceChannel(db, country) {
   return { whatsappRef: crypto.randomBytes(8).toString("hex"), destination: destination(await readContactRouting(db), country) };
 }
 
-function registerInquiries(app, { pool, query, uuid, siteUrl, secret, upsertContact, leadScoreFromData }) {
+function registerInquiries(app, { pool, query, uuid, siteUrl, secret, upsertContact, leadScoreFromData, getPublicProperties = async () => [], getAreas = () => undefined, channels = () => ({}) }) {
   const clickToken = id => crypto.createHmac("sha256", secret).update("inquiry-click:" + id).digest("hex");
   app.get("/api/inquiries/options", async (_req, res, next) => {
-    try { res.json({ countries, featuredCountry: (await readContactRouting({ query })).featuredCountry }); } catch (err) { next(err); }
+    try { res.json({ countries, channels: channels(), featuredCountry: (await readContactRouting({ query })).featuredCountry }); } catch (err) { next(err); }
   });
   app.post("/api/inquiries", async (req, res, next) => {
     let client;
@@ -147,6 +210,9 @@ function registerInquiries(app, { pool, query, uuid, siteUrl, secret, upsertCont
       const body = req.body || {};
       if (body.website) return res.status(201).json({ ok: true });
       const { phone, name, propertyId, path, data } = readInquiry(body);
+      const inventory = await getPublicProperties();
+      await enrichCommercialInquiry(body, data, inventory, channels(), getAreas());
+      prepareSearchContext(body, data, inventory, getAreas());
       client = await pool.connect();
       await client.query("BEGIN");
       // Serialize simultaneous submissions from the same phone, including different interests.
@@ -159,9 +225,15 @@ function registerInquiries(app, { pool, query, uuid, siteUrl, secret, upsertCont
         if (!data.zone && !Object.hasOwn(body, "zone") && property.zone) data.zone = property.zone;
         if (property.mls) data.mls = property.mls;
         if (property.publication_section === "developments" && !data.development) data.development = data.propertyTitle;
+        if (property.publication_section === "developments") data.developmentId = propertyId;
+        else {
+          const listing = inventory.find(p => p.id === propertyId);
+          const parent = inventory.find(p => p.publicationSection === "developments" && (p.id === listing?.portalDevelopmentId || p.developmentData?.id === listing?.developmentId));
+          if (parent) { data.developmentId = parent.id; data.development = data.lang === "en" ? parent.titleEn || parent.titleEs : parent.titleEs; }
+        }
         if (data.project && !data.reference) data.reference = propertyId;
       }
-      const fingerprint = crypto.createHash("sha256").update(JSON.stringify([propertyId, path, data])).digest("hex");
+      const fingerprint = inquiryFingerprint(propertyId, path, data);
       const nonce = clean(body.requestId, 80);
       if (!/^[a-zA-Z0-9-]{12,80}$/.test(nonce)) fail("Vuelve a abrir el formulario.", "Reopen the inquiry form.", data.lang);
       const id = "lead-" + crypto.createHmac("sha256", secret).update(JSON.stringify([phone, nonce, fingerprint])).digest("hex").slice(0, 36);
@@ -178,6 +250,11 @@ function registerInquiries(app, { pool, query, uuid, siteUrl, secret, upsertCont
         const score = leadScoreFromData({ leadType, phone, payload: data, propertyId });
         const contact = await upsertContact(client, { name, phone, source: "portal_inquiry", contactType: ["sell", "let"].includes(data.intent) ? "seller" : "buyer", preferredZones: data.zone ? [data.zone] : [], propertyType: data.propertyType, leadScore: score });
         payload = { ...data, inquiryFingerprint: fingerprint, whatsappRef: crypto.randomBytes(8).toString("hex"), destination: number };
+        if (data.service === "visit") {
+          payload.visitId = "tour-" + id;
+          const [date, time] = data.visitPreferredAt.split("T");
+          await client.query("INSERT INTO tour_requests(id,property_id,name,phone,preferred_date,preferred_time,comments,status) VALUES($1,$2,$3,$4,$5,$6,$7,'requested')", [payload.visitId, propertyId, name || "Visitante web", phone, date, time, [data.summary, data.preferences, "Origen: " + path, "Hora de Cancún. Pendiente de confirmación del equipo."].filter(Boolean).join("\n")]);
+        }
         await client.query(
           `INSERT INTO lead_requests(id,lead_type,name,phone,source_path,property_id,contact_id,payload,priority,lead_score)
            VALUES($1,$2,$3,$4,$5,$6,$7,$8::jsonb,$9,$10)`, [id, leadType, name || (data.lang === "en" ? "Website visitor" : "Visitante web"), phone, path, propertyId || null, contact.id, JSON.stringify(payload), score === "premium" ? "premium" : score === "hot" ? "high" : "medium", score]);
@@ -186,7 +263,7 @@ function registerInquiries(app, { pool, query, uuid, siteUrl, secret, upsertCont
       }
       const action = inquiryAction(recordId, payload, siteUrl, path, secret);
       await client.query("COMMIT");
-      res.status(previous ? 200 : 201).json(action);
+      res.status(previous ? 200 : 201).json({ ...action, visitStatus: payload?.visitStatus, searchWatchStatus: payload?.searchWatch?.status });
     } catch (err) {
       if (client) await client.query("ROLLBACK");
       if (err.status === 400) return res.status(400).json({ error: err.message });
@@ -225,4 +302,4 @@ async function recordIncomingInquiry(query, jid, text, timestamp) {
        AND a.new_value->>'whatsappRef'=$2 AND NOT a.new_value ? 'whatsappReceivedAt'`, [phones, reference, timestamp]);
 }
 
-module.exports = { businessPhoneLabel, contactRouting, contactPhone, destination, messageFor, registerInquiries, recordIncomingInquiry, readContactRouting, inquiryAction, serviceChannel, sourcePath };
+module.exports = { businessPhoneLabel, contactRouting, contactPhone, destination, messageFor, registerInquiries, recordIncomingInquiry, readContactRouting, inquiryAction, serviceChannel, sourcePath, inquiryFingerprint, prepareSearchContext };
