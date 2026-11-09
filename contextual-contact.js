@@ -87,7 +87,7 @@
     const officeLabel = values.office === "us" ? tr("Estados Unidos", "United States") : values.office === "mx" ? tr("México", "Mexico") : "";
     dialog.innerHTML = '<header><h2 id="inquiryTitle">' + (officeLabel ? "WhatsApp " + officeLabel : tr("Hablar con un asesor", "Talk to an advisor")) + '</h2><button type="button" data-inquiry-close aria-label="' + tr("Cerrar", "Close") + '">×</button></header><div class="inquiry-scroll"><form>'
       + '<section data-inquiry-step="1"><h3 tabindex="-1">' + tr("¿Qué necesitas?", "How can we help?") + '</h3>'
-      + (values.project || values.propertyTitle || values.mls ? '<p class="inquiry-context">' + [values.project, values.propertyTitle, values.mls ? "MLS " + values.mls : ""].filter(Boolean).map(escape).join(" · ") + '</p>' : "")
+      + (values.project || values.propertyTitle || values.mls ? '<p class="inquiry-context">' + [...new Set([values.project, values.propertyTitle, values.mls ? "MLS " + values.mls : ""].filter(Boolean))].map(escape).join(" · ") + '</p>' : "")
       + row(tr("Quiero", "I want to"), "intent", '<select name="intent" required>' + option("", tr("Elige una opción", "Choose an option")) + Object.entries(intents).map(([k,v]) => option(k, tr(...v))).join("") + '</select>')
       + row(tr("Tipo de propiedad", "Property type"), "propertyType", '<select name="propertyType">' + option("", tr("No estoy seguro", "I'm not sure")) + typeOptions.map(t => option(t, lang() === "en" ? typeLabels[t] || t : t)).join("") + '</select>')
       + row("", "zone")
