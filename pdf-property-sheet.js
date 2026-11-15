@@ -1,5 +1,8 @@
 const sharp = require("sharp");
 const { contacts } = require("./contact-config");
+const inventory = require("./inventory-contract");
+const publicPricing = require("./public-pricing");
+const presalePolicy = require("./presale-policy");
 
 const COLORS = {
   navy: "#032f3a",
@@ -53,10 +56,28 @@ function formatNumber(value) {
   return new Intl.NumberFormat("es-MX", { maximumFractionDigits: 2 }).format(Number(value || 0));
 }
 
-function formatMoney(property) {
-  const currency = property.currency === "MXN" || (!property.price && !property.priceUsd && property.priceMxn) ? "MXN" : "USD";
-  const value = Number(property.price || (currency === "MXN" ? property.priceMxn : property.priceUsd) || 0);
-  return value ? `${currency} ${new Intl.NumberFormat("es-MX", { maximumFractionDigits: 0 }).format(value)}` : "Precio a consultar";
+function propertyPdfPrice(property, options = {}) {
+  if (options.priceMode === "original") {
+    const price = inventory.priceOf(property);
+    const suffix = price.basis === "sqm" ? " / m²" : "";
+    const period = price.operation === "rent" ? ({month:" / mes",day:" / día",year:" / año"}[price.period] || " · periodo por confirmar") : "";
+    return { text: price.amount && ["USD","MXN"].includes(price.currency) ? `${price.currency} $${new Intl.NumberFormat("es-MX", {maximumFractionDigits:0}).format(price.amount)}${suffix}${period}` : "Precio a consultar", note:"", mode:"original" };
+  }
+  const price = inventory.publicPriceOf(property, options.exchangeRate, {now:options.now});
+  return {text:publicPricing.format(price,"es",{includeRateDate:false}).replace("≈ ","Aprox. "),note:publicPricing.rateNote(price,"es"),mode:"public-usd",price};
+}
+
+function drawPrice(document, property, options, y) {
+  const model = options.showPrice === false ? {text:"INFORMACIÓN COMERCIAL",note:""} : propertyPdfPrice(property,options);
+  document.fillColor(COLORS.gold).font("Times-Bold").fontSize(25);
+  let size=25;
+  while(document.widthOfString(model.text)>330 && size>14) document.fontSize(--size);
+  document.text(model.text,42,y,{width:330,height:29,ellipsis:true});
+  if(model.note) document.fillColor(COLORS.muted).font("Helvetica").fontSize(7).text(model.note,42,y+29,{width:511,height:12,ellipsis:true});
+}
+
+function commercialLabel(property) {
+  return presalePolicy.isPresale(property) ? "EN PREVENTA" : property.operation === "rent" ? "EN RENTA" : "EN VENTA";
 }
 
 function drawPill(document, text, x, y) {
@@ -143,14 +164,9 @@ function drawNeutralPropertyPdf(document, { property, images, options }) {
     });
   }
 
-  document.fillColor(COLORS.gold).font("Times-Bold").fontSize(25).text(
-    options.showPrice === false ? "INFORMACIÓN COMERCIAL" : formatMoney(property),
-    42,
-    359,
-    { width: 330 }
-  );
+  drawPrice(document,property,options,359);
   document.fillColor(COLORS.muted).font("Helvetica-Bold").fontSize(8).text(
-    `${property.type || "Propiedad"} · ${property.operation === "rent" ? "EN RENTA" : "EN VENTA"}`.toUpperCase(),
+    `${property.type || "Propiedad"} · ${commercialLabel(property)}`.toUpperCase(),
     385,
     369,
     { width: 168, align: "right" }
@@ -281,14 +297,9 @@ function drawPropertyPdf(document, { property, images = [], propertyUrl, logoPat
     document.fillColor(COLORS.muted).font("Helvetica").fontSize(10).text("Fotografías disponibles en la publicación web", 42, galleryY + 94, { width: 511, align: "center" });
   }
 
-  document.fillColor(COLORS.gold).font("Times-Bold").fontSize(25).text(
-    options.showPrice === false ? "INFORMACIÓN COMERCIAL" : formatMoney(property),
-    42,
-    430,
-    { width: 330 }
-  );
+  drawPrice(document,property,options,430);
   document.fillColor(COLORS.muted).font("Helvetica-Bold").fontSize(8).text(
-    `${property.type || "Propiedad"} · ${property.operation === "rent" ? "EN RENTA" : "EN VENTA"}`.toUpperCase(),
+    `${property.type || "Propiedad"} · ${commercialLabel(property)}`.toUpperCase(),
     385,
     440,
     { width: 168, align: "right" }
@@ -351,4 +362,4 @@ function drawPropertyPdf(document, { property, images = [], propertyUrl, logoPat
   );
 }
 
-module.exports = { drawPropertyPdf, preparePropertyPdfImages, stripBrand };
+module.exports = { drawPropertyPdf, preparePropertyPdfImages, stripBrand, propertyPdfPrice };

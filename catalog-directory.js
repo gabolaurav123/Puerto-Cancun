@@ -1,5 +1,6 @@
 const inventory = require("./inventory-contract");
-const { safePublicImages, optimizedPublicImage, localizedAmenity } = require("./public-listing-details");
+const { safePublicImages, optimizedPublicImage, localizedAmenity, resolvePublicLocation, renderPublicLocationSection } = require("./public-listing-details");
+const presalePolicy = require("./presale-policy");
 
 const escape = input => String(input ?? "").replace(/[&<>"']/g, char => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[char]);
 const defaults = {
@@ -55,28 +56,36 @@ function projectRecords(directory, properties) {
   return (directory?.presales || []).filter(project => (!project.status || project.status === "confirmed") &&
     (!project.developmentId || inventory.entityOf(byId.get(project.developmentId) || {}) === "developments")).map(project => {
     const development = byId.get(project.developmentId);
-    const hidden = new Set(development?.portalHiddenBlocks || []);
+    const publicUnits = (project.propertyIds || []).map(id => byId.get(id)).filter(row => row && inventory.entityOf(row) === "properties" && presalePolicy.isPresale(row, { directory, records: properties }));
+    const linkedProperty = !development && publicUnits.length === 1 ? publicUnits[0] : null;
+    const source = development || linkedProperty;
+    const hidden = new Set(source?.portalHiddenBlocks || []);
     const areaId = project.areaId || "";
-    const sameArea = development && areaFor(development, directory.areas)?.id === areaId;
+    const sameArea = source && areaFor(source, directory.areas)?.id === areaId;
     // Only a publicly located, explicitly linked development can locate its project.
-    const position = sameArea && development.locationPrecision !== "hidden" && !hidden.has("location") ? development : null;
+    const position = sameArea && source.locationPrecision !== "hidden" && !hidden.has("location") ? source : null;
     const locality = [position?.neighborhood, position?.city, position?.state].filter(Boolean).join(", ");
     const projectLocation = position?.locationPrecision === "exact" && position.address ? position.address : locality;
-    const images = hidden.has("gallery") ? [] : safePublicImages({ images: [project.image, ...(development?.images || []), development?.image] })
+    const sourceImages = safePublicImages(source || {});
+    const images = hidden.has("gallery") ? [] : safePublicImages({ images: [project.image, ...sourceImages] })
       .filter(src => !/\/assets\/(?:cancun-hotel-zone-hero-\d+|og-puerto-cancun-center)\.webp(?:[?#]|$)/i.test(src));
     const pathFor = locale => presalePath(locale) + "?" + new URLSearchParams({ project: project.id });
     return {
       id: project.id, status: "active", isPublic: true, publicationSection: "developments", type: "Desarrollo",
       titleEs: project.nameEs, titleEn: project.nameEn || project.nameEs,
-      descriptionEs: projectDescription(project.descriptionEs, !hidden.has("description") && development?.descriptionEs),
-      descriptionEn: projectDescription(project.descriptionEn, !hidden.has("description") && development?.descriptionEn),
+      descriptionEs: projectDescription(project.descriptionEs, !hidden.has("description") && source?.descriptionEs),
+      descriptionEn: projectDescription(project.descriptionEn, !hidden.has("description") && source?.descriptionEn),
       portalAreaId: areaId, portalSubareaId: project.subareaId || "", portalGated: development?.portalGated,
-      catalogData: { locationId: areaId }, images, projectLocation, presaleProject: project,
-      amenities: hidden.has("amenities") ? [] : [...new Set([...(development?.amenities || []), ...(development?.developmentData?.amenities || [])])],
+      catalogData: { locationId: areaId, salesModality: "presale" }, salesModality: "presale", operation: "sale", images, projectLocation, presaleProject: project,
+      portalPresale: {isPresale:true,status:"confirmed",projectId:project.id,developmentId:development?.id || "",propertyId:linkedProperty?.id || "",
+        renderImageIndices:images.flatMap((image,index) => presalePolicy.imagePresentation(source,-1,"es",image).kind === "render" ? [index] : []),
+        renderImages:images.flatMap((sourceImage,index) => presalePolicy.imagePresentation(source,-1,"es",sourceImage).kind === "render" ? [{index,source:sourceImage,kind:"render"}] : [])},
+      portalHiddenBlocks: [...hidden],
+      amenities: hidden.has("amenities") ? [] : [...new Set([...(source?.amenities || []), ...(source?.developmentData?.amenities || [])])],
       urlEs: pathFor("es"), urlEn: pathFor("en"), locationPrecision: position?.locationPrecision || "hidden",
       latitude: position?.latitude ?? null, longitude: position?.longitude ?? null,
-      publicUnits: (project.propertyIds || []).map(id => byId.get(id)).filter(row => row && inventory.entityOf(row) === "properties"),
-      linkedDevelopment: development,
+      publicUnits: hidden.has("units") ? [] : publicUnits,
+      linkedDevelopment: development, linkedProperty, locationSource: source, directory, sourceRecords: properties,
     };
   });
 }
@@ -92,17 +101,27 @@ function projectDetail(row, areas, lang, sourcePath) {
   };
   const unitLinks = row.publicUnits.map(unit => link(unit)).filter(Boolean);
   const developmentLink = linked && link(linked, en ? "View full development listing" : "Ver ficha completa del desarrollo");
-  const context = { intent: "buy", zone, subzone, development: linked && ((en ? linked.titleEn : linked.titleEs) || linked.titleEs), project: title, reference: project.reference || project.id, origin: "presale-project", sourcePath };
+  const context = { intent: "buy", zone, subzone, developmentId:linked?.id || "", propertyId:row.linkedProperty?.id || "", projectId:project.id,
+    development: linked && ((en ? linked.titleEn : linked.titleEs) || linked.titleEs), project: title, reference: project.reference || project.id, origin: "presale-project", sourcePath };
   const photo = row.images[0] && optimizedPublicImage(row.images[0], 960);
   const reference = project.reference && ![linked?.id, project.id].includes(project.reference) ? project.reference : "";
+  const coverLabel = presalePolicy.imagePresentation(row,0,lang).label;
+  const location = row.locationSource ? resolvePublicLocation(row.locationSource,{lang,directory:row.directory,properties:row.sourceRecords}) : null;
+  const contactHref = (en ? "/en/contact" : "/contacto") + "?" + new URLSearchParams(Object.entries(context).filter(([,value])=>value != null && value !== ""));
+  const locationSection = row.locationSource ? renderPublicLocationSection(row.locationSource,{lang,directory:row.directory,properties:row.sourceRecords,contactHref}) : "";
   return `<article class="catalog-project-detail"><a class="text-link" href="${presalePath(lang)}">${en ? "All presales" : "Todas las preventas"}</a>
-    <div class="catalog-project-intro">${photo ? `<img data-presale-cover src="${escape(photo)}" width="960" height="640" decoding="async" alt="${escape(title)}" />` : ""}
+    <div class="catalog-project-intro">${photo ? `<figure class="catalog-project-cover"><img data-presale-cover src="${escape(photo)}" width="960" height="640" decoding="async" alt="${escape(title)}${coverLabel ? ` — ${escape(coverLabel)}` : ""}" />${coverLabel ? `<figcaption>${escape(coverLabel)}</figcaption>` : ""}</figure>` : ""}
       <div><h2>${escape(title)}</h2><p>${escape([zone, subzone].filter(Boolean).join(" · "))}</p>
-      ${row.projectLocation ? `<p><strong>${en ? "Location" : "Ubicación"}</strong><br>${escape(row.projectLocation)}</p>` : ""}
+      ${location?.compact || row.projectLocation ? `<p><strong>${en ? "Location" : "Ubicación"}</strong><br>${escape(location?.compact || row.projectLocation)}</p>` : ""}
       ${reference ? `<p>${en ? "Project reference" : "Referencia del proyecto"}: ${escape(reference)}</p>` : ""}
       <div class="catalog-project-actions">${contactLink(lang, en ? "Ask about this project" : "Pedir información de este proyecto", context)}${developmentLink || ""}</div></div>
     </div>
+    ${locationSection}
     ${description ? `<section><h3>${en ? "About the project" : "Sobre el proyecto"}</h3><p>${escape(description)}</p></section>` : ""}
+    ${row.images.length > 1 ? `<section class="catalog-project-gallery"><h3>${en ? "Project gallery" : "Galería del proyecto"}</h3><div class="property-gallery-grid">${row.images.map((image,index) => {
+      const label = presalePolicy.imagePresentation(row,index,lang).label;
+      return `<figure><img src="${escape(optimizedPublicImage(image,640))}" alt="${escape(title)} — ${index+1}${label ? ` · ${escape(label)}` : ""}" width="640" height="426" loading="lazy" decoding="async" />${label ? `<figcaption>${escape(label)}</figcaption>` : ""}</figure>`;
+    }).join("")}</div></section>` : ""}
     ${row.amenities.length ? `<section><h3>${en ? "Amenities" : "Amenidades"}</h3><ul>${row.amenities.map(item => `<li>${escape(localizedAmenity(item, lang))}</li>`).join("")}</ul></section>` : ""}
     ${unitLinks.length ? `<h3>${en ? "Published listings" : "Propiedades publicadas"}</h3><ul>${unitLinks.map(item => `<li>${item}</li>`).join("")}</ul>` : ""}
     </article>`;

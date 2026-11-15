@@ -43,7 +43,7 @@ test("Spanish and English contact pages open the inquiry before offering WhatsAp
   for (const [route, lang] of [["/contacto", "es"], ["/en/contact", "en"]]) {
     const html = seo.renderSeoPage(route);
     assert.equal(whatsappLinks(html).length, 0);
-    assert.ok(html.includes(lang === "en" ? "Talk to an advisor" : "Hablar con un asesor"));
+    assert.ok(html.includes(lang === "en" ? "Choose an office" : "Elige una oficina"));
     for (const [origin, buttons] of [["contact-page", html], ["home-contact", seo.officeInquiryButtons(lang, "home-contact")]]) {
       for (const { id, display } of contacts.contacts) {
         const tag = buttons.match(new RegExp('<a [^>]*data-office="' + id + '"[^>]*>.*?</a>'))[0];
@@ -52,7 +52,9 @@ test("Spanish and English contact pages open the inquiry before offering WhatsAp
         assert.equal(href.searchParams.get("office"), id);
         assert.equal(href.searchParams.get("inquiry"), "1");
         assert.equal(href.searchParams.get("origin"), origin);
-        assert.ok(tag.includes(display));
+        assert.match(tag, /data-contact-inquiry/);
+        if (origin === "contact-page") assert.ok(tag.includes(display));
+        else assert.doesNotMatch(tag, /data-contact-number/);
       }
     }
     const custom = seo.renderSeoPage(route, { offices: [{ id: "us", display: "+1 202 555 0199" }] });
@@ -71,12 +73,13 @@ test("property and development inquiries retain the localized title and listing 
       const links = whatsappLinks(html);
       const title = lang === "en" ? item.titleEn : item.titleEs;
       assert.equal(links.length, 0);
-      assert.ok(html.includes('data-property-id="' + item.id + '"'));
-      assert.ok(html.includes('data-property-title="' + title.replace(/&/g, "&amp;").replace(/"/g, "&quot;") + '"'));
+      const development = publicationSection === "developments";
+      assert.ok(html.includes((development ? 'data-development-id="' : 'data-property-id="') + item.id + '"'));
+      assert.ok(html.includes((development ? 'data-development="' : 'data-property-title="') + title.replace(/&/g, "&amp;").replace(/"/g, "&quot;") + '"'));
       for (const intent of publicationSection === "developments" ? ["buy","sell"] : ["buy"]) assert.ok(html.includes('data-intent="' + intent + '"'));
       if (publicationSection === "developments") {
         assert.ok(html.includes('data-development-id="' + item.id + '"'));
-        assert.match(html, lang === "en" ? /looking for a property here/ : /Busco una propiedad aquí/);
+        assert.match(html, lang === "en" ? /Ask for options/ : /Pedir opciones/);
       }
       assert.doesNotMatch(html, /data-business-contact=/, "Catalog hydration must not remove contextual messages");
     }
@@ -107,6 +110,7 @@ test("legacy listing and general contact helpers open the same inquiry with the 
   const helpers = source.slice(start, end);
   const calls = [];
   const context = {
+    document: { activeElement: null },
     window: {
       PccInquiry: { open: data => calls.push(data) },
     },

@@ -247,7 +247,7 @@ function normalizeWhatsAppNumber(value) {
   return String(value || "").replace(/\D/g, "").slice(0, 15);
 }
 
-function externalPropertyWhatsappText(property, shareUrl, { includeContact = false } = {}) {
+function externalPropertyWhatsappText(property, shareUrl, { includeContact = false, exchangeRate } = {}) {
   const contact = includeContact ? property.externalContact || {} : {};
   const contactLines = includeContact
     ? [
@@ -262,7 +262,7 @@ function externalPropertyWhatsappText(property, shareUrl, { includeContact = fal
     "🏷️ *EXT · Propiedad externa de colaboración*",
     `*${property.titleEs}*`,
     locationLabel(property) ? `📍 ${locationLabel(property)}` : "",
-    `💰 ${formatMoney(property.price, property.currency)}${property.priceUnit === "sqm" ? " por m²" : ""}`,
+    `💰 ${require("./inventory-contract").publicPriceText(property,exchangeRate,"es")}`,
     property.beds ? `🛏️ ${property.beds} recámara${property.beds === 1 ? "" : "s"}` : "",
     property.baths ? `🚿 ${property.baths} baño${property.baths === 1 ? "" : "s"}` : "",
     property.area ? `📐 Construcción: ${property.area} m²` : "",
@@ -273,7 +273,8 @@ function externalPropertyWhatsappText(property, shareUrl, { includeContact = fal
   ].filter((line) => line !== "").join("\n");
 }
 
-function renderExternalPropertyShareHtml(property, { shareUrl, includeContact = false } = {}) {
+function renderExternalPropertyShareHtml(property, { shareUrl, includeContact = false, exchangeRate } = {}) {
+  const price = require("./inventory-contract").publicPriceText(property,exchangeRate,"es");
   const contact = includeContact ? property.externalContact || {} : {};
   const location = locationLabel(property);
   const imageDescription = property.imageMetadata?.[0]?.descriptionEs || property.titleEs;
@@ -313,7 +314,7 @@ function renderExternalPropertyShareHtml(property, { shareUrl, includeContact = 
   <meta name="referrer" content="no-referrer">
   <meta property="og:type" content="website">
   <meta property="og:title" content="${escapeHtml(`EXT · ${property.titleEs}`)}">
-  <meta property="og:description" content="${escapeHtml(`${formatMoney(property.price, property.currency)} · ${location || property.type}`)}">
+  <meta property="og:description" content="${escapeHtml(`${price} · ${location || property.type}`)}">
   <meta property="og:url" content="${escapeHtml(shareUrl)}">
   ${ogImage}
   <title>${escapeHtml(`EXT · ${property.titleEs} | Pick.State`)}</title>
@@ -324,7 +325,7 @@ function renderExternalPropertyShareHtml(property, { shareUrl, includeContact = 
 <body>
   <header class="topbar"><strong class="brand">PICK.STATE</strong><span class="ext">EXT · COLABORACIÓN</span></header>
   <main class="shell">
-    <section class="hero">${imageMarkup}<div class="summary"><span class="section-label">SELECCIÓN INMOBILIARIA EXTERNA</span><h1>${escapeHtml(property.titleEs)}</h1><p class="location">${escapeHtml(location || property.address || "Ubicación por confirmar")}</p><strong class="price">${escapeHtml(formatMoney(property.price, property.currency))}${property.priceUnit === "sqm" ? " / m²" : ""}</strong><dl class="facts">${facts.map(([label, value]) => `<div><dt>${escapeHtml(label)}</dt><dd>${escapeHtml(value)}</dd></div>`).join("")}</dl></div></section>
+    <section class="hero">${imageMarkup}<div class="summary"><span class="section-label">SELECCIÓN INMOBILIARIA EXTERNA</span><h1>${escapeHtml(property.titleEs)}</h1><p class="location">${escapeHtml(location || property.address || "Ubicación por confirmar")}</p><strong class="price">${escapeHtml(price)}</strong><dl class="facts">${facts.map(([label, value]) => `<div><dt>${escapeHtml(label)}</dt><dd>${escapeHtml(value)}</dd></div>`).join("")}</dl></div></section>
     <section class="content"><article class="copy"><span class="section-label">INFORMACIÓN DE LA PROPIEDAD</span><h2>Descripción y características</h2><p>${escapeHtml(property.descriptionEs || "Información detallada disponible previa confirmación.")}</p>${property.additionalInformation ? `<p>${escapeHtml(property.additionalInformation)}</p>` : ""}${property.features.length || property.amenities.length ? `<div class="pills">${[...property.features, ...property.amenities].map((item) => `<span>${escapeHtml(item)}</span>`).join("")}</div>` : ""}</article>${contactMarkup}</section>
     <p class="notice"><strong>EXT:</strong> esta opción pertenece a un colaborador externo. Disponibilidad, condiciones y datos deben confirmarse antes de cualquier operación.</p>
   </main>

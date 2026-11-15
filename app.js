@@ -1031,6 +1031,7 @@ async function enhanceMapPicker(picker) {
 function bindMapPickers() {
   $$("[data-map-picker]").forEach((picker) => {
     if (picker.closest("#guestSaleModal[hidden]")) return;
+    if (picker.closest("[data-guest-optional-map]:not([open])")) return;
     if (!picker.querySelector("[data-map-search]")) {
       const search = document.createElement("div");
       search.className = "map-location-search";
@@ -1145,27 +1146,7 @@ function bindMapPickers() {
 }
 
 function bindPublicAreaMap() {
-  const button = document.querySelector("[data-show-area-map]");
-  if (!button) return;
-  const section = button.closest(".property-location-map");
-  const frame = section.querySelector("iframe");
-  const message = section.querySelector("[role=status]");
-  button.addEventListener("click", async () => {
-    button.disabled = true;
-    try {
-      const point = await api("/api/geocode?address=" + encodeURIComponent(button.dataset.showAreaMap));
-      const source = window.PccCatalogMap.openStreetMapEmbed(point.latitude, point.longitude, false);
-      if (!source) throw new Error();
-      frame.src = source;
-      frame.hidden = false;
-      button.hidden = true;
-      message.textContent = "";
-    } catch {
-      message.textContent = state.lang === "en" ? "The zone map could not be loaded. Please try again." : "No se pudo cargar el mapa de la zona. Inténtalo de nuevo.";
-    } finally {
-      button.disabled = false;
-    }
-  });
+  window.PccCatalogMap?.mountListingLocationMaps(document, { request: path => api(path) });
 }
 
 function escapeHtml(value) {
@@ -1558,13 +1539,17 @@ function propertyPriceUnitLabel(property) {
 }
 
 function localizedPropertyPrice(property) {
-  const price = window.PccInventory?.priceOf(property);
+  const internal = ["panel", "admin", "seller"].includes(document.body.dataset.page);
+  const price = internal ? window.PccInventory?.priceOf(property) : window.PccInventory?.publicPriceOf(property, state.config?.currencyExchange);
   return price && price.amount !== null && ["USD", "MXN"].includes(price.currency) && ["total", "sqm"].includes(price.basis)
     ? [price.currency, price.amount]
     : null;
 }
 
 function formatPriceLines(property) {
+  if (!["panel", "admin", "seller"].includes(document.body.dataset.page)) {
+    return [window.PccInventory?.publicPriceText(property, state.config?.currencyExchange, state.lang, { includeRateDate: true }) || (state.lang === "en" ? "USD price to be confirmed" : "Precio en USD por confirmar")];
+  }
   const selected = localizedPropertyPrice(property);
   if (!selected) return [];
   const price = window.PccInventory.priceOf(property);
@@ -1583,7 +1568,7 @@ function selectedPrice(property) {
 }
 
 function comparablePrice(property) {
-  return Number(localizedPropertyPrice(property)?.[1] || 0);
+  return localizedPropertyPrice(property)?.[1] ?? null;
 }
 
 function truncateText(text, maxLength = 145) {
@@ -1773,12 +1758,13 @@ function propertyMatches(property, parsed = null, guided = null) {
     const hasBudget = budget !== undefined && budget !== null && budget !== "" && budget !== 0;
     guided = contract.parseQuery({
       entity: parsed.query.entity, operation: hasBudget ? parsed.query.operation : "",
-      currency: hasBudget ? "USD" : "", max: hasBudget ? budget : null,
+      currency: hasBudget ? "USD" : "", priceMode: hasBudget ? "public-usd" : "", max: hasBudget ? budget : null,
       priceBasis: parsed.query.priceBasis, priceBasisExplicit: parsed.query.priceBasisExplicit,
       rentPeriod: hasBudget ? parsed.query.rentPeriod : "", beds: state.guided.beds === 0 ? null : state.guided.beds,
     });
   }
-  if (parsed.errors.length || guided.errors.length || !contract.matches(property, parsed.query) || !contract.matches(property, guided.query)) return false;
+  const pricing = { exchangeRate: state.config?.currencyExchange };
+  if (parsed.errors.length || guided.errors.length || !contract.matches(property, parsed.query, pricing) || !contract.matches(property, guided.query, pricing)) return false;
   if (state.intelligentSearch.active && !state.intelligentSearch.ids.includes(property.id)) return false;
   return true;
 }
@@ -1786,8 +1772,12 @@ function propertyMatches(property, parsed = null, guided = null) {
 function sortedProperties(properties) {
   const sort = $("#sortSelect")?.value || "high";
   const sorted = [...properties];
-  if (sort === "high") sorted.sort((a, b) => comparablePrice(b) - comparablePrice(a));
-  if (sort === "low") sorted.sort((a, b) => comparablePrice(a) - comparablePrice(b));
+  if (["high", "low"].includes(sort)) sorted.sort((a, b) => {
+    const left = comparablePrice(a), right = comparablePrice(b);
+    if (left === null || right === null) return Number(left === null) - Number(right === null);
+    const group = property => { const price = window.PccInventory.priceOf(property); return [price.operation, price.basis, price.period].join("|"); };
+    return group(a).localeCompare(group(b)) || (left - right) * (sort === "high" ? -1 : 1);
+  });
   if (sort === "new") sorted.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
   return sorted;
 }
@@ -1961,13 +1951,14 @@ function renderProperties() {
   const hasBudget = budget !== undefined && budget !== null && budget !== "" && budget !== 0;
   const guided = contract.parseQuery({
     entity: parsed.query.entity, operation: hasBudget ? parsed.query.operation : "",
-    currency: hasBudget ? "USD" : "", max: hasBudget ? budget : null,
+    currency: hasBudget ? "USD" : "", priceMode: hasBudget ? "public-usd" : "", max: hasBudget ? budget : null,
     priceBasis: parsed.query.priceBasis, priceBasisExplicit: parsed.query.priceBasisExplicit,
     rentPeriod: hasBudget ? parsed.query.rentPeriod : "", beds: state.guided.beds === 0 ? null : state.guided.beds,
   });
   const errors = [...new Set([...parsed.errors, ...guided.errors])];
   const properties = errors.length ? [] : contract.queryInventory(
-    state.properties.filter((property) => propertyMatches(property, parsed, guided)), parsed.query
+    state.properties.filter((property) => propertyMatches(property, parsed, guided)), parsed.query,
+    { publicPricing: true, exchangeRate: state.config?.currencyExchange }
   ).all;
   const guidedSearch = $("#guidedSearchForm");
   const propertyToolbar = $(".properties-section .property-toolbar");
@@ -2037,7 +2028,7 @@ function renderProperties() {
           <div class="property-body">
             <p class="property-price">${escapeHtml(formatPriceSummary(property))}</p>
             <h3 class="property-title">${escapeHtml(localizedTitle(property))}</h3>
-            <p class="property-location">${escapeHtml(displayLocation(property))}</p>
+            <p class="property-location">${escapeHtml(window.PccPublicListingDetails?.resolvePublicLocation(property, { lang: state.lang, directory: state.portalDirectory || {} }).compact || displayLocation(property))}</p>
             <p class="property-meta">${escapeHtml(meta.join(" • "))}</p>
             <p class="property-description">${escapeHtml(descriptionSummary)}</p>
             <div class="property-actions">
@@ -2174,20 +2165,6 @@ function guidedSearchSubmit(event) {
   state.guided.budget = Number(form.budget.value || 0);
   state.guided.beds = Number(form.beds.value || 0);
   renderProperties();
-  void api("/api/leads", {
-    method: "POST",
-    body: {
-      leadType: "busqueda-guiada-comprador",
-      name: "Búsqueda guiada",
-      operation: form.operation.value,
-      zone: form.zone.value,
-      propertyType: form.type.value,
-      budget: form.budget.value,
-      bedrooms: form.beds.value,
-      objective: form.objective.value,
-      sourcePath: window.location.pathname,
-    },
-  }).catch(() => null);
   $("#propertyGrid").scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
@@ -2648,20 +2625,9 @@ async function deleteSavedSearch(id) {
 }
 
 function openTourRequest(propertyId) {
-  const property = state.properties.find((item) => item.id === propertyId);
-  const modal = $("#tourRequestModal");
-  const form = $("#tourRequestForm");
-  if (!property || !modal || !form) return;
-  form.reset();
-  form.propertyId.value = property.id;
-  form.name.value = state.session?.name || "";
-  form.email.value = state.session?.email || "";
-  form.phone.value = state.session?.phone || "";
-  $("#tourPropertyTitle").textContent = localizedTitle(property);
-  setFormMessage($("#tourRequestMessage"), "");
-  modal.hidden = false;
-  document.body.classList.add("modal-open");
-  form.name.focus();
+  const property = state.properties.find(item => item.id === propertyId);
+  if (!property) return;
+  window.PccInquiry?.open({ service:"visit", propertyId:property.publicationSection === "developments" ? "" : property.id, developmentId:property.publicationSection === "developments" ? property.id : "", intent:property.operation === "rent" ? "rent" : "buy", origin:"property-visit" }, document.activeElement);
 }
 
 function closeTourRequest() {
@@ -2758,68 +2724,69 @@ function resetGuestSaleForm() {
   form.reset();
   form.dataset.images = "[]";
   delete form.dataset.idempotencyKey;
+  delete form.dataset.submitting;
+  delete form.dataset.submitted;
+  const submit = form.querySelector('[type="submit"]');
+  if (submit) { submit.disabled = false; submit.innerHTML = `<i data-lucide="send"></i><span>${state.lang === "en" ? "Send request" : "Enviar solicitud"}</span>`; }
+  form.querySelectorAll("details").forEach(details => { details.open = false; });
+  const picker = form.querySelector("[data-map-picker]");
+  if (picker) {
+    window.clearTimeout(mapGeocodeTimers.get(picker)); mapGeocodeControllers.get(picker)?.abort();
+    window.clearTimeout(mapSuggestionTimers.get(picker)); mapSuggestionControllers.get(picker)?.abort();
+    picker.querySelector("iframe")?.removeAttribute("src");
+  }
   formField(form, "formStartedAt").value = String(Date.now());
   $("#guestSaleImagePreview").hidden = true;
   $("#guestSaleImagePreview .image-preview-grid").innerHTML = "";
   setFormMessage($("#guestSaleMessage"), "");
-  resetMapPickerForForm(form);
-  setGuestSaleStep("property");
   updateGuestContactFields();
 }
 
-function setGuestSaleStep(step) {
-  $$('[data-guest-sale-step]').forEach((section) => {
-    section.hidden = section.dataset.guestSaleStep !== step;
-  });
-}
-
-function openGuestSale() {
+let guestSaleReturnFocus = null;
+function openGuestSale(trigger = document.activeElement) {
+  guestSaleReturnFocus = trigger;
   closeSellerOptions();
   resetGuestSaleForm();
   $("#guestSaleModal").hidden = false;
-  void window.PccInquiry?.populatePhone($("#guestSaleForm"));
+  void Promise.resolve(window.PccInquiry?.populatePhone($("#guestSaleForm"))).then(updateGuestContactFields);
   document.body.classList.add("modal-open");
-  bindMapPickers();
-  $("#guestSaleForm [name=title]")?.focus();
+  $("#guestSaleForm [name=type]")?.focus({ preventScroll: true });
   refreshIcons();
 }
 
 function closeGuestSale() {
   $("#guestSaleModal").hidden = true;
   if ($$(".modal-backdrop:not([hidden])").length === 0) document.body.classList.remove("modal-open");
-}
-
-function continueGuestSale() {
-  const form = $("#guestSaleForm");
-  if (!form) return;
-  const requiredFields = [formField(form, "title"), formField(form, "type"), formField(form, "location")];
-  const invalid = requiredFields.find((field) => !field?.reportValidity());
-  if (invalid) return;
-  setGuestSaleStep("contact");
-  updateGuestContactFields();
-  form.elements.country?.focus();
+  if (guestSaleReturnFocus?.isConnected && !guestSaleReturnFocus.closest("[hidden]")) guestSaleReturnFocus.focus({ preventScroll: true });
 }
 
 function updateGuestContactFields() {
   const form = $("#guestSaleForm");
   if (!form) return;
-  const method = form.querySelector('[name="preferredContact"]:checked')?.value || "email";
+  const method = form.querySelector('[name="preferredContact"]:checked')?.value || "whatsapp";
   const emailField = form.querySelector('[data-guest-contact-field="email"]');
   const whatsappField = form.querySelector('[data-guest-contact-field="whatsapp"]');
   emailField.hidden = method !== "email";
-  whatsappField.hidden = false;
-  formField(form, "email").required = method === "email";
-  formField(form, "phone").required = true;
+  whatsappField.hidden = method !== "whatsapp";
+  for (const name of ["email", "phone", "country"]) {
+    const field = formField(form, name);
+    const active = name === "email" ? method === "email" : method === "whatsapp";
+    field.required = active;
+    field.disabled = !active;
+  }
 }
 
 async function guestSaleSubmit(event) {
   event.preventDefault();
   const form = event.currentTarget;
+  if (form.dataset.submitting === "true" || form.dataset.submitted === "true" || !form.reportValidity()) return;
   if (!formImagesReady(form, $("#guestSaleMessage"))) return;
   const button = form.querySelector('[type="submit"]');
   const message = $("#guestSaleMessage");
-  const method = form.querySelector('[name="preferredContact"]:checked')?.value || "email";
+  const method = form.querySelector('[name="preferredContact"]:checked')?.value || "whatsapp";
+  form.dataset.submitting = "true";
   if (!form.dataset.idempotencyKey) form.dataset.idempotencyKey = crypto.randomUUID();
+  const submissionKey = form.dataset.idempotencyKey;
   setButtonLoading(button, true, state.lang === "en" ? "Sending..." : "Enviando...");
   setFormMessage(message, "");
   try {
@@ -2831,18 +2798,24 @@ async function guestSaleSubmit(event) {
     body.consent = formField(form, "consent").checked;
     const data = await api("/api/guest-sale-requests", {
       method: "POST",
-      headers: { "Idempotency-Key": form.dataset.idempotencyKey },
+      headers: { "Idempotency-Key": submissionKey },
       body,
       timeoutMs: 90000,
     });
+    if (form.dataset.idempotencyKey !== submissionKey) return;
+    if (!data.request?.id) throw new Error(state.lang === "en" ? "We could not confirm your request. Please try again." : "No pudimos confirmar tu solicitud. Intenta nuevamente.");
+    form.dataset.submitted = "true";
     setFormMessage(message, data.message || (state.lang === "en" ? "Request received." : "Solicitud recibida."));
     showToast(state.lang === "en" ? "Your property was sent for review." : "Tu propiedad fue enviada para revisión.");
     if (data.action) window.PccInquiry?.offerAction(message, data.action);
-    else window.setTimeout(closeGuestSale, 1200);
   } catch (error) {
-    setFormMessage(message, error.message, true);
+    if (form.dataset.idempotencyKey === submissionKey) setFormMessage(message, error.message, true);
   } finally {
-    setButtonLoading(button, false);
+    if (form.dataset.idempotencyKey === submissionKey) {
+      setButtonLoading(button, false);
+      delete form.dataset.submitting;
+      if (form.dataset.submitted === "true") { button.disabled = true; button.textContent = state.lang === "en" ? "Request sent" : "Solicitud enviada"; }
+    }
   }
 }
 
@@ -9221,31 +9194,38 @@ async function sellerRequestSubmit(event) {
 async function leadFormSubmit(event) {
   event.preventDefault();
   const form = event.currentTarget;
+  if (form.dataset.saving === "true" || !form.reportValidity()) return;
   const message = form.querySelector("[data-lead-message]") || form.querySelector(".form-message");
   const button = form.querySelector('button[type="submit"]');
   if (message) setFormMessage(message, "");
   const payload = Object.fromEntries(new FormData(form).entries());
+  if (payload.contactChannel === "email") { delete payload.phone; delete payload.whatsapp; delete payload.country; }
+  else if (payload.contactChannel === "whatsapp") delete payload.email;
   try {
+    form.dataset.saving = "true";
     setButtonLoading(button, true, state.lang === "en" ? "Sending..." : "Enviando...");
     const result = await api("/api/leads", {
       method: "POST",
       body: {
         ...payload,
         lang: state.lang,
-        ...(form.elements.country ? { requestId: form.dataset.inquiryRequestId ||= crypto.randomUUID() } : {}),
-        sourcePath: `${window.location.pathname}${window.location.hash || ""}`,
+        requestId: form.dataset.inquiryRequestId ||= crypto.randomUUID(),
+        sourcePath: `${window.location.pathname}${window.location.search}${window.location.hash || ""}`,
       },
     });
+    if (!result?.lead?.id) throw new Error(state.lang === "en" ? "We did not receive server confirmation. Your details are still here; please retry." : "No recibimos confirmación del servidor. Tus datos siguen aquí; vuelve a intentarlo.");
     form.reset();
     delete form.dataset.inquiryRequestId;
     if (form.elements.country) void window.PccInquiry?.populatePhone(form);
     if (form.elements.formStartedAt) form.elements.formStartedAt.value = String(Date.now());
     if (message) setFormMessage(message, t("leadSent"));
     if (message && result.action) window.PccInquiry?.offerAction(message, result.action);
+    message?.focus?.({ preventScroll: true });
   } catch (error) {
     if (message) setFormMessage(message, error.message, true);
     else showToast(error.message, "error");
   } finally {
+    form.dataset.saving = "false";
     setButtonLoading(button, false);
   }
 }
@@ -9253,6 +9233,27 @@ async function leadFormSubmit(event) {
 function preparePersonalDataForms() {
   const english = state.lang === "en";
   $$("[data-lead-form]").forEach((form) => {
+    const syncFields = () => {
+      if (form.elements.contactChannel) {
+        const email = form.elements.contactChannel.value === "email";
+        form.querySelector("[data-phone-fields]").hidden = email;
+        form.querySelector("[data-email-field]").hidden = !email;
+        for (const name of ["phone", "country"]) { form.elements[name].disabled = email; form.elements[name].required = !email; }
+        form.elements.email.disabled = !email;
+        form.elements.email.required = email;
+      }
+      const land = form.elements.propertyType?.value === "Terreno";
+      for (const group of form.querySelectorAll("[data-valuation-building]")) {
+        group.hidden = land;
+        group.querySelectorAll("input, select, textarea").forEach(field => { field.disabled = land; });
+      }
+    };
+    syncFields();
+    if (form.dataset.leadFieldsBound !== "true") {
+      form.addEventListener("change", syncFields);
+      form.addEventListener("reset", () => queueMicrotask(syncFields));
+      form.dataset.leadFieldsBound = "true";
+    }
     if (!form.elements.website) {
       const honeypot = document.createElement("label");
       honeypot.className = "form-honeypot";
@@ -9280,7 +9281,8 @@ function preparePersonalDataForms() {
       if (submit?.parentNode) submit.parentNode.insertBefore(consent, submit);
       else form.append(consent);
     }
-    consent.innerHTML = `<input type="checkbox" name="consent" value="true" required ${checked ? "checked" : ""} /><span>${english ? "I have read and accept the" : "He leído y acepto el"} <a href="${english ? "/en/privacy-notice" : "/aviso-de-privacidad"}" target="_blank">${english ? "privacy notice" : "aviso de privacidad"}</a> ${english ? "and the" : "y los"} <a href="${english ? "/en/terms" : "/terminos-y-condiciones"}" target="_blank">${english ? "terms and conditions" : "términos y condiciones"}</a>.</span>`;
+    const lead = form.matches("[data-lead-form]");
+    consent.innerHTML = `<input type="checkbox" name="consent" value="true" required ${checked ? "checked" : ""} /><span>${lead ? english ? "I agree to be contacted under the" : "Acepto que el equipo me contacte según el" : english ? "I have read and accept the" : "He leído y acepto el"} <a href="${english ? "/en/privacy-notice" : "/aviso-de-privacidad"}" target="_blank" rel="noopener">${english ? "privacy notice" : "aviso de privacidad"}</a> ${english ? "and the" : "y los"} <a href="${english ? "/en/terms" : "/terminos-y-condiciones"}" target="_blank" rel="noopener">${english ? "terms and conditions" : "términos y condiciones"}</a>.</span>`;
   });
 }
 
@@ -11124,11 +11126,13 @@ async function responseFormSubmit(event) {
     await renderPanel();
     showToast(data.delivery?.emailSent
       ? "Respuesta guardada y enviada por correo."
+      : data.delivery?.emailStatus === "preferred_channel_whatsapp"
+        ? "Respuesta guardada. Continúa por WhatsApp, el medio elegido por el contacto."
       : data.delivery?.emailStatus === "configuration_required"
         ? "Respuesta guardada y aviso interno creado. Configura el correo para enviar avisos externos."
         : form.requestTable.value === "guest_sale_request"
           ? "Seguimiento guardado. No se afirmó un envío externo; contacta por el medio elegido cuando no exista correo disponible."
-          : "Respuesta guardada, notificada en el panel y registrada en el historial.");
+          : data.delivery?.notificationCreated ? "Respuesta guardada, notificada en el panel y registrada en el historial." : "Respuesta guardada en el historial. No se ha enviado un mensaje externo.");
   } catch (error) {
     setFormMessage($("#responseFormMessage"), error.message, true);
     showToast(error.message, "error");
@@ -11217,6 +11221,9 @@ function closePropertyDetail() {
 function renderPropertyDetail(property) {
   const content = $("#propertyDetailContent");
   if (!content || !property) return;
+  const policy = window.PccPresalePolicy?.inquiryPolicy(property, { directory: state.portalDirectory || {}, records: state.properties || [] });
+  const isDevelopment = property.publicationSection === "developments";
+  const contactActions = `<div class="property-detail-actions"><button class="primary-button" type="button" data-detail-contact="${escapeHtml(property.id)}"><i data-lucide="message-circle"></i><span>${escapeHtml(t("contactWhatsApp"))}</span></button>${!isDevelopment && !policy?.isPresale ? `<button class="ghost-button" type="button" data-tour="${escapeHtml(property.id)}"><i data-lucide="calendar-days"></i><span>${escapeHtml(state.lang === "en" ? "Request a visit" : "Solicitar visita")}</span></button>` : ""}</div>`;
   const description = localizedDescription(property) || "";
   const paragraphs = description
     .split(/\n+/)
@@ -11228,12 +11235,15 @@ function renderPropertyDetail(property) {
     .map((fact) => `<span>${escapeHtml(fact)}</span>`)
     .join("");
   const images = storedImages(property);
+  const locationOptions = { lang: state.lang, directory: state.portalDirectory || {}, properties: state.properties || [] };
+  const publicLocation = window.PccPublicListingDetails?.resolvePublicLocation(property, locationOptions);
+  const locationSection = window.PccPublicListingDetails?.renderPublicLocationSection(property, locationOptions) || "";
   const galleryImages = images.length ? images : [fallbackImage];
   const imageMetadata = normalizedImageMetadata(property.imageMetadata, galleryImages.length);
   const gallery = galleryImages
     .map((src, index) => {
       const metadata = imageMetadata[index];
-      const caption = state.lang === "en" ? metadata.descriptionEn || metadata.descriptionEs : metadata.descriptionEs;
+      const caption = [window.PccPresalePolicy?.imagePresentation(property, index, state.lang, src)?.label, state.lang === "en" ? metadata.descriptionEn || metadata.descriptionEs : metadata.descriptionEs].filter(Boolean).join(" · ");
       return `
         <figure class="property-detail-slide">
           <img src="${escapeHtml(src)}" alt="${escapeHtml(caption || `${localizedTitle(property)} ${index + 1}`)}" onerror="this.onerror=null;this.src='${escapeHtml(fallbackImage)}';" />
@@ -11258,21 +11268,22 @@ function renderPropertyDetail(property) {
       <div class="property-detail-copy">
         <p class="property-detail-price">${escapeHtml(formatPriceSummary(property))}</p>
         <h2 id="propertyDetailTitle">${escapeHtml(localizedTitle(property))}</h2>
+        ${publicLocation?.compact ? `<p class="property-detail-location">${escapeHtml(publicLocation.compact)}</p>` : ""}
+        ${contactActions}
         <div class="property-detail-meta">${facts}</div>
         ${canOpenAdminMap() && mapsUrl ? `<a class="property-detail-map-link" href="${escapeHtml(mapsUrl)}" target="_blank" rel="noopener"><i data-lucide="map-pin"></i><span>${escapeHtml(state.lang === "en" ? "Open location in Google Maps" : "Abrir ubicacion en Google Maps")}</span></a>` : ""}
+        ${locationSection}
         <div class="property-detail-description">${paragraphs || `<p>${escapeHtml(t("noResults"))}</p>`}</div>
-        <div class="property-detail-actions">
-          <button class="ghost-button" type="button" data-tour="${escapeHtml(property.id)}"><i data-lucide="calendar-days"></i><span>${escapeHtml(state.lang === "en" ? "Request a tour" : "Solicitar visita")}</span></button>
-          <button class="primary-button whatsapp-detail-button" type="button" data-detail-contact="${escapeHtml(property.id)}"><i data-lucide="message-circle"></i><span>${escapeHtml(t("contactWhatsApp"))}</span></button>
-        </div>
       </div>
     </div>
   `;
+  window.PccCatalogMap?.mountListingLocationMaps(content, { request: path => api(path) });
   refreshIcons();
 }
 
 function openPropertyWhatsApp(property) {
-  window.PccInquiry?.open({ propertyId: property.id, propertyTitle: localizedTitle(property), mls: property.mls, propertyType: property.type, zone: property.zone, development: property.parentDevelopment?.nameEs, intent: property.operation === "rent" ? "rent" : "buy", origin: "property-preview" });
+  const development = property.publicationSection === "developments";
+  window.PccInquiry?.open({ propertyId: development ? "" : property.id, developmentId: development ? property.id : property.portalDevelopmentId || property.parentDevelopment?.propertyId || "", propertyTitle: development ? "" : localizedTitle(property), mls: property.mls, propertyType: development ? "" : property.type, zone: property.zone, development: development ? localizedTitle(property) : property.parentDevelopment?.nameEs, intent: property.operation === "rent" ? "rent" : "buy", origin: development ? "development-preview" : "property-preview" }, document.activeElement);
 }
 
 function openGeneralWhatsApp(event) {
@@ -11735,7 +11746,7 @@ function bindEvents() {
   $$('[data-open-seller-options]').forEach((element) => element.addEventListener("click", openSellerOptions));
   $$('[data-open-guest-sale]').forEach((element) => element.addEventListener("click", (event) => {
     event.preventDefault();
-    openGuestSale();
+    openGuestSale(event.currentTarget);
   }));
   $$('[data-open-detailed-sale]').forEach((element) => element.addEventListener("click", (event) => {
     event.preventDefault();
@@ -11749,8 +11760,16 @@ function bindEvents() {
   $("#guestSaleModal")?.addEventListener("click", (event) => {
     if (event.target.id === "guestSaleModal") closeGuestSale();
   });
-  $("#continueGuestSale")?.addEventListener("click", continueGuestSale);
-  $("#backGuestSale")?.addEventListener("click", () => setGuestSaleStep("property"));
+  $("#guestSaleModal")?.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") { event.preventDefault(); closeGuestSale(); return; }
+    if (event.key !== "Tab") return;
+    const controls = [...event.currentTarget.querySelectorAll('button:not([disabled]), input:not([disabled]):not([type="hidden"]), select:not([disabled]), textarea:not([disabled]), summary, a[href]')]
+      .filter(element => element.getClientRects().length && element.tabIndex !== -1 && !element.closest('[hidden], [aria-hidden="true"]'));
+    const first = controls[0], last = controls.at(-1);
+    if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus(); }
+    else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); }
+  });
+  $("#guestSaleForm [data-guest-optional-map]")?.addEventListener("toggle", event => { if (event.currentTarget.open) bindMapPickers(); });
   $("#guestSaleForm")?.addEventListener("submit", guestSaleSubmit);
   $("#guestSaleForm")?.querySelectorAll('[name="preferredContact"]').forEach((input) => input.addEventListener("change", updateGuestContactFields));
   formField($("#guestSaleForm"), "imageFile")?.addEventListener("change", async (event) => {
@@ -12932,7 +12951,7 @@ function initializeMortgageCalculator() {
     const notaryCosts = price * (notaryPercent / 100);
     const commission = principal * (commissionPercent / 100);
     const initialOutlay = downAmount + notaryCosts + commission + closingCosts;
-    const format = (value) => `${form.currency.value} $${new Intl.NumberFormat(state.lang === "en" ? "en-US" : "es-MX", { maximumFractionDigits: 0 }).format(value)}`;
+    const format = (value) => `USD $${new Intl.NumberFormat(state.lang === "en" ? "en-US" : "es-MX", { maximumFractionDigits: 0 }).format(value)}`;
     output.innerHTML = `
       <article><span>${state.lang === "en" ? "Down payment" : "Enganche"}</span><strong>${escapeHtml(format(downAmount))}</strong></article>
       <article><span>${state.lang === "en" ? "Notary costs and taxes" : "Gastos notariales e impuestos"}</span><strong>${escapeHtml(format(notaryCosts))}</strong></article>

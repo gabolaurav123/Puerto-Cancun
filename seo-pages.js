@@ -1,7 +1,6 @@
 const LAST_UPDATED = "2026-07-10";
 const inventoryContract = require("./inventory-contract");
-const { safePublicImages, optimizedPublicImage, localizedAmenity } = require("./public-listing-details");
-const { openStreetMapEmbed } = require("./catalog-map");
+const { safePublicImages, optimizedPublicImage, localizedAmenity, resolvePublicLocation, renderPublicLocationSection } = require("./public-listing-details");
 const businessContacts = require("./contact-config");
 const { renderCatalog, categoryDefaults } = require("./catalog-view");
 const DEFAULT_SITE_URL = "https://www.puertocancun.center";
@@ -38,10 +37,7 @@ function excerptText(value, maxLength = 190) {
 }
 
 function businessWhatsAppLinks(message, lang, className = "seo-whatsapp-button", showNumber = false) {
-  return businessContacts.contacts.map((contact) => {
-    const label = lang === "en" ? contact.labelEn : contact.label;
-    return `<a class="${escapeHtml(className)}" href="${escapeHtml(businessContacts.whatsappUrl(contact.id, message))}" target="_blank" rel="noopener noreferrer">WhatsApp ${escapeHtml(label)}${showNumber ? ` ${escapeHtml(contact.display)}` : ""}</a>`;
-  }).join(" ");
+  return require("./catalog-directory").contactLink(lang, lang === "en" ? "Request information" : "Pedir información", {origin:"editorial-inquiry"}, className);
 }
 
 function officeInquiryButtons(lang, origin, offices = businessContacts.contacts) {
@@ -50,7 +46,7 @@ function officeInquiryButtons(lang, origin, offices = businessContacts.contacts)
   const labels = { mx: en ? "Mexico" : "México", us: en ? "United States" : "Estados Unidos" };
   const buttons = offices.map(({ id, display }) => {
     const href = path + "?" + new URLSearchParams({ inquiry: "1", office: id, origin });
-    return `<a class="office-inquiry-button" href="${escapeHtml(href)}" data-contact-inquiry data-origin="${escapeHtml(origin)}" data-office="${escapeHtml(id)}"><span>WhatsApp ${labels[id]}</span><span data-contact-number>${escapeHtml(display)}</span></a>`;
+    return `<a class="office-inquiry-button" href="${escapeHtml(href)}" data-contact-inquiry data-origin="${escapeHtml(origin)}" data-office="${escapeHtml(id)}"><span>${en ? "Contact office" : "Contactar oficina"}: ${labels[id]}</span>${origin === "contact-page" ? `<span data-contact-number>${escapeHtml(display)}</span>` : ""}</a>`;
   });
   return `<div class="office-inquiry-buttons">${buttons.join("")}</div>`;
 }
@@ -244,25 +240,28 @@ function leadTextarea(label, name, rows = 4) {
 
 function PropertyValuationForm(lang = "es", priceReview = false) {
   const en = lang === "en";
-  const price = `<div class="form-row">${leadInput(en ? "Your estimated price" : "Tu precio estimado", "ownerEstimate", "number", 'min="0.01" step="0.01"' + (priceReview ? " required" : ""))}${leadSelect(en ? "Currency" : "Moneda", "currency", ["MXN", "USD"])}</div>`;
+  const price = leadInput(en ? "Your estimated price (USD)" : "Tu precio estimado (USD)", "ownerEstimate", "number", 'min="0.01" max="10000000000000" step="0.01" inputmode="decimal"' + (priceReview ? " required" : ""));
   return `
     <form class="lead-form seo-form" data-lead-form>
       <input type="hidden" name="leadType" value="${priceReview ? "validar-precio" : "valuacion-inmobiliaria"}" />
-      <div class="form-row"><label><span>${en ? "Phone number country" : "País del teléfono"}</span><select name="country" data-inquiry-country required><option value="MX">${en ? "Mexico (+52)" : "México (+52)"}</option></select></label>${leadInput(en ? "Phone number" : "Teléfono", "phone", "tel", 'required maxlength="40" autocomplete="tel"')}</div>
+      <input type="hidden" name="currency" value="USD" /><input type="hidden" name="priceMode" value="public-usd" />
       ${leadInput(en ? "Zone or neighbourhood" : "Zona o colonia", "zone", "text", 'required maxlength="140"')}
       ${priceReview ? price : ""}
+      <label><span>${en ? "How would you like us to reply?" : "¿Cómo prefieres que te respondamos?"}</span><select name="contactChannel" required><option value="whatsapp">WhatsApp</option><option value="email">${en ? "Email" : "Correo electrónico"}</option></select></label>
+      <div class="form-row" data-phone-fields><label><span>${en ? "Phone number country" : "País del teléfono"}</span><select name="country" data-inquiry-country required><option value="MX">${en ? "Mexico (+52)" : "México (+52)"}</option><option value="US">${en ? "United States (+1)" : "Estados Unidos (+1)"}</option><option value="CA">${en ? "Canada (+1)" : "Canadá (+1)"}</option></select></label>${leadInput(en ? "Your WhatsApp number" : "Tu número de WhatsApp", "phone", "tel", 'required maxlength="40" autocomplete="tel" inputmode="tel"')}</div>
+      <div data-email-field hidden>${leadInput(en ? "Your email" : "Tu correo electrónico", "email", "email", 'disabled autocomplete="email" maxlength="254" inputmode="email"')}</div>
       <details class="valuation-options"><summary>${en ? "Add optional details" : "Añadir datos opcionales"}</summary><div class="valuation-options-body">
-      <div class="form-row">${leadInput(en ? "Your name" : "Tu nombre", "name", "text", 'autocomplete="name" maxlength="140"')}<label><span>${en ? "Property type" : "Tipo de propiedad"}</span><select name="propertyType"><option value="">${en ? "Select" : "Seleccionar"}</option>${inventoryContract.TYPES.map((type, i) => `<option value="${escapeHtml(type)}">${en ? ["House", "Apartment", "Land", "Commercial"][i] : escapeHtml(type)}</option>`).join("")}</select></label></div>
+      <div class="form-row">${leadInput(en ? "Your name (optional)" : "Tu nombre (opcional)", "name", "text", 'autocomplete="name" maxlength="140"')}<label><span>${en ? "Property type" : "Tipo de propiedad"}</span><select name="propertyType"><option value="">${en ? "Select" : "Seleccionar"}</option>${inventoryContract.TYPES.map((type, i) => `<option value="${escapeHtml(type)}">${en ? ["House", "Apartment", "Land", "Commercial"][i] : escapeHtml(type)}</option>`).join("")}</select></label></div>
       ${priceReview ? "" : price}
-      <div class="form-row">${leadInput(en ? "Land area (m²)" : "Superficie de terreno (m²)", "landSize", "number", 'min="0" step="any"')}${leadInput(en ? "Built area (m²)" : "Superficie construida (m²)", "builtSize", "number", 'min="0" step="any"')}</div>
-      <div class="form-row">${leadInput(en ? "Bedrooms" : "Recámaras", "bedrooms", "number", 'min="0"')}${leadInput(en ? "Bathrooms" : "Baños", "bathrooms", "number", 'min="0" step="0.5"')}</div>
-      <div class="form-row">${leadInput(en ? "Amenities" : "Amenidades", "amenities")}${leadInput(en ? "Age of the property" : "Antigüedad del inmueble", "age")}</div>
-      ${leadInput(en ? "Document status" : "Situación documental", "legalStatus")}
-      ${leadInput(en ? "Email (optional)" : "Correo (opcional)", "email", "email", 'autocomplete="email" maxlength="254"')}
+      ${leadInput(en ? "Land area (m²)" : "Superficie de terreno (m²)", "landSize", "number", 'min="0" step="any" inputmode="decimal"')}
+      <div class="form-row" data-valuation-building>${leadInput(en ? "Built area (m²)" : "Superficie construida (m²)", "builtSize", "number", 'min="0" step="any" inputmode="decimal"')}${leadInput(en ? "Age of the property" : "Antigüedad del inmueble", "age")}</div>
+      <div class="form-row" data-valuation-building>${leadInput(en ? "Bedrooms" : "Recámaras", "bedrooms", "number", 'min="0" inputmode="numeric"')}${leadInput(en ? "Bathrooms" : "Baños", "bathrooms", "number", 'min="0" step="0.5" inputmode="decimal"')}</div>
+      <div class="form-row">${leadInput(en ? "Amenities" : "Amenidades", "amenities")}${leadInput(en ? "Document status" : "Situación documental", "legalStatus")}</div>
       ${leadTextarea(en ? "Which references or improvements did you consider?" : "¿Qué referencias o mejoras consideraste en tu estimación?", "message", 4)}
       </div></details>
+      <label class="privacy-consent" data-privacy-consent><input type="checkbox" name="consent" value="true" required /><span>${en ? "I agree to be contacted under the" : "Acepto que el equipo me contacte según el"} <a href="${en ? "/en/privacy-notice" : "/aviso-de-privacidad"}" target="_blank" rel="noopener">${en ? "privacy notice" : "aviso de privacidad"}</a>.</span></label>
       <button class="primary-button" type="submit">${priceReview ? (en ? "Request a price review" : "Solicitar revisión de mi precio") : (en ? "Request a valuation" : "Solicitar valoración")}</button>
-      <p class="form-message" data-lead-message></p>
+      <p class="form-message" data-lead-message role="status" aria-live="polite" tabindex="-1"></p>
     </form>
   `;
 }
@@ -298,29 +297,14 @@ function valuationFactors(lang = "es") {
 function BuyerLeadForm(lang = "es", property = null) {
   const english = lang === "en";
   const propertyId = String(property?.id || "").trim();
-  if (property?.publicationSection === "developments" || property?.type === "Desarrollo") {
-    return `<p>${english ? "Tell us what you have in mind. We can help promote your property or find an option in this development." : "Cuéntanos qué buscas. Te ayudamos a promover tu propiedad o encontrar una opción en este desarrollo."}</p>
-      <form class="lead-form seo-form" data-lead-form>
-        <input type="hidden" name="leadType" value="contacto-desarrollo" />
-        <input type="hidden" name="propertyId" value="${escapeHtml(propertyId)}" />
-        <label><span>${english ? "I would like to" : "Me interesa"}</span><select name="developmentIntent" required><option value="">${english ? "Choose an option" : "Elige una opción"}</option><option value="buy">${english ? "Buy a property here" : "Comprar una propiedad aquí"}</option><option value="rent">${english ? "Rent a property here" : "Rentar una propiedad aquí"}</option><option value="sell">${english ? "Sell my property here" : "Vender mi propiedad aquí"}</option><option value="let">${english ? "List my property for rent" : "Poner mi propiedad en renta"}</option></select></label>
-        <div class="form-row">${leadInput(english ? "Name" : "Nombre", "name", "text", "required autocomplete=\"name\"")}${leadInput(english ? "Email or WhatsApp" : "Correo o WhatsApp", "contact", "text", "required")}</div>
-        <label><span>${english ? "Anything else? (optional)" : "¿Qué más te gustaría contarnos? (opcional)"}</span><textarea name="comments" rows="3" maxlength="2000"></textarea></label>
-        <button class="primary-button" type="submit">${english ? "Contact an advisor" : "Contactar a un asesor"}</button><p class="form-message" data-lead-message></p>
-      </form>`;
-  }
-  return `
-    <form class="lead-form seo-form" data-lead-form>
-      <input type="hidden" name="leadType" value="comprador" />
-      ${propertyId ? `<input type="hidden" name="propertyId" value="${escapeHtml(propertyId)}" />` : ""}
-      <div class="form-row">${leadInput(english ? "Name" : "Nombre", "name", "text", "required")}${leadInput("WhatsApp", "whatsapp", "tel", "required")}${leadInput(english ? "Email" : "Correo", "email", "email", "required")}</div>
-      <div class="form-row">${leadInput(english ? "Budget" : "Presupuesto", "budget")}<label><span>${english ? "Property type" : "Tipo de propiedad"}</span><select name="propertyType"><option value="">${english ? "Select" : "Seleccionar"}</option>${inventoryContract.TYPES.map((type, i) => `<option value="${type}"${property?.type === type ? " selected" : ""}>${english ? ["House", "Apartment", "Land", "Commercial"][i] : type}</option>`).join("")}</select></label></div>
-      <div class="form-row">${leadInput(english ? "Preferred zone" : "Zona de interés", "zone", "text", `value="${escapeHtml(property?.zone || "")}"`)}${leadSelect(english ? "Goal" : "Objetivo", "goal", english ? ["Live", "Invest", "Rent"] : ["Vivir", "Invertir", "Rentar"])} </div>
-      <div class="form-row">${leadInput(english ? "Bedrooms" : "Recamaras", "bedrooms", "number")}${leadInput(english ? "Estimated purchase date" : "Fecha estimada de compra", "purchaseDate")}</div>
-      <button class="primary-button" type="submit">${english ? "Request details" : "Recibir opciones"}</button>
-      <p class="form-message" data-lead-message></p>
-    </form>
-  `;
+  const development = property && inventoryContract.entityOf(property) === "developments";
+  const policy = property ? require("./presale-policy").inquiryPolicy(property) : null;
+  const intent = policy?.intent || "buy";
+  const context = { inquiry: "1", intent, origin: propertyId ? "listing-details" : "buyer-guide" };
+  if (propertyId) context[development ? "developmentId" : "propertyId"] = propertyId;
+  const href = (english ? "/en/contact" : "/contacto") + "?" + new URLSearchParams(context);
+  const label = policy?.isPresale ? english ? "Request presale information" : "Pedir información de preventa" : english ? "Request information" : "Pedir información";
+  return `<div class="seo-form"><a class="primary-button" href="${escapeHtml(href)}" data-contact-inquiry data-intent="${intent}" data-origin="${context.origin}"${propertyId ? ` data-${development ? "development" : "property"}-id="${escapeHtml(propertyId)}"` : ""}>${label}</a></div>`;
 }
 
 const commonLinks = [
@@ -555,7 +539,7 @@ function pageShell(page, content, customHeading) {
           <p class="seo-eyebrow">${escapeHtml(page.eyebrow || "Bienes raices en Cancun")}</p>
           <h1>${escapeHtml(page.h1)}</h1>
           <p>${escapeHtml(page.intro)}</p>
-          ${page.whatsappMessage ? `<div class="seo-property-actions">${businessWhatsAppLinks(page.whatsappMessage, page.lang, "accent-button")}</div>` : `<a class="accent-button" href="${escapeHtml(page.ctaHref || "/#sell")}">${escapeHtml(page.cta || "Hablar con un asesor")}</a>`}
+          ${page.hideHeroCta ? "" : page.whatsappMessage ? `<div class="seo-property-actions">${businessWhatsAppLinks(page.whatsappMessage, page.lang, "accent-button")}</div>` : `<a class="accent-button" href="${escapeHtml(page.ctaHref || "/#sell")}">${escapeHtml(page.cta || "Hablar con un asesor")}</a>`}
         </div>
       </section>`}
       <div class="content-wrap seo-page-content">
@@ -925,44 +909,42 @@ function mortgageCalculatorMarkup(english = false) {
         eyebrow: "REFERENCE ESTIMATE",
         title: "Configure the complete purchase scenario",
         note: "This result includes acquisition costs and insurance estimates. It is informational and is not a bank, insurer or notary quote.",
-        price: "Property price",
-        currency: "Currency",
+        price: "Property price (USD)",
         down: "Down payment (%)",
         rate: "Annual rate (%)",
         years: "Term (years)",
         notary: "Notary and taxes (%)",
         commission: "Origination commission (%)",
-        insurance: "Annual insurance",
-        appraisal: "Appraisal and closing costs",
+        insurance: "Annual insurance (USD)",
+        appraisal: "Appraisal and closing costs (USD)",
         calculate: "Calculate complete scenario",
       }
     : {
         eyebrow: "ESTIMACIÓN REFERENCIAL",
         title: "Configura el escenario completo de compra",
         note: "El resultado incluye gastos de adquisición y seguros estimados. Es informativo y no sustituye cotizaciones bancarias, notariales ni de aseguradoras.",
-        price: "Precio de la propiedad",
-        currency: "Moneda",
+        price: "Precio de la propiedad (USD)",
         down: "Enganche (%)",
         rate: "Tasa anual (%)",
         years: "Plazo (años)",
         notary: "Gastos notariales e impuestos (%)",
         commission: "Comisión de apertura (%)",
-        insurance: "Seguros anuales",
-        appraisal: "Avalúo y gastos de cierre",
+        insurance: "Seguros anuales (USD)",
+        appraisal: "Avalúo y gastos de cierre (USD)",
         calculate: "Calcular escenario completo",
       };
   return `<section class="mortgage-calculator" id="mortgage-calculator">
     <div><span class="seo-eyebrow">${copy.eyebrow}</span><h2>${copy.title}</h2><p>${copy.note}</p></div>
     <form id="mortgageCalculatorForm">
-      <label><span>${copy.price}</span><input name="price" type="number" min="0" step="1000" value="${english ? "500000" : "8000000"}" required /></label>
-      <label><span>${copy.currency}</span><select name="currency"><option value="${english ? "USD" : "MXN"}">${english ? "USD" : "MXN"}</option><option value="${english ? "MXN" : "USD"}">${english ? "MXN" : "USD"}</option></select></label>
+      <input name="currency" type="hidden" value="USD" />
+      <label><span>${copy.price}</span><input name="price" type="number" min="0" step="1000" value="500000" required /></label>
       <label><span>${copy.down}</span><input name="downPayment" type="number" min="0" max="95" step="1" value="20" required /></label>
       <label><span>${copy.rate}</span><input name="annualRate" type="number" min="0.1" max="40" step="0.1" value="10.5" required /></label>
       <label><span>${copy.years}</span><input name="years" type="number" min="1" max="30" value="20" required /></label>
       <label><span>${copy.notary}</span><input name="notaryPercent" type="number" min="0" max="20" step="0.1" value="5" /></label>
       <label><span>${copy.commission}</span><input name="commissionPercent" type="number" min="0" max="10" step="0.1" value="1" /></label>
-      <label><span>${copy.insurance}</span><input name="annualInsurance" type="number" min="0" step="100" value="${english ? "1800" : "24000"}" /></label>
-      <label><span>${copy.appraisal}</span><input name="closingCosts" type="number" min="0" step="100" value="${english ? "800" : "12000"}" /></label>
+      <label><span>${copy.insurance}</span><input name="annualInsurance" type="number" min="0" step="100" value="1800" /></label>
+      <label><span>${copy.appraisal}</span><input name="closingCosts" type="number" min="0" step="100" value="800" /></label>
       <button class="primary-button" type="submit">${copy.calculate}</button>
     </form>
     <div class="mortgage-results" id="mortgageResults" aria-live="polite"></div>
@@ -1015,22 +997,13 @@ function propertyMatchesCategory(property, filter = {}) {
   return !parsed.errors.length && inventoryContract.matches(property, parsed.query);
 }
 
-function localizedListingPrice(property) {
-  const { amount, currency, basis } = inventoryContract.priceOf(property);
-  return amount !== null && ["USD", "MXN"].includes(currency) && ["total", "sqm"].includes(basis) ? { amount, currency } : null;
+function localizedListingPrice(property, exchangeRate) {
+  const { amount, currency, basis } = inventoryContract.publicPriceOf(property, exchangeRate);
+  return amount !== null && currency === "USD" && ["total", "sqm"].includes(basis) ? { amount, currency } : null;
 }
 
-function formatListingPrice(property, lang = "es") {
-  const locale = lang === "en" ? "en-US" : "es-MX";
-  const selected = localizedListingPrice(property, lang);
-  if (selected && selected.amount > 0) {
-    const price = inventoryContract.priceOf(property);
-    const unit = price.basis === "sqm" ? (lang === "en" ? " / m²" : " por m²") : "";
-    const period = price.operation === "rent" ? ({ month: lang === "en" ? " / month" : " / mes", day: lang === "en" ? " / day" : " / día", year: lang === "en" ? " / year" : " / año" }[price.period] || (lang === "en" ? " · period unconfirmed" : " · periodo por confirmar")) : "";
-    return `${selected.currency} $${new Intl.NumberFormat(locale, { maximumFractionDigits: 0 }).format(selected.amount)}${unit}${period}`;
-  }
-  const onRequest = (property.catalogData || property.catalog_data)?.priceOnRequest === true;
-  return lang === "en" ? onRequest ? "Price on request" : "Price to be confirmed" : onRequest ? "Precio a consultar" : "Precio por confirmar";
+function formatListingPrice(property, lang = "es", exchangeRate) {
+  return inventoryContract.publicPriceText(property, exchangeRate, lang, { includeRateDate: true });
 }
 
 function localizedPropertyType(type, lang = "es") {
@@ -1099,11 +1072,12 @@ function renderInventoryCards(properties, lang = "es", context = {}) {
     const contact = {
       intent: property.operation === "rent" && !development ? "rent" : "buy",
       zone, subzone, development: development ? (project ? (en ? property.linkedDevelopment?.titleEn || property.linkedDevelopment?.titleEs : property.linkedDevelopment?.titleEs) : title) : parentName,
-      propertyId: development ? "" : property.id, propertyTitle: development ? "" : title, mls: property.mls || "", project: project ? title : "",
-      reference: project ? project.reference || project.id : "", propertyType: development ? "" : property.type, budget: context.query?.max, currency: context.query?.currency,
-      preferences: context.query ? describeCatalogFilters({...context.query,development:""},lang,areas).join(" · ") : "", origin: project ? "presale-card" : development ? "development-card" : "property-card", sourcePath: context.sourcePath,
+      propertyId: development ? (property.linkedProperty?.id || "") : property.id, developmentId: development ? (property.linkedDevelopment?.id || (!project ? property.id : "")) : parent?.id || "", propertyTitle: development ? "" : title, mls: property.mls || "", project: project ? title : "",
+      reference: project ? project.reference || project.id : "", propertyType: development ? "" : property.type,
+      searchFilters: context.query ? JSON.stringify(context.query) : "", origin: project ? "presale-card" : development ? "development-card" : "property-card", sourcePath: context.sourcePath,
     };
-    const meta = [zone, subzone && subzone !== zone ? subzone : "", !development && localizedPropertyType(property.type,lang), property.mls && "MLS " + property.mls].filter(Boolean);
+    const compactLocation = resolvePublicLocation(property, {lang, directory:{areas}, properties:context.records || []}).compact;
+    const meta = [compactLocation, !development && localizedPropertyType(property.type,lang), property.mls && "MLS " + property.mls].filter(Boolean);
     const number = value => new Intl.NumberFormat(en ? "en-US" : "es-MX").format(value);
     const measurements = development ? [] : [
       Number(property.area) > 0 ? `${number(property.area)} m² ${en ? "built area" : "construcción"}` : "",
@@ -1117,7 +1091,7 @@ function renderInventoryCards(properties, lang = "es", context = {}) {
       `<span class="catalog-no-photo">${en ? "Photo not published" : "Sin foto publicada"}</span>`;
     return `<article class="seo-property-card" data-category-property="${escapeHtml(property.id)}" data-category-search="${escapeHtml(searchText)}">
       <a class="seo-property-image" href="${escapeHtml(url)}" aria-label="${escapeHtml(title)}">${photo}</a>
-      <div>${development ? "" : `<p class="seo-property-price">${escapeHtml(formatListingPrice(property,lang))}</p>`}
+      <div>${development ? "" : `<p class="seo-property-price">${escapeHtml(formatListingPrice(property.linkedDevelopment || property.linkedProperty || property,lang,context.exchangeRate))}</p>`}
       <h2><a href="${escapeHtml(url)}">${escapeHtml(title)}</a></h2>${meta.length ? `<p>${escapeHtml(meta.join(" · "))}</p>` : ""}
       ${measurements.length ? `<p class="seo-property-facts">${escapeHtml(measurements.join(" · "))}</p>` : ""}
       ${project && property.projectLocation ? `<p class="catalog-project-address">${escapeHtml(property.projectLocation)}</p>` : ""}
@@ -1130,12 +1104,12 @@ function renderCategoryPage(page, properties, params = {}) {
   return pageShell({ ...page, hideLastUpdated: true }, renderCatalog(page, properties, params, renderInventoryCards));
 }
 
-function propertySchema(property, baseUrl = DEFAULT_SITE_URL, lang = "es") {
+function propertySchema(property, baseUrl = DEFAULT_SITE_URL, lang = "es", exchangeRate) {
   const url = absoluteUrl(propertyPath(property, lang), baseUrl);
   const images = safePublicImages(property).map((image) => absoluteUrl(image, baseUrl));
   const title = localizedPropertyTitle(property, lang);
   const description = localizedPropertyDescription(property, lang);
-  const localizedPrice = localizedListingPrice(property, lang);
+  const localizedPrice = localizedListingPrice(property, exchangeRate);
   const price = inventoryContract.priceOf(property);
   const address = Object.fromEntries([
     ["streetAddress", property.address], ["addressLocality", property.city], ["addressRegion", property.state],
@@ -1183,9 +1157,12 @@ function propertySchema(property, baseUrl = DEFAULT_SITE_URL, lang = "es") {
   };
 }
 
-function renderPropertyPage(property, lang = "es", similar = [], directory = {}) {
+function renderPropertyPage(property, lang = "es", similar = [], directory = {}, publicProperties = [], exchangeRate) {
   const english = lang === "en";
   const developmentMode = property.publicationSection === "developments";
+  const presalePolicy = require("./presale-policy");
+  const policy = presalePolicy.inquiryPolicy(property, { directory, records: publicProperties });
+  if (policy.isPresale) similar = similar.filter(item => presalePolicy.isPresale(item, { directory, records: publicProperties }));
   const title = localizedPropertyTitle(property, lang);
   const description = localizedPropertyDescription(property, lang);
   const images = safePublicImages(property);
@@ -1193,11 +1170,13 @@ function renderPropertyPage(property, lang = "es", similar = [], directory = {})
   const otherPath = propertyPath(property, english ? "es" : "en");
   const facts = (developmentMode
     ? [localizedPropertyType(property.type, lang)]
-    : [english ? "Listed" : "Publicada", localizedPropertyType(property.type, lang), property.operation === "rent" ? (english ? "For rent" : "En renta") : (english ? "For sale" : "En venta"), property.beds ? `${property.beds} ${english ? "bedrooms" : "recámaras"}` : "", property.baths ? `${property.baths} ${english ? "bathrooms" : "baños"}` : "", property.parking ? `${property.parking} ${english ? "parking spaces" : "estacionamientos"}` : "", property.area ? `${property.area} m² ${english ? "construction" : "construcción"}` : "", property.lot ? `${property.lot} m² ${english ? "lot" : "terreno"}` : "", property.mls ? `MLS# ${property.mls}` : ""]
+    : [english ? "Listed" : "Publicada", localizedPropertyType(property.type, lang), policy.isPresale ? (english ? "Presale" : "Preventa") : property.operation === "rent" ? (english ? "For rent" : "En renta") : (english ? "For sale" : "En venta"), property.beds ? `${property.beds} ${english ? "bedrooms" : "recámaras"}` : "", property.baths ? `${property.baths} ${english ? "bathrooms" : "baños"}` : "", property.parking ? `${property.parking} ${english ? "parking spaces" : "estacionamientos"}` : "", property.area ? `${property.area} m² ${english ? "construction" : "construcción"}` : "", property.lot ? `${property.lot} m² ${english ? "lot" : "terreno"}` : "", property.mls ? `MLS# ${property.mls}` : ""]
   ).filter(Boolean);
-  const location = [property.zone, property.city, property.state].find((value) => typeof value === "string" && value.trim()) || "";
+  const locationOptions = { lang, directory, properties: publicProperties };
+  const locationModel = resolvePublicLocation(property, locationOptions);
+  const location = locationModel.compact;
   const whatsappMessage = `${english ? "Hello, I would like information about" : "Hola, me gustaría recibir información sobre"} ${title} — ${absoluteUrl(path)}`;
-  const page = { path, alternate: otherPath, lang, h1: title, title: `${title} | Puerto Cancun Center`, description: String(description || title).slice(0, 158), eyebrow: developmentMode ? (english ? "Real estate development" : "Desarrollo inmobiliario") : (english ? "Property listing" : "Ficha inmobiliaria"), intro: developmentMode ? location : [location, formatListingPrice(property, lang)].filter(Boolean).join(" · "), cta: english ? "Contact by WhatsApp" : "Contactar por WhatsApp", ctaHref: businessContacts.whatsappUrl("mx", whatsappMessage), whatsappMessage, hideLastUpdated: true };
+  const page = { path, alternate: otherPath, lang, h1: title, title: `${title} | Puerto Cancun Center`, description: String(description || title).slice(0, 158), eyebrow: developmentMode ? (english ? "Real estate development" : "Desarrollo inmobiliario") : (english ? "Property listing" : "Ficha inmobiliaria"), intro: developmentMode ? location : [location, formatListingPrice(property, lang, exchangeRate)].filter(Boolean).join(" · "), cta: english ? "Contact by WhatsApp" : "Contactar por WhatsApp", ctaHref: businessContacts.whatsappUrl("mx", whatsappMessage), whatsappMessage, hideLastUpdated: true };
   const galleryImages = images;
   const hiddenBlocks = new Set(property.portalHiddenBlocks || []);
   const areaId = property.portalAreaId || inventoryContract.resolveLocation(property).id;
@@ -1212,13 +1191,14 @@ function renderPropertyPage(property, lang = "es", similar = [], directory = {})
     const source = optimizedPublicImage(image, 1200);
     const sourceSet = /^\/media\/properties\//.test(image)
       ? `${optimizedPublicImage(image, 640)} 640w, ${source} 1200w` : "";
-    const imageDescription = localizedImageDescription(property, index, lang);
+    const renderingLabel = presalePolicy.imagePresentation(property, index, lang, image).label;
+    const imageDescription = [renderingLabel, localizedImageDescription(property, index, lang)].filter(Boolean).join(" · ");
     const sourceAttribute = index === 0
       ? `src="${escapeHtml(source)}" fetchpriority="high"`
       : `data-gallery-src="${escapeHtml(source)}" loading="lazy"`;
     const responsiveAttribute = sourceSet
       ? `${index === 0 ? "srcset" : "data-gallery-srcset"}="${escapeHtml(sourceSet)}" sizes="(max-width: 1000px) calc(100vw - 32px), 60vw"` : "";
-    return `<figure class="property-gallery-slide ${index === 0 ? "is-active" : ""}" data-gallery-slide="${index}" data-caption="${escapeHtml(imageDescription)}" aria-hidden="${index === 0 ? "false" : "true"}"><img ${sourceAttribute} ${responsiveAttribute} width="1200" height="800" decoding="async" alt="${escapeHtml(imageDescription || `${title} - ${index + 1}`)}" /></figure>`;
+    return `<figure class="property-gallery-slide ${index === 0 ? "is-active" : ""}" data-gallery-slide="${index}" data-caption="${escapeHtml(imageDescription)}" aria-hidden="${index === 0 ? "false" : "true"}"><img ${sourceAttribute} ${responsiveAttribute} width="1200" height="800" decoding="async" alt="${escapeHtml(imageDescription || `${title} - ${index + 1}`)}" />${renderingLabel ? `<span class="property-render-label">${escapeHtml(renderingLabel)}</span>` : ""}</figure>`;
   }).join("");
   const galleryThumbs = galleryImages.map((image, index) => {
     const source = optimizedPublicImage(image, 240);
@@ -1227,64 +1207,62 @@ function renderPropertyPage(property, lang = "es", similar = [], directory = {})
   }).join("");
   const gallery = `<section class="property-page-gallery" data-property-carousel aria-label="${developmentMode ? (english ? "Development image gallery" : "Galería del desarrollo") : (english ? "Property image gallery" : "Galería de la propiedad")}"><div class="property-gallery-stage">${gallerySlides}<button class="property-gallery-open" type="button" data-open-property-gallery><span>${developmentMode ? (english ? "View development gallery" : "Ver galería del desarrollo") : (english ? "View property gallery" : "Ver galería de la propiedad")}</span><b>${galleryImages.length}</b></button>${galleryImages.length > 1 ? `<button class="property-gallery-arrow previous" type="button" data-gallery-previous aria-label="${english ? "Previous photo" : "Foto anterior"}">‹</button><button class="property-gallery-arrow next" type="button" data-gallery-next aria-label="${english ? "Next photo" : "Foto siguiente"}">›</button>` : ""}<span class="property-gallery-counter" data-gallery-counter>1 / ${galleryImages.length}</span></div>${galleryImages.length > 1 ? `<div class="property-gallery-thumbs">${galleryThumbs}</div>` : ""}</section>`;
   const galleryModal = `<div class="property-gallery-modal" data-property-gallery-modal hidden><section class="property-gallery-dialog" role="dialog" aria-modal="true" aria-label="${developmentMode ? (english ? "Development gallery" : "Galería del desarrollo") : (english ? "Property gallery" : "Galería de la propiedad")}"><button class="property-gallery-close" type="button" data-close-property-gallery aria-label="${english ? "Close gallery" : "Cerrar galería"}">×</button><div class="property-gallery-modal-stage"><img data-gallery-modal-image decoding="async" draggable="false" alt="${escapeHtml(`${title} - 1`)}" /><button class="property-gallery-arrow previous" type="button" data-gallery-previous aria-label="${english ? "Previous photo" : "Foto anterior"}">‹</button><button class="property-gallery-arrow next" type="button" data-gallery-next aria-label="${english ? "Next photo" : "Foto siguiente"}">›</button></div><p class="property-gallery-caption" data-gallery-caption hidden></p><div class="property-gallery-toolbar"><button type="button" data-gallery-zoom-out aria-label="${english ? "Zoom out" : "Alejar"}">−</button><button type="button" data-gallery-zoom-reset>${english ? "Reset" : "Restablecer"}</button><button type="button" data-gallery-zoom-in aria-label="${english ? "Zoom in" : "Acercar"}">+</button><span data-gallery-modal-counter>1 / ${galleryImages.length}</span></div><div class="property-gallery-modal-thumbs">${galleryThumbs}</div></section></div>`;
-  const mapSrc = openStreetMapEmbed(property.latitude, property.longitude);
-  const mapArea = [property.address, property.neighborhood, property.zone, property.city, property.state].filter(Boolean).join(", ");
-  const mapSection = (mapSrc || mapArea) && property.locationPrecision !== "hidden"
-    ? `<section class="property-location-map"><div class="property-location-map-heading"><div><span class="seo-eyebrow">${english ? "Location" : "Ubicación"}</span><h2>${english ? "Property location" : "Ubicación de la propiedad"}</h2></div></div>${mapSrc ? "" : `<button type="button" class="ghost-button" data-show-area-map="${escapeHtml(mapArea)}">${english ? "Show zone map" : "Ver mapa de la zona"}</button><p role="status"></p>`}<iframe title="${english ? "Property location map" : "Mapa de ubicación de la propiedad"}" loading="lazy" referrerpolicy="strict-origin-when-cross-origin" ${mapSrc ? `src="${escapeHtml(mapSrc)}"` : "hidden"}></iframe></section>`
-    : "";
   const similarTitle = developmentMode
     ? english ? "Properties available in this development" : "Propiedades disponibles en este desarrollo"
     : english ? "Similar properties" : "Propiedades similares";
-  const similarSection = similar.length ? `<section class="similar-properties"><div class="section-heading"><h2>${similarTitle}</h2></div>${renderInventoryCards(similar.slice(0, developmentMode ? 12 : 3), lang)}</section>` : "";
+  const similarSection = similar.length ? `<section class="similar-properties"><div class="section-heading"><h2>${similarTitle}</h2></div>${renderInventoryCards(similar.slice(0, developmentMode ? 12 : 3), lang, {exchangeRate, records:publicProperties})}</section>` : "";
   const allAmenities = [...new Set([
     ...(Array.isArray(property.amenities) ? property.amenities : []),
     ...(Array.isArray(property.parentDevelopment?.amenities) ? property.parentDevelopment.amenities : []),
   ])];
   const amenities = allAmenities.length ? `<section class="property-amenities"><h2>${english ? "Amenities" : "Amenidades"}</h2>${property.parentDevelopment?.nameEs ? `<p>${english ? "This unit belongs to" : "Esta unidad pertenece a"} <strong>${escapeHtml(english ? property.parentDevelopment.nameEn || property.parentDevelopment.nameEs : property.parentDevelopment.nameEs)}</strong>.</p>` : ""}<ul>${allAmenities.map((item) => `<li>${escapeHtml(localizedAmenity(item, lang))}</li>`).join("")}</ul></section>` : "";
-  const leadTitle = developmentMode ? (english ? "Buy, rent or sell in this development" : "Compra, renta o vende en este desarrollo") : (english ? "Schedule a visit or request details" : "Agenda una visita o solicita información");
+  const leadTitle = policy.isPresale ? (english ? "Request presale information" : "Pedir información de preventa") : developmentMode && !similar.length ? (english ? "Ask for options" : "Pedir opciones") : (english ? "Request information" : "Pedir información");
   const knownDevelopment = developmentMode ? title : property.parentDevelopment?.nameEs || "";
-  const actions = developmentMode ? [["buy", english ? "I'm looking for a property here" : "Busco una propiedad aquí"], ["sell", english ? "I want to sell or rent out my property here" : "Quiero vender o rentar mi propiedad aquí"]] : [[property.operation === "rent" ? "rent" : "buy", english ? "Request details or schedule a visit" : "Pedir información o agendar visita"]];
-  const contactContext = { zone: label(area) || property.zone, subzone: label(subarea), development: knownDevelopment, "development-id": developmentMode ? property.id : property.portalDevelopmentId || property.parentDevelopment?.propertyId || "", "rent-period": property.operation === "rent" && property.catalogData?.rentPeriod !== "unclassified" ? property.catalogData?.rentPeriod : "", "property-id": property.id, "property-title": title, mls: property.mls, project: project ? label(project) : "", "project-reference": project?.reference, "property-type": developmentMode ? "" : property.type, origin: project ? "presale-detail" : developmentMode ? "development-detail" : "property-detail" };
+  const actions = [[policy.intent || "buy", leadTitle]];
+  const contactContext = { zone: label(area) || property.zone, subzone: label(subarea), development: knownDevelopment, "development-id": developmentMode ? property.id : property.portalDevelopmentId || property.parentDevelopment?.propertyId || "", "rent-period": property.operation === "rent" && property.catalogData?.rentPeriod !== "unclassified" ? property.catalogData?.rentPeriod : "", "property-id": developmentMode ? "" : property.id, "property-title": developmentMode ? "" : title, mls: property.mls, project: project ? label(project) : "", "project-reference": project?.reference, "property-type": developmentMode ? "" : property.type, origin: project ? "presale-detail" : developmentMode ? "development-detail" : "property-detail" };
   const contactHref = (intent, origin = contactContext.origin) => {
     const params = new URLSearchParams({ intent, sourcePath: path, origin });
-    const fields = { zone: contactContext.zone, subzone: contactContext.subzone, development: knownDevelopment, developmentId: contactContext["development-id"], rentPeriod: contactContext["rent-period"], propertyId: property.id, propertyTitle: title, propertyType: contactContext["property-type"], mls: property.mls, project: contactContext.project, reference: project?.reference };
+    const fields = { zone: contactContext.zone, subzone: contactContext.subzone, development: knownDevelopment, developmentId: contactContext["development-id"], rentPeriod: contactContext["rent-period"], propertyId: developmentMode ? "" : property.id, propertyTitle: developmentMode ? "" : title, propertyType: contactContext["property-type"], mls: property.mls, project: contactContext.project, reference: project?.reference };
     for (const [key,value] of Object.entries(fields)) if (value) params.set(key, value);
     return escapeHtml((english ? "/en/contact?" : "/contacto?") + params);
   };
   const contactAttrs = Object.entries(contactContext).filter(([,v]) => v).map(([k,v]) => `data-${k}="${escapeHtml(v)}"`).join(" ");
-  const leadSection = `<section class="property-lead" id="contactar-propiedad" tabindex="-1" aria-labelledby="propertyContactTitle"><h2 id="propertyContactTitle">${leadTitle}</h2>${developmentMode && !similar.length ? `<p>${english ? "We currently have no individual listings published here. Tell us what you need and an advisor can help you explore this development." : "Actualmente no tenemos inmuebles individuales publicados aquí. Cuéntanos qué buscas y un asesor te orientará sobre este desarrollo."}</p>` : ""}<div class="exploration-area-actions">${actions.map(([intent, text]) => `<a class="primary-button" href="${contactHref(intent)}" data-contact-inquiry data-intent="${intent}" ${contactAttrs}>${text}</a>`).join("")}</div></section>`;
-  const exchangeInquiry = developmentMode ? "" : `<a class="text-link" href="${contactHref(actions[0][0], "exchange-reference")}" data-contact-inquiry data-intent="${actions[0][0]}" ${contactAttrs.replace(/data-origin="[^"]+"/, 'data-origin="exchange-reference"')}>${english ? "Ask about the exchange rate for this listing" : "Consultar el tipo de cambio para esta propiedad"}</a>`;
+  const mapSection = renderPublicLocationSection(property, { ...locationOptions, contactHref: contactHref(actions[0][0]).replace(/&amp;/g, "&") });
+  const primaryContact = '<a class="primary-button property-contact-cta" href="' + contactHref(actions[0][0]) + '" data-contact-inquiry data-intent="' + actions[0][0] + '" ' + contactAttrs + '>' + leadTitle + '</a>';
+  const visitContact = !developmentMode && !policy.isPresale ? '<a class="text-link" href="' + contactHref(actions[0][0], "property-visit") + '&amp;service=visit" data-contact-inquiry data-service="visit" data-intent="' + actions[0][0] + '" ' + contactAttrs + '>' + (english ? "Request a visit" : "Solicitar visita") + '</a>' : "";
+  const ownerContact = developmentMode && !policy.isPresale ? '<details class="owner-publishing-options"><summary>' + (english ? "Rental and owner inquiries" : "Consultas de renta y propietarios") + '</summary><div class="exploration-area-actions">' + [["rent",english ? "Find a rental here" : "Busco una renta aquí"],["sell",english ? "Sell my property here" : "Vender mi propiedad aquí"],["let",english ? "Offer my property for rent" : "Ofrecer mi propiedad en renta"]].map(([intent,text]) => '<a class="text-link" href="' + contactHref(intent) + '" data-contact-inquiry data-intent="' + intent + '" ' + contactAttrs + '>' + text + '</a>').join("") + '</div></details>' : "";
+  const leadSection = '<section class="property-lead" id="contactar-propiedad" tabindex="-1">' + (developmentMode && !similar.length ? '<p>' + (english ? "Ask our team for the current options in this development." : "Consulta al equipo las opciones actuales de este desarrollo.") + '</p>' : "") + primaryContact + ownerContact + '</section>';
+  const exchangeInquiry = "";
   const relatedContent = developmentMode ? `${hiddenBlocks.has("units") ? "" : similarSection}${leadSection}` : `${leadSection}${similarSection}`;
   const evidenceDate = value => value && Number.isFinite(Date.parse(value)) ? new Date(value).toLocaleDateString(english ? "en-US" : "es-MX", { year: "numeric", month: "short", day: "numeric", timeZone: "America/Cancun" }) : (english ? "Not recorded" : "Sin registrar");
-  const evidenceSection = `<section class="property-evidence"><h2>${english ? "Listing information" : "Información de la publicación"}</h2><dl><div><dt>${english ? "Record created" : "Registro creado"}</dt><dd>${escapeHtml(evidenceDate(property.createdAt))}</dd></div><div><dt>${english ? "Last listing edit" : "Última edición de la ficha"}</dt><dd>${escapeHtml(evidenceDate(property.updatedAt))}</dd></div><div><dt>${english ? "Availability last checked" : "Disponibilidad consultada"}</dt><dd>${escapeHtml(evidenceDate(property.lastVerifiedAt))}</dd></div><div><dt>${english ? "Photos available" : "Fotografías disponibles"}</dt><dd>${images.length}</dd></div><div><dt>${english ? "Location precision" : "Precisión de ubicación"}</dt><dd>${property.locationPrecision === "exact" ? (english ? "Exact location published by the advisor" : "Ubicación exacta publicada por el asesor") : property.locationPrecision === "hidden" ? (english ? "Not publicly disclosed" : "No se publica") : (english ? "Approximate area" : "Zona aproximada")}</dd></div></dl><p>${english ? "Editing a listing is not an availability check. Confirm current conditions with your advisor." : "Editar una ficha no confirma su disponibilidad. Consulta las condiciones vigentes con un asesor."}</p></section>`;
-  const address = [...new Map([property.address, property.neighborhood, property.zone, property.city, property.state]
-    .filter(Boolean).map(value => [inventoryContract.fold(value), value])).values()].join(", ");
+  const evidenceSection = `<section class="property-evidence"><h2>${english ? "Listing information" : "Información de la publicación"}</h2><dl><div><dt>${english ? "Record created" : "Registro creado"}</dt><dd>${escapeHtml(evidenceDate(property.createdAt))}</dd></div><div><dt>${english ? "Last listing edit" : "Última edición de la ficha"}</dt><dd>${escapeHtml(evidenceDate(property.updatedAt))}</dd></div><div><dt>${english ? "Availability last checked" : "Disponibilidad consultada"}</dt><dd>${escapeHtml(evidenceDate(property.lastVerifiedAt))}</dd></div><div><dt>${english ? "Photos available" : "Fotografías disponibles"}</dt><dd>${images.length}</dd></div><div><dt>${english ? "Location precision" : "Precisión de ubicación"}</dt><dd>${escapeHtml(locationModel.evidenceLabel)}</dd></div></dl><p>${english ? "Editing a listing is not an availability check. Confirm current conditions with your advisor." : "Editar una ficha no confirma su disponibilidad. Consulta las condiciones vigentes con un asesor."}</p></section>`;
+  const address = locationModel.compact;
   const inventoryPath = developmentMode ? (english ? "/en/properties/developments-cancun" : "/propiedades/desarrollos-cancun")
     : (english ? "/en/properties" : "/propiedades");
   const inventoryLabel = developmentMode ? (english ? "Developments" : "Desarrollos") : (english ? "Properties" : "Propiedades");
-  const heading = `<header class="property-page-heading content-wrap"><a href="${inventoryPath}" data-return-catalog><span aria-hidden="true">←</span> ${inventoryLabel}</a><h1>${escapeHtml(title)}</h1></header>`;
+  const heading = `<header class="property-page-heading content-wrap"><a href="${inventoryPath}" data-return-catalog><span aria-hidden="true">←</span> ${inventoryLabel}</a><h1>${escapeHtml(title)}</h1>${location ? `<p class="property-heading-location">${escapeHtml(location)}</p>` : ""}</header>`;
   const summary = `<section class="property-page-summary" aria-label="${english ? "At a glance" : "Resumen de la ficha"}">
-    ${developmentMode ? "" : `<p class="property-page-price">${escapeHtml(formatListingPrice(property, lang))}</p>`}
+    ${developmentMode ? "" : `<p class="property-page-price">${escapeHtml(formatListingPrice(property, lang, exchangeRate))}</p>`}
     ${address ? `<p class="property-address">${escapeHtml(address)}</p>` : ""}
     ${area ? `<p class="property-geography"><a href="${escapeHtml(require("./exploration-view").areaLink(area.id, lang, developmentMode ? "developments" : "properties"))}">${escapeHtml(label(area))}</a>${subarea ? ` · ${escapeHtml(label(subarea))}` : ""}</p>` : ""}
     ${property.portalGated === true ? `<p>${english ? "Gated community" : "Acceso controlado"}</p>` : ""}
     ${project ? `<a class="text-link" href="${english ? "/en/cancun-presales" : "/preventas-cancun"}?project=${encodeURIComponent(project.id)}">${english ? "Explore the presale project" : "Explorar el proyecto de preventa"}</a>` : ""}
-    <a class="primary-button property-contact-cta" href="#contactar-propiedad">${developmentMode ? (english ? "Buy, rent or sell here" : "Comprar, rentar o vender aquí") : (english ? "Contact us or schedule a visit" : "Contactar o agendar visita")}</a>
+    ${primaryContact}${visitContact}
     <div class="property-facts">${facts.map(fact => `<span>${escapeHtml(fact)}</span>`).join("")}</div>
     ${videoSection && !hiddenBlocks.has("video") ? `<a class="text-link" href="#listing-video">${english ? "Watch video tour" : "Ver recorrido en video"}</a>` : ""}
   </section>`;
-  const content = `<div class="property-page-layout"><div class="property-page-overview">${images.length && !hiddenBlocks.has("gallery") ? gallery : ""}${summary}</div>${hiddenBlocks.has("video") ? "" : videoSection}
+  const content = `<div class="property-page-layout"><div class="property-page-overview">${images.length && !hiddenBlocks.has("gallery") ? gallery : ""}${summary}</div>${mapSection}${hiddenBlocks.has("video") ? "" : videoSection}
     <section class="property-page-information">${hiddenBlocks.has("description") || !description ? "" : `<section class="property-description-section"><h2>${developmentMode ? (english ? "About the development" : "Sobre el desarrollo") : (english ? "Property details" : "Detalles de la propiedad")}</h2>
       <div class="property-long-description">${String(description || "").split(/\n+/).filter(Boolean).map(part => `<p>${escapeHtml(part)}</p>`).join("")}</div>
-    </section>`}${hiddenBlocks.has("amenities") ? "" : amenities}${evidenceSection}${hiddenBlocks.has("location") ? "" : mapSection}${exchangeInquiry}</section></div>${images.length && !hiddenBlocks.has("gallery") ? galleryModal : ""}${relatedContent}`;
+    </section>`}${hiddenBlocks.has("amenities") ? "" : amenities}${evidenceSection}${exchangeInquiry}</section></div>${images.length && !hiddenBlocks.has("gallery") ? galleryModal : ""}${relatedContent}`;
   return { page, html: pageShell(page, content, heading) };
 }
 
-function renderPropertyHead(property, baseUrl = DEFAULT_SITE_URL, lang = "es") {
-  const rendered = renderPropertyPage(property, lang);
+function renderPropertyHead(property, baseUrl = DEFAULT_SITE_URL, lang = "es", exchangeRate) {
+  const rendered = renderPropertyPage(property, lang, [], {}, [], exchangeRate);
   const pageUrl = absoluteUrl(rendered.page.path, baseUrl);
   const image = safePublicImages(property)[0] ? absoluteUrl(safePublicImages(property)[0], baseUrl) : absoluteUrl("/assets/og-puerto-cancun-center.webp", baseUrl);
-  const schemas = [...schemaBase(baseUrl), propertySchema(property, baseUrl, lang), { "@context": "https://schema.org", "@type": "BreadcrumbList", itemListElement: [{ "@type": "ListItem", position: 1, name: lang === "en" ? "Home" : "Inicio", item: absoluteUrl(lang === "en" ? "/en/" : "/", baseUrl) }, { "@type": "ListItem", position: 2, name: lang === "en" ? "Properties" : "Propiedades", item: absoluteUrl(lang === "en" ? "/en/properties" : "/propiedades", baseUrl) }, { "@type": "ListItem", position: 3, name: rendered.page.h1, item: pageUrl }] }];
+  const schemas = [...schemaBase(baseUrl), propertySchema(property, baseUrl, lang, exchangeRate), { "@context": "https://schema.org", "@type": "BreadcrumbList", itemListElement: [{ "@type": "ListItem", position: 1, name: lang === "en" ? "Home" : "Inicio", item: absoluteUrl(lang === "en" ? "/en/" : "/", baseUrl) }, { "@type": "ListItem", position: 2, name: lang === "en" ? "Properties" : "Propiedades", item: absoluteUrl(lang === "en" ? "/en/properties" : "/propiedades", baseUrl) }, { "@type": "ListItem", position: 3, name: rendered.page.h1, item: pageUrl }] }];
   return { title: rendered.page.title, description: rendered.page.description, canonical: pageUrl, image, lang: lang === "en" ? "en" : "es-MX", alternate: rendered.page.alternate, jsonLd: schemas.map(JsonLd).join("\n") };
 }
 
@@ -1507,8 +1485,7 @@ function renderSeoPage(pathname, { directory, properties = [], offices } = {}) {
   if (["/nosotros", "/en/about"].includes(page.path)) return renderAboutPage(page);
   if (["/contacto", "/en/contact"].includes(page.path)) {
     const english = page.lang === "en";
-    const label = english ? "Choose a WhatsApp number" : "Elegir un número de WhatsApp";
-    return pageShell({ ...page, whatsappMessage: "", cta: label, ctaHref: "#contact-offices" }, `<section class="quick-answer" id="contact-offices"><h2>${english ? "Talk to an advisor" : "Hablar con un asesor"}</h2>${officeInquiryButtons(page.lang, "contact-page", offices)}</section>`);
+    return pageShell({ ...page, whatsappMessage: "", hideHeroCta:true }, `<section class="quick-answer" id="contact-offices"><p>${english ? "Choose an office and leave your preferred reply channel. Our team will follow up on your inquiry." : "Elige una oficina y deja tu medio de respuesta preferido. El equipo dará seguimiento a tu consulta."}</p>${officeInquiryButtons(page.lang, "contact-page", offices)}</section>`);
   }
   return pageShell(page, `<section class="quick-answer"><h2>${page.lang === "en" ? "Local real estate guidance" : "Asesoria inmobiliaria local"}</h2><p>${escapeHtml(page.intro)}</p><a class="primary-button" href="${escapeHtml(page.ctaHref)}">${escapeHtml(page.cta)}</a></section>`);
 }

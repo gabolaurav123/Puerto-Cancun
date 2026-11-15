@@ -12,6 +12,8 @@ const { ACCOUNT_ROLES, ACCOUNT_PERMISSIONS, passwordPolicyError, normalizeAccoun
 const PDFDocument = require("pdfkit");
 const sharp = require("sharp");
 const { drawPropertyPdf, preparePropertyPdfImages } = require("./pdf-property-sheet");
+const { createPublicPdfCache } = require("./public-pdf-cache");
+const publicPropertyPdfCache = createPublicPdfCache();
 const { createWhatsappService, normalizeBotSettings } = require("./whatsapp-service");
 const { Pool } = require("pg");
 const { createExchangeRateService } = require("./exchange-rate");
@@ -110,15 +112,20 @@ const { normalizeCatalogData, publicProperty } = require("./inventory-metadata")
 const { qualityQuery } = require("./admin-quality-query");
 const { analyzeDemand } = require("./demand-analysis");
 const csvUtils = require("./csv-utils");
-const { businessPhoneLabel, contactRouting, contactPhone, readContactRouting, registerInquiries, inquiryAction, serviceChannel, sourcePath: inquirySourcePath } = require("./contact-inquiries");
+const { businessPhoneLabel, contactRouting, contactPhone, contactIdentity, readContactRouting, registerInquiries, inquiryAction, serviceChannel, sourcePath: inquirySourcePath } = require("./contact-inquiries");
+const { resolveInquiryContext } = require("./inquiry-context");
 const { registerCommercialRoutes } = require("./commercial-workflow");
 const { registerAdvisorRoutes } = require("./real-estate-advisor");
+const publicAdvisorEnabled = process.env.PUBLIC_PROPERTY_ADVISOR_ENABLED === "true";
 const staticAssetVersion = require("./asset-version").computeAssetVersion(__dirname);
 const publicStaticFiles = new Set([
   "/app.js",
   "/site-language.js",
   "/styles.css",
   "/inventory-contract.js",
+  "/public-pricing.js",
+  "/presale-policy.js",
+  "/public-listing-details.js",
   "/contact-config.js",
   "/contextual-contact.js",
   "/contextual-contact.css",
@@ -726,7 +733,7 @@ async function upsertContact(client, contact) {
   const phone = String(contact.phone || "").trim();
   if (!email && !phone) return null;
   let existing;
-  if (contact.source === "portal_inquiry" || contact.source === "guest_sale_request" || contact.phonePrimary) {
+  if (phone && (contact.source === "portal_inquiry" || contact.source === "guest_sale_request" || contact.phonePrimary)) {
     const equivalents = [phone];
     if (/^52\d{10}$/.test(phone)) equivalents.push("521" + phone.slice(2));
     existing = await client.query(`SELECT * FROM contacts WHERE regexp_replace(phone,'[^0-9]','','g')=ANY($1::text[])
@@ -1508,9 +1515,8 @@ function validDocumentShareSignature(id, expiresAt, token) {
   return crypto.timingSafeEqual(Buffer.from(supplied), Buffer.from(expected));
 }
 
-function propertyWhatsappSheetText(property, shareUrl, { neutral = false } = {}) {
-  const amount = property.price ?? (property.currency === "MXN" ? property.priceMxn : property.priceUsd);
-  const unit = property.priceUnit === "sqm" ? " por m²" : "";
+function propertyWhatsappSheetText(property, shareUrl, { neutral = false, exchangeRate } = {}) {
+  const price = require("./inventory-contract").publicPriceText(property, exchangeRate, "es");
   const location = [property.neighborhood, property.zone, property.city, property.state].filter(Boolean)
     .filter((value, index, values) => values.indexOf(value) === index)
     .join(", ");
@@ -1522,7 +1528,7 @@ function propertyWhatsappSheetText(property, shareUrl, { neutral = false } = {})
     `*${property.titleEs}*`,
     location ? `\u{1F4CD} ${location}` : "",
     property.mls ? `\u{1F516} MLS# ${property.mls}` : "",
-    Number.isFinite(Number(amount)) && Number(amount) > 0 ? `\u{1F4B0} ${formatPdfMoney(amount, property.currency)}${unit}` : "\u{1F4B0} Precio a consultar",
+    `\u{1F4B0} ${price}`,
     property.beds ? `\u{1F6CF}\uFE0F ${property.beds} recámara${Number(property.beds) === 1 ? "" : "s"}` : "",
     property.baths ? `\u{1F6BF} ${property.baths} baño${Number(property.baths) === 1 ? "" : "s"}` : "",
     property.parking ? `\u{1F697} ${property.parking} estacionamiento${Number(property.parking) === 1 ? "" : "s"}` : "",
@@ -1531,6 +1537,32 @@ function propertyWhatsappSheetText(property, shareUrl, { neutral = false } = {})
     "",
     `\u{1F517} Consulta la ficha completa: ${shareUrl}`,
   ].filter((line) => line !== "").join("\n");
+}
+
+// A public share always uses the current USD presentation. Keep the original
+// generated PDF untouched for the authenticated administrator's history.
+async function renderCurrentSharedPropertyPdf(documentRow) {
+  const result = await query(`SELECT ${PROPERTY_SUMMARY_COLUMNS} FROM properties p WHERE p.id = $1`, [documentRow.property_id]);
+  const row = result.rows[0];
+  if (!row) return null;
+  const protectedPublic = (await getPublicProperties()).find(property => property.id === row.id);
+  const baseProperty = protectedPublic || toProperty(withPropertyMediaPlaceholders(row));
+  const hidden = new Set(baseProperty.portalHiddenBlocks || []);
+  const property = {...baseProperty,...(hidden.has("description") ? {descriptionEs:"",descriptionEn:""} : {}),...(hidden.has("amenities") ? {amenities:[]} : {})};
+  const exchangeRate = exchangeRateService.getSnapshot();
+  const options = { ...(documentRow.options || {}), priceMode:"public-usd", exchangeRate, now:Date.now() };
+  if(property.locationPrecision !== "exact" || property.portalHiddenBlocks?.includes("location"))options.showAddress=false;
+  const routing = options.brandMode === "neutral" ? {} : await readContactRouting({query});
+  const businessPhone = options.brandMode === "neutral" ? "" : businessPhoneLabel(routing.mx || routing.us);
+  const propertyUrl = protectedPublic ? absoluteUrl(property.urlEs,siteUrl) : "";
+  const identity = {documentId:documentRow.id,propertyId:row.id,updatedAt:row.updated_at,price:require("./inventory-contract").priceOf(property),
+    options:{...options,now:undefined},exchangeRate:require("./public-pricing").usableRate(exchangeRate),businessPhone,propertyUrl,
+    hidden:property.portalHiddenBlocks || [],precision:property.locationPrecision,presale:property.portalPresale};
+  return publicPropertyPdfCache.get(identity,async()=>{
+    const media = property.portalHiddenBlocks?.includes("gallery") ? {} : (await query("SELECT images, image FROM properties WHERE id = $1",[row.id])).rows[0] || {};
+    const images=property.portalHiddenBlocks?.includes("gallery") ? [] : await preparePropertyPdfImages(mergeLegacyImages(media.images,media.image),options.brandMode === "neutral" ? 6 : 4);
+    return pdfBuffer(document=>drawPropertyPdf(document,{property,images,propertyUrl,businessPhone,logoPath:path.join(__dirname,"assets","puerto-cancun-logo.png"),options}));
+  });
 }
 
 function requireRole(role) {
@@ -4744,7 +4776,7 @@ app.post("/api/admin/external-properties/:id/share", requireRole("admin"), async
       includePrivate: includeContact,
       mediaBase: `${shareUrl}/media`,
     });
-    const message = externalPropertyWhatsappText(property, shareUrl, { includeContact });
+    const message = externalPropertyWhatsappText(property, shareUrl, { includeContact,exchangeRate:exchangeRateService.getSnapshot() });
     res.json({
       shareUrl,
       expiresAt: shareLink.rows[0].expires_at,
@@ -4766,7 +4798,7 @@ app.post("/api/search/intelligent", async (req, res, next) => {
     const interpretation = interpretCatalogSearch(queryText, req.body?.filters || {}, { properties, language, areas: publicPropertyCache.directory?.areas });
     const result = interpretation.clarificationRequired
       ? { items: [], total: null, errors: [], query: interpretation.filters }
-      : inventoryContract.queryInventory(properties, interpretation.filters, {areas: publicPropertyCache.directory?.areas, lang: language});
+      : inventoryContract.queryInventory(properties, interpretation.filters, {areas: publicPropertyCache.directory?.areas, lang: language, publicPricing: true, exchangeRate: exchangeRateService.getSnapshot()});
     result.errors = result.errors.map(error => localizeCatalogError(error, language));
     const needsChoice = interpretation.clarificationRequired || result.errors.length > 0;
     const params = inventoryContract.toSearchParams(interpretation.filters);
@@ -4781,7 +4813,7 @@ app.post("/api/search/intelligent", async (req, res, next) => {
 
 app.get("/api/catalog", async (req, res, next) => {
   try {
-    const result = inventoryContract.queryInventory(await getPublicProperties(), req.query, {areas: publicPropertyCache.directory?.areas, lang: req.query.lang});
+    const result = inventoryContract.queryInventory(await getPublicProperties(), req.query, {areas: publicPropertyCache.directory?.areas, lang: req.query.lang, publicPricing: true, exchangeRate: exchangeRateService.getSnapshot()});
     res.status(result.errors.length ? 400 : 200).json({ ...result, all: undefined, contractVersion: inventoryContract.VERSION });
   } catch (error) { next(error); }
 });
@@ -5066,17 +5098,18 @@ app.post("/api/guest-sale-requests", async (req, res, next) => {
     }
     const formStartedAt = Number(rawBody.formStartedAt || 0);
     if (!Number.isFinite(formStartedAt) || Date.now() - formStartedAt < 1200 || Date.now() - formStartedAt > 7_200_000) {
-      res.status(400).json({ error: "El formulario venció o se envió demasiado rápido. Ábrelo nuevamente e intenta otra vez." });
+      res.status(400).json({ error: lang === "en" ? "This form expired or was submitted too quickly. Open it again and retry." : "El formulario venció o se envió demasiado rápido. Ábrelo nuevamente e intenta otra vez." });
       return;
     }
     if (!(rawBody.consent === true || rawBody.consent === "true" || rawBody.consent === "on")) {
-      res.status(400).json({ error: "Confirma que aceptas el aviso de privacidad antes de enviar." });
+      res.status(400).json({ error: lang === "en" ? "Accept the privacy notice before sending your request." : "Confirma que aceptas el aviso de privacidad antes de enviar." });
       return;
     }
     const body = await sanitizePropertyImageBody(rawBody);
-    const title = String(body.title || "").trim().slice(0, 180);
     const type = String(body.type || "").trim().slice(0, 80);
     const location = String(body.location || "").trim().slice(0, 260);
+    const title = (String(body.title || "").trim() || `${type} · ${location}`).slice(0, 180);
+    const name = String(body.name || "").trim().slice(0, 110);
     const state = String(body.state || "").trim().slice(0, 120);
     const city = String(body.city || "").trim().slice(0, 120);
     const zone = String(body.zone || "").trim().slice(0, 160);
@@ -5088,27 +5121,31 @@ app.post("/api/guest-sale-requests", async (req, res, next) => {
     const mapPlace = String(body.mapPlace || "").trim().slice(0, 400);
     const googleMapsUrl = validCoordinates ? `https://www.google.com/maps/search/?api=1&query=${latitude},${longitude}` : "";
     const description = String(body.description || "").trim().slice(0, 4000);
-    const preferredContact = body.preferredContact === "email" ? "email" : "whatsapp";
-    const email = String(body.email || "").trim().toLowerCase();
+    const preferredContact = body.preferredContact || "whatsapp";
     let phoneInfo;
-    try { phoneInfo = contactPhone(body.phone, body.country, lang); } catch (error) { return res.status(400).json({ error: error.message }); }
-    const { phone, prefix: countryCode } = phoneInfo;
+    try { phoneInfo = contactIdentity({ ...body, contactChannel: preferredContact }, lang); } catch (error) { return res.status(400).json({ error: error.message }); }
+    const { phone, email, prefix: countryCode } = phoneInfo;
     const images = parseUploadedImages(body, []);
-    if (!title || !type || !location) {
-      res.status(400).json({ error: "Agrega título, tipo y ubicación de la propiedad." });
+    if (!["Casa", "Departamento", "Terreno", "Comercial", "Preventa"].includes(type) || !location) {
+      res.status(400).json({ error: lang === "en" ? "Choose the property type and its approximate zone or locality." : "Elige el tipo de propiedad e indica su zona o localidad aproximada." });
       return;
     }
-    if ((preferredContact === "email" || email) && !isValidEmail(email)) {
-      res.status(400).json({ error: lang === "en" ? "Check the email address." : "Revisa el correo electrónico." });
+    if ((body.latitude !== "" && body.latitude != null || body.longitude !== "" && body.longitude != null) && (!validCoordinates || latitude === 0 && longitude === 0)) {
+      res.status(400).json({ error: lang === "en" ? "Check the optional map location or clear it." : "Revisa la ubicación opcional del mapa o déjala vacía." });
       return;
     }
     await client.query("BEGIN");
     inTransaction = true;
-    await client.query("SELECT pg_advisory_xact_lock(hashtext($1))", ["pcc-inquiry:" + phone]);
+    await client.query("SELECT pg_advisory_xact_lock(hashtext($1))", ["pcc-inquiry:" + (phone || email)]);
     if (idempotencyKey) {
-      const existing = await client.query("SELECT g.id, a.new_value AS inquiry_context FROM guest_sale_requests g LEFT JOIN activity_logs a ON a.id='guest-inquiry:' || g.id WHERE g.idempotency_key=$1 AND g.phone=$2", [idempotencyKey, phone]);
+      await client.query("SELECT pg_advisory_xact_lock(hashtext($1))", ["pcc-guest:" + idempotencyKey]);
+      const existing = await client.query("SELECT g.id, g.preferred_contact, g.phone, g.email, a.new_value AS inquiry_context FROM guest_sale_requests g LEFT JOIN activity_logs a ON a.id='guest-inquiry:' || g.id WHERE g.idempotency_key=$1", [idempotencyKey]);
       if (existing.rows[0]) {
         const row = existing.rows[0];
+        if (row.preferred_contact !== preferredContact || (preferredContact === "email" ? String(row.email || "").toLowerCase() !== email : row.phone !== phone)) {
+          await client.query("ROLLBACK"); inTransaction = false;
+          return res.status(409).json({ error: lang === "en" ? "This form was already submitted with a different contact. Open a new request." : "Este formulario ya se envió con otro contacto. Abre una solicitud nueva." });
+        }
         await client.query("COMMIT"); inTransaction = false;
         return res.json({ request: { id: row.id }, action: inquiryAction(row.id, row.inquiry_context, siteUrl, row.inquiry_context?.sourcePath, sessionSecret), idempotent: true });
       }
@@ -5117,10 +5154,11 @@ app.post("/api/guest-sale-requests", async (req, res, next) => {
       `SELECT ${GUEST_SALE_REQUEST_SUMMARY_COLUMNS}
        FROM guest_sale_requests g
        WHERE lower(g.title) = lower($1)
-         AND g.phone = $2 AND lower(g.location) = lower($3) AND lower(g.type) = lower($4)
+         AND g.preferred_contact = $5 AND (($5='whatsapp' AND g.phone=$2) OR ($5='email' AND lower(g.email)=$6))
+         AND lower(g.location) = lower($3) AND lower(g.type) = lower($4)
          AND g.created_at > NOW() - INTERVAL '90 seconds'
        ORDER BY g.created_at DESC LIMIT 1`,
-      [title, phone, location, type]
+      [title, phone, location, type, preferredContact, email]
     );
     if (duplicate.rows[0]) {
       const row = duplicate.rows[0];
@@ -5128,10 +5166,11 @@ app.post("/api/guest-sale-requests", async (req, res, next) => {
       res.json({ request: { id: row.id }, action: inquiryAction(row.id, row.inquiry_context, siteUrl, row.inquiry_context?.sourcePath, sessionSecret), duplicate: true });
       return;
     }
-    const inquiry = { ...await serviceChannel(client, phoneInfo.country), lang, intent: "sell", country: phoneInfo.country, prefix: countryCode, propertyTitle: title, propertyType: type, zone: zone || location, preferences: description, sourcePath: inquirySourcePath(body.sourcePath), origin: "guest-sale" };
+    const inquiry = { ...await serviceChannel(client, phoneInfo.country || "MX"), lang, intent: "sell", country: phoneInfo.country, prefix: countryCode, contactChannel: preferredContact, consentContact: true, propertyTitle: title, propertyType: type, zone: zone || location, preferences: description, sourcePath: inquirySourcePath(body.sourcePath), origin: "guest-sale" };
     const contact = await upsertContact(client, {
-      name: `Propietario · ${title}`,
+      name: name || `${lang === "en" ? "Owner" : "Propietario"} · ${title}`,
       email, phone,
+      consentContact: true,
       contactType: "seller",
       source: "guest_sale_request",
       propertyType: type,
@@ -5173,9 +5212,9 @@ app.post("/api/guest-sale-requests", async (req, res, next) => {
 });
 
 const inquiryChannels = () => ({ email: transactionalEmailConfigured(), whatsapp: whatsappService.getStatus().connection === "connected" });
-registerInquiries(app, { pool, query, uuid, siteUrl, secret: sessionSecret, upsertContact, leadScoreFromData, getPublicProperties, getAreas: () => publicPropertyCache.directory?.areas, channels: inquiryChannels });
-const commercialWorkflow = registerCommercialRoutes(app, { pool, query, uuid, siteUrl, secret: sessionSecret, requireRole, getPublicProperties, getAreas: () => publicPropertyCache.directory?.areas, channels: inquiryChannels, sendEmail: sendTransactionalEmail, sendWhatsapp: (phone, message) => whatsappService.sendMessage(`${phone}@s.whatsapp.net`, message) });
-registerAdvisorRoutes(app, { getPublicProperties, getAreas: () => publicPropertyCache.directory?.areas, apiKey: process.env.OPENAI_API_KEY, model: process.env.OPENAI_MODEL || "gpt-5-mini" });
+registerInquiries(app, { pool, query, uuid, siteUrl, secret: sessionSecret, upsertContact, leadScoreFromData, getPublicProperties, getAreas: () => publicPropertyCache.directory?.areas, getExchangeRate: () => exchangeRateService.getSnapshot(), channels: inquiryChannels });
+const commercialWorkflow = registerCommercialRoutes(app, { pool, query, uuid, siteUrl, secret: sessionSecret, requireRole, getPublicProperties, getAreas: () => publicPropertyCache.directory?.areas, getExchangeRate: () => exchangeRateService.getSnapshot(), channels: inquiryChannels, sendEmail: sendTransactionalEmail, sendWhatsapp: (phone, message) => whatsappService.sendMessage(`${phone}@s.whatsapp.net`, message) });
+if (publicAdvisorEnabled) registerAdvisorRoutes(app, { getPublicProperties, getAreas: () => publicPropertyCache.directory?.areas, apiKey: process.env.OPENAI_API_KEY, model: process.env.OPENAI_MODEL || "gpt-5-mini" });
 
 app.post("/api/leads", async (req, res, next) => {
   const client = await pool.connect();
@@ -5188,26 +5227,32 @@ app.post("/api/leads", async (req, res, next) => {
       return res.status(400).json({ error: "Utiliza el formulario de contacto. Please use the inquiry form." });
     }
     const developmentInquiry = leadType === "contacto-desarrollo";
+    let developmentContext = null;
     if (developmentInquiry) {
       const intentTypes = { buy: "comprador-desarrollo", rent: "contacto-desarrollo-renta", sell: "vendedor-desarrollo", let: "vendedor-desarrollo-renta" };
-      const development = await client.query("SELECT id, title_es FROM properties WHERE id = $1 AND publication_section = 'developments' AND is_public = TRUE AND status = ANY($2::text[])", [String(body.propertyId || "").trim(), Array.from(PUBLIC_PROPERTY_STATUSES)]);
-      if (typeof body.developmentIntent !== "string" || !Object.hasOwn(intentTypes, body.developmentIntent) || !development.rows.length || !String(body.name || "").trim()) {
+      const lang = body.lang === "en" || String(body.sourcePath || "").startsWith("/en/") ? "en" : "es";
+      try {
+        developmentContext = resolveInquiryContext({ ...body, intent: body.developmentIntent, lang }, await getPublicProperties(), { validateIntent: true });
+      } catch (error) {
         await client.query("ROLLBACK");
-        return res.status(400).json({ error: String(body.sourcePath || "").startsWith("/en/") ? "Choose an option and enter your name for this development." : "Elige una opción e indica tu nombre para consultar este desarrollo." });
+        return res.status(error.status || 400).json({ error: error.message });
+      }
+      if (typeof body.developmentIntent !== "string" || !Object.hasOwn(intentTypes, body.developmentIntent) || developmentContext.entity !== "development") {
+        await client.query("ROLLBACK");
+        return res.status(400).json({ error: lang === "en" ? "Choose an available option for this development." : "Elige una opción disponible para este desarrollo." });
       }
       leadType = intentTypes[body.developmentIntent];
-      body.developmentName = development.rows[0].title_es;
     }
     const category = inferLeadCategory(leadType);
     const valuationInquiry = category === "valuation" || leadType.toLowerCase().includes("validar-precio");
-    const suppliedName = String(body.name || body.firstName || "").trim();
+    const suppliedName = String(body.name || body.firstName || "").trim().slice(0, 140);
     const name = suppliedName || (valuationInquiry ? "Propietario" : "Visitante web");
     const replyTo = valuationInquiry || developmentInquiry ? String(body.contact || "").trim() : "";
-    const rawPhone = String(body.whatsapp || body.phone || (replyTo.includes("@") ? "" : replyTo)).trim();
+    let rawPhone = String(body.whatsapp || body.phone || (replyTo.includes("@") ? "" : replyTo)).trim();
     let phone = rawPhone ? normalizePhone(rawPhone) : "";
-    const email = String(body.email || (replyTo.includes("@") ? replyTo : "")).trim().toLowerCase() || null;
-    const sourcePath = String(body.sourcePath || "").trim().slice(0, 220) || null;
-    const propertyId = String(body.propertyId || "").trim() || null;
+    let email = String(body.email || (replyTo.includes("@") ? replyTo : "")).trim().toLowerCase() || null;
+    const sourcePath = inquirySourcePath(body.sourcePath);
+    const propertyId = developmentInquiry ? null : String(body.propertyId || "").trim() || null;
     const consent = body.consent === true || body.consent === "true" || body.consent === "on";
     const inquiryLang = body.lang === "en" || sourcePath?.startsWith("/en/") ? "en" : "es";
     const formStartedAt = Number(body.formStartedAt || 0);
@@ -5219,23 +5264,25 @@ app.post("/api/leads", async (req, res, next) => {
     }
     if (!consent) {
       await client.query("ROLLBACK");
-      res.status(400).json({ error: "Confirma que aceptas el aviso de privacidad antes de enviar." });
+      res.status(400).json({ error: inquiryLang === "en" ? "Accept the privacy notice before sending your request." : "Confirma que aceptas el aviso de privacidad antes de enviar." });
       return;
     }
     if (!Number.isFinite(formStartedAt) || Date.now() - formStartedAt < 1200 || Date.now() - formStartedAt > 7_200_000) {
       await client.query("ROLLBACK");
-      res.status(400).json({ error: "El formulario venció o se envió demasiado rápido. Recarga la página e intenta nuevamente." });
+      res.status(400).json({ error: inquiryLang === "en" ? "The form expired or was sent too quickly. Reload the page and try again." : "El formulario venció o se envió demasiado rápido. Recarga la página e intenta nuevamente." });
       return;
     }
 
     let phoneInfo;
-    if (valuationInquiry) {
-      try { phoneInfo = contactPhone(rawPhone, body.country, inquiryLang); } catch (error) {
+    if (valuationInquiry || developmentInquiry || body.contactChannel) {
+      try { phoneInfo = contactIdentity({ ...body, phone: rawPhone, email, contactChannel: body.contactChannel || (rawPhone ? "whatsapp" : email ? "email" : "whatsapp") }, inquiryLang); } catch (error) {
         await client.query("ROLLBACK");
         return res.status(400).json({ error: error.message });
       }
       phone = phoneInfo.phone;
-      await client.query("SELECT pg_advisory_xact_lock(hashtext($1))", ["pcc-inquiry:" + phone]);
+      email = phoneInfo.email || null;
+      if (phoneInfo.contactChannel === "email") rawPhone = "";
+      await client.query("SELECT pg_advisory_xact_lock(hashtext($1))", ["pcc-inquiry:" + (phone ? "phone:" + phone : "email:" + email)]);
     }
     if (developmentInquiry && !phone && !email && !rawPhone) {
       await client.query("ROLLBACK");
@@ -5261,11 +5308,40 @@ app.post("/api/leads", async (req, res, next) => {
     delete payload.website;
     delete payload.formStartedAt;
     delete payload.consent;
-    for (const key of ["inquiryFingerprint", "whatsappRef", "destination", "whatsappClickedAt", "whatsappReceivedAt"]) delete payload[key];
+    // Public lead forms describe an inquiry; only trusted handlers can activate alerts,
+    // link an account, confirm a visit or record delivery/consent state.
+    for (const key of [
+      "inquiryFingerprint", "whatsappRef", "destination", "whatsappClickedAt", "whatsappReceivedAt",
+      "searchWatch", "alertConsent", "alertChannel", "alertEmail", "commercialStage", "commercialMilestones",
+      "visitId", "visitStatus", "visitTimezone", "visitConfirmedAt", "visitCompletedAt",
+      "listingPath", "valuationKey", "sellerAccountId", "allowedIntents", "fixedIntent", "entity",
+      "contactChannel", "country", "prefix", "consentContact", "consentAt",
+    ]) delete payload[key];
+    Object.assign(payload, { consentContact: true, consentAt: new Date().toISOString() });
+    if (phoneInfo) Object.assign(payload, { contactChannel: phoneInfo.contactChannel, country: phoneInfo.country, prefix: phoneInfo.prefix });
+    else if (Boolean(phone) !== Boolean(email)) payload.contactChannel = phone ? "whatsapp" : "email";
+    if (developmentContext) {
+      Object.assign(payload, developmentContext, { lang: inquiryLang, developmentName: developmentContext.development, origin: "development-form" });
+      for (const key of ["allowedIntents", "fixedIntent", "entity", "propertyId"]) delete payload[key];
+    }
     if (valuationInquiry) {
-      Object.assign(payload, { lang: inquiryLang, intent: "sell", service: leadType.includes("precio") ? "price-review" : "valuation", country: phoneInfo.country, prefix: phoneInfo.prefix, origin: "valuation-form" });
+      const zone = typeof payload.zone === "string" ? payload.zone.trim().slice(0, 140) : "";
+      const review = leadType.includes("precio");
+      const estimate = payload.ownerEstimate ?? payload.expectedPrice ?? payload.budgetOrPrice;
+      const hasEstimate = estimate !== undefined && estimate !== null && String(estimate).trim() !== "";
+      if (!zone || (review && !hasEstimate) || (hasEstimate && !(["string", "number"].includes(typeof estimate) && Number.isFinite(Number(estimate)) && Number(estimate) > 0 && Number(estimate) <= 1e13))) {
+        await client.query("ROLLBACK");
+        return res.status(400).json({ error: !zone ? inquiryLang === "en" ? "Enter the property zone or neighbourhood." : "Indica la zona o colonia de la propiedad." : inquiryLang === "en" ? "Enter a valid estimated price in USD." : "Indica un precio estimado válido en USD." });
+      }
+      if ((payload.priceMode && !["public-usd", "original"].includes(payload.priceMode)) || (payload.priceMode === "public-usd" && payload.currency !== "USD") || (payload.currency && !["USD", "MXN"].includes(payload.currency))) {
+        await client.query("ROLLBACK");
+        return res.status(400).json({ error: inquiryLang === "en" ? "The public price estimate must be expressed in USD." : "La estimación pública debe estar expresada en USD." });
+      }
+      if (payload.propertyType === "Terreno") for (const key of ["builtSize", "bedrooms", "bathrooms", "parking", "age"]) delete payload[key];
+      if (hasEstimate) payload.ownerEstimate = Number(estimate);
+      Object.assign(payload, { zone, lang: inquiryLang, intent: "sell", service: review ? "price-review" : "valuation", origin: "valuation-form" });
       delete payload.valuationKey;
-      payload.valuationKey = crypto.createHash("sha256").update(JSON.stringify(Object.keys(payload).filter(key => key !== "requestId").sort().map(key => [key,payload[key]]))).digest("hex");
+      payload.valuationKey = crypto.createHash("sha256").update(JSON.stringify(Object.keys(payload).filter(key => !["requestId", "consentAt"].includes(key)).sort().map(key => [key,payload[key]]))).digest("hex");
     }
     if (JSON.stringify(payload).length > 20_000) {
       await client.query("ROLLBACK");
@@ -5277,11 +5353,12 @@ app.post("/api/leads", async (req, res, next) => {
       `SELECT * FROM lead_requests
        WHERE lead_type = $1
          AND (($2::text IS NOT NULL AND lower(email) = lower($2)) OR ($3::text <> '' AND phone = $3))
-         AND ($4::boolean = FALSE OR property_id = $5)
-         AND ($6::text IS NULL OR (phone = $3 AND payload->>'valuationKey' = $6))
+         AND ($4::boolean = FALSE OR property_id IS NOT DISTINCT FROM $5)
+         AND ($6::text IS NULL OR payload->>'valuationKey' = $6)
          AND (created_at > NOW() - INTERVAL '90 seconds' OR ($7::text <> '' AND payload->>'requestId' = $7))
+         AND ($8::text IS NULL OR payload->>'developmentId' = $8)
        ORDER BY created_at DESC LIMIT 1`,
-      [leadType, email, phone, developmentInquiry, propertyId, valuationInquiry ? payload.valuationKey : null, valuationInquiry ? String(payload.requestId || "").slice(0,80) : ""]
+      [leadType, email, phone, developmentInquiry, propertyId, valuationInquiry ? payload.valuationKey : null, valuationInquiry || developmentInquiry ? String(payload.requestId || "").slice(0,80) : "", developmentContext?.developmentId || null]
     );
     if (duplicate.rows[0]) {
       await client.query("COMMIT");
@@ -5290,12 +5367,12 @@ app.post("/api/leads", async (req, res, next) => {
       return;
     }
 
-    if (valuationInquiry) Object.assign(payload, await serviceChannel(client, phoneInfo.country));
+    if (valuationInquiry && phoneInfo.contactChannel === "whatsapp") Object.assign(payload, await serviceChannel(client, phoneInfo.country));
     const leadScore = leadScoreFromData({ leadType, phone, email, payload, propertyId });
     const priority = leadScore === "premium" ? "premium" : leadScore === "hot" ? "high" : "medium";
     const contact = await upsertContact(client, {
       name: suppliedName,
-      phonePrimary: valuationInquiry,
+      phonePrimary: valuationInquiry && phoneInfo.contactChannel === "whatsapp",
       email,
       phone,
       contactType: contactTypeFromLead(leadType),
@@ -5471,7 +5548,7 @@ async function evaluateSavedSearch(row, { createAlerts = false } = {}) {
   const publicProperties = await getPublicProperties();
   const filters = savedCatalogQuery(row.filters || {}, { queryText: row.query_text || "", properties: publicProperties, areas: publicPropertyCache.directory?.areas });
   if (filters.errors.length) throw Object.assign(new Error(filters.errors.join(" ")), { status: 400 });
-  const matches = inventoryContract.queryInventory(publicProperties, filters, { pageSize: 100, areas: publicPropertyCache.directory?.areas }).all;
+  const matches = inventoryContract.queryInventory(publicProperties, filters, { pageSize: 100, areas: publicPropertyCache.directory?.areas, publicPricing: true, exchangeRate: exchangeRateService.getSnapshot() }).all;
   const alertResults = [];
   if (createAlerts && row.alerts_enabled) {
     for (const property of matches) {
@@ -8231,7 +8308,7 @@ app.post("/api/admin/messages", requireRole("admin"), async (req, res, next) => 
         `SELECT l.payload->>'sellerAccountId' AS seller_id,
                 COALESCE(NULLIF(l.email, ''), s.email) AS email,
                 COALESCE(NULLIF(l.name, ''), CONCAT_WS(' ', s.first_name, s.last_name)) AS name,
-                l.lead_type AS title
+                l.lead_type AS title, l.phone, l.payload->>'contactChannel' AS preferred_contact, l.payload->>'consentContact' AS consent_contact
          FROM lead_requests l
          LEFT JOIN seller_accounts s ON s.id = l.payload->>'sellerAccountId'
          WHERE l.id = $1`,
@@ -8326,7 +8403,7 @@ app.post("/api/admin/messages", requireRole("admin"), async (req, res, next) => 
       emailSent: false,
       emailStatus: notifyUser ? "pending" : "not_requested",
     };
-    if (notifyUser && isValidEmail(externalRecipient?.email || "")) {
+    if (notifyUser && externalRecipient?.preferred_contact !== "whatsapp" && externalRecipient?.consent_contact !== "false" && isValidEmail(externalRecipient?.email || "")) {
       if (!transactionalEmailConfigured()) {
         delivery.emailStatus = "configuration_required";
       } else {
@@ -8345,14 +8422,14 @@ app.post("/api/admin/messages", requireRole("admin"), async (req, res, next) => 
         }
       }
     } else if (notifyUser) {
-      delivery.emailStatus = "missing_recipient";
+      delivery.emailStatus = externalRecipient?.preferred_contact === "whatsapp" ? "preferred_channel_whatsapp" : externalRecipient?.consent_contact === "false" ? "consent_required" : "missing_recipient";
     }
     res.status(201).json({
       message: result.rows[0],
       delivery: {
         ...delivery,
-        preferredContact: guestContact?.preferred_contact || "",
-        contact: guestContact?.preferred_contact === "email" ? guestContact?.email || "" : guestContact?.phone || "",
+        preferredContact: externalRecipient?.preferred_contact || "",
+        contact: externalRecipient?.preferred_contact === "email" ? externalRecipient?.email || "" : externalRecipient?.phone || "",
       },
     });
   } catch (error) {
@@ -9843,6 +9920,7 @@ app.post("/api/admin/documents/generate", requireRole("admin"), async (req, res,
     const options = {
       ...requestedOptions,
       brandMode: requestedOptions.brandMode === "neutral" ? "neutral" : "branded",
+      priceMode: requestedOptions.priceMode === "original" ? "original" : "public-usd",
     };
     let entity;
     let propertyPdfImages = [];
@@ -9877,7 +9955,7 @@ app.post("/api/admin/documents/generate", requireRole("admin"), async (req, res,
             `${String(req.get("x-forwarded-proto") || req.protocol || "https").split(",")[0].trim()}://${String(req.get("x-forwarded-host") || req.get("host") || "").split(",")[0].trim()}`
           ),
           logoPath: path.join(__dirname, "assets", "puerto-cancun-logo.png"),
-          options,
+          options:{...options,exchangeRate:exchangeRateService.getSnapshot(),now:Date.now()},
         });
         return;
       }
@@ -9982,7 +10060,7 @@ app.post("/api/admin/documents/:id/share", requireRole("admin"), async (req, res
     const configuredShareOrigin = publicShareDomain && !/^https?:\/\//i.test(publicShareDomain) ? `https://${publicShareDomain}` : publicShareDomain;
     const shareUrl = absoluteUrl(sharePath, configuredShareOrigin || requestOrigin || siteUrl);
     const property = toProperty(withPropertyMediaPlaceholders(row));
-    const message = propertyWhatsappSheetText(property, shareUrl, { neutral: row.document_options?.brandMode === "neutral" });
+    const message = propertyWhatsappSheetText(property, shareUrl, { neutral: row.document_options?.brandMode === "neutral",exchangeRate:exchangeRateService.getSnapshot() });
     res.json({
       shareUrl,
       expiresAt: shareLink.rows[0].expires_at,
@@ -10079,6 +10157,7 @@ app.get("/ext/:code", async (req, res, next) => {
     res.type("html").send(renderExternalPropertyShareHtml(property, {
       shareUrl,
       includeContact: Boolean(link.include_contact),
+      exchangeRate:exchangeRateService.getSnapshot(),
     }));
   } catch (error) {
     next(error);
@@ -10099,7 +10178,7 @@ app.get("/f/:code", async (req, res, next) => {
       return;
     }
     const result = await query(
-      "SELECT file_name, content_base64 FROM generated_documents WHERE id = $1 AND document_type = 'property' AND created_at > NOW() - INTERVAL '72 hours'",
+      "SELECT id, property_id, options, file_name FROM generated_documents WHERE id = $1 AND document_type = 'property' AND created_at > NOW() - INTERVAL '72 hours'",
       [linkResult.rows[0].document_id]
     );
     const document = result.rows[0];
@@ -10107,11 +10186,13 @@ app.get("/f/:code", async (req, res, next) => {
       res.status(410).type("text/plain").send("La ficha solicitada venció o ya no está disponible. Solicita una ficha nueva.");
       return;
     }
+    const publicPdf = await renderCurrentSharedPropertyPdf(document);
+    if(!publicPdf){res.status(410).type("text/plain").send("La propiedad de esta ficha ya no está disponible.");return;}
     res.setHeader("Content-Type", "application/pdf");
     res.setHeader("Content-Disposition", `inline; filename="${String(document.file_name).replace(/"/g, "")}"`);
     res.setHeader("Cache-Control", "private, no-store, max-age=0");
     res.setHeader("Referrer-Policy", "no-referrer");
-    res.send(Buffer.from(document.content_base64, "base64"));
+    res.send(publicPdf);
   } catch (error) {
     next(error);
   }
@@ -10124,16 +10205,18 @@ app.get("/fichas/:id", async (req, res, next) => {
       res.status(410).type("text/plain").send("Este enlace de ficha es inválido o ya venció.");
       return;
     }
-    const result = await query("SELECT file_name, content_base64 FROM generated_documents WHERE id = $1 AND document_type = 'property' AND created_at > NOW() - INTERVAL '72 hours'", [req.params.id]);
+    const result = await query("SELECT id, property_id, options, file_name FROM generated_documents WHERE id = $1 AND document_type = 'property' AND created_at > NOW() - INTERVAL '72 hours'", [req.params.id]);
     const document = result.rows[0];
     if (!document) {
       res.status(410).type("text/plain").send("La ficha solicitada venció o ya no está disponible. Solicita una ficha nueva.");
       return;
     }
+    const publicPdf = await renderCurrentSharedPropertyPdf(document);
+    if(!publicPdf){res.status(410).type("text/plain").send("La propiedad de esta ficha ya no está disponible.");return;}
     res.setHeader("Content-Type", "application/pdf");
     res.setHeader("Content-Disposition", `inline; filename="${String(document.file_name).replace(/"/g, "")}"`);
     res.setHeader("Cache-Control", "private, no-store, max-age=0");
-    res.send(Buffer.from(document.content_base64, "base64"));
+    res.send(publicPdf);
   } catch (error) {
     next(error);
   }
@@ -12210,6 +12293,8 @@ function replaceMetaTag(html, pattern, replacement) {
 
 function decoratePublicHtml({ page, seo, pageContent = "", bodyPage = "seo", noindex = false, includePrivatePanel = false, showBlog = true, offices }) {
   let html = fs.readFileSync(indexPath, "utf8");
+  if (["/contacto", "/en/contact"].includes(page?.path)) html = html.replace(/\s*<h3 class="footer-location"[^>]*>[\s\S]*?<\/h3>\s*<p>[\s\S]*?<\/p>/, "");
+  if (!publicAdvisorEnabled) html = html.replace(/\s*<(?:script|link)\b[^>]*(?:src|href)="\/advisor-widget\.(?:js|css)[^"]*"[^>]*>(?:<\/script>)?/g, "");
   html = html.replace("<!-- HOME_CONTACT_OFFICES -->", () => bodyPage === "home" ? officeInquiryButtons(seo.lang, "home-contact", offices) : "");
   html = html.replace(/(<div class="exchange-rate-panel" data-exchange-rate[^>]*>)[\s\S]*?<\/div>/, (_match, opening) => opening + renderExchangeRate(exchangeRateService.getSnapshot(), seo.lang) + "</div>");
   const directory = publicPropertyCache.directory || portalDirectoryModel.publicDirectory(null, []);
@@ -12250,6 +12335,8 @@ function decoratePublicHtml({ page, seo, pageContent = "", bodyPage = "seo", noi
   html = html.replace(/(admin-portal-directory\.js|portal-directory\.js)\?v=[^"']+/g, `$1?v=${assetVersion}`);
   html = html.replace(/(contextual-contact\.(?:js|css))\?v=[^"']+/g, `$1?v=${assetVersion}`);
   html = html.replace(/(advisor-widget\.(?:js|css))\?v=[^"']+/g, `$1?v=${assetVersion}`);
+  html = html.replace(/(public-pricing\.js|presale-policy\.js)\?v=[^"']+/g, `$1?v=${assetVersion}`);
+  html = html.replace(/public-listing-details\.js\?v=[^"']+/g, `public-listing-details.js?v=${assetVersion}`);
   html = html.replace(/styles\.css\?v=[^"']+/g, `styles.css?v=${assetVersion}`);
   html = html.replace(/site-language\.js\?v=[^"']+/g, `site-language.js?v=${assetVersion}`);
   html = html.replace(/app\.js\?v=[^"']+/g, `app.js?v=${assetVersion}`);
@@ -12308,6 +12395,7 @@ function decoratePublicHtml({ page, seo, pageContent = "", bodyPage = "seo", noi
   }
   html = html.replace('<html lang="es">', `<html lang="${seo.lang === "en" ? "en" : "es-MX"}">`);
   html = html.replace('<body data-page="home">', `<body data-page="${bodyPage}" data-lang="${seo.lang === "en" ? "en" : "es"}" data-release="${escapeHtml(releaseInfo.shortRelease)}" data-alternate-url="${escapeHtml(seo.alternate || "/")}">`);
+  html = html.replace('<body', `<body data-public-advisor-enabled="${publicAdvisorEnabled}"`);
   return html;
 }
 
@@ -12325,7 +12413,7 @@ async function renderPublicHtml(requestPath, noindex = false, params = {}) {
   ]);
   const offices = routing ? ["mx", "us"].filter(id => routing[id]).map(id => ({ id, display: businessPhoneLabel(routing[id]) })) : undefined;
   const directory = publicPropertyCache.directory || portalDirectoryModel.publicDirectory(null, properties);
-  const page = require("./catalog-view").catalogPresentation({ ...basePage, catalogAreas: directory.areas, portalDirectory: directory }, params);
+  const page = require("./catalog-view").catalogPresentation({ ...basePage, catalogAreas: directory.areas, portalDirectory: directory, currencyExchange: exchangeRateService.getSnapshot() }, params);
   const seo = renderSeoHead(page, siteUrl);
   let pageContent = isHome ? "" : renderSeoPage(page.path, { directory, properties, offices });
   if (page.category) {
@@ -12558,9 +12646,9 @@ app.get(["/propiedades/:slug", "/en/properties/:slug"], async (req, res, next) =
           .filter((item) => item.id !== property.id && item.publicationSection !== "developments" && (item.zone === property.zone || item.type === property.type))
           .sort((a, b) => Number(b.zone === property.zone) - Number(a.zone === property.zone));
     const directory = publicPropertyCache.directory;
-    const rendered = renderPropertyPage(property, lang, similar, directory);
+    const rendered = renderPropertyPage(property, lang, similar, directory, publicProperties, exchangeRateService.getSnapshot());
     if (developmentMode) rendered.html += require("./exploration-view").featuredSection(directory, publicProperties, lang, "development", property.id);
-    const seo = renderPropertyHead(property, siteUrl, lang);
+    const seo = renderPropertyHead(property, siteUrl, lang, exchangeRateService.getSnapshot());
     res.set("Cache-Control", "public, max-age=0, must-revalidate");
     res.send(decoratePublicHtml({
       page: rendered.page,
@@ -12786,6 +12874,7 @@ module.exports = {
   buildInstagramPropertyContext,
   composePropertyMarketingImage,
   databaseRuntimeState,
+  decoratePublicHtml,
   ensureNumericColumn,
   geocodeAddress,
   geocodeAddressSuggestions,

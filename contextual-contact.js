@@ -1,334 +1,191 @@
 (() => {
   "use strict";
   const key = "pcc-inquiry-contact";
-  const fields = ["intent", "zone", "subzone", "development", "developmentId", "propertyId", "propertyTitle", "mls", "project", "reference", "propertyType", "budget", "currency", "rentPeriod", "office", "origin", "preferences", "summary", "sourcePath", "service", "visitPreferredAt", "searchFilters"];
-  const intents = { buy: ["Comprar", "Buy"], rent: ["Buscar una renta", "Find a rental"], sell: ["Vender", "Sell"], let: ["Poner mi propiedad en renta", "List my property for rent"] };
-  const typeLabels = { Casa: "House", Departamento: "Apartment", Terreno: "Land", Comercial: "Commercial property" };
-  const escape = value => String(value ?? "").replace(/[&<>"']/g, ch => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[ch]));
+  const fields = ["intent","zone","subzone","development","developmentId","propertyId","propertyTitle","mls","project","reference","propertyType","budget","currency","priceMode","rentPeriod","office","origin","preferences","summary","sourcePath","service","visitPreferredAt","searchFilters"];
+  const intents = { buy:["Comprar","Buy"], rent:["Buscar una renta","Find a rental"], sell:["Vender","Sell"], let:["Poner mi propiedad en renta","List my property for rent"] };
+  const types = { Casa:"House", Departamento:"Apartment", Terreno:"Land", Comercial:"Commercial property" };
+  const escape = value => String(value ?? "").replace(/[&<>"']/g, ch => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[ch]));
   const lang = () => document.documentElement.lang.startsWith("en") ? "en" : "es";
-  const tr = (es, en) => lang() === "en" ? en : es;
-  const option = (value, label) => '<option value="' + escape(value) + '">' + escape(label) + '</option>';
-  let optionsRequest, dialog, form, opener, current, started, saved, draftId;
-  const draft = new Map();
-  function remember() {
-    try { sessionStorage.setItem(key, JSON.stringify(Object.fromEntries(["name", "phone", "country"].map(k => [k, form.elements[k].value])))); } catch {}
-  }
+  const tr = (es,en) => lang() === "en" ? en : es;
+  const option = (value,label) => '<option value="' + escape(value) + '">' + escape(label) + '</option>';
+  const row = (label,name,input) => '<label data-field="' + name + '"><span>' + escape(label) + '</span>' + (input || '<input name="' + name + '" maxlength="160">') + '</label>';
+  const hidden = (name,value) => '<input type="hidden" name="' + name + '" value="' + escape(value) + '">';
+  let optionsRequest, dialog, opener, openGeneration=0;
+  const drafts = new Map();
   function identity() { try { return JSON.parse(sessionStorage.getItem(key) || "{}") || {}; } catch { return {}; } }
   function getOptions() {
-    if (!optionsRequest) optionsRequest = fetch("/api/inquiries/options").then(async r => {
-      if (!r.ok) throw Error();
-      return r.json();
-    }).catch(error => { optionsRequest = null; throw error; });
-    return optionsRequest;
+    return optionsRequest ||= fetch("/api/inquiries/options").then(r => { if (!r.ok) throw Error(); return r.json(); }).catch(error => { optionsRequest=null; throw error; });
   }
-  function countryList({ countries, featuredCountry }) {
-    const display = new Intl.DisplayNames([lang()], { type: "region" });
-    const label = c => display.of(c.country) + " (" + c.prefix + ")";
-    const preferred = [...new Set(["MX", "US", "CA", featuredCountry])];
-    const byId = new Map(countries.map(c => [c.country, c]));
-    const group = (name, list) => '<optgroup label="' + name + '">' + list.map(c => option(c.country, label(c))).join("") + '</optgroup>';
-    return group(tr("Más utilizados", "Frequently used"), preferred.map(id => byId.get(id)).filter(Boolean))
-      + group(tr("Otros países", "Other countries"), countries.filter(c => !preferred.includes(c.country)).sort((a,b) => label(a).localeCompare(label(b), lang())));
+  function countryList({countries,featuredCountry}) {
+    const names = new Intl.DisplayNames([lang()],{type:"region"}), label = c => names.of(c.country) + " (" + c.prefix + ")";
+    const preferred = [...new Set(["MX","US","CA",featuredCountry])];
+    const group = (title,list) => '<optgroup label="' + title + '">' + list.map(c => option(c.country,label(c))).join("") + '</optgroup>';
+    return group(tr("Más utilizados","Frequently used"),preferred.map(id=>countries.find(c=>c.country===id)).filter(Boolean))
+      + group(tr("Otros países","Other countries"),countries.filter(c=>!preferred.includes(c.country)).sort((a,b)=>label(a).localeCompare(label(b),lang())));
   }
-  function row(label, name, control = "") {
-    return '<label data-field="' + name + '"><span>' + escape(label) + '</span>' + (control || '<input name="' + name + '" maxlength="160">') + '</label>';
+  function contactControls() {
+    return row(tr("¿Cómo prefieres que te respondamos?","How would you like us to reply?"),"contactChannel",'<select name="contactChannel" required>' + option("whatsapp","WhatsApp") + option("email",tr("Correo electrónico","Email")) + '</select>')
+      + '<div data-phone-fields>' + row(tr("País del teléfono","Phone number country"),"country",'<select name="country"><option value="MX">' + tr("México (+52)","Mexico (+52)") + '</option></select>')
+      + row(tr("Tu número de WhatsApp","Your WhatsApp number"),"phone",'<input type="tel" name="phone" autocomplete="tel" maxlength="40" inputmode="tel">') + '</div>'
+      + '<div data-email-field hidden>' + row(tr("Tu correo electrónico","Your email"),"email",'<input type="email" name="email" autocomplete="email" maxlength="254" inputmode="email">') + '</div>';
   }
-  function updateQuestions() {
-    const e = form.elements, owner = ["sell", "let"].includes(e.intent.value), land = e.propertyType.value === "Terreno";
-    const label = (name, value) => { form.querySelector('[data-field="' + name + '"] span').textContent = value; };
-    label("zone", owner ? tr("Ubicación de tu propiedad", "Where your property is located") : tr("Zona de interés", "Preferred zone"));
-    const rentalBudget = { month: tr("Presupuesto mensual de renta", "Monthly rental budget"), day: tr("Presupuesto diario de renta", "Daily rental budget"), year: tr("Presupuesto anual de renta", "Yearly rental budget") };
-    label("budget", e.intent.value === "rent" ? rentalBudget[e.rentPeriod?.value] || tr("Presupuesto de renta", "Rental budget") : tr("Presupuesto aproximado", "Approximate budget"));
-    form.querySelector("[data-inquiry-budget]").hidden = owner;
-    e.budget.disabled = owner;
-    e.currency.disabled = false;
-    form.querySelector('[data-field="area"]').hidden = !owner;
-    form.querySelector('[data-field="features"]').hidden = !owner;
-    label("area", land ? tr("Superficie aproximada del terreno (m²)", "Approximate land area (m²)") : tr("Superficie aproximada (m²)", "Approximate floor area (m²)"));
-    label("features", land ? tr("Uso de suelo o servicios que conoces", "Known land use or utilities") : tr("Características que conoces", "Known property features"));
-    e.preferences.placeholder = land ? tr("Por ejemplo, uso previsto, acceso o servicios.", "For example, intended use, road access or utilities.") : tr("Por ejemplo, mascotas, escuelas, tranquilidad o accesibilidad.", "For example, pets, schools, a quiet area or accessibility.");
-    if (form.querySelector('[data-owner-price]')) {
-      form.querySelector('[data-owner-price]').hidden = !owner;
-      e.askingPrice.disabled = !owner;
-      e.ownerCurrency.disabled = !owner;
-      form.querySelector('[data-rent-period]').hidden = !["rent", "let"].includes(e.intent.value);
-      e.rentPeriod.disabled = !["rent", "let"].includes(e.intent.value);
-    }
-  }
-  function locationChanged() {
-    const normalize = value => String(value || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toLowerCase();
-    return ["zone", "subzone", "development"].some(k => current[k] && normalize(current[k]) !== normalize(form.elements[k].value));
-  }
-  function reviewOrigin() {
-    form.querySelector("[data-review-origin]").hidden = !(current.project || current.propertyId || current.propertyTitle) || !locationChanged();
-  }
-  function step(n) {
-    form.querySelectorAll("[data-inquiry-step]").forEach(el => { el.hidden = Number(el.dataset.inquiryStep) !== n; });
-    dialog.querySelector(".inquiry-scroll").scrollTop = 0;
-    form.querySelector('[data-inquiry-step="' + n + '"] h3')?.focus();
+  function updateChannel(form) {
+    const email = form.elements.contactChannel.value === "email";
+    form.querySelector("[data-phone-fields]").hidden = email;
+    form.querySelector("[data-email-field]").hidden = !email;
+    for (const name of ["phone","country"]) { form.elements[name].disabled=email; form.elements[name].required=!email; }
+    form.elements.email.disabled=!email; form.elements.email.required=email;
   }
   async function open(values = {}, trigger) {
     if (dialog?.open) return;
+    const generation=++openGeneration;
     opener = trigger || document.activeElement;
-    const returnKey = JSON.stringify(fields.map(k => values[k] || ""));
-    const existing = draft.get(returnKey);
-    current = { ...values, sourcePath: values.sourcePath || location.pathname + location.search };
-    started = Date.now();
-    saved = null;
-    draftId = existing?.id || crypto.randomUUID();
     if (!dialog) {
-      dialog = document.createElement("dialog");
-      dialog.className = "contextual-inquiry"; dialog.setAttribute("aria-labelledby", "inquiryTitle");
+      dialog=document.createElement("dialog"); dialog.className="contextual-inquiry"; dialog.setAttribute("aria-labelledby","inquiryTitle");
       document.body.append(dialog);
-      dialog.addEventListener("close", () => { opener?.focus?.({ preventScroll: true }); });
+      dialog.addEventListener("close",()=>opener?.focus?.({preventScroll:true}));
     }
-    const replay = { ...identity(), ...values, ...(existing?.values || {}) };
-    const typeOptions = [...new Set([...(window.PccInventory?.TYPES || Object.keys(typeLabels)), replay.propertyType].filter(Boolean))];
-    const officeLabel = values.office === "us" ? tr("Estados Unidos", "United States") : values.office === "mx" ? tr("México", "Mexico") : "";
-    dialog.innerHTML = '<header><h2 id="inquiryTitle">' + (officeLabel ? "WhatsApp " + officeLabel : tr("Hablar con un asesor", "Talk to an advisor")) + '</h2><button type="button" data-inquiry-close aria-label="' + tr("Cerrar", "Close") + '">×</button></header><div class="inquiry-scroll"><form>'
-      + '<section data-inquiry-step="1"><h3 tabindex="-1">' + tr("¿Qué necesitas?", "How can we help?") + '</h3>'
-      + (values.project || values.propertyTitle || values.mls ? '<p class="inquiry-context">' + [...new Set([values.project, values.propertyTitle, values.mls ? "MLS " + values.mls : ""].filter(Boolean))].map(escape).join(" · ") + '</p>' : "")
-      + row(tr("Quiero", "I want to"), "intent", '<select name="intent" required>' + option("", tr("Elige una opción", "Choose an option")) + Object.entries(intents).map(([k,v]) => option(k, tr(...v))).join("") + '</select>')
-      + row(tr("Tipo de propiedad", "Property type"), "propertyType", '<select name="propertyType">' + option("", tr("No estoy seguro", "I'm not sure")) + typeOptions.map(t => option(t, lang() === "en" ? typeLabels[t] || t : t)).join("") + '</select>')
-      + row("", "zone")
-      + '<details' + (replay.subzone || replay.development ? " open" : "") + '><summary>' + tr("Subzona o desarrollo (opcional)", "Subzone or development (optional)") + '</summary>' + row(tr("Subzona o corredor", "Subzone or corridor"), "subzone") + row(tr("Desarrollo", "Development"), "development") + '</details>'
-      + '<label class="inquiry-consent" data-review-origin hidden><input name="keepOrigin" type="checkbox"><span>' + tr("También me sigue interesando", "I am also still interested in") + ' ' + escape(current.project || current.propertyTitle || current.development) + '</span></label>'
-      + '<div class="inquiry-budget" data-inquiry-budget>' + row("", "budget", '<input name="budget" type="number" step="any" min="0.01" max="10000000000000" inputmode="decimal" placeholder="' + tr("Aún sin definir", "Not decided yet") + '">') + row(tr("Moneda", "Currency"), "currency", '<select name="currency">' + option("", tr("Elegir", "Choose")) + option("USD", "USD") + option("MXN", "MXN") + '</select>') + '</div>'
-      + row("", "area", '<input name="area" maxlength="100" placeholder="' + tr("No estoy seguro", "I'm not sure") + '">')
-      + row("", "features", '<input name="features" maxlength="400">')
-      + row(tr("¿Qué más te gustaría que tomemos en cuenta?", "What else should we keep in mind?"), "preferences", '<textarea name="preferences" rows="2" maxlength="1200"></textarea>')
-      + '<button type="button" class="primary-button" data-inquiry-next>' + tr("Continuar", "Continue") + '</button></section>'
-      + '<section data-inquiry-step="2" hidden><h3 tabindex="-1">' + tr("¿Cómo te contactamos?", "How can we reach you?") + '</h3>'
-      + row(tr("País de tu teléfono", "Phone number country"), "country", '<select name="country" required>' + option("MX", tr("México (+52)", "Mexico (+52)")) + '</select>')
-      + row(tr("Teléfono", "Phone number"), "phone", '<input type="tel" name="phone" autocomplete="tel" maxlength="40" required>')
-      + row(tr("Nombre (opcional)", "Name (optional)"), "name", '<input name="name" autocomplete="given-name" maxlength="110">')
-      + '<label class="inquiry-consent"><input type="checkbox" name="consent" required><span>' + tr("Acepto que un asesor me contacte según el", "I agree to be contacted under the") + ' <a target="_blank" rel="noopener" href="' + tr("/aviso-de-privacidad", "/en/privacy-notice") + '">' + tr("aviso de privacidad", "privacy notice") + '</a>.</span></label>'
-      + '<label class="form-honeypot" aria-hidden="true"><input name="website" tabindex="-1" autocomplete="off"></label>'
-      + '<div class="inquiry-buttons"><button type="button" class="ghost-button" data-inquiry-back>' + tr("Volver", "Back") + '</button><button type="submit" class="primary-button">' + tr("Guardar solicitud", "Save inquiry") + '</button></div></section>'
-      + '<section data-inquiry-step="3" hidden><h3 tabindex="-1">' + tr("Solicitud guardada", "Inquiry saved") + '</h3><p>' + tr("Ya tenemos tu solicitud. Puedes revisar el mensaje preparado en WhatsApp y enviarlo si lo deseas.", "We have your inquiry. You can review the prepared WhatsApp message and send it if you wish.") + '</p><a class="primary-button" data-inquiry-whatsapp target="_blank" rel="noopener noreferrer">' + tr("Abrir WhatsApp", "Open WhatsApp") + '</a></section>'
-      + '<p class="inquiry-status" role="status" aria-live="polite"></p></form></div>';
-    form = dialog.querySelector("form");
-    const extra = document.createElement("div");
-    extra.className = "inquiry-extra";
-    extra.innerHTML = '<div data-owner-price hidden>' + row(tr("Precio que tienes en mente (opcional)", "Your asking price (optional)"), "askingPrice", '<input name="askingPrice" type="number" min="0.01" max="10000000000000" step="any" inputmode="decimal">') + row(tr("Moneda del precio", "Price currency"), "ownerCurrency", '<select name="ownerCurrency">' + option("", tr("Elegir", "Choose")) + option("USD", "USD") + option("MXN", "MXN") + '</select>') + '</div>'
-      + '<div data-rent-period hidden>' + row(tr("Periodo de renta", "Rental period"), "rentPeriod", '<select name="rentPeriod">' + option("", tr("Por definir", "Not decided")) + option("month", tr("Mensual", "Monthly")) + option("day", tr("Diaria", "Daily")) + option("year", tr("Anual", "Yearly")) + '</select>') + '</div>';
-    if (values.propertyId && values.service !== "search-watch") extra.innerHTML += '<label class="inquiry-consent"><input type="checkbox" name="requestVisit"' + (values.service === "visit" ? ' checked' : '') + '><span>' + tr("Quiero solicitar una visita", "I would like to request a visit") + '</span></label><div data-visit-preference' + (values.service === "visit" ? '' : ' hidden') + '>' + row(tr("Fecha y hora preferidas (hora de Cancún)", "Preferred date and time (Cancun time)"), "visitPreferredAt", '<input name="visitPreferredAt" type="datetime-local">') + '<p>' + tr("El equipo confirmará la disponibilidad y el horario. Esta solicitud no confirma la visita.", "Our team will confirm availability and the time. This request does not confirm a visit.") + '</p></div>';
-    form.querySelector('[data-inquiry-next]').before(extra);
-    if (values.service === "search-watch") {
-      form.querySelector('[data-inquiry-step="1"] h3').textContent = tr("Guardar esta búsqueda", "Save this search");
-      for (const name of ["intent","propertyType","zone","subzone","development","budget","currency","area","features"]) {
-        const field = form.querySelector('[data-field="' + name + '"]'); if (field) field.hidden = true;
-      }
-      extra.innerHTML = '<p>' + tr("Guardaremos los filtros exactos que seleccionaste. Puedes añadir preferencias para que un asesor las confirme.", "We will save the exact filters you selected. You can add preferences for an advisor to confirm.") + '</p>';
-      const alerts = document.createElement("div"); alerts.className = "inquiry-alerts";
-      alerts.innerHTML = row(tr("Avisos de nuevas coincidencias", "New match alerts"), "alertChannel", '<select name="alertChannel">' + option("", tr("Guardar para revisión del asesor", "Save for advisor review")) + '</select>') + '<p data-alert-channel-status role="status">' + tr("Comprobando canales disponibles…", "Checking available channels…") + '</p>' + '<div data-alert-email hidden>' + row(tr("Correo para los avisos", "Email for alerts"), "alertEmail", '<input type="email" name="alertEmail" maxlength="254" autocomplete="email">') + '</div><label class="inquiry-consent" data-alert-consent hidden><input type="checkbox" name="alertConsent"><span>' + tr("Autorizo recibir avisos de nuevas coincidencias por el canal seleccionado. Podré cancelarlos desde cada aviso.", "I agree to receive new match alerts through the selected channel. I can unsubscribe from each alert.") + '</span></label>';
-      form.querySelector('[data-inquiry-step="2"] .inquiry-buttons').before(alerts);
-    }
-    const openedForm = form;
-    for (const [k,v] of Object.entries(replay)) {
-      const control = form.elements[k];
-      if (!control || ["country", "consent", "alertConsent"].includes(k)) continue;
-      if (control.type === "checkbox") control.checked = v === true || v === "on";
-      else control.value = v;
-    }
-    const updateExtraQuestions = () => {
-      if (form.elements.requestVisit) {
-        form.querySelector('[data-visit-preference]').hidden = !form.elements.requestVisit.checked;
-        form.elements.visitPreferredAt.required = form.elements.requestVisit.checked;
-      }
-      if (form.elements.alertChannel) {
-        form.querySelector('[data-alert-email]').hidden = form.elements.alertChannel.value !== "email";
-        form.elements.alertEmail.required = form.elements.alertChannel.value === "email";
-        form.querySelector('[data-alert-consent]').hidden = !form.elements.alertChannel.value;
-        form.elements.alertConsent.required = Boolean(form.elements.alertChannel.value);
-      }
-    };
-    const rememberDraft = () => {
-      const values = Object.fromEntries(new FormData(form));
-      for (const name of ["requestVisit", "keepOrigin"]) if (form.elements[name]) values[name] = form.elements[name].checked;
-      draft.set(returnKey, { id: draftId, values });
-    };
-    updateExtraQuestions();
-    form.elements.zone.placeholder = tr("No estoy seguro", "I'm not sure");
-    updateQuestions();
-    reviewOrigin();
-    const notice = dialog.querySelector(".inquiry-status");
-    let previousIntent = form.elements.intent.value;
-    dialog.querySelector("[data-inquiry-close]").onclick = () => dialog.close();
-    dialog.querySelector("[data-inquiry-next]").onclick = () => {
-      for (const el of form.querySelectorAll('[data-inquiry-step="1"] input, [data-inquiry-step="1"] select, [data-inquiry-step="1"] textarea')) if (!el.disabled && el.offsetParent && !el.reportValidity()) return;
-      if (form.elements.requestVisit?.checked && !form.elements.visitPreferredAt.value) { form.elements.visitPreferredAt.required = true; form.elements.visitPreferredAt.reportValidity(); return; }
-      if (!form.querySelector("[data-inquiry-budget]").hidden && form.elements.budget.value && !form.elements.currency.value) {
-        form.elements.currency.setCustomValidity(tr("Selecciona la moneda.", "Choose a currency.")); form.elements.currency.reportValidity(); return;
-      }
-      if (!form.querySelector('[data-owner-price]')?.hidden && form.elements.askingPrice?.value && !form.elements.ownerCurrency.value) {
-        form.elements.ownerCurrency.setCustomValidity(tr("Selecciona la moneda del precio.", "Choose the price currency.")); form.elements.ownerCurrency.reportValidity(); return;
-      }
-      step(2);
-    };
-    dialog.querySelector("[data-inquiry-back]").onclick = () => step(1);
-    form.oninput = event => {
-      form.elements.currency.setCustomValidity("");
-      form.elements.phone.setCustomValidity("");
-      form.elements.ownerCurrency?.setCustomValidity("");
-      if (["name","country","phone"].includes(event.target.name)) remember();
-      rememberDraft();
-    };
-    form.onkeydown = event => {
-      if (event.key === "Enter" && event.target.tagName === "INPUT" && event.target.closest('[data-inquiry-step="1"]')) {
-        event.preventDefault(); form.querySelector("[data-inquiry-next]").click();
-      }
-    };
-    form.onchange = event => {
-      const changedOperation = event.target.name === "intent" && ["buy", "rent"].includes(previousIntent) && ["buy", "rent"].includes(event.target.value) && previousIntent !== event.target.value;
-      const changedRentalPeriod = event.target.name === "rentPeriod" && form.elements.intent.value === "rent";
-      if ((changedOperation || changedRentalPeriod) && form.elements.budget.value) {
-        form.elements.budget.value = "";
-        form.elements.currency.value = "";
-        notice.textContent = tr("Cambiaste la operación o el periodo. Indica de nuevo el presupuesto para esa búsqueda.", "You changed the operation or rental period. Enter the budget for this search again.");
-      }
-      if (event.target.name === "intent") previousIntent = event.target.value;
-      if (["intent", "propertyType", "rentPeriod"].includes(event.target.name)) updateQuestions();
-      if (event.target.name === "requestVisit") {
-        form.querySelector('[data-visit-preference]').hidden = !event.target.checked;
-        form.elements.visitPreferredAt.required = event.target.checked;
-      }
-      if (event.target.name === "alertChannel") {
-        form.querySelector('[data-alert-email]').hidden = event.target.value !== "email";
-        form.elements.alertEmail.required = event.target.value === "email";
-        form.querySelector('[data-alert-consent]').hidden = !event.target.value;
-        form.elements.alertConsent.required = Boolean(event.target.value);
-      }
-      if (["zone","subzone","development"].includes(event.target.name)) {
-        if (event.target.name === "zone" && locationChanged()) {
-          for (const child of ["subzone","development"]) if (form.elements[child].value === current[child]) form.elements[child].value = "";
-        }
-        form.elements.keepOrigin.checked = false;
-        reviewOrigin();
-        draft.set(returnKey, { id: draftId, values: Object.fromEntries(new FormData(form)) });
-      }
-      if (event.target.name === "country") remember();
-      rememberDraft();
-    };
-    form.onsubmit = async event => {
-      event.preventDefault();
-      if (!form.checkValidity()) { form.reportValidity(); return; }
-      const send = form.querySelector('[type="submit"]');
-      send.disabled = true; notice.textContent = tr("Guardando…", "Saving…");
-      try {
-        const body = { ...current, ...Object.fromEntries(new FormData(form)), lang: lang(), requestId: draftId, formStartedAt: started, consent: form.elements.consent.checked };
-        if (current.service === "search-watch") {
-          body.searchFilters = current.searchFilters;
-          body.alertConsent = form.elements.alertConsent.checked;
-        }
-        if (form.elements.requestVisit) {
-          if (form.elements.requestVisit.checked) body.service = "visit";
-          else { delete body.service; delete body.visitPreferredAt; }
-        }
-        if (locationChanged() && !form.elements.keepOrigin.checked) {
-          for (const [field, originField] of [["propertyId","viewedPropertyId"],["propertyTitle","viewedPropertyTitle"],["mls","viewedMls"],["project","viewedProject"],["reference","viewedReference"]]) {
-            if (current[field]) body[originField] = current[field];
-            delete body[field];
-          }
-          body.viewedZone = current.zone;
-          body.viewedDevelopment = current.development;
-          delete body.developmentId;
-        }
-        delete body.keepOrigin;
-        if (!["rent", "let"].includes(body.intent)) delete body.rentPeriod;
-        if (["sell","let"].includes(body.intent)) { delete body.budget; body.currency = body.ownerCurrency || ""; }
-        else { delete body.area; delete body.features; }
-        const result = await window.PccInquiryRequest("/api/inquiries", body);
-        if (!result?.whatsappUrl) throw Error(tr("No se pudo preparar el mensaje.", "The message could not be prepared."));
-        draft.delete(returnKey);
-        if (form !== openedForm || !dialog.open) return;
-        saved = result;
-        const successText = form.querySelector('[data-inquiry-step="3"] p');
-        if (result.visitStatus === "requested") successText.textContent = tr("Visita solicitada. El equipo te contactará para confirmar el horario. Tu visita todavía no está confirmada.", "Visit requested. Our team will contact you to confirm the time. Your visit is not yet confirmed.");
-        if (result.searchWatchStatus) successText.textContent = result.searchWatchStatus === "active" ? tr("Búsqueda guardada y avisos activados para nuevas coincidencias.", "Search saved and alerts enabled for new matches.") : result.searchWatchStatus === "needs_review" ? tr("Búsqueda guardada. Un asesor revisará tus preferencias antes de considerar una opción compatible. Los avisos automáticos están pendientes de esa revisión.", "Search saved. An advisor will review your preferences before considering a match. Automatic alerts are pending that review.") : tr("Búsqueda guardada para el equipo. Los avisos automáticos no están activados; puedes continuar la consulta en WhatsApp.", "Search saved for our team. Automatic alerts are not enabled; you can continue on WhatsApp.");
-        const link = form.querySelector("[data-inquiry-whatsapp]");
-        link.href = saved.whatsappUrl;
-        link.onclick = () => { window.PccInquiryRequest("/api/inquiries/" + encodeURIComponent(saved.id) + "/whatsapp-click", { token: saved.clickToken }).catch(() => {}); };
-        notice.textContent = ""; step(3);
-      } catch (err) {
-        notice.textContent = err.status === 429 ? tr("Espera unos minutos antes de volver a enviar.", "Wait a few minutes before sending again.")
-          : err.status === 403 ? tr("La sesión venció. Vuelve a intentarlo.", "Your session expired. Try again.")
-          : !err.status || err.status >= 500 ? tr("No recibimos confirmación. Tus respuestas siguen aquí para reintentar.", "We could not confirm your request. Your answers are here so you can try again.")
-          : err.message;
-      }
-      finally { send.disabled = false; }
-    };
+    const returnKey=JSON.stringify(fields.map(k=>values[k] || ""));
+    const previous=drafts.get(returnKey), requestId=previous?.id || crypto.randomUUID(), started=previous?.started || Date.now();
+    let budgetEdited=Boolean(previous?.budgetEdited);
+    dialog.innerHTML='<header><h2 id="inquiryTitle">' + tr("Pedir información","Request information") + '</h2><button type="button" data-inquiry-close aria-label="' + tr("Cerrar","Close") + '">×</button></header><div class="inquiry-scroll"><p role="status">' + tr("Preparando tu consulta…","Preparing your inquiry…") + '</p></div>';
+    dialog.querySelector("[data-inquiry-close]").onclick=()=>dialog.close();
     dialog.showModal();
-    step(1);
+    let opts, context;
     try {
-      const opts = await getOptions();
-      if (!dialog.open || form !== openedForm) return;
-      form.elements.country.innerHTML = countryList(opts);
-      form.elements.country.value = opts.countries.some(c => c.country === replay.country) ? replay.country : "MX";
-      if (current.service === "search-watch") {
-        const available = opts.channels || {};
-        for (const channel of ["whatsapp","email"]) if (available[channel]) form.elements.alertChannel.add(new Option(channel === "email" ? tr("Correo electrónico", "Email") : "WhatsApp", channel));
-        if (available[replay.alertChannel]) form.elements.alertChannel.value = replay.alertChannel;
-        updateExtraQuestions();
-        form.querySelector('[data-alert-channel-status]').textContent = Object.values(available).some(Boolean) ? tr("Solo aparecen canales conectados. Las preferencias adicionales requieren revisión del asesor.", "Only connected channels are shown. Additional preferences require advisor review.") : tr("No hay un canal de avisos automáticos configurado. Puedes guardar la búsqueda para que el equipo la revise.", "No automatic alert channel is configured. You can save the search for our team to review.");
+      const params=new URLSearchParams({lang:lang()});
+      for (const name of ["propertyId","developmentId","reference","project","development","intent","origin","service"]) if(values[name]) params.set(name,values[name]);
+      if(values.searchFilters) params.set("searchFilters",JSON.stringify(values.searchFilters));
+      [opts,context]=await Promise.all([getOptions(),fetch("/api/inquiries/context?"+params).then(async r=>{const result=await r.json();if(!r.ok)throw Error(result.error || tr("No pudimos identificar la publicación.","We could not identify the listing."));return result;})]);
+    } catch(error) {
+      if(dialog.open&&generation===openGeneration) {
+        const holder=dialog.querySelector(".inquiry-scroll"); holder.innerHTML='<p role="alert">'+escape(error.message || tr("No se pudo cargar el formulario.","The form could not be loaded."))+'</p><button class="primary-button" data-retry>'+tr("Reintentar","Retry")+'</button>';
+        holder.querySelector("button").onclick=()=>{dialog.close();void open(values,trigger);};
       }
-    } catch {
-      notice.textContent = tr("No se pudo cargar la lista de países. Cierra el formulario y vuelve a abrirlo.", "Could not load the country list. Close the form and reopen it.");
+      return;
     }
+    if(!dialog.open||generation!==openGeneration) return;
+    const current={...values,...context,sourcePath:values.sourcePath || location.pathname+location.search};
+    // Legacy generated search descriptions are structured context, not the visitor's own note.
+    const replay={...identity(),...current,...previous?.values};
+    if(!previous) replay.preferences="";
+    // Search criteria keep their original currency until the visitor explicitly changes the budget.
+    if(current.searchFilters&&!budgetEdited) replay.budget="";
+    else if(!previous&&current.currency&&current.currency!=="USD") replay.budget="";
+    const known=context.entity!=="general", watch=values.service==="search-watch", visit=values.service==="visit";
+    const fixed=context.fixedIntent || (context.allowedIntents.includes(values.intent) ? values.intent : "");
+    const title=visit ? tr("Solicitar visita","Request a visit") : watch ? tr("Guardar esta búsqueda","Save this search") : context.project ? tr("Pedir información de preventa","Request presale information") : tr("Pedir información","Request information");
+    dialog.querySelector("#inquiryTitle").textContent=title;
+    const summary=[context.propertyTitle,context.development || values.project,context.mls?"MLS "+context.mls:"",context.zone || values.zone,context.subzone || values.subzone].filter((v,i,a)=>v&&a.indexOf(v)===i);
+    const owner=["sell","let"].includes(fixed);
+    const typeSelect='<select name="propertyType">' + option("",tr("Por definir","Not decided")) + Object.entries(types).map(([es,en])=>option(es,tr(es,en))).join("") + '</select>';
+    const contextFields = !known && !watch || owner
+      ? row(tr("Tipo de propiedad","Property type"),"propertyType",typeSelect) + (owner&&context.zone ? "" : row(owner?tr("Zona aproximada","Approximate zone"):tr("Zona o destino (opcional)","Zone or destination (optional)"),"zone"))
+      : "";
+    const budget = row(tr("Presupuesto USD (opcional)","Budget USD (optional)"),"budget",'<input name="budget" type="number" min="0.01" max="10000000000000" step="any" inputmode="decimal">');
+    const optional = '<details class="inquiry-optional"><summary>'+tr("Añadir detalles (opcional)","Add details (optional)")+'</summary><div class="inquiry-optional-body">'
+      + row(tr("Nombre (opcional)","Name (optional)"),"name",'<input name="name" maxlength="110" autocomplete="given-name">')
+      + (!owner && !watch && (!known || context.project) ? budget : "")
+      + (owner || !known && !watch ? row(tr("Superficie de terreno (m², opcional)","Lot size (m², optional)"),"area",'<input name="area" type="number" min="0" step="any" inputmode="decimal">') + row(tr("Uso previsto o características (opcional)","Intended use or features (optional)"),"features") : "")
+      + (fixed==="rent"?row(tr("Mudanza estimada (opcional)","Estimated move date (optional)"),"moveDate",'<input name="moveDate" type="date">'):"")
+      + row(tr("Comentario (opcional)","Note (optional)"),"preferences",'<textarea name="preferences" rows="2" maxlength="1200"></textarea>')+'</div></details>';
+    dialog.querySelector(".inquiry-scroll").innerHTML='<form><section data-inquiry-fields>'
+      + (summary.length?'<p class="inquiry-context">'+summary.map(escape).join(" · ")+'</p>':"")
+      + (values.office?'<p class="inquiry-office">'+tr("Oficina: ","Office: ")+ (values.office==="us"?tr("Estados Unidos","United States"):tr("México","Mexico"))+'</p>':"")
+      + (fixed?hidden("intent",fixed)+'<p class="inquiry-intent">'+escape(tr(...intents[fixed]))+'</p>':row(tr("Quiero","I want to"),"intent",'<select name="intent" required>'+option("",tr("Elige una opción","Choose an option"))+context.allowedIntents.map(k=>option(k,tr(...intents[k]))).join("")+'</select>'))
+      + (owner?contextFields:contextFields?'<details class="inquiry-optional"><summary>'+tr("Zona y tipo (opcional)","Zone and type (optional)")+'</summary>'+contextFields+'</details>':"")
+      + contactControls()
+      + (visit?row(tr("Fecha y hora preferidas (opcional, hora de Cancún)","Preferred date and time (optional, Cancun time)"),"visitPreferredAt",'<input name="visitPreferredAt" type="datetime-local">')+'<p>'+tr("El equipo coordinará contigo la disponibilidad; aún no es una visita confirmada.","Our team will coordinate availability with you; this is not a confirmed appointment.")+'</p>':"")
+      + (watch?'<p>'+tr("Conservaremos los filtros exactos de esta búsqueda.","We will keep the exact filters of this search.")+'</p><p data-alert-status></p><label class="inquiry-consent" data-alert-option hidden><input name="alertConsent" type="checkbox"><span>'+tr("Quiero avisos de nuevas coincidencias por el canal elegido. Podré cancelarlos desde cada aviso.","Send new-match alerts through my chosen channel. I can unsubscribe from each alert.")+'</span></label>':"")
+      + optional
+      + '<label class="inquiry-consent"><input name="consent" type="checkbox" required><span>'+tr("Acepto que el equipo me contacte según el","I agree to be contacted under the")+' <a href="'+tr("/aviso-de-privacidad","/en/privacy-notice")+'" target="_blank" rel="noopener">'+tr("aviso de privacidad","privacy notice")+'</a>.</span></label>'
+      + '<label class="form-honeypot" aria-hidden="true"><input name="website" tabindex="-1" autocomplete="off"></label>'
+      + '<button class="primary-button" type="submit">'+tr("Enviar solicitud","Send inquiry")+'</button></section><section data-inquiry-success hidden tabindex="-1"><h3>'+tr("Solicitud recibida","Inquiry received")+'</h3><p data-success-message></p><a class="primary-button" data-inquiry-whatsapp target="_blank" rel="noopener noreferrer" hidden>'+tr("Abrir WhatsApp (opcional)","Open WhatsApp (optional)")+'</a><button type="button" class="ghost-button" data-inquiry-done>'+tr("Volver a la página","Return to the page")+'</button></section><p class="inquiry-status" role="status" aria-live="polite"></p></form>';
+    const form=dialog.querySelector("form"), notice=form.querySelector(".inquiry-status");
+    form.elements.country.innerHTML=countryList(opts);
+    for(const [name,value] of Object.entries(replay)) {
+      const field=form.elements[name]; if(!field || ["intent","consent","alertConsent"].includes(name))continue;
+      if(field.type==="checkbox") field.checked=Boolean(value); else field.value=value;
+    }
+    form.elements.country.value=opts.countries.some(c=>c.country===replay.country)?replay.country:"MX";
+    if(!["email","whatsapp"].includes(form.elements.contactChannel.value))form.elements.contactChannel.value="whatsapp";
+    if(!fixed&&replay.intent&&context.allowedIntents.includes(replay.intent))form.elements.intent.value=replay.intent;
+    const update=()=>{
+      updateChannel(form);
+      const isOwner=["sell","let"].includes(form.elements.intent.value);
+      if(form.elements.propertyType) form.elements.propertyType.required=isOwner;
+      if(form.elements.zone) form.elements.zone.required=isOwner;
+      if(isOwner) { const details=form.elements.zone?.closest("details");if(details)details.open=true; }
+      if(watch) {
+        const enabled=Boolean(opts.channels?.[form.elements.contactChannel.value]);
+        form.querySelector("[data-alert-option]").hidden=!enabled; form.elements.alertConsent.disabled=!enabled;
+        form.querySelector("[data-alert-status]").textContent=enabled?tr("Puedes activar avisos automáticos. Si añades preferencias, el equipo las revisará antes de activar coincidencias.","You can enable automatic alerts. If you add preferences, our team will review them before activating matches."):tr("El equipo dará seguimiento por el canal elegido. Los avisos automáticos no están disponibles por este canal.","Our team will follow up through your chosen channel. Automatic alerts are not available through this channel.");
+      }
+    };
+    const remember=event=>{
+      if(event?.target?.name==="budget")budgetEdited=true;
+      const data=Object.fromEntries(new FormData(form)); data.consent=form.elements.consent.checked;
+      drafts.set(returnKey,{id:requestId,started,values:data,budgetEdited});
+      try { sessionStorage.setItem(key,JSON.stringify(Object.fromEntries(["name","country","phone","email","contactChannel"].map(k=>[k,form.elements[k]?.value || ""])))); } catch {}
+    };
+    update(); form.onchange=event=>{update();remember(event);};form.oninput=remember;
+    form.querySelector("[data-inquiry-done]").onclick=()=>dialog.close();
+    form.onsubmit=async event=>{
+      event.preventDefault();if(!form.reportValidity())return;
+      const button=form.querySelector('[type="submit"]');button.disabled=true;notice.textContent=tr("Enviando…","Sending…");
+      const entered=Object.fromEntries(new FormData(form));
+      const body={...current,...entered,intent:fixed || entered.intent,lang:lang(),requestId,formStartedAt:started,consent:form.elements.consent.checked,currency:"USD",priceMode:"public-usd"};
+      delete body.allowedIntents;delete body.fixedIntent;delete body.entity;delete body.address;
+      // Known IDs and context cannot be reassigned by editing optional fields.
+      if(known&&!owner)for(const name of ["propertyId","propertyTitle","mls","developmentId","development","reference","zone","subzone","propertyType","project","rentPeriod"]) body[name]=context[name] || "";
+      if(body.contactChannel==="email"){delete body.phone;delete body.country;}else delete body.email;
+      if(!form.elements.budget||(!budgetEdited&&current.searchFilters))delete body.budget;
+      if(watch){body.searchFilters=values.searchFilters;body.alertChannel=form.elements.alertConsent.checked&&!form.elements.alertConsent.disabled?body.contactChannel:"";body.alertConsent=Boolean(body.alertChannel);body.alertEmail=body.email || "";}
+      try {
+        const result=await window.PccInquiryRequest("/api/inquiries",body);
+        if(!result?.id)throw Error(tr("Falta la confirmación del servidor.","Server confirmation is missing."));
+        drafts.delete(returnKey);
+        if(!form.isConnected)return;
+        form.querySelector("[data-inquiry-fields]").hidden=true;
+        const success=form.querySelector("[data-inquiry-success]");success.hidden=false;
+        const message=result.visitStatus==="requested"?tr("Recibimos tu solicitud de visita. El equipo te responderá por el canal que elegiste para coordinarla.","We received your visit request. Our team will reply through your chosen channel to coordinate it."):result.searchWatchStatus==="active"?tr("Búsqueda guardada y avisos activados para nuevas coincidencias.","Search saved and new-match alerts enabled."):result.searchWatchStatus?tr("Búsqueda guardada para seguimiento del equipo. Los avisos automáticos todavía no están activos.","Search saved for our team to follow up. Automatic alerts are not active yet."):tr("El equipo recibió tu solicitud y te responderá por el canal que elegiste.","Our team received your inquiry and will reply through your chosen channel.");
+        form.querySelector("[data-success-message]").textContent=message+" "+tr("Referencia: ","Reference: ")+result.id;
+        if(result.whatsappUrl){const link=form.querySelector("[data-inquiry-whatsapp]");link.hidden=false;link.href=result.whatsappUrl;link.onclick=()=>{window.PccInquiryRequest("/api/inquiries/"+encodeURIComponent(result.id)+"/whatsapp-click",{token:result.clickToken}).catch(()=>{});};}
+        notice.textContent="";success.focus();dialog.querySelector(".inquiry-scroll").scrollTop=0;
+      } catch(error) {
+        notice.textContent=error.status===429?tr("Espera unos minutos y vuelve a intentarlo. Tus datos siguen aquí.","Wait a few minutes and retry. Your details are still here."):!error.status||error.status>=500?tr("No recibimos confirmación. Tus datos siguen aquí; puedes reintentar sin duplicar la solicitud.","We could not confirm your request. Your details are still here; you can retry without duplicating the inquiry."):error.message;
+      } finally {button.disabled=false;}
+    };
+    form.querySelector('[name="contactChannel"]').focus({preventScroll:true});
   }
   function readValues(node) {
-    const url = new URL(node?.getAttribute("href") || location.href, location.href);
-    const values = {};
-    for (const field of fields) {
-      const value = node?.dataset?.[field] || url.searchParams.get(field);
-      if (value) {
-        if (field === "searchFilters") { try { values[field] = JSON.parse(value); } catch {} }
-        else values[field] = value;
-      }
-    }
+    const url=new URL(node?.getAttribute("href") || location.href,location.href), values={};
+    for(const field of fields){const value=node?.dataset?.[field] || url.searchParams.get(field);if(value){if(field==="searchFilters"){try{values[field]=JSON.parse(value);}catch{}}else values[field]=value;}}
     values.reference ||= node?.dataset?.projectReference || url.searchParams.get("projectReference") || "";
-    if (node && (!values.sourcePath || values.sourcePath === location.pathname)) values.sourcePath = location.pathname + location.search;
+    if(node&&(!values.sourcePath||values.sourcePath===location.pathname))values.sourcePath=location.pathname+location.search;
     return values;
   }
   async function populatePhone(target) {
-    const country = target?.querySelector("[data-inquiry-country]");
-    if (!country) return;
-    const stored = identity();
-    if (target.elements.phone && !target.elements.phone.value) target.elements.phone.value = stored.phone || "";
-    if (target.elements.name && !target.elements.name.value) target.elements.name.value = stored.name || "";
-    try {
-      const options = await getOptions();
-      const selected = country.dataset.edited ? country.value : stored.country || "MX";
-      country.innerHTML = countryList(options);
-      country.value = options.countries.some(c => c.country === selected) ? selected : "MX";
-    } catch { country.title = tr("No se pudo cargar la lista de países. Vuelve a intentarlo.", "The country list could not be loaded. Try again."); }
+    const country=target?.querySelector("[data-inquiry-country]");if(!country)return;
+    const stored=identity();
+    for(const name of ["phone","name","email"])if(target.elements[name]&&!target.elements[name].value)target.elements[name].value=stored[name] || "";
+    try{const options=await getOptions(),selected=country.dataset.edited?country.value:stored.country || "MX";country.innerHTML=countryList(options);country.value=options.countries.some(c=>c.country===selected)?selected:"MX";}catch{country.title=tr("No se pudo cargar la lista de países.","The country list could not be loaded.");}
   }
-  function offerAction(message, action) {
-    if (!action?.whatsappUrl) return;
-    const link = document.createElement("a");
-    link.href = action.whatsappUrl; link.target = "_blank"; link.rel = "noopener noreferrer";
-    link.className = "primary-button inquiry-saved-link";
-    link.textContent = tr("Revisar mensaje en WhatsApp", "Review message in WhatsApp");
-    link.onclick = () => { window.PccInquiryRequest("/api/inquiries/" + encodeURIComponent(action.id) + "/whatsapp-click", { token: action.clickToken }).catch(() => {}); };
+  function offerAction(message,action) {
+    if(!action?.whatsappUrl)return;
+    const link=document.createElement("a");link.href=action.whatsappUrl;link.target="_blank";link.rel="noopener noreferrer";link.className="primary-button inquiry-saved-link";link.textContent=tr("Abrir WhatsApp (opcional)","Open WhatsApp (optional)");
+    link.onclick=()=>{window.PccInquiryRequest("/api/inquiries/"+encodeURIComponent(action.id)+"/whatsapp-click",{token:action.clickToken}).catch(()=>{});};
     message.append(document.createElement("br"),link);
   }
-  document.addEventListener("input", event => {
-    const holder = event.target.form;
-    if (!holder?.querySelector("[data-inquiry-country]") || !["country","phone","name"].includes(event.target.name)) return;
-    if (event.target.name === "country") event.target.dataset.edited = "true";
-    try { sessionStorage.setItem(key, JSON.stringify({ ...identity(), country: holder.elements.country.value, phone: holder.elements.phone.value, ...(holder.elements.name && { name: holder.elements.name.value }) })); } catch {}
+  document.addEventListener("input",event=>{
+    const holder=event.target.form;if(!holder?.querySelector("[data-inquiry-country]")||!["country","phone","name"].includes(event.target.name))return;
+    if(event.target.name==="country")event.target.dataset.edited="true";
   });
-  for (const country of document.querySelectorAll("[data-inquiry-country]")) {
-    if (!country.closest("#guestSaleModal[hidden]")) void populatePhone(country.form);
-  }
-  window.PccInquiry = { open, populatePhone, offerAction };
-  document.addEventListener("click", event => {
-    const trigger = event.target.closest("[data-contact-inquiry]");
-    if (!trigger || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
-    event.preventDefault(); event.stopPropagation();
-    void open(readValues(trigger), trigger);
-  }, true);
-  if (/^\/(?:contacto|en\/contact)\/?$/.test(location.pathname) && (new URLSearchParams(location.search).has("intent") || new URLSearchParams(location.search).has("inquiry"))) {
-    void open(readValues(null), null);
-  }
+  for(const country of document.querySelectorAll("[data-inquiry-country]"))if(!country.closest("#guestSaleModal[hidden]"))void populatePhone(country.form);
+  window.PccInquiry={open,populatePhone,offerAction,updateChannel};
+  document.addEventListener("click",event=>{
+    const trigger=event.target.closest("[data-contact-inquiry]");if(!trigger||event.metaKey||event.ctrlKey||event.shiftKey||event.altKey)return;
+    event.preventDefault();event.stopPropagation();void open(readValues(trigger),trigger);
+  },true);
+  if(/^\/(?:contacto|en\/contact)\/?$/.test(location.pathname)&&["intent","inquiry","propertyId","developmentId","project","reference"].some(k=>new URLSearchParams(location.search).has(k)))void open(readValues(null),null);
 })();

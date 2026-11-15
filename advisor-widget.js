@@ -1,5 +1,6 @@
 (() => {
   "use strict";
+  if (document.body.dataset.publicAdvisorEnabled !== "true") return;
   if (/^\/(?:panel|admin|seller)(?:\/|$)/.test(location.pathname) || document.body.dataset.page === "admin") return;
   const en = () => document.documentElement.lang.startsWith("en");
   const t = (es, english) => en() ? english : es;

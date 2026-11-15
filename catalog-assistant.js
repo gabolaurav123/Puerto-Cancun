@@ -30,6 +30,9 @@
     try {
       const catalogRoot = document.querySelector("[data-catalog-root]");
       const initial = catalogRoot ? window.PccInventory.parseQuery(new URLSearchParams(catalogRoot.getAttribute?.("data-catalog-query") || location.search)).query : {};
+      // New public budgets use USD. A previously saved currency/budget retains
+      // its original meaning until the visitor deliberately changes it.
+      if (!initial.priceMode && !initial.currency && initial.min == null && initial.max == null) initial.priceMode = "public-usd";
       // The existing endpoint forwards body.filters as parser context; keep its envelope intact.
       const filters = { ...(pending || { filters: initial }), language };
       const result = await window.api("/api/search/intelligent", { method: "POST", signal: request.signal,

@@ -8,6 +8,7 @@
   const instances = new WeakMap();
   const active = new Set();
   const loaders = new WeakMap();
+  const listingLocations = new WeakMap();
   const ASSETS = {
     css: "/assets/leaflet-1.9.4/leaflet.css",
     js: "/assets/leaflet-1.9.4/leaflet.js",
@@ -37,6 +38,12 @@
     .pcc-catalog-map-missing summary { cursor:pointer;min-height:44px; }
     .pcc-catalog-map-missing a { display:inline-block;padding:8px 0; }
     .pcc-catalog-map-mounted .map-highlight { outline:3px solid #ae8c42; }
+    .public-location-canvas { width:100%;max-width:100%;background:#eaf2f2;border:1px solid #cbdedf;border-radius:6px;overflow:hidden; }
+    .public-location-canvas.is-page-scroll { touch-action:pan-y pinch-zoom; }
+    .public-location-canvas .leaflet-control-zoom a { width:44px;height:44px;line-height:44px;font-size:24px; }
+    .public-location-canvas .leaflet-control-attribution { font-size:11px;line-height:1.4;max-width:100%; }
+    .public-location-canvas .pcc-location-point { width:24px;height:24px;border:3px solid #fff;border-radius:50%;background:#075562;box-shadow:0 1px 5px #0007; }
+    .public-location-status { margin:8px 0 0;line-height:1.5;overflow-wrap:anywhere; }
     @media(max-width:900px) {
       .pcc-catalog-map-mounted.catalog-map-open .catalog-results { display:flex;flex-direction:column;gap:16px; }
       .pcc-catalog-map-mounted.catalog-map-open [data-catalog-map] { order:0;min-width:0; }
@@ -87,6 +94,7 @@
       const precision = hidden ? "hidden" : !uncertain && (declared === "exact" && raw.approximate !== true || !declared && raw.approximate === false) ? "exact" : "approximate";
       const kind = ["development", "presale"].includes(raw.kind) ? raw.kind : "property";
       const item = { id, title: String(raw.title || raw.titleEs || raw.title_es || id), url: safeUrl(raw.url || raw.urlEs || "", base), precision, kind };
+      if (typeof raw.priceText === "string" && raw.priceText.trim()) item.priceText = raw.priceText.trim().slice(0, 300);
       const lat = number(raw.latitude), lng = number(raw.longitude);
       if (hidden) item.reason = "hidden";
       else if (lat === null || lng === null || Math.abs(lat) > 90 || Math.abs(lng) > 180) item.reason = "missing";
@@ -274,6 +282,7 @@
         for (const item of group) {
           const row = doc.createElement("li"); popup.append(row);
           const propertyLink = link(item, row); propertyLink.setAttribute("data-catalog-map-id", item.id);
+          if (item.priceText) { const price = doc.createElement("p"); price.className = "pcc-catalog-map-price"; price.textContent = item.priceText; row.append(price); }
           propertyLink.addEventListener("focus", () => highlight([item.id]));
           propertyLink.addEventListener("mouseenter", () => highlight([item.id]));
           propertyLink.addEventListener("mouseleave", clearHighlight);
@@ -404,11 +413,105 @@
     return controller;
   }
 
+  function mountListingLocationMaps(root, options = {}) {
+    if (!root?.querySelectorAll) return [];
+    const sections = [...(root.matches?.("[data-public-location]") ? [root] : []), ...root.querySelectorAll("[data-public-location]")];
+    return sections.filter(section => section.querySelector("[data-location-canvas]")).map(section => {
+      if (listingLocations.has(section)) return listingLocations.get(section);
+      const doc = section.ownerDocument, win = doc.defaultView;
+      const canvas = section.querySelector("[data-location-canvas]"), status = section.querySelector("[data-location-status]");
+      const english = (section.lang || doc.documentElement.lang || "").startsWith("en"), t = (es, en) => english ? en : es;
+      const touchDevice = win.matchMedia?.("(pointer: coarse)").matches || win.navigator.maxTouchPoints > 0;
+      const precision = section.dataset.locationPrecision;
+      let map, viewport, resize, removal, loading, destroyed = false, resolveReady;
+      let failedTiles = false;
+      const ready = new Promise(resolve => { resolveReady = resolve; });
+      const setStatus = (message) => { if (status && !destroyed) status.textContent = message; };
+      const validPoint = (raw) => {
+        const latitude = number(raw?.latitude), longitude = number(raw?.longitude);
+        return latitude !== null && longitude !== null && Math.abs(latitude) <= 90 && Math.abs(longitude) <= 180 && (latitude !== 0 || longitude !== 0) ? { latitude, longitude } : null;
+      };
+      const failure = () => {
+        setStatus(t("El mapa no está disponible en este momento. La ubicación y la referencia de la zona siguen visibles arriba; puedes consultarlas con nuestro equipo.", "The map is currently unavailable. The location and zone reference remain visible above; our team can help you confirm them."));
+        section.dataset.locationMapState = "unavailable";
+      };
+      const load = () => {
+        if (loading || destroyed) return loading || Promise.resolve(null);
+        viewport?.disconnect();
+        loading = (async () => {
+          try {
+            section.dataset.locationMapState = "loading";
+            setStatus(t("Cargando mapa…", "Loading map…"));
+            if (!["exact", "approximate"].includes(precision)) throw new Error("location-not-public");
+            let point = validPoint({ latitude: section.dataset.locationLatitude, longitude: section.dataset.locationLongitude });
+            let exact = precision === "exact" && Boolean(point);
+            if (!point) {
+              const query = section.dataset.locationQuery;
+              if (!query) throw new Error("missing-location");
+              const path = "/api/geocode?address=" + encodeURIComponent(query);
+              const result = options.request ? await options.request(path) : await win.fetch(path, { credentials: "same-origin" }).then(response => {
+                if (!response.ok) throw new Error("geocoder-unavailable");
+                return response.json();
+              });
+              point = validPoint(result);
+              if (!point) throw new Error("invalid-location");
+              // Provider lookup is only an ephemeral zone reference, never a listing's exact point.
+              exact = false;
+            }
+            if (!exact) point = { latitude: Math.round(point.latitude * 100) / 100, longitude: Math.round(point.longitude * 100) / 100 };
+            const L = await loadLeaflet(doc);
+            if (destroyed || !section.isConnected) { controller.destroy(); return null; }
+            if (!doc.getElementById("pccCatalogMapStyles")) {
+              const style = doc.createElement("style"); style.id = "pccCatalogMapStyles"; style.textContent = STYLES; doc.head.append(style);
+            }
+            canvas.classList.toggle("is-page-scroll", Boolean(touchDevice));
+            map = L.map(canvas, { zoomControl: true, attributionControl: true, scrollWheelZoom: false, dragging: !touchDevice, touchZoom: false, doubleClickZoom: !touchDevice, boxZoom: false, keyboard: true });
+            map.setView([point.latitude, point.longitude], exact ? 16 : 13);
+            const tiles = L.tileLayer(options.tileUrl || DEFAULT_TILES, { maxZoom: 19, attribution: ATTRIBUTION });
+            tiles.on("tileerror", () => { failedTiles = true; failure(); });
+            tiles.addTo(map);
+            if (exact) {
+              L.marker([point.latitude, point.longitude], { icon: L.divIcon({ className: "pcc-location-point", iconSize: [24, 24], iconAnchor: [12, 12] }), title: t("Ubicación exacta publicada", "Published exact location"), keyboard: true }).addTo(map);
+            } else {
+              L.circle([point.latitude, point.longitude], { radius: 1400, color: "#075562", weight: 2, dashArray: "6 5", fillColor: "#075562", fillOpacity: .12, interactive: false }).addTo(map);
+            }
+            const zoomIn = canvas.querySelector(".leaflet-control-zoom-in"), zoomOut = canvas.querySelector(".leaflet-control-zoom-out");
+            if (zoomIn) { zoomIn.title = t("Acercar mapa", "Zoom in"); zoomIn.setAttribute("aria-label", zoomIn.title); }
+            if (zoomOut) { zoomOut.title = t("Alejar mapa", "Zoom out"); zoomOut.setAttribute("aria-label", zoomOut.title); }
+            const label = exact ? t("Punto exacto publicado.", "Published exact point.") : t("Referencia aproximada de la zona; no indica el punto exacto del inmueble.", "Approximate zone reference; it does not mark the property's exact position.");
+            setStatus(label + " " + (touchDevice ? t("Desliza para seguir por la página. Usa + y − para ampliar el mapa.", "Swipe to scroll the page. Use + and − to zoom the map.") : t("Usa + y − para ampliar el mapa.", "Use + and − to zoom the map.")));
+            section.dataset.locationMapState = "ready";
+            if (win.ResizeObserver) { resize = new win.ResizeObserver(() => map?.invalidateSize()); resize.observe(canvas); }
+            if (win.MutationObserver) { removal = new win.MutationObserver(() => { if (!section.isConnected) controller.destroy(); }); removal.observe(doc.documentElement, { childList: true, subtree: true }); }
+            map.invalidateSize();
+            if (failedTiles) failure();
+            return map;
+          } catch { if (!destroyed) failure(); return null; }
+          finally { resolveReady(map || null); }
+        })();
+        return loading;
+      };
+      const controller = {
+        ready, load,
+        get map() { return map || null; },
+        destroy() { if (destroyed) return; destroyed = true; viewport?.disconnect(); resize?.disconnect(); removal?.disconnect(); map?.remove(); map = null; listingLocations.delete(section); resolveReady(null); },
+      };
+      listingLocations.set(section, controller);
+      if (win.IntersectionObserver) { viewport = new win.IntersectionObserver(entries => { if (entries.some(entry => entry.isIntersecting)) void load(); }, { rootMargin: "300px 0px" }); viewport.observe(section); }
+      else void load();
+      return controller;
+    });
+  }
+
   function hide(root) { instances.get(root)?.hide(); }
   function dispose(root) {
-    if (root) instances.get(root)?.destroy();
+    if (root) {
+      instances.get(root)?.destroy();
+      const locations = [...(root.matches?.("[data-public-location]") ? [root] : []), ...(root.querySelectorAll?.("[data-public-location]") || [])];
+      for (const section of locations) listingLocations.get(section)?.destroy();
+    }
     else for (const controller of [...active]) controller.destroy();
   }
 
-  return { mount, open: mount, hide, dispose, prepareItems, clusterItems, serializeBounds, openStreetMapEmbed, loadLeaflet };
+  return { mount, open: mount, hide, dispose, prepareItems, clusterItems, serializeBounds, openStreetMapEmbed, loadLeaflet, mountListingLocationMaps };
 });

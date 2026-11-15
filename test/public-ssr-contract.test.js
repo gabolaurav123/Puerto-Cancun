@@ -5,6 +5,8 @@ const vm = require("node:vm");
 const inventory = require("../inventory-contract");
 const { publicProperty } = require("../inventory-metadata");
 const seo = require("../seo-pages");
+const { publicExchangeFixture } = require("./helpers/public-exchange-fixture");
+const exchangeRate = publicExchangeFixture();
 const serverSource = fs.readFileSync(require.resolve("../server.js"), "utf8");
 const plain = (value) => JSON.parse(JSON.stringify(value));
 
@@ -30,7 +32,7 @@ function row(patch = {}) {
 }
 
 function listingSchema(p, lang = "es") {
-  const head = seo.renderPropertyHead(p, "https://fixture.example", lang);
+  const head = seo.renderPropertyHead(p, "https://fixture.example", lang, exchangeRate);
   const schemas = [...head.jsonLd.matchAll(/<script[^>]*>([^]*?)<\/script>/g)].map((match) => JSON.parse(match[1]));
   const listing = schemas.find((item) => item["@type"] === "RealEstateListing");
   assert.ok(listing);
@@ -38,7 +40,7 @@ function listingSchema(p, lang = "es") {
 }
 
 function cardPrice(p, lang = "es") {
-  const html = seo.renderCategoryPage(seo.getPageByPath(lang === "en" ? "/en/properties" : "/propiedades"), [p]);
+  const html = seo.renderCategoryPage({ ...seo.getPageByPath(lang === "en" ? "/en/properties" : "/propiedades"), currencyExchange: exchangeRate }, [p]);
   return html.match(/class="seo-property-price">([^<]*)</)?.[1];
 }
 
@@ -80,30 +82,34 @@ for (const [name, patch] of [
   test(`SSR and JSON-LD never manufacture a price: ${name}`, () => {
     const p = property(patch);
     assert.equal(seo.localizedListingPrice(p), null);
-    assert.equal(cardPrice(p), "Precio por confirmar");
-    assert.equal(cardPrice(p, "en"), "Price to be confirmed");
-    assert.match(seo.renderPropertyPage(p).html, /class="property-page-price">Precio por confirmar</);
+    assert.equal(cardPrice(p), "Precio a consultar");
+    assert.equal(cardPrice(p, "en"), "Price on request");
+    assert.match(seo.renderPropertyPage(p).html, /class="property-page-price">Precio a consultar</);
     assert.equal(Object.hasOwn(listingSchema(p), "offers"), false);
   });
 }
 
-test("explicit consult-price policy is distinguished from unknown price", () => {
-  const p = property({ price: null, catalogData: { priceOnRequest: true } });
+test("explicit consult-price policy hides a stored amount and never creates an Offer", () => {
+  const p = property({ price: 1234, catalogData: { priceOnRequest: true } });
   assert.equal(cardPrice(p), "Precio a consultar");
   assert.equal(cardPrice(p, "en"), "Price on request");
   assert.equal(Object.hasOwn(listingSchema(p), "offers"), false);
-  assert.equal(cardPrice(property({ price: null, catalogData: { priceOnRequest: "true" } })), "Precio por confirmar");
+  assert.equal(cardPrice(property({ price: 1234, catalogData: { priceOnRequest: "true" } })), "USD $1,234");
 });
 
 for (const currency of ["USD", "MXN"]) {
-  test(`valid ${currency} total keeps the exported helper shape and Offer`, () => {
+  test(`valid ${currency} total exposes a consistent public USD helper, card and Offer`, () => {
     const p = property({ currency, price: 1234.5 });
-    assert.deepEqual(seo.localizedListingPrice(p), { amount: 1234.5, currency });
+    const before = plain(p);
+    const amount = currency === "MXN" ? 1234.5 / exchangeRate.rate : 1234.5;
+    assert.deepEqual(seo.localizedListingPrice(p, exchangeRate), { amount, currency: "USD" });
     const offer = listingSchema(p).offers;
-    assert.equal(offer.price, 1234.5);
-    assert.equal(offer.priceCurrency, currency);
+    assert.equal(offer.price, Number(amount.toFixed(2)));
+    assert.equal(offer.priceCurrency, "USD");
     assert.equal(Object.hasOwn(offer, "priceSpecification"), false);
-    assert.match(cardPrice(p), new RegExp(currency));
+    assert.match(cardPrice(p), /USD/);
+    if (currency === "MXN") assert.match(cardPrice(p), /≈ USD \$62 · TC /);
+    assert.deepEqual(plain(p), before);
   });
 }
 
@@ -116,11 +122,11 @@ test("canonical null does not revive legacy amounts; unambiguous legacy still wo
 
 test("snake-case square-meter prices remain unit prices in rendering and JSON-LD", () => {
   const p = property({ price: undefined, currency: undefined, priceUnit: undefined, price_amount: "4200.5", price_currency: "MXN", price_unit: "sqm" });
-  assert.match(cardPrice(p), /MXN \$4,201 por m\u00b2/);
+  assert.match(cardPrice(p), /≈ USD \$210 \/ m\u00b2 · TC /);
   const offer = listingSchema(p).offers;
   assert.equal(Object.hasOwn(offer, "price"), false);
-  assert.equal(offer.priceSpecification.price, 4200.5);
-  assert.equal(offer.priceSpecification.priceCurrency, "MXN");
+  assert.equal(offer.priceSpecification.price, 210.03);
+  assert.equal(offer.priceSpecification.priceCurrency, "USD");
   assert.equal(offer.priceSpecification.referenceQuantity.unitCode, "MTK");
 });
 

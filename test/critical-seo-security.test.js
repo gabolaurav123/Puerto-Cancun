@@ -1,6 +1,7 @@
 const assert = require("node:assert/strict");
 const test = require("node:test");
 const { renderPropertyHead, renderPropertyPage, robotsTxt } = require("../seo-pages");
+const { publicExchangeFixture } = require("./helpers/public-exchange-fixture");
 
 const unitPriceLand = {
   id: "land-unit-price",
@@ -23,16 +24,19 @@ const unitPriceLand = {
   amenities: [],
 };
 
-test("el terreno publica MXN 4,200 por m² también en datos estructurados", () => {
-  const page = renderPropertyPage(unitPriceLand, "es");
-  const head = renderPropertyHead(unitPriceLand, "https://www.puertocancun.center", "es");
+test("el terreno convierte a USD por m² también en datos estructurados sin fabricar un total", () => {
+  const exchangeRate = publicExchangeFixture();
+  const original = JSON.stringify(unitPriceLand);
+  const page = renderPropertyPage(unitPriceLand, "es", [], {}, [], exchangeRate);
+  const head = renderPropertyHead(unitPriceLand, "https://www.puertocancun.center", "es", exchangeRate);
 
-  assert.match(page.html, /MXN \$4,200 por m²/);
+  assert.match(page.html, /≈ USD \$210 \/ m² · TC /);
   assert.match(head.jsonLd, /"@type":"UnitPriceSpecification"/);
-  assert.match(head.jsonLd, /"price":4200/);
-  assert.match(head.jsonLd, /"priceCurrency":"MXN"/);
+  assert.match(head.jsonLd, /"price":210/);
+  assert.match(head.jsonLd, /"priceCurrency":"USD"/);
   assert.match(head.jsonLd, /"unitCode":"MTK"/);
-  assert.doesNotMatch(head.jsonLd, /"@type":"Offer","price":4200/);
+  assert.doesNotMatch(head.jsonLd, /"@type":"Offer","price":/);
+  assert.equal(JSON.stringify(unitPriceLand), original);
 });
 
 test("robots permite indexar el sitio público", () => {

@@ -654,11 +654,12 @@ contractTest("R16: an explicit sqm filter is effective even without budget bound
   assert.deepEqual(ids(result), ["sqm"]);
 });
 
-contractTest("the exported API retains exactly the existing functions and constants", (api) => {
+contractTest("the exported API retains the original contract and adds public USD projection helpers", (api) => {
   assert.deepEqual(Object.keys(api).sort(), [
     "VERSION", "LOCATIONS", "TYPES", "fold", "entityOf", "isPublic", "locationId",
     "resolveLocation", "modalityOf", "priceOf", "parseQuery", "matches",
     "queryInventory", "toSearchParams", "quality", "isPlaceholder", "reconcile",
+    "publicPriceOf", "publicPriceText", "publicPriceRange",
   ].sort());
 });
 

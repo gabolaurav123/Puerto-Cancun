@@ -46,7 +46,8 @@ test("editorial descriptions and images take precedence per language, and approx
   const es = render(master, "es", true, edit);
   assert.match(es, /Nueva descripción de preventa/); assert.doesNotMatch(es, /Residencias frente al muelle/);
   assert.ok(es.includes("/assets/presale-approved.webp"));
-  assert.ok(es.includes("Marina, Cancún, Quintana Roo")); assert.ok(!es.includes(development.address));
+  assert.ok(es.includes("Marina")); assert.ok(es.includes("Puerto Cancún")); assert.ok(!es.includes(development.address));
+  assert.match(es, /data-public-location[\s\S]*data-location-precision="approximate"/);
   assert.ok(render(master, "en", true, edit).includes(development.descriptionEn));
 });
 

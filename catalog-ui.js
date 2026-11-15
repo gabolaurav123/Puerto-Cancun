@@ -7,6 +7,10 @@
 
   function formUrl(form) {
     const params = new URLSearchParams(new FormData(form));
+    const originalBudget = form.querySelector("[data-original-budget]");
+    if (originalBudget && !form.dataset.budgetEdited) {
+      try { for (const [key,value] of Object.entries(JSON.parse(originalBudget.dataset.originalBudget))) { if (value == null || value === "") params.delete(key); else params.set(key,value); } } catch {}
+    }
     const locations = params.getAll("location");
     params.delete("location");
     if (locations.length) params.set("location", locations.join(","));
@@ -50,6 +54,7 @@
       }
       window.PccCatalogMap?.dispose(container);
       container.replaceWith(replacement);
+      window.PccCatalogMap?.mountListingLocationMaps?.(replacement);
       document.title = parsed.title;
       const hero = document.querySelector(".seo-page-hero");
       const nextHero = parsed.querySelector(".seo-page-hero");
@@ -87,6 +92,7 @@
     event.preventDefault(); navigate(formUrl(event.target), true, "", true);
   });
   document.addEventListener("input", (event) => {
+    if (event.target.form?.id === "catalogFilters" && ["min", "max"].includes(event.target.name)) event.target.form.dataset.budgetEdited = "true";
     if (event.target.form?.id !== "catalogFilters" || event.target.name !== "q") return;
     clearTimeout(debounce);
     // Invalidate immediately, not after the debounce, so an older request cannot replace new typing.
@@ -101,9 +107,14 @@
       const applied = new URLSearchParams(root()?.dataset.catalogQuery || "");
       const previous = applied.get(event.target.name) || (event.target.name === "priceBasis" ? "total" : "");
       const next = event.target.value || (event.target.name === "priceBasis" ? "total" : "");
-      if (previous && previous !== next && ["min", "max"].some(name => form.elements[name]?.value)) {
+      const hasBudget = ["min", "max"].some(name => form.elements[name]?.value || applied.has(name));
+      const hasLegacyBudget = Boolean(form.querySelector("[data-original-budget]"));
+      if (previous !== next && (hasBudget || hasLegacyBudget)) {
+        // A legacy budget may have no visible USD amount when FX is unavailable.
+        // Mark it edited before formUrl, so it cannot restore the cleared values.
+        form.dataset.budgetEdited = "true";
         for (const name of ["min", "max"]) if (form.elements[name]) form.elements[name].value = "";
-        notice = t("Se quitó el presupuesto anterior porque cambiaste la operación, moneda o base del precio. Indica el nuevo importe; no se convierte automáticamente.", "The previous budget was cleared because the transaction, currency or price basis changed. Enter the new amount; it is not converted automatically.");
+        if (hasBudget) notice = t("Se quitó el presupuesto anterior porque cambiaste la operación, moneda, base o periodo del precio. Indica el nuevo importe; no se convierte automáticamente.", "The previous budget was cleared because the transaction, currency, price basis or period changed. Enter the new amount; it is not converted automatically.");
       }
     }
     if (event.target.name === "operation" && event.target.value === "rent" && form.elements.modality) form.elements.modality.value = "";

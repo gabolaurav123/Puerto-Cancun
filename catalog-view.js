@@ -92,7 +92,9 @@ function catalogFilters(ctx, publicRows) {
     [query.development === row.developmentData?.id ? query.development : row.id, lang === "en" ? row.titleEn || row.titleEs : row.titleEs, areaFor(row, areas)?.id]);
   const types = [["", t("Todos los tipos", "All types")], ...inventory.TYPES.map((type, index) => [type, lang === "en" ? ["Home", "Apartment", "Land", "Commercial"][index] : type])];
   const ops = [["", t("Comprar o buscar renta", "Buy or find a rental")], ["sale", t("Comprar", "Buy")], ["rent", t("Buscar renta", "Find a rental")]];
-  const currencies = [["", t("Todas", "All")], ["USD", "USD"], ["MXN", "MXN"]];
+  const budget = require("./public-pricing").budgetInUsd(query, ctx.exchangeRate);
+  const legacyBudget = query.priceMode !== "public-usd" && (query.min != null || query.max != null || query.currency);
+  const budgetContext = legacyBudget ? `<input type="hidden" data-original-budget="${escape(JSON.stringify({min:query.min,max:query.max,currency:query.currency,priceMode:query.priceMode || ""}))}" />` : "";
   const rentPeriod = choose("rentPeriod", t("Periodo de renta", "Rental period"), [["", t("Seleccionar", "Select")], ["month", t("Mensual", "Monthly")], ["day", t("Diario", "Daily")], ["year", t("Anual", "Annual")], ["unclassified", t("Por confirmar", "Unconfirmed")]]);
   const advancedOpen = query.modality || ["beds","baths","parking","minBuilt","maxBuilt","minLot","maxLot"].some(key => query[key] != null) || query.priceBasisExplicit || query.zone;
   let main;
@@ -103,7 +105,8 @@ function catalogFilters(ctx, publicRows) {
     const type = ctx.landRoute ? `<input type="hidden" name="type" value="Terreno" />` : choose("type", t("Tipo de propiedad", "Property type"), types);
     const development = devs.length || query.development ? choose("development", t("Desarrollo", "Development"), [["", t("Cualquiera, incluso sin desarrollo", "Any, including independent listings")], ...devs]) : "";
     main = choose("operation", t("Operación", "Transaction"), ops) + type + locations + subareas + development +
-      choose("currency", t("Moneda del presupuesto", "Budget currency"), currencies) + number("min", t("Precio mínimo", "Minimum price"), query.min) + number("max", t("Precio máximo", "Maximum price"), query.max) +
+      budgetContext + '<input type="hidden" name="currency" value="USD"><input type="hidden" name="priceMode" value="public-usd">' + number("min", t("Precio mínimo USD", "Minimum price USD"), budget.min == null ? null : Math.round(budget.min)) + number("max", t("Precio máximo USD", "Maximum price USD"), budget.max == null ? null : Math.round(budget.max)) +
+      (legacyBudget ? `<p class="catalog-budget-note">${budget.unavailable ? t("El presupuesto guardado requiere confirmar el tipo de cambio. Sus filtros originales se conservan.","The saved budget requires exchange-rate confirmation. Its original filters are retained.") : t("Esta búsqueda conserva sus filtros originales. Los importes en USD son de referencia; al editarlos se aplicará el nuevo presupuesto USD.","This search retains its original filters. USD amounts are a reference; editing them applies your new USD budget.")}</p>` : "") +
       (query.operation === "rent" || query.rentPeriod ? rentPeriod : "") +
       `<details class="catalog-advanced"${advancedOpen ? " open" : ""}><summary>${t("Más filtros", "More filters")}</summary><div class="catalog-advanced-fields">${legacy}
       ${query.operation !== "rent" ? choose("modality", t("Modalidad de venta", "Sales mode"), [["",t("Todas","All")],["presale",t("Preventa","Presale")],["direct",t("Venta directa","Direct sale")],["resale",t("Reventa","Resale")],["unclassified",t("Por clasificar","Unclassified")]]) : ""}
@@ -115,7 +118,7 @@ function catalogFilters(ctx, publicRows) {
   if (query.gated || scoped.some(row => inventory.entityOf(row) === query.entity && row.portalGated === true)) {
     main += `<label class="catalog-featured"><input type="checkbox" name="gated" value="1"${query.gated ? " checked" : ""} /><span>${t("Acceso controlado", "Gated community")}</span></label>`;
   }
-  const sorts = projects ? [["featured",t("Destacados","Featured")],["title",t("Nombre A–Z","Name A–Z")]] : [["recent",t("Más recientes","Newest")],["price-asc",t("Precio menor por moneda y base","Lowest price within currency and basis")],["price-desc",t("Precio mayor por moneda y base","Highest price within currency and basis")]];
+  const sorts = projects ? [["featured",t("Destacados","Featured")],["title",t("Nombre A–Z","Name A–Z")]] : [["recent",t("Más recientes","Newest")],["price-asc",t("Menor precio USD por base y período","Lowest USD price by basis and period")],["price-desc",t("Mayor precio USD por base y período","Highest USD price by basis and period")]];
   if (ctx.featuredPage && !projects) sorts.unshift(["featured",t("Selección editorial","Editorial order")]);
   if (query.type === "Terreno" && (query.sort.startsWith("lot-") || scoped.some(row => row.type === "Terreno" && Number(row.lot) > 0))) sorts.push(["lot-asc",t("Menor superficie","Smallest lot")],["lot-desc",t("Mayor superficie","Largest lot")]);
   return `<details class="catalog-filter-panel"${result.errors.length ? " open" : ""}><summary>${t("Filtros", "Filters")}</summary><form id="catalogFilters" class="catalog-filters" method="get" action="${path}">
@@ -183,6 +186,14 @@ function suggestionLinks(ctx, rows) {
 
 function activeChips(ctx, rows) {
   const { query, path, t, view, areas, lang } = ctx;
+  const pricing = require("./public-pricing");
+  const budget = pricing.budgetInUsd(query, ctx.exchangeRate);
+  const budgetLabel = key => {
+    if (budget[key] === null) return t("Presupuesto USD por confirmar", "USD budget to be confirmed");
+    if (budget[key] === 0) return "USD $0";
+    return pricing.format({ amount: budget[key], currency: "USD", approximate: budget.approximate, date: budget.date,
+      basis: query.priceBasis, operation: query.operation, period: query.rentPeriod || "unclassified" }, lang);
+  };
   const subareas = areas.flatMap(area => area.subareas || []);
   const dev = rows.find(row => inventory.entityOf(row) === "developments" && [row.id,row.developmentData?.id].includes(query.development));
   const labels = {
@@ -193,7 +204,7 @@ function activeChips(ctx, rows) {
     operation: query.operation === "rent" ? t("Buscar renta","Find a rental") : t("Comprar","Buy"),
     modality: ({presale:t("Preventa","Presale"),direct:t("Venta directa","Direct sale"),resale:t("Reventa","Resale"),unclassified:t("Por clasificar","Unclassified")})[query.modality],
     featured:t("Destacados","Featured"),gated:t("Acceso controlado","Gated community"),bounds:t("Área del mapa","Map area"),
-    min:t("Desde ","From ") + query.min,max:t("Hasta ","Up to ") + query.max,beds:t("Recámaras mínimas: ","Minimum bedrooms: ") + query.beds,
+    min:t("Desde ","From ") + budgetLabel("min"),max:t("Hasta ","Up to ") + budgetLabel("max"),beds:t("Recámaras mínimas: ","Minimum bedrooms: ") + query.beds,
     baths:t("Baños mínimos: ","Minimum bathrooms: ") + query.baths,parking:t("Estacionamientos mínimos: ","Minimum parking spaces: ") + query.parking,
     minBuilt:t("Construcción desde ","Built area from ") + query.minBuilt + " m²", maxBuilt:t("Construcción hasta ","Built area up to ") + query.maxBuilt + " m²",
     minLot:t("Terreno desde ","Land area from ") + query.minLot + " m²", maxLot:t("Terreno hasta ","Land area up to ") + query.maxLot + " m²",
@@ -203,7 +214,7 @@ function activeChips(ctx, rows) {
   const params = inventory.toSearchParams(query);
   const chips = [];
   for (const [key,value] of params) {
-    if (["entity","sort","page"].includes(key) || (ctx.featuredPage && key === "featured")) continue;
+    if (["entity","sort","page","priceMode","currency"].includes(key) || (ctx.featuredPage && key === "featured")) continue;
     const rest = new URLSearchParams(params); rest.delete(key); rest.delete("page");
     if (key === "operation") for (const field of ["modality","min","max","rentPeriod"]) rest.delete(field);
     if (key === "currency") { rest.delete("min"); rest.delete("max"); }
@@ -219,12 +230,12 @@ function catalogHelp(ctx, rows, sourcePath) {
   const zone = query.locations.map(id => areaName(areas.find(area => area.id === id),lang)).filter(Boolean).join(", ");
   const subarea = areas.flatMap(area => area.subareas || []).find(row => row.id === query.subarea);
   const development = rows.find(row => inventory.entityOf(row) === "developments" && [row.id,row.developmentData?.id].includes(query.development));
-  const context = { zone, subzone: subarea ? areaName(subarea,lang) : query.zone, development: development && (lang === "en" ? development.titleEn || development.titleEs : development.titleEs), propertyType:query.type, budget:query.max, currency:query.currency,
-    preferences:describeCatalogFilters({...query,development:""},lang,areas).join(" · "), origin:ctx.presales ? "presale-directory" : "catalog-results", sourcePath };
+  const context = { zone, subzone: subarea ? areaName(subarea,lang) : query.zone, development: development && (lang === "en" ? development.titleEn || development.titleEs : development.titleEs), propertyType:query.type,
+    searchFilters:JSON.stringify(query), origin:ctx.presales ? "presale-directory" : "catalog-results", sourcePath };
   const rent = query.operation === "rent", land = query.type === "Terreno";
   const buyer = rent ? t("Busco una renta aquí","Find a rental here") : land ? t("Quiero comprar un terreno","I want to buy land") : t("Busco una propiedad aquí","Find a property here");
   const seller = rent ? t("Quiero poner mi propiedad en renta","I want to rent out my property") : land ? t("Quiero vender un terreno","I want to sell land") : t("Quiero vender aquí","I want to sell here");
-  return `<div class="catalog-demand"><p>${t("Cuéntanos qué necesitas y te ayudamos a encontrarlo.","Tell us what you need and we’ll help you find it.")}</p><div>${contactLink(lang,buyer,{...context,intent:rent ? "rent" : "buy"})}${contactLink(lang,seller,{...context,intent:rent ? "let" : "sell"},"outline-dark-button")}</div></div>`;
+  return `<div class="catalog-demand"><div>${contactLink(lang,buyer,{...context,intent:rent ? "rent" : "buy"})}${ctx.presales ? "" : contactLink(lang,seller,{...context,intent:rent ? "let" : "sell"},"outline-dark-button")}</div></div>`;
 }
 
 function renderCatalog(page, properties, params = {}, renderCards) {
@@ -261,7 +272,7 @@ function renderCatalog(page, properties, params = {}, renderCards) {
   const ranks = new Map(placements.map((item,index) => [mixed && ["area","presale"].includes(item.kind) ? item.kind + ":" + item.targetId : item.targetId,index]));
   if (page.portalDirectory || ctx.featuredPage) records = records.map(row => ({...row,featured:ranks.has(row.id)}));
   const grouped = projects && !ctx.featuredPage && selectedLocations.length !== 1;
-  const result = inventory.queryInventory(records, input, { defaults, areas, lang, featureRanks:ranks, groupByArea:grouped });
+  const result = inventory.queryInventory(records, input, { defaults, areas, lang, featureRanks:ranks, groupByArea:grouped, publicPricing:true, exchangeRate:page.currencyExchange });
   result.errors = result.errors.map(error => localizeCatalogError(error,lang));
   if (ctx.unsupportedProjectFilters.length) {
     result.errors.push(t("Estos criterios corresponden a unidades: cambia a Propiedades o quita los filtros indicados. No se han ignorado tus requisitos.","These criteria apply to units: switch to Properties or remove the selected filters. Your requirements have not been ignored."));
@@ -269,7 +280,7 @@ function renderCatalog(page, properties, params = {}, renderCards) {
   }
   const { query, total } = result;
   const view = params.view === "map" ? "map" : "list";
-  Object.assign(ctx,{areas,t,query,result,view,landRoute:page.category?.type === "Terreno"});
+  Object.assign(ctx,{areas,t,query,result,view,landRoute:page.category?.type === "Terreno",exchangeRate:page.currencyExchange});
   const sourceParams = new URLSearchParams(params);
   const sourcePath = (page.path || path) + (sourceParams.size ? "?" + sourceParams : "");
   const singular = total === 1;
@@ -307,6 +318,7 @@ function renderCatalog(page, properties, params = {}, renderCards) {
   const mapItems = result.items.map(row => {
     const precision = row.portalHiddenBlocks?.includes("location") ? "hidden" : row.locationPrecision;
     return { id:row.id,title:lang === "en" ? row.titleEn || row.titleEs : row.titleEs,url:lang === "en" ? row.urlEn : row.urlEs,kind:row.featuredArea ? "zone" : row.presaleProject ? "presale" : inventory.entityOf(row) === "developments" ? "development" : "property",
+      priceText: row.featuredArea ? "" : inventory.publicPriceText(row.linkedDevelopment || row.linkedProperty || row, ctx.exchangeRate, lang),
       locationPrecision:precision,approximate:precision !== "exact", ...(precision === "hidden" ? {} : {latitude:row.latitude,longitude:row.longitude}) };
   });
   const searchLabel = projects ? t("Buscar por nombre","Search by name") : t("Buscar por zona, desarrollo, título o MLS","Search by zone, development, title or MLS");
@@ -325,7 +337,7 @@ function renderCatalog(page, properties, params = {}, renderCards) {
     <p class="catalog-request-status" aria-live="polite"></p>
     ${result.errors.length ? `<div class="catalog-errors" role="alert"><h3>${t("Revisa los filtros","Review filters")}</h3><ul>${result.errors.map(error => `<li>${escape(error)}</li>`).join("")}</ul></div>` : ""}
     <div class="catalog-results"><div data-catalog-list>${cards || (result.errors.length ? "" : `<p class="inventory-empty">${t("Aún no hay publicaciones que coincidan con esta búsqueda.","There are no published matches for this search yet.")}</p>${saveSearch}`)}${pagination}</div><div data-catalog-map hidden><div class="catalog-map-canvas" role="region" aria-label="${t("Mapa de resultados","Results map")}"></div><p class="catalog-map-status" role="status"></p></div></div>
-    ${presales && params.project && result.items.length ? "" : catalogHelp(ctx,publicRows,sourcePath)}<script type="application/json" data-catalog-map-data>${JSON.stringify(mapItems).replace(/</g,"\\u003c")}</script></section>`;
+    ${!total || presales && params.project && result.items.length ? "" : catalogHelp(ctx,publicRows,sourcePath)}<script type="application/json" data-catalog-map-data>${JSON.stringify(mapItems).replace(/</g,"\\u003c")}</script></section>`;
 }
 
 function catalogPresentation(page, params = {}) {
