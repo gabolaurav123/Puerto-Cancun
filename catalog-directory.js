@@ -51,6 +51,14 @@ function projectDescription(editorial, inherited) {
   return [editorial, inherited].find(value => typeof value === "string" && value.trim() && !inventory.isPlaceholder(value)) || "";
 }
 
+function currentProjectCover(image, sourceImages) {
+  const mediaPath = value => typeof value === "string" ? value.match(/^(\/media\/properties\/[^/?#]+\/\d+)(?:[?#]|$)/)?.[1] : "";
+  const path = mediaPath(image);
+  // Editorial covers may retain an old or absent cache version. Resolve only
+  // this local media slot to its current source; remote images stay distinct.
+  return path ? sourceImages.find(source => mediaPath(source) === path) || image : image;
+}
+
 function projectRecords(directory, properties) {
   const byId = new Map(properties.filter(inventory.isPublic).map(property => [property.id, property]));
   return (directory?.presales || []).filter(project => (!project.status || project.status === "confirmed") &&
@@ -67,7 +75,7 @@ function projectRecords(directory, properties) {
     const locality = [position?.neighborhood, position?.city, position?.state].filter(Boolean).join(", ");
     const projectLocation = position?.locationPrecision === "exact" && position.address ? position.address : locality;
     const sourceImages = safePublicImages(source || {});
-    const images = hidden.has("gallery") ? [] : safePublicImages({ images: [project.image, ...sourceImages] })
+    const images = hidden.has("gallery") ? [] : safePublicImages({ images: [currentProjectCover(project.image, sourceImages), ...sourceImages] })
       .filter(src => !/\/assets\/(?:cancun-hotel-zone-hero-\d+|og-puerto-cancun-center)\.webp(?:[?#]|$)/i.test(src));
     const pathFor = locale => presalePath(locale) + "?" + new URLSearchParams({ project: project.id });
     return {

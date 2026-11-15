@@ -62,6 +62,34 @@ test("gallery labels follow source images even when an editor selects a differen
   assert.match(html,/data-public-location/);
 });
 
+test("versionless and outdated local project covers resolve to the current gallery without duplicates",()=>{
+  const id="prop-xlsx-3d0d5ff2d8b69246286aaa67";
+  const source=development(id,{titleEs:"Mondrian Residences at Grand Island Cancún",catalogData:{salesModality:"presale"},images:Array.from({length:5},(_,i)=>`/media/properties/${id}/${i}?v=1794000000000`)});
+  const before=JSON.stringify(source);
+  const projectWithCover=image=>{
+    const config=portal.materialize(null,[source]);config.presales[0].image=image;
+    const directory=portal.publicDirectory(config,[source]);
+    return catalog.projectRecords(directory,portal.enrichProperties([source],directory))[0];
+  };
+  for (const cover of [`/media/properties/${id}/0`,`/media/properties/${id}/0?v=1780000000000&w=640`]) {
+    const project=projectWithCover(cover);
+    assert.deepEqual(project.images,source.images);
+    assert.equal(project.images.length,5);
+  }
+  const differentCover=projectWithCover(`/media/properties/${id}/3`);
+  assert.deepEqual(differentCover.images,[source.images[3],source.images[0],source.images[1],source.images[2],source.images[4]]);
+  const remote=`https://other.example/media/properties/${id}/0`;
+  assert.deepEqual(projectWithCover(remote).images,[remote,...source.images]);
+  assert.equal(JSON.stringify(source),before);
+
+  const renderId="prop-8008c9bc-02ca-435f-9dcd-b5739cfed032",render=reviewedImage(renderId,0);
+  const renderedSource=development(renderId,{titleEs:"Al Mare Puerto Cancún",catalogData:{salesModality:"presale"},images:[render]});
+  const config=portal.materialize(null,[renderedSource]);config.presales[0].image=render.split("?")[0];
+  const directory=portal.publicDirectory(config,[renderedSource]),project=catalog.projectRecords(directory,portal.enrichProperties([renderedSource],directory))[0];
+  assert.deepEqual(project.images,[render]);
+  assert.equal(policy.imagePresentation(project,0).label,"Render arquitectónico");
+});
+
 test("render evidence follows versioned image identity after reorder and expires after replacement",()=>{
   const id="prop-xlsx-60231635df1962b7dc647b1a",source=reviewedImage(id,0);
   const original=development(id,{titleEs:"Azürea Marina Residences",images:[source]});

@@ -90,6 +90,3 @@ const server=http.createServer(app);
     console.log(JSON.stringify({checks:report.checks.length,errors:report.pageErrors,blockedWrites:report.blockedWrites}));
   }finally{await browser.close();await new Promise(resolve=>server.close(resolve));}
 })().then(()=>process.exit(0)).catch(error=>{console.error(error);fs.writeFileSync(path.join(output,"report.json"),JSON.stringify(report,null,2));process.exit(1);});
-
-
-
