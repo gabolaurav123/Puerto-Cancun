@@ -1,0 +1,14 @@
+# USD en calculadora y fichas compartidas
+
+- Calculadora hipotecaria en español e inglés: precio, seguros, gastos de cierre, resultados y amortización están expresados en USD. Los ejemplos iniciales son iguales en ambos idiomas. No se reutiliza una cantidad MXN como si fuera USD.
+- PDF institucional y neutro: usan `inventory.publicPriceOf` y `public-pricing`, con la misma regla de tasa Banxico/fecha/vigencia que el catálogo. Las conversiones llevan “Aprox.” y la fecha de la cotización. Sin una cotización utilizable se muestra “Precio en USD por confirmar”. Se conservan precio por m² y periodo de renta; no se inventa periodo cuando falta.
+- Generación administrativa: `options.priceMode: "original"` permite conservar explícitamente la moneda original para el documento interno. Los PDFs históricos almacenados y sus descargas autenticadas permanecen intactos.
+- Enlaces públicos `/f/:code` y `/fichas/:id`: mantienen controles de enlace activo, vencimiento y firma existentes. Generan una presentación actual en memoria desde la misma propiedad, sin sobrescribir `generated_documents.content_base64`, precios o inventario. Se respetan campos ocultos y ubicación; un registro no público no incorpora un enlace a una ficha privada.
+- La caché de PDFs públicos está limitada a 24 entradas, 32 MiB y 5 minutos. La clave incluye revisión de propiedad, opciones, moneda/importe original, cotización y protecciones; deduplica renders simultáneos. Las imágenes completas solo se consultan cuando es necesario regenerar.
+- Las presentaciones externas `/ext/:code`, sus metadatos y mensajes para compartir usan también precio público USD con tasa vigente. Se preservan las reglas existentes para mostrar u ocultar contactos privados. No se enviaron mensajes durante la revisión.
+
+Verificación funcional: `public-pdf-pricing`, `share-domain-catalog-linking` y `external-properties`: 13 pruebas aprobadas. `pdf-property-sheet`, `pdf-share-selection`, `admin-document-libraries` y `master-stabilization-regressions`: 16 pruebas aprobadas. Incluyen precio sin tasa válida, cotización antigua, renta por m²/mes, original USD, modo interno MXN, caché, regeneración de documento antiguo sin escrituras, reserva de dirección y confidencialidad de contactos.
+
+Verificación visual mediante habilidad PDF y Poppler: cuatro PDFs de una página generados con datos/imágenes existentes de SM10, en `outputs/qa-20261115/`: `public-usd-branded.pdf`, `public-usd-neutral.pdf`, `public-usd-unavailable.pdf` e `internal-original.pdf`, con sus PNG. Se inspeccionaron las cuatro últimas imágenes: precio, nota de fecha, datos, descripción, fotos y pie sin solapamientos. La cotización de 20 MXN/USD se usa únicamente como fixture de QA fechado, no como afirmación de cotización comercial actual.
+
+La integración del despliegue y las comprobaciones finales en el dominio público corresponden al coordinador.

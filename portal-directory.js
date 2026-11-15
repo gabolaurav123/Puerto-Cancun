@@ -1,7 +1,7 @@
 (function (root, factory) {
-  if (typeof module === "object" && module.exports) module.exports = factory(require("./inventory-contract"));
-  else root.PccPortalDirectory = factory(root.PccInventory);
-})(typeof globalThis === "undefined" ? this : globalThis, function (inventory) {
+  if (typeof module === "object" && module.exports) module.exports = factory(require("./inventory-contract"), require("./presale-policy"));
+  else root.PccPortalDirectory = factory(root.PccInventory, root.PccPresalePolicy);
+})(typeof globalThis === "undefined" ? this : globalThis, function (inventory, presalePolicy) {
   "use strict";
   const BLOCKS = ["description", "amenities", "location", "gallery", "units", "video"];
   const KINDS = ["area", "development", "property", "presale"];
@@ -112,7 +112,7 @@
       config.assignments[centralParkId] = { areaId:"",subareaId:"",hiddenBlocks:[],...config.assignments[centralParkId], gated:true, gatedEvidence:"https://centralparkcancun.com/ · ficha oficial del desarrollo, sección Acceso Controlado." };
     }
     const assignments = adminAssignments(config,records);
-    const isExplicitPresale = r => r.catalogData?.salesModality === "presale" || r.salesModality === "presale" || r.type === "Preventa";
+    const isExplicitPresale = r => presalePolicy ? presalePolicy.isPresale(r, { directory: config, records }) : r.catalogData?.salesModality === "presale" || r.salesModality === "presale" || r.type === "Preventa";
     const existing = new Set(config.presales.filter(p => p.developmentId).map(p => p.developmentId));
     for (const r of records.filter(isDev)) {
       if (!isExplicitPresale(r) || existing.has(r.id)) continue;
@@ -120,8 +120,20 @@
       config.presales.push({ id:`presale-${r.id}`, nameEs:r.titleEs || r.titleEn, nameEn:r.titleEn || r.titleEs, descriptionEs:"",descriptionEn:"",
         image:r.image || "", reference:r.mls || r.id, developmentId:r.id, areaId:geography.areaId, subareaId:geography.subareaId,
         propertyIds:records.filter(unit => !isDev(unit) && assignments[unit.id].developmentId === r.id && isExplicitPresale(unit)).map(unit => unit.id),
-        status:geography.areaId ? "confirmed" : "draft", evidence:r.id === "prop-8008c9bc-02ca-435f-9dcd-b5739cfed032" && fold(r.titleEs) === "al mare puerto cancun"
-          ? "Modalidad explícita en inventario. Sitio del proyecto: https://www.almarepuertocancun.com/" : "Modalidad preventa declarada en la ficha del desarrollo." });
+        status:geography.areaId ? "confirmed" : "draft", evidence:presalePolicy?.reviewedRecord(r)?.evidence || (r.id === "prop-8008c9bc-02ca-435f-9dcd-b5739cfed032" && fold(r.titleEs) === "al mare puerto cancun"
+          ? "Modalidad explícita en inventario. Sitio del proyecto: https://www.almarepuertocancun.com/" : "Modalidad preventa declarada en la ficha del desarrollo.") });
+    }
+    // Reviewed presale units without a verified parent keep their own identity.
+    // This adds a directory view; it never creates or changes an inventory record.
+    for (const r of records.filter(record => !isDev(record) && isExplicitPresale(record))) {
+      if (config.presales.some(project => project.propertyIds?.includes(r.id))) continue;
+      const geography = assignments[r.id];
+      const parentProject = config.presales.find(project => project.developmentId && project.developmentId === geography.developmentId && project.status === "confirmed");
+      if (parentProject) { parentProject.propertyIds.push(r.id); continue; }
+      if (config.presales.some(project => project.id === `presale-${r.id}`)) continue;
+      config.presales.push({ id:`presale-${r.id}`,nameEs:r.titleEs || r.titleEn,nameEn:r.titleEn || r.titleEs,descriptionEs:"",descriptionEn:"",
+        image:r.image || "",reference:r.mls || r.id,developmentId:"",areaId:geography.areaId,subareaId:geography.subareaId,propertyIds:[r.id],
+        status:geography.areaId ? "confirmed" : "draft",evidence:presalePolicy?.reviewedRecord(r)?.evidence || "Modalidad preventa declarada en la ficha de la propiedad." });
     }
     if (!stored && !records.some(r => isDev(r) && /\bal ?mar[e]?\b/.test(fold(r.titleEs || r.titleEn)))) {
       config.presales.push({ id:"almar-preview", nameEs:"Almar", nameEn:"Almar", reference:"ALMAR-REVISION", descriptionEs:"", descriptionEn:"", image:"",
@@ -229,14 +241,14 @@
     const areas = config.areas.filter(a => a.active).map(a => ({ ...a, subareas:config.subareas.filter(s => s.active && s.areaId === a.id) }));
     const activeAreas = new Set(areas.map(a => a.id));
     const byId = new Map(records.map(r => [r.id,r])), assignments = buildAssignments(config, records);
-    const presales = config.presales.filter(p => p.status === "confirmed" && (!p.developmentId || (byId.has(p.developmentId) && isDev(byId.get(p.developmentId))))).map(p => {
+    const presales = config.presales.filter(p => p.status === "confirmed" && (!p.developmentId || (byId.has(p.developmentId) && isDev(byId.get(p.developmentId)) && (!presalePolicy || presalePolicy.isPresale(byId.get(p.developmentId), {directory:config,records}))))).map(p => {
       const {evidence, ...publicProject} = p;
       const geography = p.developmentId ? assignments[p.developmentId] : p;
       const units = new Set(p.propertyIds);
       const image = geography.hiddenBlocks?.includes("gallery") ? "" : (p.image || byId.get(p.developmentId)?.image || "");
-      return {...publicProject,image,areaId:geography.areaId,subareaId:areas.find(a => a.id === geography.areaId)?.subareas.some(s => s.id === geography.subareaId) ? geography.subareaId : "",
-        propertyIds:[...units].filter(id => byId.has(id) && !isDev(byId.get(id)) && assignments[id].areaId === geography.areaId && (!p.developmentId || assignments[id].developmentId === p.developmentId))};
-    }).filter(p => activeAreas.has(p.areaId));
+      return {...publicProject,...(/^visual-review-/.test(evidence || "") ? {reviewedGallery:true} : {}),image,areaId:geography.areaId,subareaId:areas.find(a => a.id === geography.areaId)?.subareas.some(s => s.id === geography.subareaId) ? geography.subareaId : "",
+        propertyIds:[...units].filter(id => byId.has(id) && !isDev(byId.get(id)) && assignments[id].areaId === geography.areaId && (!p.developmentId || assignments[id].developmentId === p.developmentId) && (!presalePolicy || presalePolicy.isPresale(byId.get(id), {directory:config,records})))};
+    }).filter(p => activeAreas.has(p.areaId) && (p.developmentId || p.propertyIds.length || !/^presale-prop-/.test(p.id)));
     const publicTarget = (kind,id) => kind === "area" ? activeAreas.has(id) : kind === "presale" ? presales.some(p => p.id === id) : byId.has(id) && (kind === "development") === isDev(byId.get(id));
     const featured = config.featured.filter(f => f.active && publicTarget(f.kind,f.targetId) && (f.placement === "home" || publicTarget(f.placement,f.contextId)));
     return {areas,assignments,presales,featured};
@@ -253,7 +265,10 @@
         const developmentId = parent ? parent.developmentData?.id || `dev-${parent.id}` : null;
         relation = {developmentId, parentDevelopment:parent ? {id:developmentId,propertyId:parent.id,nameEs:parent.titleEs,nameEn:parent.titleEn} : null, developmentImages:[]};
       }
-      return {...record, ...location, ...relation, catalogData:{...record.catalogData, locationId:a.areaId,subareaId:a.subareaId}, portalAreaId:a.areaId,portalSubareaId:a.subareaId,
+      const presale = presalePolicy?.presaleState(record, {directory,records});
+      return {...record, ...location, ...relation, ...(presale ? {portalPresale:presale} : {}),
+        ...(presale?.isPresale ? {salesModality:"presale",operation:"sale"} : {}),
+        catalogData:{...record.catalogData, ...(presale?.isPresale ? {salesModality:"presale"} : {}), locationId:a.areaId,subareaId:a.subareaId}, portalAreaId:a.areaId,portalSubareaId:a.subareaId,
         portalDevelopmentId:a.developmentId,portalGated:a.gated,portalHiddenBlocks:a.hiddenBlocks};
     });
   }

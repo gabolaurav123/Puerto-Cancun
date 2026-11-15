@@ -25,6 +25,10 @@
 .contextual-inquiry :is(.primary-button,.ghost-button) { justify-self: start; min-height: 44px; }
 .contextual-inquiry .inquiry-status { margin: 0; }
 .contextual-inquiry .inquiry-context { margin: 0; overflow-wrap: anywhere; }
+.contextual-inquiry .inquiry-optional-body, .contextual-inquiry [data-phone-fields] { display: grid; gap: 10px; }
+.contextual-inquiry :is(.inquiry-intent,.inquiry-office) { margin: 0; font-size: .9rem; }
+.contextual-inquiry .inquiry-context { padding: 10px 12px; background: #edf4f3; border-radius: 6px; line-height: 1.5; }
+.contextual-inquiry [data-inquiry-success] { overflow-wrap: anywhere; }
 .inquiry-admin-filters { display: flex; gap: 12px; flex-wrap: wrap; align-items: end; margin: 12px 0; }
 .inquiry-admin-filters label { display: grid; gap: 4px; }
 .inquiry-admin-note { display: grid; gap: 6px; margin: 8px 0; }

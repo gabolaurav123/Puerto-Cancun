@@ -16,12 +16,13 @@ function visitPreference(value, now = Date.now()) {
   return text;
 }
 
-async function enrichCommercialInquiry(body, data, properties, channels, areas = inventory.LOCATIONS) {
+async function enrichCommercialInquiry(body, data, properties, channels, areas = inventory.LOCATIONS, exchangeRate = null) {
   if (body.service === "visit") {
-    if (!body.propertyId) bad("Selecciona la propiedad o el desarrollo que deseas visitar.");
-    if (!properties.some(property => property.id === body.propertyId && inventory.isPublic(property))) bad("La publicación ya no está disponible. Consulta al equipo antes de solicitar una visita.");
+    const visitId = body.propertyId || body.developmentId;
+    if (!visitId) bad("Selecciona la propiedad o el desarrollo que deseas visitar.");
+    if (!properties.some(property => property.id === visitId && inventory.isPublic(property))) bad("La publicación ya no está disponible. Consulta al equipo antes de solicitar una visita.");
     data.service = "visit";
-    data.visitPreferredAt = visitPreference(body.visitPreferredAt);
+    data.visitPreferredAt = body.visitPreferredAt ? visitPreference(body.visitPreferredAt) : "";
     data.visitTimezone = "America/Cancun";
     data.commercialStage = "visit_requested";
     data.visitStatus = "requested";
@@ -38,6 +39,7 @@ async function enrichCommercialInquiry(body, data, properties, channels, areas =
   }
   if (["sell", "let"].includes(data.intent) && body.askingPrice !== "" && body.askingPrice !== undefined) {
     const price = Number(body.askingPrice);
+    if (body.priceMode === "public-usd" && body.currency !== "USD") bad("El precio público debe estar expresado en USD.");
     if (!(price > 0 && price <= 1e13) || !["USD", "MXN"].includes(body.currency)) bad("Indica el precio solicitado y su moneda.");
     data.askingPrice = price; data.currency = body.currency;
   }
@@ -49,11 +51,12 @@ async function enrichCommercialInquiry(body, data, properties, channels, areas =
     // Free-form preferences remain visible to advisors and cannot be certified by numeric filters.
     const needsReview = Boolean(clean(data.preferences));
     const channel = ["email", "whatsapp"].includes(body.alertChannel) ? body.alertChannel : "";
+    if (channel && body.contactChannel && channel !== body.contactChannel) bad("El canal de avisos debe coincidir con el medio de contacto elegido.");
     if (channel && !channels[channel]) bad("Ese canal no está disponible ahora. Guarda la búsqueda para que un asesor la revise.");
     if (channel && body.alertConsent !== true) bad("Autoriza los avisos para activar este canal.");
-    const email = clean(body.alertEmail, 254).toLowerCase();
+    const email = clean(body.email || body.alertEmail, 254).toLowerCase();
     if (channel === "email" && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) bad("Escribe un correo válido para recibir los avisos.");
-    const result = inventory.queryInventory(properties, criteria, { areas });
+    const result = inventory.queryInventory(properties, criteria, { areas, exchangeRate });
     if (result.errors.length) bad(result.errors.join(" "));
     data.service = "search-watch";
     data.searchWatch = { filters: criteria, preferences: data.preferences || "", channel, email: channel === "email" ? email : "", consentAt: channel ? new Date().toISOString() : null,
@@ -62,7 +65,7 @@ async function enrichCommercialInquiry(body, data, properties, channels, areas =
   return data;
 }
 
-function matchingListings(lead, properties, areas = inventory.LOCATIONS) {
+function matchingListings(lead, properties, areas = inventory.LOCATIONS, exchangeRate = null) {
   const p = lead.payload || {};
   if (!["buy", "rent"].includes(p.intent)) return { matches: [], pending: [] };
   let criteria;
@@ -79,12 +82,12 @@ function matchingListings(lead, properties, areas = inventory.LOCATIONS) {
       const development = developments[0], references = [development.id, development.developmentData?.id].filter(Boolean);
       properties = properties.filter(row => [row.portalDevelopmentId, row.developmentId, row.development_id, row.parent_development_id, row.parentDevelopment?.id, row.parentDevelopment?.propertyId].some(id => references.includes(id)));
     }
-    if (p.budget) Object.assign(raw, { max: p.budget, currency: p.currency, priceBasis: "total", priceBasisExplicit: true });
+    if (p.budget) Object.assign(raw, { max: p.budget, currency: p.currency, priceMode:p.priceMode || "", priceBasis: "total", priceBasisExplicit: true });
     if (p.rentPeriod) raw.rentPeriod = p.rentPeriod;
     criteria = savedCatalogQuery(raw, { properties, language: p.lang, areas });
   }
   if (criteria.errors.length) return { matches: [], pending: criteria.errors };
-  const result = inventory.queryInventory(properties, criteria, { areas });
+  const result = inventory.queryInventory(properties, criteria, { areas, exchangeRate });
   return { matches: result.all.slice(0, 30).map(row => ({ id: row.id, title: row.titleEs, url: propertyPath(row, "es"), price: inventory.priceOf(row) })), pending: p.preferences ? ["Confirmar preferencias con el asesor: " + p.preferences] : [] };
 }
 
@@ -116,6 +119,7 @@ function unsubscribeToken(id, secret) { return crypto.createHmac("sha256", secre
 function registerCommercialRoutes(app, deps) {
   const { pool, query, requireRole, getPublicProperties, uuid, siteUrl, secret, channels, sendEmail, sendWhatsapp } = deps;
   const getAreas = () => deps.getAreas?.() || inventory.LOCATIONS;
+  const getExchangeRate = () => deps.getExchangeRate?.() || null;
   app.get("/api/search-watch/channels", (_req, res) => res.json({ channels: channels() }));
   app.get("/avisos/cancelar", (req, res) => {
     const id = clean(req.query.id, 100), token = clean(req.query.token, 64);
@@ -146,13 +150,13 @@ function registerCommercialRoutes(app, deps) {
       const phones = new Map();
       for (const lead of leads.rows) {
         const phone = String(lead.phone || "").replace(/\D/g, "").replace(/^521(?=\d{10}$)/, "52");
-        const key = phone || lead.contact_id || lead.id;
+        const key = phone || lead.email?.toLowerCase() || lead.contact_id || lead.id;
         if (!phones.has(key)) phones.set(key, []);
         phones.get(key).push(lead.id);
         lead.identityKey = key;
       }
       res.json({ metrics: { ...counts.rows[0], ...tours.rows[0] }, users: [{ id: 'admin-prueba', name: 'Administración' }, ...users.rows], channels: channels(), limit: 1000,
-        leads: leads.rows.map(lead => ({ id: lead.id, name: lead.name, phone: lead.phone, status: lead.status, assignedTo: lead.assigned_to || "", notes: lead.internal_notes || "", propertyId: lead.property_id, source: lead.source_path, createdAt: lead.created_at, updatedAt: lead.updated_at, payload: lead.payload, relatedInquiries: phones.get(lead.identityKey).filter(id => id !== lead.id), inventory: matchingListings(lead, properties, getAreas()), owners: ownerMatches(lead, leads.rows) })) });
+        leads: leads.rows.map(lead => ({ id: lead.id, name: lead.name, phone: lead.phone, email: lead.email, status: lead.status, assignedTo: lead.assigned_to || "", notes: lead.internal_notes || "", propertyId: lead.property_id, source: lead.source_path, createdAt: lead.created_at, updatedAt: lead.updated_at, payload: lead.payload, relatedInquiries: phones.get(lead.identityKey).filter(id => id !== lead.id), inventory: matchingListings(lead, properties, getAreas(), getExchangeRate()), owners: ownerMatches(lead, leads.rows) })) });
     } catch (error) { next(error); }
   });
   app.get("/api/admin/commercial/:id/history", requireRole("admin"), async (req, res, next) => {
@@ -212,7 +216,7 @@ function registerCommercialRoutes(app, deps) {
         if (!watch.consentAt || !channels()[watch.channel] || watch.preferences) continue;
         const criteria = savedCatalogQuery(watch.filters, { properties, areas: getAreas() });
         if (criteria.errors.length) continue;
-        const result = inventory.queryInventory(properties, criteria, { areas: getAreas() });
+        const result = inventory.queryInventory(properties, criteria, { areas: getAreas(), exchangeRate:getExchangeRate() });
         const newMatches = result.all.filter(p => !watch.knownPropertyIds?.includes(p.id) && !watch.deliveries?.[p.id]);
         if (!newMatches.length) continue;
         const en = lead.payload.lang === "en";

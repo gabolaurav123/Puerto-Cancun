@@ -28,6 +28,8 @@ function publicProperty(property) {
   };
   clean.latitude = coordinate(clean.latitude, 90);
   clean.longitude = coordinate(clean.longitude, 180);
+  if (clean.latitude === 0 && clean.longitude === 0) clean.latitude = clean.longitude = null;
+  if (clean.portalHiddenBlocks?.includes("location")) clean.locationPrecision = "hidden";
   // Coordinates and exact address never travel to the public client when not authorized for display.
   if (clean.locationPrecision !== "exact") {
     const hidden = clean.locationPrecision === "hidden";
@@ -49,10 +51,26 @@ function publicProperty(property) {
   clean.catalogData = Object.fromEntries(["locationId", "salesModality", "rentPeriod", "priceOnRequest", "homeOrder"].filter(key => Object.hasOwn(clean.catalogData || {}, key)).map(key => [key, clean.catalogData[key]]));
   if (clean.developmentData) clean.developmentData = Object.fromEntries(["id", "nameEs", "nameEn", "developer", "stage", "deliveryDate", "units", "availableUnits", "paymentPlan", "paymentPlanEn", "amenities", "constructionProgress", "progressUpdatedAt", "investmentHighlights", "investmentHighlightsEn"].filter(key => Object.hasOwn(clean.developmentData, key)).map(key => [key, clean.developmentData[key]]));
   if (clean.parentDevelopment) {
-    clean.parentDevelopment = { ...clean.parentDevelopment };
-    delete clean.parentDevelopment.address;
-    delete clean.parentDevelopment.latitude;
-    delete clean.parentDevelopment.longitude;
+    const parent = clean.parentDevelopment;
+    const publicFields = ["id", "propertyId", "updatedAt", "nameEs", "nameEn", "developer", "stage", "deliveryDate", "units", "availableUnits", "paymentPlan", "paymentPlanEn", "amenities", "imageCount"];
+    clean.parentDevelopment = Object.fromEntries(publicFields.filter(key => Object.hasOwn(parent, key)).map(key => [key, parent[key]]));
+    const linkedId = clean.portalDevelopmentId || clean.developmentId;
+    const linked = Boolean(linkedId) && [parent.id, parent.propertyId].includes(linkedId);
+    // Names alone do not authorize publishing a parent's map. Both records must explicitly
+    // allow it, and the parent must be the published linked development, never another unit.
+    if (linked && parent.isPublic === true && ["active", "featured"].includes(parent.status)
+      && clean.locationPrecision !== "hidden" && parent.locationPrecision !== "hidden" && !parent.portalHiddenBlocks?.includes("location")) {
+      const exact = clean.locationPrecision === "exact" && parent.locationPrecision === "exact";
+      const latitude = coordinate(parent.latitude, 90), longitude = coordinate(parent.longitude, 180);
+      Object.assign(clean.parentDevelopment, {
+        isPublic: true, status: parent.status, publicationSection: "developments",
+        locationPrecision: exact ? "exact" : "approximate",
+        ...Object.fromEntries(["zone", "city", "state", "neighborhood"].filter(key => typeof parent[key] === "string").map(key => [key, parent[key]])),
+        address: exact && typeof parent.address === "string" ? parent.address : "",
+        latitude: latitude === null || longitude === null || (latitude === 0 && longitude === 0) ? null : exact ? latitude : Math.round(latitude * 100) / 100,
+        longitude: latitude === null || longitude === null || (latitude === 0 && longitude === 0) ? null : exact ? longitude : Math.round(longitude * 100) / 100,
+      });
+    }
   }
   return clean;
 }

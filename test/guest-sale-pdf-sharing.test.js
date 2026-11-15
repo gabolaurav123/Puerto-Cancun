@@ -7,7 +7,7 @@ const root = path.join(__dirname, "..");
 const source = (file) => fs.readFileSync(path.join(root, file), "utf8");
 const { renderSeoPage } = require("../seo-pages");
 
-test("la venta sin registro solicita solo datos esenciales y el contacto al final", () => {
+test("la venta sin registro solicita datos esenciales y un canal en un solo paso", () => {
   const html = source("index.html");
   const app = source("app.js");
   const styles = source("styles.css");
@@ -18,7 +18,8 @@ test("la venta sin registro solicita solo datos esenciales y el contacto al fina
   assert.doesNotMatch(html.match(/<form id="guestSaleForm"[\s\S]+?<\/form>/)?.[0] || "", /name="description"[^>]*required/);
   assert.match(app, /POST[\s\S]*\/api\/guest-sale-requests/);
   assert.match(app, /function updateGuestContactFields/);
-  assert.match(app, /setGuestSaleStep\("contact"\)/);
+  assert.doesNotMatch(html.match(/<form id="guestSaleForm"[\s\S]+?<\/form>/)?.[0] || "", /data-guest-sale-step|continueGuestSale|backGuestSale/);
+  assert.match(html, /data-guest-optional-map/);
   assert.match(html, /Venta con registro/);
   assert.doesNotMatch(html, /Publicaci[oó]n acompañada/);
   assert.match(html, /seller-option-benefits/);

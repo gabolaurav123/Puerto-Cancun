@@ -28,7 +28,7 @@ const unit = {
 };
 
 for (const lang of ["es", "en"]) {
-  test(`development linked properties precede the visit form (${lang})`, () => {
+  test(`development linked properties precede the contextual inquiry (${lang})`, () => {
     const { html } = renderPropertyPage(development, lang, [unit]);
     const relatedIndex = html.indexOf('<section class="similar-properties">');
     const leadIndex = html.indexOf('<section class="property-lead"');
@@ -40,10 +40,11 @@ for (const lang of ["es", "en"]) {
     assert.ok(cards.includes(`href="${propertyPath(unit, lang)}"`));
     assert.equal((html.match(/class="similar-properties"/g) || []).length, 1);
     assert.equal((html.match(/class="property-lead"/g) || []).length, 1);
-    assert.ok(html.slice(leadIndex).includes(`data-property-id="${development.id}"`));
+    assert.ok(html.slice(leadIndex).includes(`data-development-id="${development.id}"`));
+    assert.ok(!html.slice(leadIndex).includes(`data-property-id="${development.id}"`), "A development must not be submitted as a specific unit");
   });
 
-  test(`development without linked properties keeps the visit form (${lang})`, () => {
+  test(`development without linked properties keeps the contextual inquiry (${lang})`, () => {
     const { html } = renderPropertyPage(development, lang, []);
     assert.doesNotMatch(html, /class="similar-properties"/);
     assert.equal((html.match(/class="property-lead"/g) || []).length, 1);

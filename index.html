@@ -2917,22 +2917,35 @@
       <section class="modal-card guest-sale-modal" role="dialog" aria-modal="true" aria-labelledby="guestSaleTitle">
         <button class="modal-close" type="button" data-close-guest-sale aria-label="Cerrar"><i data-lucide="x"></i></button>
         <form id="guestSaleForm" class="stacked-form">
-          <section data-guest-sale-step="property">
+          <section>
             <span class="eyebrow" data-i18n="guestSaleEyebrow">VENTA SIN REGISTRO</span>
             <h2 id="guestSaleTitle" data-i18n="guestSaleTitle">Envíanos los datos esenciales</h2>
             <p data-i18n="guestSaleIntro">No necesitas una cuenta. Un asesor revisará la información antes de solicitarte cualquier dato adicional.</p>
             <input class="honeypot-field" name="website" tabindex="-1" autocomplete="off" aria-hidden="true" />
             <input name="formStartedAt" type="hidden" />
-            <div class="form-row">
-              <label><span data-i18n="propertyTitle">Título de la propiedad</span><input name="title" maxlength="180" required /></label>
-              <label><span data-i18n="propertyType">Tipo de propiedad</span><select name="type" required><option>Casa</option><option>Departamento</option><option>Terreno</option><option>Comercial</option><option>Preventa</option></select></label>
-            </div>
-            <label><span data-i18n="guestLocation">Ubicación</span><input name="location" maxlength="260" placeholder="Zona, colonia o dirección aproximada" required /></label>
+            <label><span data-i18n="propertyType">Tipo de propiedad</span><select name="type" required><option>Casa</option><option>Departamento</option><option>Terreno</option><option>Comercial</option><option>Preventa</option></select></label>
+            <label><span data-i18n="guestLocation">Zona o localidad aproximada</span><input name="location" maxlength="260" data-i18n-placeholder="guestLocationPlaceholder" placeholder="Zona, colonia o localidad" required /></label>
             <input name="state" type="hidden" />
             <input name="city" type="hidden" />
             <input name="zone" type="hidden" />
             <input name="neighborhood" type="hidden" />
             <input name="address" type="hidden" />
+            <h3 data-i18n="contactPreferenceTitle">¿Por dónde prefieres que te contactemos?</h3>
+            <div class="contact-method-options">
+              <label><input type="radio" name="preferredContact" value="whatsapp" checked /><span><i data-lucide="message-circle"></i><b>WhatsApp</b></span></label>
+              <label><input type="radio" name="preferredContact" value="email" /><span><i data-lucide="mail"></i><b data-i18n="contactEmail">Correo</b></span></label>
+            </div>
+            <label data-guest-contact-field="email" hidden><span data-i18n="email">Dirección de correo</span><input name="email" type="email" autocomplete="email" disabled /></label>
+            <fieldset data-guest-contact-field="whatsapp"><legend data-i18n="contactPhone">Teléfono</legend><div class="phone-registration-grid"><label><span data-i18n="inquiryPhoneCountry">País del teléfono</span><select name="country" required data-inquiry-country><option value="MX">México (+52)</option><option value="US">Estados Unidos (+1)</option><option value="CA">Canadá (+1)</option></select></label><label><span data-i18n="contactPhone">Teléfono</span><input name="phone" type="tel" inputmode="tel" autocomplete="tel" maxlength="40" required></label></div></fieldset>
+            <details data-guest-optional-details>
+              <summary data-i18n="guestOptionalDetails">Añadir información o fotos (opcional)</summary>
+              <label><span data-i18n="guestOptionalTitle">Título de la propiedad (opcional)</span><input name="title" maxlength="180" /></label>
+              <label><span data-i18n="guestOptionalName">Tu nombre (opcional)</span><input name="name" maxlength="110" autocomplete="name" /></label>
+              <label><span data-i18n="optionalDescription">Descripción opcional</span><textarea name="description" rows="3" maxlength="4000" data-i18n-placeholder="guestDescriptionPlaceholder" placeholder="Agrega solo la información que ya tengas disponible"></textarea></label>
+              <label class="file-field"><span data-i18n="guestImages">Imágenes de la propiedad (opcionales)</span><input name="imageFile" type="file" accept="image/jpeg,image/jpg,image/png,image/webp" multiple /><small data-i18n="guestImagesHelp">Puedes enviarla sin fotos y agregarlas después con ayuda de un asesor.</small></label>
+              <div class="image-preview" id="guestSaleImagePreview" hidden><div class="image-preview-header"><span data-i18n="selectedImage">Imágenes seleccionadas</span><button class="text-button danger" type="button" id="clearGuestSaleImages" data-i18n="removeImage">Quitar imágenes</button></div><div class="image-preview-grid"></div></div>
+              <details data-guest-optional-map>
+                <summary data-i18n="guestOptionalMap">Precisar ubicación en el mapa (opcional)</summary>
             <div class="map-picker guest-map-picker" data-map-picker>
               <div class="map-picker-copy">
                 <div><h3 data-i18n="mapPickerTitle">Ubicación en mapa</h3><p data-i18n="mapPickerCopy">Busca una dirección o mueve el pin para confirmar la ubicación.</p></div>
@@ -2944,30 +2957,15 @@
               </div>
               <iframe title="Mapa de ubicación" loading="lazy" referrerpolicy="no-referrer-when-downgrade" data-map-frame></iframe>
               <div class="interactive-map-canvas" data-map-canvas hidden aria-label="Selector interactivo de ubicación"></div>
-              <div class="form-row coordinate-row">
-                <label><span data-i18n="latitudeField">Latitud</span><input name="latitude" type="number" step="any" min="-90" max="90" data-map-lat /></label>
-                <label><span data-i18n="longitudeField">Longitud</span><input name="longitude" type="number" step="any" min="-180" max="180" data-map-lng /></label>
-              </div>
+              <input name="latitude" type="hidden" data-map-lat />
+              <input name="longitude" type="hidden" data-map-lng />
               <input name="mapPlace" type="hidden" data-map-place />
               <p class="map-help" data-i18n="mapPickerHelp">La dirección y el punto del mapa se mantendrán sincronizados.</p>
             </div>
-            <label class="file-field"><span data-i18n="guestImages">Imágenes de la propiedad (opcionales)</span><input name="imageFile" type="file" accept="image/jpeg,image/jpg,image/png,image/webp" multiple /><small data-i18n="guestImagesHelp">Puedes enviarla sin fotos y agregarlas después con ayuda de un asesor.</small></label>
-            <div class="image-preview" id="guestSaleImagePreview" hidden><div class="image-preview-header"><span data-i18n="selectedImage">Imágenes seleccionadas</span><button class="text-button danger" type="button" id="clearGuestSaleImages" data-i18n="removeImage">Quitar imágenes</button></div><div class="image-preview-grid"></div></div>
-            <label><span data-i18n="optionalDescription">Descripción opcional</span><textarea name="description" rows="4" maxlength="4000" placeholder="Agrega solo la información que ya tengas disponible"></textarea></label>
-            <div class="form-actions"><button class="primary-button" type="button" id="continueGuestSale"><span data-i18n="continueContact">Continuar al contacto</span><i data-lucide="arrow-right"></i></button><button class="ghost-button" type="button" data-close-guest-sale data-i18n="cancel">Cancelar</button></div>
-          </section>
-          <section data-guest-sale-step="contact" hidden>
-            <span class="eyebrow" data-i18n="contactPreferenceEyebrow">ÚLTIMO PASO</span>
-            <h2 data-i18n="contactPreferenceTitle">¿Por dónde prefieres que te contactemos?</h2>
-            <p data-i18n="contactPreferenceCopy">Si precisamos más datos sobre tu propiedad, te contactaremos únicamente por el medio que elijas.</p>
-            <div class="contact-method-options">
-              <label><input type="radio" name="preferredContact" value="whatsapp" checked /><span><i data-lucide="message-circle"></i><b>WhatsApp</b></span></label>
-              <label><input type="radio" name="preferredContact" value="email" /><span><i data-lucide="mail"></i><b data-i18n="contactEmail">Correo</b></span></label>
-            </div>
-            <label data-guest-contact-field="email"><span data-i18n="email">Dirección de correo</span><input name="email" type="email" autocomplete="email" /></label>
-            <fieldset data-guest-contact-field="whatsapp"><legend data-i18n="contactPhone">Teléfono</legend><div class="phone-registration-grid"><label><span data-i18n="inquiryPhoneCountry">País del teléfono</span><select name="country" required data-inquiry-country><option value="MX">México (+52)</option></select></label><label><span data-i18n="contactPhone">Teléfono</span><input name="phone" type="tel" inputmode="tel" autocomplete="tel" maxlength="40" required></label></div></fieldset>
+              </details>
+            </details>
             <label class="check-field guest-consent-field"><input name="consent" type="checkbox" required /><span data-i18n="guestConsent">Acepto el aviso de privacidad y que un asesor me contacte sobre esta solicitud.</span></label>
-            <div class="form-actions"><button class="ghost-button" type="button" id="backGuestSale"><i data-lucide="arrow-left"></i><span data-i18n="back">Volver</span></button><button class="primary-button" type="submit"><i data-lucide="send"></i><span data-i18n="confirmSendRequest">Confirmar y enviar</span></button></div>
+            <div class="form-actions"><button class="primary-button" type="submit"><i data-lucide="send"></i><span data-i18n="guestSubmitRequest">Enviar solicitud</span></button><button class="ghost-button" type="button" data-close-guest-sale data-i18n="cancel">Cancelar</button></div>
             <p class="form-message" id="guestSaleMessage" aria-live="polite"></p>
           </section>
         </form>
@@ -3223,7 +3221,7 @@
       data-contact-inquiry data-origin="floating-contact"
       aria-label="Contactar al equipo" data-i18n-aria-label="teamCta"
     >
-      <span>WhatsApp</span>
+      <span data-i18n="teamCta">Contactar al equipo</span>
       <i data-lucide="message-circle"></i>
     </a>
 
@@ -3243,11 +3241,14 @@
       </form>
     </dialog>
     <dialog id="draftPreviewDialog" class="listing-publish-dialog" aria-labelledby="draftPreviewTitle"><h2 id="draftPreviewTitle">Vista previa del borrador</h2><div id="draftPreviewContent"></div><form method="dialog"><button class="ghost-button">Cerrar</button></form></dialog>
+    <script src="/public-pricing.js?v=1"></script>
     <script src="/inventory-contract.js?v=20261029.1"></script>
+    <script src="/public-listing-details.js?v=1"></script>
     <script src="/csv-utils.js?v=20261029.1"></script>
     <script src="/contact-config.js?v=20261029.1"></script>
     <script src="/exchange-rate-view.js?v=20261103.1"></script>
     <script src="/admin-inventory-ui.js?v=20261029.1"></script>
+    <script src="/presale-policy.js?v=1"></script>
     <script src="/portal-directory.js?v=1"></script>
     <script src="/admin-portal-directory.js?v=1"></script>
     <script src="/comparison-ui.js?v=20261029.1"></script>

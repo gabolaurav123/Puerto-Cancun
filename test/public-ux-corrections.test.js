@@ -2,6 +2,7 @@ const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const path = require("node:path");
 const test = require("node:test");
+const { publicExchangeFixture } = require("./helpers/public-exchange-fixture");
 const {
   localizedListingPrice,
   renderPropertyPage,
@@ -10,14 +11,18 @@ const {
 
 const root = path.join(__dirname, "..");
 
-test("la publicación conserva una sola moneda original en ambos idiomas", () => {
+test("la publicación presenta USD en ambos idiomas sin alterar su moneda original", () => {
   const indexSource = fs.readFileSync(path.join(root, "index.html"), "utf8");
   const appSource = fs.readFileSync(path.join(root, "app.js"), "utf8");
   const property = { currency: "MXN", price: 18500000, priceUsd: null, priceMxn: 18500000 };
+  const original = JSON.stringify(property);
+  const snapshot = publicExchangeFixture();
 
   assert.doesNotMatch(indexSource, /id="currencySelect"|class="currency-control"/);
-  assert.deepEqual(localizedListingPrice(property, "es"), { amount: 18500000, currency: "MXN" });
-  assert.deepEqual(localizedListingPrice(property, "en"), { amount: 18500000, currency: "MXN" });
+  assert.deepEqual(localizedListingPrice(property, snapshot), { amount: 925000, currency: "USD" });
+  for (const lang of ["es", "en"]) assert.match(renderPropertyPage(property, lang, [], {}, [], snapshot).html, /≈ USD \$925,000/);
+  assert.equal(localizedListingPrice(property), null, "No conversion without a current rate");
+  assert.equal(JSON.stringify(property), original);
   assert.doesNotMatch(appSource, /state\.currency = state\.lang === "en" \? "USD" : "MXN"/);
 });
 
@@ -64,12 +69,13 @@ test("las publicaciones usan carrusel y no muestran fecha de modificación", () 
   assert.match(spanish, /data-gallery-zoom-in/);
   assert.equal((spanish.match(/data-gallery-slide=/g) || []).length, 3);
   assert.match(spanish, /Descripción completa de la propiedad\./);
-  assert.match(spanish, /class="property-location-map"/);
+  assert.match(spanish, /class="property-location-map public-location-section"/);
   assert.match(spanish, /data-contact-inquiry data-intent="buy"/);
   assert.ok(spanish.indexOf("property-page-gallery") < spanish.indexOf("property-page-summary"));
   assert.ok(spanish.indexOf("property-contact-cta") < spanish.indexOf("property-long-description"));
   assert.ok(spanish.indexOf("property-long-description") < spanish.indexOf("property-amenities"));
-  assert.ok(spanish.indexOf("property-amenities") < spanish.indexOf("property-location-map"));
+  assert.ok(spanish.indexOf("property-page-summary") < spanish.indexOf("property-location-map"));
+  assert.ok(spanish.indexOf("property-location-map") < spanish.indexOf("property-long-description"));
 });
 
 test("la guía enlaza los dos inventarios de cada zona activa, en ambos idiomas", () => {
@@ -86,17 +92,21 @@ test("la guía enlaza los dos inventarios de cada zona activa, en ambos idiomas"
 test("el mapa de la ficha respeta la visibilidad y no dirige a Google Maps en ES ni EN", () => {
   const property = {
     id: "muestra", slug: "muestra", titleEs: "Muestra", titleEn: "Sample",
-    zone: "Puerto Cancún", latitude: 21.16, longitude: -86.81,
+    zone: "Puerto Cancún", latitude: 21.16, longitude: -86.81, locationPrecision: "exact",
     googleMapsUrl: "https://maps.app.goo.gl/private-location",
   };
   for (const lang of ["es", "en"]) {
     const withCoordinates = renderPropertyPage(property, lang).html;
-    assert.match(withCoordinates, /src="https:\/\/www\.openstreetmap\.org\/export\/embed\.html\?[^" ]*marker=21\.16%2C-86\.81/);
+    assert.match(withCoordinates, /data-location-precision="exact"/);
+    assert.match(withCoordinates, /data-location-latitude="21\.16" data-location-longitude="-86\.81"/);
     const withoutCoordinates = renderPropertyPage({ ...property, latitude: null, longitude: null }, lang).html;
-    assert.match(withoutCoordinates, /data-show-area-map="Puerto Cancún"/);
+    assert.match(withoutCoordinates, /data-location-precision="approximate"/);
+    assert.match(withoutCoordinates, /data-location-query="(?:Puerto Cancún|Puerto Cancun)/);
+    assert.doesNotMatch(withoutCoordinates, /data-show-area-map|<iframe/);
     assert.doesNotMatch(withoutCoordinates, /www\.openstreetmap\.org\/export\/embed/);
     const hidden = renderPropertyPage({ ...property, locationPrecision: "hidden" }, lang).html;
-    assert.doesNotMatch(hidden, /property-location-map|data-show-area-map/);
+    assert.match(hidden, /data-location-precision="hidden"/);
+    assert.doesNotMatch(hidden, /data-location-canvas|data-location-query|data-location-latitude|data-show-area-map/);
     const office = renderSeoPage(lang === "es" ? "/contacto" : "/en/contact");
     assert.doesNotMatch([withCoordinates, withoutCoordinates, hidden, office].join("\n"), /(?:href|src)="https?:\/\/[^" ]*(?:google\.com\/maps|maps\.google\.|maps\.app\.goo\.gl)/i);
   }

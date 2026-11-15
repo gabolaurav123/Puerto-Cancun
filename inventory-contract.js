@@ -1,8 +1,8 @@
 (function (root, factory) {
-  const api = factory();
+  const api = factory(typeof module === "object" && module.exports ? require("./public-pricing") : root.PccPublicPricing);
   if (typeof module === "object" && module.exports) module.exports = api;
   else root.PccInventory = api;
-})(typeof globalThis !== "undefined" ? globalThis : this, function () {
+})(typeof globalThis !== "undefined" ? globalThis : this, function (publicPricing) {
   "use strict";
 
   const VERSION = "2026-10-29.2";
@@ -121,6 +121,32 @@
     return { amount, currency, basis, operation, period: operation === "rent" ? metadataOf(p).rentPeriod || "unclassified" : "" };
   }
 
+  function publicPriceOf(p, snapshot, options = {}) {
+    const original = priceOf(p);
+    if (!publicPricing) return { ...original, amount: null, currency: "USD", originalAmount: original.amount, originalCurrency: original.currency, approximate: false, status: "rate_unavailable" };
+    return publicPricing.price(original, snapshot, { ...options, onRequest: metadataOf(p).priceOnRequest === true });
+  }
+
+  function publicPriceText(p, snapshot, lang = "es", options = {}) {
+    if (!publicPricing) return lang === "en" ? "USD price to be confirmed" : "Precio en USD por confirmar";
+    return publicPricing.format(publicPriceOf(p, snapshot, options), lang, options);
+  }
+
+  function publicPriceRange(items, snapshot, options = {}) {
+    const groups = new Map();
+    for (const item of items) {
+      const price = publicPriceOf(item, snapshot, options);
+      if (price.amount === null) continue;
+      const key = [price.operation, price.basis, price.period].join("|");
+      if (!groups.has(key)) groups.set(key, { currency: "USD", operation: price.operation, basis: price.basis, period: price.period,
+        min: price.amount, max: price.amount, approximate: price.approximate, date: price.date, count: 0 });
+      const range = groups.get(key);
+      range.min = Math.min(range.min, price.amount); range.max = Math.max(range.max, price.amount);
+      range.approximate ||= price.approximate; range.date ||= price.date; range.count++;
+    }
+    return [...groups.values()];
+  }
+
   function parseQuery(input = {}, defaults = {}, { areas = LOCATIONS } = {}) {
     const envelope = queryEnvelope(input);
     const defaultEnvelope = queryEnvelope(defaults);
@@ -184,6 +210,14 @@
       sort: String(raw.sort || "recent"),
       page: raw.page === undefined || raw.page === "" ? 1 : Number(raw.page),
     };
+    if (raw.priceMode !== undefined && raw.priceMode !== null && raw.priceMode !== "") {
+      query.priceMode = raw.priceMode;
+      if (!["public-usd", "original"].includes(query.priceMode)) errors.push("Modo de precio inválido");
+      if (query.priceMode === "public-usd") {
+        if (query.currency && query.currency !== "USD") errors.push("La búsqueda pública en USD no admite un presupuesto en otra moneda");
+        if (!query.currency) query.currency = "USD";
+      }
+    }
     query.locations = [...new Set(query.locations.map((value) => locationId(value, areas) || value))];
     if (query.locations.some((value) => !areas.some((location) => location.id === value))) errors.push("Location no reconocida");
     if (!["properties", "developments"].includes(query.entity) && !(query.entity === "all" && query.featured)) errors.push(query.entity === "typologies" ? "Tipologías pendientes de soporte; no son propiedades ni desarrollos" : "Tipo de inventario inválido");
@@ -212,7 +246,7 @@
     return { query, errors: [...new Set(errors)] };
   }
 
-  function matches(p, query, { includePrivate = false, areas = LOCATIONS } = {}) {
+  function matches(p, query, { includePrivate = false, areas = LOCATIONS, exchangeRate, now } = {}) {
     if (query && (owns(query, "query") || owns(query, "errors"))) {
       const parsed = parseQuery(query, {}, { areas });
       if (parsed.errors.length) return false;
@@ -246,7 +280,7 @@
       const value = positiveAmount(p[key]);
       if (value === null || (query[min] != null && value < query[min]) || (query[max] != null && value > query[max])) return false;
     }
-    const price = priceOf(p);
+    const price = query.priceMode === "public-usd" ? publicPriceOf(p, exchangeRate, { now }) : priceOf(p);
     if (query.currency && price.currency !== query.currency) return false;
     if (query.rentPeriod && price.period !== query.rentPeriod) return false;
     if ((query.priceBasisExplicit || query.priceBasis === "sqm") && price.basis !== query.priceBasis) return false;
@@ -268,7 +302,12 @@
     const { query } = parsed;
     const unique = [...new Map(items.map((p) => [p.id, p])).values()];
     const all = unique.filter((p) => matches(p, query, options));
-    const group = (p) => { const price = priceOf(p); return [price.currency, price.operation, price.basis, price.period].join("|"); };
+    const sortingPrices = new Map();
+    const sortingPrice = p => {
+      if (!sortingPrices.has(p)) sortingPrices.set(p, options.publicPricing || query.priceMode === "public-usd" ? publicPriceOf(p, options.exchangeRate, { now: options.now }) : priceOf(p));
+      return sortingPrices.get(p);
+    };
+    const group = (p) => { const price = sortingPrice(p); return [price.currency, price.operation, price.basis, price.period].join("|"); };
     const areaOrder = new Map((options.areas || LOCATIONS).map((area, index) => [area.id, index]));
     const rankArea = property => areaOrder.get(resolveLocation(property, options.areas).id) ?? areaOrder.size;
     all.sort((a, b) => {
@@ -280,7 +319,7 @@
       if (exact) return exact;
       let order = 0;
       if (query.sort.startsWith("price-")) {
-        const pa = priceOf(a).amount, pb = priceOf(b).amount;
+        const pa = sortingPrice(a).amount, pb = sortingPrice(b).amount;
         if (pa === null || pb === null) order = Number(pa === null) - Number(pb === null);
         if (!order) order = group(a).localeCompare(group(b));
         if (!order && pa !== null && pb !== null) order = (pa - pb) * (query.sort === "price-desc" ? -1 : 1);
@@ -315,7 +354,7 @@
     for (const key of ["baths", "parking", "minBuilt", "maxBuilt", "minLot", "maxLot"]) {
       if (query[key] != null && query[key] !== "") params.set(key, String(query[key]));
     }
-    for (const [key, value] of Object.entries({ entity: query.entity, q: query.text, location: query.locations?.join(","), bounds: query.bounds?.join(","), zone: query.zone, subarea: query.subarea, gated: query.gated ? "1" : "", type: query.type, operation: query.operation, modality: query.modality, development: query.development, currency: query.currency, min: query.min, max: query.max, priceBasis: query.priceBasisExplicit === false && query.priceBasis === "total" ? "" : query.priceBasis, rentPeriod: query.rentPeriod, beds: query.beds, featured: query.featured ? "1" : "", sort: query.sort, page: query.page })) {
+    for (const [key, value] of Object.entries({ entity: query.entity, q: query.text, location: query.locations?.join(","), bounds: query.bounds?.join(","), zone: query.zone, subarea: query.subarea, gated: query.gated ? "1" : "", type: query.type, operation: query.operation, modality: query.modality, development: query.development, currency: query.currency, priceMode: query.priceMode, min: query.min, max: query.max, priceBasis: query.priceBasisExplicit === false && query.priceBasis === "total" ? "" : query.priceBasis, rentPeriod: query.rentPeriod, beds: query.beds, featured: query.featured ? "1" : "", sort: query.sort, page: query.page })) {
       if (value !== "" && value !== null && value !== undefined) params.set(key, String(value));
     }
     return params;
@@ -381,5 +420,5 @@
     return { version: VERSION, total: records.length, counts, records, pendingRecords };
   }
 
-  return { VERSION, LOCATIONS, TYPES, fold, entityOf, isPublic, locationId, resolveLocation, modalityOf, priceOf, parseQuery, matches, queryInventory, toSearchParams, quality, isPlaceholder, reconcile };
+  return { VERSION, LOCATIONS, TYPES, fold, entityOf, isPublic, locationId, resolveLocation, modalityOf, priceOf, publicPriceOf, publicPriceText, publicPriceRange, parseQuery, matches, queryInventory, toSearchParams, quality, isPlaceholder, reconcile };
 });

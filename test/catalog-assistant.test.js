@@ -53,7 +53,9 @@ for (const language of ["es", "en", "en-US", "ES-mx"]) {
     assert.equal(h.requests[0].body.lang, expected);
     assert.equal(h.requests[0].body.language, expected);
     assert.equal(h.requests[0].body.filters.language, expected);
-    assert.match(h.status.textContent, expected === "en" ? /Please clarify.*Choose a currency/s : /Necesitamos precisar.*Elige una moneda/s);
+    assert.equal(h.requests[0].body.filters.filters.priceMode, "public-usd");
+    assert.equal(h.navigations.length, 1);
+    assert.equal(h.status.textContent, "");
     assert.equal(h.button.disabled, false);
     assert.equal(h.status.attributes.role, "status");
     assert.equal(h.status.hidden, false);
@@ -66,7 +68,7 @@ test("search conserva tres argumentos y acepta cuarto options language/lang", as
   assert.equal(h.requests[0].body.lang, "en");
   await h.assistant.search("USD", h.status, h.button, { language: "es-MX" });
   assert.equal(h.requests[1].body.lang, "es");
-  assert.equal(h.navigations.length, 1);
+  assert.equal(h.navigations.length, 2);
 });
 
 test("vista y rutas sobreviven respuestas USD/buy con envelope serializable", async () => {
@@ -82,13 +84,26 @@ test("vista y rutas sobreviven respuestas USD/buy con envelope serializable", as
   assert.doesNotMatch(h.status.textContent, /Choose a currency|Choose purchase or rent/);
 });
 
-test("elegir moneda simple sigue navegando sin obligar reinicio", async () => {
+test("elegir la operación pendiente conserva el presupuesto público USD sin obligar reinicio", async () => {
   const h = harness();
-  await h.assistant.search("Buy house under 700000", h.status, h.button);
-  await h.assistant.search("USD", h.status, h.button);
+  await h.assistant.search("House under 700000", h.status, h.button);
+  assert.equal(h.navigations.length, 0);
+  await h.assistant.search("Buy", h.status, h.button);
   assert.equal(h.navigations.length, 1);
+  assert.equal(h.requests[1].body.filters.filters.priceMode, "public-usd");
+  assert.equal(inventory.parseQuery(h.requests[1].body.filters.filters).query.currency, "USD");
+  assert.equal(h.requests[1].body.filters.filters.max, 700000);
   assert.equal(h.requests[1].retry, false);
   assert.equal(h.requests[1].timeoutMs, 15000);
+});
+
+test("una búsqueda guardada MXN conserva moneda y presupuesto originales en el contexto inicial", async () => {
+  const h = harness({ search: "?operation=sale&currency=MXN&max=20000000" });
+  await h.assistant.search("House", h.status, h.button);
+  assert.equal(h.requests[0].body.filters.filters.priceMode, undefined);
+  assert.equal(h.requests[0].body.filters.filters.currency, "MXN");
+  assert.equal(h.requests[0].body.filters.filters.max, 20000000);
+  assert.equal(h.navigations.length, 1);
 });
 
 test("requisitos pendientes bloquean incluso sin needsChoice", async () => {

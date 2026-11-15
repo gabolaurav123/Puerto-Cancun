@@ -76,6 +76,12 @@ body[data-page=seo]:has([data-catalog-root]) .seo-page-content { padding-top: 16
 .catalog-project-detail > section { max-width: 72ch; margin-top: 24px; }
 .catalog-project-intro { display: flex; flex-wrap: wrap; align-items: center; gap: 16px 24px; margin: 16px 0; }
 .catalog-project-intro > img { flex: 1 1 18rem; width: 100%; max-width: 30rem; min-width: 0; height: auto; aspect-ratio: 3/2; object-fit: contain; background: #eff4f2; }
+.catalog-project-cover { flex: 1 1 18rem; width: 100%; max-width: 30rem; min-width: 0; margin: 0; }
+.catalog-project-cover img, .catalog-project-gallery img { display: block; width: 100%; height: auto; aspect-ratio: 3/2; object-fit: contain; background: #eff4f2; }
+.catalog-project-cover figcaption, .catalog-project-gallery figcaption { padding: 8px 10px; font: 600 .85rem/1.45 Arial,sans-serif; color: #294d52; background: #eff4f2; overflow-wrap: anywhere; }
+.catalog-project-detail > .catalog-project-gallery { max-width: none; }
+.catalog-project-gallery .property-gallery-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 18rem), 1fr)); gap: 16px; }
+.catalog-project-gallery figure { min-width: 0; margin: 0; }
 .catalog-project-intro > div { flex: 1 1 18rem; min-width: 0; }
 .catalog-project-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; }
 .catalog-project-actions a { white-space: normal; }

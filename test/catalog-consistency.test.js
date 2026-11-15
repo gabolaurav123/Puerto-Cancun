@@ -7,6 +7,7 @@ const { savedCatalogQuery } = require("../saved-catalog-search");
 const { interpretCatalogSearch } = require("../catalog-search");
 const { renderCatalog } = require("../catalog-view");
 const seo = require("../seo-pages");
+const { publicExchangeFixture } = require("./helpers/public-exchange-fixture");
 const property = overrides => ({
   id: "monthly", slug: "monthly", titleEs: "Casa Marina", titleEn: "Marina Home", type: "Casa",
   operation: "rent", price: 25000, currency: "MXN", priceUnit: "total", status: "active", isPublic: true,
@@ -83,27 +84,31 @@ test("zero matches offer saved intent with all filters and no alert delivery pro
   assert.doesNotMatch(renderCatalog({lang:"en",category:{}},[],{max:"invalid"},()=>""),/data-save-search/);
 });
 
-test("cards and details retain the same native rental price and label both surface concepts", () => {
+test("cards and details show the same converted USD rent and label both surface concepts", () => {
   const row = property();
-  const page = seo.getPageByPath("/propiedades");
+  const exchangeRate = publicExchangeFixture();
+  const original = JSON.stringify(row);
+  const page = { ...seo.getPageByPath("/propiedades"), currencyExchange: exchangeRate };
   const cards = seo.renderCategoryPage(page,[row],{});
-  const detail = seo.renderPropertyPage(row,"es").html;
+  const detail = seo.renderPropertyPage(row,"es",[],{},[],exchangeRate).html;
   for (const html of [cards,detail]) {
-    assert.match(html,/MXN \$25,000 \/ mes/);
+    assert.match(html,/≈ USD \$1,250 \/ mes · TC /);
     assert.match(html,/120 m² construcción/); assert.match(html,/250 m² terreno/);
   }
-  assert.match(seo.renderPropertyHead(property({status:"sold"})).jsonLd, /https:\/\/schema.org\/OutOfStock/);
+  assert.equal(JSON.stringify(row),original);
+  assert.match(seo.renderPropertyHead(property({status:"sold"}),undefined,"es",exchangeRate).jsonLd, /https:\/\/schema.org\/OutOfStock/);
 });
 
-test("inquiry links preserve rental period and numeric preferences without null placeholders", () => {
+test("inquiry links preserve rental criteria as structured context instead of a technical preferences paragraph", () => {
   const html = seo.renderCategoryPage(seo.getPageByPath("/en/properties"),[property()],{operation:"rent",rentPeriod:"month",currency:"MXN",max:30000,minBuilt:100,baths:2,parking:1});
-  const preferences = [...html.matchAll(/data-preferences="([^"]+)"/g)].map(match=>match[1]);
-  assert.ok(preferences.length >= 2);
-  for (const text of preferences) {
-    assert.match(text,/Period: Monthly/); assert.match(text,/Minimum built area \(m²\): 100/);
-    assert.match(text,/Minimum bathrooms: 2/); assert.match(text,/Minimum parking spaces: 1/);
-    assert.doesNotMatch(text,/null|undefined/);
+  const contexts = [...html.matchAll(/data-search-filters="([^"]+)"/g)].map(match=>JSON.parse(match[1].replaceAll("&quot;",'"').replaceAll("&amp;","&")));
+  assert.ok(contexts.length >= 2);
+  for (const context of contexts) {
+    assert.equal(context.operation,"rent"); assert.equal(context.rentPeriod,"month");
+    assert.equal(context.minBuilt,100); assert.equal(context.baths,2); assert.equal(context.parking,1);
+    assert.equal(context.max,30000); assert.equal(context.currency,"MXN");
   }
+  assert.doesNotMatch(html,/data-preferences=/);
 });
 
 test("gated properties and switched land filters are not silently relaxed", () => {

@@ -8,6 +8,7 @@ const { enrichCommercialInquiry } = require("./commercial-workflow");
 const inventoryContract = require("./inventory-contract");
 const { savedCatalogQuery } = require("./saved-catalog-search");
 const { describeCatalogFilters } = require("./catalog-search");
+const { resolveInquiryContext } = require("./inquiry-context");
 
 const countries = getCountries().map(country => ({ country, prefix: "+" + getCountryCallingCode(country) }));
 const intentTypes = { buy: "comprador-compra", rent: "comprador-busca-renta", sell: "vendedor-venta", let: "vendedor-ofrece-renta" };
@@ -54,6 +55,17 @@ function contactPhone(raw, country, lang) {
   return { phone: parsed.number.slice(1), country, prefix: selected.prefix };
 }
 
+function contactIdentity(body, lang = "es") {
+  const contactChannel = body.contactChannel || "whatsapp"; // Existing phone-only clients stay compatible.
+  if (!["email", "whatsapp"].includes(contactChannel)) fail("Elige un medio de respuesta válido.", "Choose a valid reply channel.", lang);
+  if (contactChannel === "email") {
+    const email = clean(body.email, 254).toLowerCase();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) fail("Escribe un correo electrónico válido.", "Enter a valid email address.", lang);
+    return { contactChannel, email, phone: "", country: "", prefix: "" };
+  }
+  return { ...contactPhone(body.phone, body.country || "MX", lang), email: "", contactChannel };
+}
+
 function sourcePath(input) {
   const path = clean(input, 1000);
   if (!path.startsWith("/") || /^\/[/\\]|\\|[\x00-\x1f]/.test(path)) return "/";
@@ -61,7 +73,7 @@ function sourcePath(input) {
   if (/^\/(?:api|panel|admin|seller|media|compartir|share)(?:\/|$)/.test(parsed.pathname)) return "/";
   const query = new URLSearchParams();
   for (const [key, value] of parsed.searchParams) {
-    if (/^(q|text|type|zone|location|locations|development|subzone|subarea|entity|operation|modality|currency|budget|min|max|minPrice|maxPrice|rentPeriod|priceBasis|sort|view|page|beds|baths|parking|minBuilt|maxBuilt|minLot|maxLot|category|intent)$/.test(key)) query.append(key, value.slice(0, 300));
+    if (/^(q|text|type|zone|location|locations|development|subzone|subarea|entity|operation|modality|currency|priceMode|budget|min|max|minPrice|maxPrice|rentPeriod|priceBasis|sort|view|page|beds|baths|parking|minBuilt|maxBuilt|minLot|maxLot|category|intent|project)$/.test(key)) query.append(key, value.slice(0, 300));
   }
   return parsed.pathname + (query.size ? "?" + query : "");
 }
@@ -72,8 +84,8 @@ function readInquiry(body) {
   if (body.consent !== true) fail("Acepta el aviso de privacidad para enviar tu solicitud.", "Accept the privacy notice to send your request.", lang);
   const elapsed = Date.now() - Number(body.formStartedAt || 0);
   if (!(elapsed >= 1000 && elapsed <= 7200000)) fail("Vuelve a abrir el formulario e intenta nuevamente.", "Reopen the form and try again.", lang);
-  const phone = contactPhone(body.phone, body.country, lang);
-  const data = { lang, intent: body.intent, country: phone.country, prefix: phone.prefix };
+  const identity = contactIdentity(body, lang);
+  const data = { lang, intent: body.intent, contactChannel: identity.contactChannel, country: identity.country, prefix: identity.prefix, consentContact: true };
   if (body.office) {
     if (!["mx", "us"].includes(body.office)) fail("Elige una oficina disponible.", "Choose an available office.", lang);
     data.office = body.office;
@@ -86,13 +98,15 @@ function readInquiry(body) {
   }
   if (body.budget !== undefined && body.budget !== "") {
     const value = Number(body.budget);
-    if (!(value > 0 && Number.isFinite(value) && value <= 1e13 && ["USD", "MXN"].includes(body.currency))) {
+    if (!(value > 0 && Number.isFinite(value) && value <= 1e13 && ["USD", "MXN"].includes(body.currency)) || body.priceMode === "public-usd" && body.currency !== "USD") {
       fail("Indica un presupuesto válido y su moneda.", "Enter a valid budget and its currency.", lang);
     }
     data.budget = value;
     data.currency = body.currency;
   }
-  return { phone: phone.phone, name: clean(body.name, 110), propertyId: clean(body.propertyId, 140), path: sourcePath(body.sourcePath), data };
+  if (body.priceMode === "public-usd") data.priceMode = "public-usd";
+  if (body.moveDate && /^\d{4}-\d{2}-\d{2}$/.test(body.moveDate)) data.moveDate = body.moveDate;
+  return { phone: identity.phone, email: identity.email, name: clean(body.name, 110), propertyId: clean(body.propertyId, 140), path: sourcePath(body.sourcePath), data };
 }
 
 function inquiryFingerprint(propertyId, path, data) {
@@ -137,6 +151,7 @@ function prepareSearchContext(body, data, properties, areas = inventoryContract.
     criteria.max = data.budget || null;
     if (!data.budget || (criteria.min !== null && criteria.min > data.budget)) criteria.min = null;
     criteria.currency = data.currency || "";
+    if (data.priceMode === "public-usd") criteria.priceMode = "public-usd";
   }
   if (operation === "rent") criteria.rentPeriod = data.rentPeriod || "";
   else criteria.rentPeriod = "";
@@ -199,24 +214,41 @@ async function serviceChannel(db, country) {
   return { whatsappRef: crypto.randomBytes(8).toString("hex"), destination: destination(await readContactRouting(db), country) };
 }
 
-function registerInquiries(app, { pool, query, uuid, siteUrl, secret, upsertContact, leadScoreFromData, getPublicProperties = async () => [], getAreas = () => undefined, channels = () => ({}) }) {
+function registerInquiries(app, { pool, query, uuid, siteUrl, secret, upsertContact, leadScoreFromData, getPublicProperties = async () => [], getAreas = () => undefined, getExchangeRate = () => null, channels = () => ({}) }) {
   const clickToken = id => crypto.createHmac("sha256", secret).update("inquiry-click:" + id).digest("hex");
   app.get("/api/inquiries/options", async (_req, res, next) => {
     try { res.json({ countries, channels: channels(), featuredCountry: (await readContactRouting({ query })).featuredCountry }); } catch (err) { next(err); }
+  });
+  app.get("/api/inquiries/context", async (req, res, next) => {
+    try { res.json(resolveInquiryContext(req.query || {}, await getPublicProperties())); }
+    catch (error) { if (error.status === 400) res.status(400).json({ error: error.message }); else next(error); }
   });
   app.post("/api/inquiries", async (req, res, next) => {
     let client;
     try {
       const body = req.body || {};
       if (body.website) return res.status(201).json({ ok: true });
-      const { phone, name, propertyId, path, data } = readInquiry(body);
+      const { phone, email, name, path, data } = readInquiry(body);
       const inventory = await getPublicProperties();
-      await enrichCommercialInquiry(body, data, inventory, channels(), getAreas());
+      const context = resolveInquiryContext(body, inventory, { validateIntent: true });
+      const propertyId = context.propertyId || "";
+      if (context.entity !== "general") {
+        for (const name of ["propertyTitle", "mls", "developmentId", "development", "reference", "zone", "subzone", "propertyType", "project", "rentPeriod"]) {
+          if (context[name]) data[name] = context[name]; else delete data[name];
+        }
+        if (context.entity === "development" && ["sell", "let"].includes(data.intent)) data.propertyType = clean(body.propertyType, 100);
+        const entity = inventory.find(p => p.id === (propertyId || context.developmentId));
+        if (entity) data.listingPath = propertyPath(entity, data.lang);
+      }
+      if (["sell", "let"].includes(data.intent) && (!data.propertyType || !data.zone)) fail("Indica el tipo de inmueble y su zona aproximada.", "Enter the property type and approximate zone.", data.lang);
+      const canonicalBody = { ...body, propertyId, developmentId: context.developmentId || body.developmentId };
+      if (context.entity === "property") canonicalBody.rentPeriod = context.rentPeriod || "";
+      await enrichCommercialInquiry(canonicalBody, data, inventory, channels(), getAreas(), await getExchangeRate());
       prepareSearchContext(body, data, inventory, getAreas());
       client = await pool.connect();
       await client.query("BEGIN");
       // Serialize simultaneous submissions from the same phone, including different interests.
-      await client.query("SELECT pg_advisory_xact_lock(hashtext($1))", ["pcc-inquiry:" + phone]);
+      await client.query("SELECT pg_advisory_xact_lock(hashtext($1))", ["pcc-inquiry:" + (phone || email)]);
       if (propertyId) {
         const property = (await client.query("SELECT title_es, title_en, zone, mls, publication_section FROM properties WHERE id=$1 AND is_public=TRUE AND status IN ('active','featured') AND publication_section<>'typologies'", [propertyId])).rows[0];
         if (!property) fail("La publicación ya no está disponible. Abre el formulario general para consultar.", "This listing is no longer published. Open the general inquiry form for help.", data.lang);
@@ -236,34 +268,33 @@ function registerInquiries(app, { pool, query, uuid, siteUrl, secret, upsertCont
       const fingerprint = inquiryFingerprint(propertyId, path, data);
       const nonce = clean(body.requestId, 80);
       if (!/^[a-zA-Z0-9-]{12,80}$/.test(nonce)) fail("Vuelve a abrir el formulario.", "Reopen the inquiry form.", data.lang);
-      const id = "lead-" + crypto.createHmac("sha256", secret).update(JSON.stringify([phone, nonce, fingerprint])).digest("hex").slice(0, 36);
+      const id = "lead-" + crypto.createHmac("sha256", secret).update(JSON.stringify([phone || email, nonce, fingerprint])).digest("hex").slice(0, 36);
       const previous = (await client.query(
-        `SELECT id, payload FROM lead_requests WHERE id=$1 OR (phone=$2 AND payload->>'inquiryFingerprint'=$3 AND created_at > NOW() - INTERVAL '90 seconds') ORDER BY created_at DESC LIMIT 1`,
-        [id, phone, fingerprint])).rows[0];
+        `SELECT id, payload FROM lead_requests WHERE id=$1 OR ((($2<>'' AND phone=$2) OR ($4<>'' AND lower(email)=$4)) AND payload->>'inquiryFingerprint'=$3 AND created_at > NOW() - INTERVAL '90 seconds') ORDER BY created_at DESC LIMIT 1`,
+        [id, phone, fingerprint, email])).rows[0];
       let recordId = id;
       let payload = previous?.payload;
       if (previous) recordId = previous.id;
       else {
         const number = destination(await readContactRouting(client), data.country, data.office);
-        if (!number) fail("Este número ya no está disponible. Vuelve a Contacto para elegir otro.", "This number is no longer available. Return to Contact to choose another.", data.lang);
         const leadType = intentTypes[data.intent];
-        const score = leadScoreFromData({ leadType, phone, payload: data, propertyId });
-        const contact = await upsertContact(client, { name, phone, source: "portal_inquiry", contactType: ["sell", "let"].includes(data.intent) ? "seller" : "buyer", preferredZones: data.zone ? [data.zone] : [], propertyType: data.propertyType, leadScore: score });
-        payload = { ...data, inquiryFingerprint: fingerprint, whatsappRef: crypto.randomBytes(8).toString("hex"), destination: number };
+        const score = leadScoreFromData({ leadType, phone, email, payload: data, propertyId });
+        const contact = await upsertContact(client, { name, phone, email, consentContact: true, source: "portal_inquiry", contactType: ["sell", "let"].includes(data.intent) ? "seller" : "buyer", preferredZones: data.zone ? [data.zone] : [], propertyType: data.propertyType, leadScore: score });
+        payload = { ...data, consentAt: new Date().toISOString(), inquiryFingerprint: fingerprint, whatsappRef: crypto.randomBytes(8).toString("hex"), destination: number };
         if (data.service === "visit") {
           payload.visitId = "tour-" + id;
-          const [date, time] = data.visitPreferredAt.split("T");
-          await client.query("INSERT INTO tour_requests(id,property_id,name,phone,preferred_date,preferred_time,comments,status) VALUES($1,$2,$3,$4,$5,$6,$7,'requested')", [payload.visitId, propertyId, name || "Visitante web", phone, date, time, [data.summary, data.preferences, "Origen: " + path, "Hora de Cancún. Pendiente de confirmación del equipo."].filter(Boolean).join("\n")]);
+          const [date, time] = (data.visitPreferredAt || "").split("T");
+          await client.query("INSERT INTO tour_requests(id,property_id,name,phone,email,preferred_date,preferred_time,comments,status) VALUES($1,$2,$3,$4,$5,$6,$7,$8,'requested')", [payload.visitId, propertyId || data.developmentId, name || "Visitante web", phone, email, date || null, time || null, [data.preferences, "Canal de respuesta: " + data.contactChannel, "Origen: " + path, "Hora de Cancún. Pendiente de confirmación del equipo."].filter(Boolean).join("\n")]);
         }
         await client.query(
-          `INSERT INTO lead_requests(id,lead_type,name,phone,source_path,property_id,contact_id,payload,priority,lead_score)
-           VALUES($1,$2,$3,$4,$5,$6,$7,$8::jsonb,$9,$10)`, [id, leadType, name || (data.lang === "en" ? "Website visitor" : "Visitante web"), phone, path, propertyId || null, contact.id, JSON.stringify(payload), score === "premium" ? "premium" : score === "hot" ? "high" : "medium", score]);
+          `INSERT INTO lead_requests(id,lead_type,name,phone,email,source_path,property_id,contact_id,payload,priority,lead_score)
+           VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9::jsonb,$10,$11)`, [id, leadType, name || (data.lang === "en" ? "Website visitor" : "Visitante web"), phone, email, path, propertyId || null, contact.id, JSON.stringify(payload), score === "premium" ? "premium" : score === "hot" ? "high" : "medium", score]);
         await client.query("INSERT INTO notifications (id,type,title,message,related_entity_type,related_entity_id) VALUES ($1,'lead_created','Nueva consulta comercial',$2,'lead_request',$3)", [uuid("notif"), [leadType, data.project || data.propertyTitle || data.development || data.zone].filter(Boolean).join(" · "), id]);
         await client.query("INSERT INTO analytics_events (id,event_type,contact_id,property_id,metadata) VALUES ($1,'lead_submitted',$2,$3,$4::jsonb)", [uuid("evt"), contact.id, propertyId || null, JSON.stringify({ leadType, zone: data.zone || "", source: path })]);
       }
       const action = inquiryAction(recordId, payload, siteUrl, path, secret);
       await client.query("COMMIT");
-      res.status(previous ? 200 : 201).json({ ...action, visitStatus: payload?.visitStatus, searchWatchStatus: payload?.searchWatch?.status });
+      res.status(previous ? 200 : 201).json({ ok: true, id: recordId, ...action, contactChannel: payload?.contactChannel, visitStatus: payload?.visitStatus, searchWatchStatus: payload?.searchWatch?.status });
     } catch (err) {
       if (client) await client.query("ROLLBACK");
       if (err.status === 400) return res.status(400).json({ error: err.message });
@@ -302,4 +333,4 @@ async function recordIncomingInquiry(query, jid, text, timestamp) {
        AND a.new_value->>'whatsappRef'=$2 AND NOT a.new_value ? 'whatsappReceivedAt'`, [phones, reference, timestamp]);
 }
 
-module.exports = { businessPhoneLabel, contactRouting, contactPhone, destination, messageFor, registerInquiries, recordIncomingInquiry, readContactRouting, inquiryAction, serviceChannel, sourcePath, inquiryFingerprint, prepareSearchContext };
+module.exports = { businessPhoneLabel, contactRouting, contactPhone, contactIdentity, readInquiry, destination, messageFor, registerInquiries, recordIncomingInquiry, readContactRouting, inquiryAction, serviceChannel, sourcePath, inquiryFingerprint, prepareSearchContext };

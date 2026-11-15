@@ -10,7 +10,8 @@ test("cada revisión de precio conserva idioma, campos comerciales y moneda", ()
     const form = renderSeoPage(review);
     assert.match(form, /name="leadType" value="validar-precio"/);
     assert.match(form, /name="ownerEstimate"[^>]*required/);
-    assert.match(form, /name="currency"[\s\S]*?>MXN<\/option>[\s\S]*?>USD<\/option>/);
+    assert.match(form, /name="currency" value="USD"/);
+    assert.match(form, /name="priceMode" value="public-usd"/);
     assert.doesNotMatch(form, /ChatGPT|name="aiResponse"|name="aiMessage"/i);
     const fullPage = renderSeoPage(valuation);
     const factors = fullPage.match(/<details class="valuation-options"><summary>[^<]+<\/summary><div class="valuation-factors">([\s\S]*?)<\/details>/)[1];
@@ -23,7 +24,11 @@ test("cada revisión de precio conserva idioma, campos comerciales y moneda", ()
       assert.match(optional, /name="propertyType"/);
       assert.match(optional, /name="ownerEstimate"/);
       const main = valuationForm.replace(optional, "");
-      assert.deepEqual([...main.matchAll(/name="([^"]+)"[^>]*?\brequired\b/g)].map(m => m[1]), ["country", "phone", "zone"]);
+      assert.deepEqual([...main.matchAll(/name="([^"]+)"[^>]*?\brequired\b/g)].map(m => m[1]), ["zone", "contactChannel", "country", "phone", "consent"]);
+      assert.match(main, /name="email"[^>]*disabled/);
+      assert.match(main, /data-email-field hidden/);
+      assert.match(main, /value="US"/);
+      assert.match(main, /value="CA"/);
       assert.match(main, /value="MX"/);
     }
     assert.match(fullPage, /name="leadType" value="valuacion-inmobiliaria"/);
@@ -97,7 +102,7 @@ test("la valoración conserva la moneda original y un importe antiguo sin moneda
   const expected = [];
   for (const currency of ["MXN", "USD", null]) {
     const lead = await request("/api/leads", { name: "QA", phone: contact, country: "MX", email: `owner-${Date.now()}-${currency}@example.test`, consent: true,
-      formStartedAt: Date.now() - 3000, leadType: "validar-precio", ownerEstimate: 123456.5, ...(currency && { currency }) });
+      formStartedAt: Date.now() - 3000, leadType: "validar-precio", zone: "Zona QA", ownerEstimate: 123456.5, ...(currency && { currency }) });
     expected.push([lead.lead.id, currency]);
   }
   await request("/api/auth/login", { username: process.env.PCC_TEST_ADMIN || "qa-admin", password: process.env.PCC_TEST_PASSWORD || "qa-admin-password-only-local" });

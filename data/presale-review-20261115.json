@@ -1,0 +1,1957 @@
+{
+  "version": 1,
+  "reviewDate": "2026-11-15",
+  "records": [
+    {
+      "id": "prop-xlsx-78b2032b20783a37efbbc358",
+      "title": "Agua 9 Vía Cumbres",
+      "entity": "developments",
+      "decision": "keep-current",
+      "evidence": "visual-review-20261115:prop-xlsx-78b2032b20783a37efbbc358",
+      "images": []
+    },
+    {
+      "id": "prop-xlsx-82b7ce8fbd98aec7bf7991dd",
+      "title": "AIRE Residencial",
+      "entity": "developments",
+      "decision": "keep-current",
+      "evidence": "visual-review-20261115:prop-xlsx-82b7ce8fbd98aec7bf7991dd",
+      "images": []
+    },
+    {
+      "id": "prop-8008c9bc-02ca-435f-9dcd-b5739cfed032",
+      "title": "Al Mare Puerto Cancún",
+      "entity": "developments",
+      "decision": "confirmed-presale",
+      "evidence": "visual-review-20261115:prop-8008c9bc-02ca-435f-9dcd-b5739cfed032",
+      "images": [
+        {
+          "index": 0,
+          "kind": "render",
+          "source": "/media/properties/prop-8008c9bc-02ca-435f-9dcd-b5739cfed032/0?v=1793822264638"
+        },
+        {
+          "index": 2,
+          "kind": "render",
+          "source": "/media/properties/prop-8008c9bc-02ca-435f-9dcd-b5739cfed032/2?v=1793822264638"
+        },
+        {
+          "index": 3,
+          "kind": "render",
+          "source": "/media/properties/prop-8008c9bc-02ca-435f-9dcd-b5739cfed032/3?v=1793822264638"
+        },
+        {
+          "index": 4,
+          "kind": "render",
+          "source": "/media/properties/prop-8008c9bc-02ca-435f-9dcd-b5739cfed032/4?v=1793822264638"
+        }
+      ]
+    },
+    {
+      "id": "prop-xlsx-f8d4bf2f191ee97c640f2fd2",
+      "title": "Álamos I",
+      "entity": "developments",
+      "decision": "keep-current",
+      "evidence": "visual-review-20261115:prop-xlsx-f8d4bf2f191ee97c640f2fd2",
+      "images": []
+    },
+    {
+      "id": "prop-xlsx-0c49d1af748ca6ba283e29ff",
+      "title": "Álamos II",
+      "entity": "developments",
+      "decision": "keep-current",
+      "evidence": "visual-review-20261115:prop-xlsx-0c49d1af748ca6ba283e29ff",
+      "images": []
+    },
+    {
+      "id": "prop-46361ccc-e4de-4e23-aa59-a966d7a4aa43",
+      "title": "Alba Puerto Cancún",
+      "entity": "developments",
+      "decision": "confirmed-presale",
+      "evidence": "visual-review-20261115:prop-46361ccc-e4de-4e23-aa59-a966d7a4aa43",
+      "images": [
+        {
+          "index": 0,
+          "kind": "render",
+          "source": "/media/properties/prop-46361ccc-e4de-4e23-aa59-a966d7a4aa43/0?v=1788537630559"
+        },
+        {
+          "index": 1,
+          "kind": "render",
+          "source": "/media/properties/prop-46361ccc-e4de-4e23-aa59-a966d7a4aa43/1?v=1788537630559"
+        },
+        {
+          "index": 2,
+          "kind": "render",
+          "source": "/media/properties/prop-46361ccc-e4de-4e23-aa59-a966d7a4aa43/2?v=1788537630559"
+        },
+        {
+          "index": 3,
+          "kind": "render",
+          "source": "/media/properties/prop-46361ccc-e4de-4e23-aa59-a966d7a4aa43/3?v=1788537630559"
+        },
+        {
+          "index": 4,
+          "kind": "render",
+          "source": "/media/properties/prop-46361ccc-e4de-4e23-aa59-a966d7a4aa43/4?v=1788537630559"
+        },
+        {
+          "index": 5,
+          "kind": "render",
+          "source": "/media/properties/prop-46361ccc-e4de-4e23-aa59-a966d7a4aa43/5?v=1788537630559"
+        },
+        {
+          "index": 6,
+          "kind": "render",
+          "source": "/media/properties/prop-46361ccc-e4de-4e23-aa59-a966d7a4aa43/6?v=1788537630559"
+        },
+        {
+          "index": 7,
+          "kind": "render",
+          "source": "/media/properties/prop-46361ccc-e4de-4e23-aa59-a966d7a4aa43/7?v=1788537630559"
+        }
+      ]
+    },
+    {
+      "id": "prop-xlsx-6a7657637fde17cb1f18d611",
+      "title": "Allure Puerto Cancún",
+      "entity": "developments",
+      "decision": "keep-current",
+      "evidence": "visual-review-20261115:prop-xlsx-6a7657637fde17cb1f18d611",
+      "images": []
+    },
+    {
+      "id": "prop-xlsx-29c5ab69ebd8cf5674c0838c",
+      "title": "Almahá Residencial",
+      "entity": "developments",
+      "decision": "keep-current",
+      "evidence": "visual-review-20261115:prop-xlsx-29c5ab69ebd8cf5674c0838c",
+      "images": []
+    },
+    {
+      "id": "prop-xlsx-010b703258d5c20262149bb1",
+      "title": "Altai Residencial",
+      "entity": "developments",
+      "decision": "confirmed-presale",
+      "evidence": "visual-review-20261115:prop-xlsx-010b703258d5c20262149bb1",
+      "images": [
+        {
+          "index": 0,
+          "kind": "render",
+          "source": "/media/properties/prop-xlsx-010b703258d5c20262149bb1/0?v=1793751480413"
+        }
+      ]
+    },
+    {
+      "id": "prop-xlsx-0dd82da131812df790bcea23",
+      "title": "Altea Vía Cumbres",
+      "entity": "developments",
+      "decision": "keep-current",
+      "evidence": "visual-review-20261115:prop-xlsx-0dd82da131812df790bcea23",
+      "images": []
+    },
+    {
+      "id": "prop-xlsx-2b358121d230861c1f4746d9",
+      "title": "Alzia Residencial",
+      "entity": "developments",
+      "decision": "needs-verification",
+      "evidence": "visual-review-20261115:prop-xlsx-2b358121d230861c1f4746d9",
+      "images": []
+    },
+    {
+      "id": "prop-c4d92f5e-4ee0-4c2c-9d82-858add7a5d40",
+      "title": "Amara",
+      "entity": "developments",
+      "decision": "keep-current",
+      "evidence": "visual-review-20261115:prop-c4d92f5e-4ee0-4c2c-9d82-858add7a5d40",
+      "images": []
+    },
+    {
+      "id": "prop-xlsx-41c5511f05aa1af9dfdd7764",
+      "title": "Antaal",
+      "entity": "developments",
+      "decision": "keep-current",
+      "evidence": "visual-review-20261115:prop-xlsx-41c5511f05aa1af9dfdd7764",
+      "images": []
+    },
+    {
+      "id": "prop-xlsx-565ec48690065d0c201c59e6",
+      "title": "Aqua Residencial",
+      "entity": "developments",
+      "decision": "keep-current",
+      "evidence": "visual-review-20261115:prop-xlsx-565ec48690065d0c201c59e6",
+      "images": []
+    },
+    {
+      "id": "prop-xlsx-12d8e63d54e96e3308c5978a",
+      "title": "Aqua Vivant",
+      "entity": "developments",
+      "decision": "keep-current",
+      "evidence": "visual-review-20261115:prop-xlsx-12d8e63d54e96e3308c5978a",
+      "images": []
+    },
+    {
+      "id": "prop-xlsx-5a093f3c6cf984f831ad8f00",
+      "title": "Arbolada Grand",
+      "entity": "developments",
+      "decision": "keep-current",
+      "evidence": "visual-review-20261115:prop-xlsx-5a093f3c6cf984f831ad8f00",
+      "images": []
+    },
+    {
+      "id": "prop-xlsx-d4fe36254536f81581a812d0",
+      "title": "Arbolada Lofts",
+      "entity": "developments",
+      "decision": "keep-current",
+      "evidence": "visual-review-20261115:prop-xlsx-d4fe36254536f81581a812d0",
+      "images": []
+    },
+    {
+      "id": "prop-xlsx-e2242d2a1ee45629b84c99e3",
+      "title": "Arbolada Residencial",
+      "entity": "developments",
+      "decision": "keep-current",
+      "evidence": "visual-review-20261115:prop-xlsx-e2242d2a1ee45629b84c99e3",
+      "images": []
+    },
+    {
+      "id": "prop-xlsx-0795610708694773b78498da",
+      "title": "Arbolada Residential Suites",
+      "entity": "developments",
+      "decision": "confirmed-presale",
+      "evidence": "visual-review-20261115:prop-xlsx-0795610708694773b78498da",
+      "images": [
+        {
+          "index": 0,
+          "kind": "render",
+          "source": "/media/properties/prop-xlsx-0795610708694773b78498da/0?v=1793750480939"
+        }
+      ]
+    },
+    {
+      "id": "prop-xlsx-fac754e6cefb8f666cbe8a22",
+      "title": "Arbolada Towers",
+      "entity": "developments",
+      "decision": "keep-current",
+      "evidence": "visual-review-20261115:prop-xlsx-fac754e6cefb8f666cbe8a22",
+      "images": []
+    },
+    {
+      "id": "prop-xlsx-8986b11e89004d5904f13b10",
+      "title": "Areka Towers",
+      "entity": "developments",
+      "decision": "keep-current",
+      "evidence": "visual-review-20261115:prop-xlsx-8986b11e89004d5904f13b10",
+      "images": []
+    },
+    {
+      "id": "prop-xlsx-6a1bd947a6a6791c706b3305",
+      "title": "Aria Puerto Cancún",
+      "entity": "developments",
+      "decision": "confirmed-presale",
+      "evidence": "visual-review-20261115:prop-xlsx-6a1bd947a6a6791c706b3305",
+      "images": [
+        {
+          "index": 0,
+          "kind": "render",
+          "source": "/media/properties/prop-xlsx-6a1bd947a6a6791c706b3305/0?v=1793750480939"
+        }
+      ]
+    },
+    {
+      "id": "prop-xlsx-d0d9197dffebff6d11c548fc",
+      "title": "Artila Puerto Cancún",
+      "entity": "developments",
+      "decision": "confirmed-presale",
+      "evidence": "visual-review-20261115:prop-xlsx-d0d9197dffebff6d11c548fc",
+      "images": [
+        {
+          "index": 0,
+          "kind": "render",
+          "source": "/media/properties/prop-xlsx-d0d9197dffebff6d11c548fc/0?v=1793750480939"
+        }
+      ]
+    },
+    {
+      "id": "prop-xlsx-8a5fceebb302c7021551c382",
+      "title": "Astoria Gated Community",
+      "entity": "developments",
+      "decision": "keep-current",
+      "evidence": "visual-review-20261115:prop-xlsx-8a5fceebb302c7021551c382",
+      "images": []
+    },
+    {
+      "id": "prop-xlsx-fde0c6d0e1780ad16030cb0e",
+      "title": "Attha Cancún",
+      "entity": "developments",
+      "decision": "confirmed-presale",
+      "evidence": "visual-review-20261115:prop-xlsx-fde0c6d0e1780ad16030cb0e",
+      "images": [
+        {
+          "index": 0,
+          "kind": "render",
+          "source": "/media/properties/prop-xlsx-fde0c6d0e1780ad16030cb0e/0?v=1793750701349"
+        }
+      ]
+    },
+    {
+      "id": "prop-xlsx-91cda9d39ecf18456f8ff1ef",
+      "title": "Aurora Towers",
+      "entity": "developments",
+      "decision": "needs-verification",
+      "evidence": "visual-review-20261115:prop-xlsx-91cda9d39ecf18456f8ff1ef",
+      "images": []
+    },
+    {
+      "id": "prop-xlsx-60231635df1962b7dc647b1a",
+      "title": "Azürea Marina Residences",
+      "entity": "developments",
+      "decision": "confirmed-presale",
+      "evidence": "visual-review-20261115:prop-xlsx-60231635df1962b7dc647b1a",
+      "images": [
+        {
+          "index": 0,
+          "kind": "render",
+          "source": "/media/properties/prop-xlsx-60231635df1962b7dc647b1a/0?v=1793751836037"
+        }
+      ]
+    },
+    {
+      "id": "prop-xlsx-6334dee5252449886483b2c9",
+      "title": "Bahía",
+      "entity": "developments",
+      "decision": "keep-current",
+      "evidence": "visual-review-20261115:prop-xlsx-6334dee5252449886483b2c9",
+      "images": []
+    },
+    {
+      "id": "prop-9385cc01-3372-46ac-82ae-6c1dca17693e",
+      "title": "Bahía Príncipe Riviera Maya Resort",
+      "entity": "developments",
+      "decision": "needs-verification",
+      "evidence": "visual-review-20261115:prop-9385cc01-3372-46ac-82ae-6c1dca17693e",
+      "images": [
+        {
+          "index": 4,
+          "kind": "render",
+          "source": "/media/properties/prop-9385cc01-3372-46ac-82ae-6c1dca17693e/4?v=1788480341152"
+        }
+      ]
+    },
+    {
+      "id": "prop-xlsx-2e42e57dec365e924717b330",
+      "title": "Bardenna",
+      "entity": "developments",
+      "decision": "confirmed-presale",
+      "evidence": "visual-review-20261115:prop-xlsx-2e42e57dec365e924717b330",
+      "images": [
+        {
+          "index": 0,
+          "kind": "render",
+          "source": "/media/properties/prop-xlsx-2e42e57dec365e924717b330/0?v=1793751035200"
+        }
+      ]
+    },
+    {
+      "id": "prop-xlsx-9413f6afdc388f28f8282fb2",
+      "title": "Bay View Grand at Grand Island",
+      "entity": "developments",
+      "decision": "needs-verification",
+      "evidence": "visual-review-20261115:prop-xlsx-9413f6afdc388f28f8282fb2",
+      "images": []
+    },
+    {
+      "id": "prop-xlsx-acb3b2db5b3ad18d0c539c05",
+      "title": "Bay View Grand Cancún (original)",
+      "entity": "developments",
+      "decision": "keep-current",
+      "evidence": "visual-review-20261115:prop-xlsx-acb3b2db5b3ad18d0c539c05",
+      "images": []
+    },
+    {
+      "id": "prop-xlsx-579703f1f9c73210f643228b",
+      "title": "Be Towers (torres A, B, C y D)",
+      "entity": "developments",
+      "decision": "keep-current",
+      "evidence": "visual-review-20261115:prop-xlsx-579703f1f9c73210f643228b",
+      "images": []
+    },
+    {
+      "id": "prop-xlsx-8e64be8082fc65f7ba29be80",
+      "title": "Bellamar",
+      "entity": "developments",
+      "decision": "keep-current",
+      "evidence": "visual-review-20261115:prop-xlsx-8e64be8082fc65f7ba29be80",
+      "images": []
+    },
+    {
+      "id": "prop-xlsx-b397916d61c7581a8613fa56",
+      "title": "Belorizonte",
+      "entity": "developments",
+      "decision": "confirmed-presale",
+      "evidence": "visual-review-20261115:prop-xlsx-b397916d61c7581a8613fa56",
+      "images": [
+        {
+          "index": 0,
+          "kind": "render",
+          "source": "/media/properties/prop-xlsx-b397916d61c7581a8613fa56/0?v=1793751480413"
+        }
+      ]
+    },
+    {
+      "id": "prop-xlsx-be5b72eec6716856dc7d6c2d",
+      "title": "BLAS Puerto Cancún",
+      "entity": "developments",
+      "decision": "confirmed-presale",
+      "evidence": "visual-review-20261115:prop-xlsx-be5b72eec6716856dc7d6c2d",
+      "images": [
+        {
+          "index": 0,
+          "kind": "render",
+          "source": "/media/properties/prop-xlsx-be5b72eec6716856dc7d6c2d/0?v=1793750701349"
+        }
+      ]
+    },
+    {
+      "id": "prop-9e69dfc3-2bf3-420d-ad74-7a53d9c79db5",
+      "title": "Blume Boutique Condos",
+      "entity": "developments",
+      "decision": "keep-current",
+      "evidence": "visual-review-20261115:prop-9e69dfc3-2bf3-420d-ad74-7a53d9c79db5",
+      "images": []
+    },
+    {
+      "id": "prop-xlsx-a7a2736cfdf11b83ac76d741",
+      "title": "Canal Homes",
+      "entity": "developments",
+      "decision": "keep-current",
+      "evidence": "visual-review-20261115:prop-xlsx-a7a2736cfdf11b83ac76d741",
+      "images": []
+    },
+    {
+      "id": "prop-xlsx-41539a13ab9d10abebd38f35",
+      "title": "Cancún Country Club",
+      "entity": "developments",
+      "decision": "keep-current",
+      "evidence": "visual-review-20261115:prop-xlsx-41539a13ab9d10abebd38f35",
+      "images": []
+    },
+    {
+      "id": "prop-xlsx-ec8a5da1af1ae8feadff97a0",
+      "title": "Cancún Towers",
+      "entity": "developments",
+      "decision": "keep-current",
+      "evidence": "visual-review-20261115:prop-xlsx-ec8a5da1af1ae8feadff97a0",
+      "images": []
+    },
+    {
+      "id": "prop-xlsx-b47164b51a1f68d64e7c8d21",
+      "title": "Catania Residencial",
+      "entity": "developments",
+      "decision": "keep-current",
+      "evidence": "visual-review-20261115:prop-xlsx-b47164b51a1f68d64e7c8d21",
+      "images": []
+    },
+    {
+      "id": "prop-d277bf6d-750a-4e2d-9231-c263336c721c",
+      "title": "Central Park Towers Cancún",
+      "entity": "developments",
+      "decision": "confirmed-presale",
+      "evidence": "visual-review-20261115:prop-d277bf6d-750a-4e2d-9231-c263336c721c",
+      "images": [
+        {
+          "index": 0,
+          "kind": "render",
+          "source": "/media/properties/prop-d277bf6d-750a-4e2d-9231-c263336c721c/0?v=1788479423712"
+        },
+        {
+          "index": 1,
+          "kind": "render",
+          "source": "/media/properties/prop-d277bf6d-750a-4e2d-9231-c263336c721c/1?v=1788479423712"
+        },
+        {
+          "index": 2,
+          "kind": "render",
+          "source": "/media/properties/prop-d277bf6d-750a-4e2d-9231-c263336c721c/2?v=1788479423712"
+        },
+        {
+          "index": 3,
+          "kind": "render",
+          "source": "/media/properties/prop-d277bf6d-750a-4e2d-9231-c263336c721c/3?v=1788479423712"
+        },
+        {
+          "index": 4,
+          "kind": "render",
+          "source": "/media/properties/prop-d277bf6d-750a-4e2d-9231-c263336c721c/4?v=1788479423712"
+        },
+        {
+          "index": 5,
+          "kind": "render",
+          "source": "/media/properties/prop-d277bf6d-750a-4e2d-9231-c263336c721c/5?v=1788479423712"
+        },
+        {
+          "index": 6,
+          "kind": "render",
+          "source": "/media/properties/prop-d277bf6d-750a-4e2d-9231-c263336c721c/6?v=1788479423712"
+        },
+        {
+          "index": 7,
+          "kind": "render",
+          "source": "/media/properties/prop-d277bf6d-750a-4e2d-9231-c263336c721c/7?v=1788479423712"
+        },
+        {
+          "index": 8,
+          "kind": "render",
+          "source": "/media/properties/prop-d277bf6d-750a-4e2d-9231-c263336c721c/8?v=1788479423712"
+        },
+        {
+          "index": 9,
+          "kind": "render",
+          "source": "/media/properties/prop-d277bf6d-750a-4e2d-9231-c263336c721c/9?v=1788479423712"
+        },
+        {
+          "index": 10,
+          "kind": "render",
+          "source": "/media/properties/prop-d277bf6d-750a-4e2d-9231-c263336c721c/10?v=1788479423712"
+        },
+        {
+          "index": 11,
+          "kind": "render",
+          "source": "/media/properties/prop-d277bf6d-750a-4e2d-9231-c263336c721c/11?v=1788479423712"
+        }
+      ]
+    },
+    {
+      "id": "prop-xlsx-27aea1bd865727b826f10baa",
+      "title": "Cumbres Suites",
+      "entity": "developments",
+      "decision": "keep-current",
+      "evidence": "visual-review-20261115:prop-xlsx-27aea1bd865727b826f10baa",
+      "images": []
+    },
+    {
+      "id": "prop-xlsx-97567605c2cdfd9de550b3ff",
+      "title": "Cumbres Towers",
+      "entity": "developments",
+      "decision": "keep-current",
+      "evidence": "visual-review-20261115:prop-xlsx-97567605c2cdfd9de550b3ff",
+      "images": []
+    },
+    {
+      "id": "prop-xlsx-dffdfbd114ef185773c09fab",
+      "title": "Cuore Cumbres",
+      "entity": "developments",
+      "decision": "confirmed-presale",
+      "evidence": "visual-review-20261115:prop-xlsx-dffdfbd114ef185773c09fab",
+      "images": [
+        {
+          "index": 0,
+          "kind": "render",
+          "source": "/media/properties/prop-xlsx-dffdfbd114ef185773c09fab/0?v=1793750729803"
+        }
+      ]
+    },
+    {
+      "id": "prop-xlsx-5c02cc43d40e2521d6cd4889",
+      "title": "Dhamar Costa Mujeres",
+      "entity": "developments",
+      "decision": "confirmed-presale",
+      "evidence": "visual-review-20261115:prop-xlsx-5c02cc43d40e2521d6cd4889",
+      "images": [
+        {
+          "index": 0,
+          "kind": "render",
+          "source": "/media/properties/prop-xlsx-5c02cc43d40e2521d6cd4889/0?v=1793750729803"
+        }
+      ]
+    },
+    {
+      "id": "prop-xlsx-16c9037d27967dbadc194a81",
+      "title": "Dharana Tower",
+      "entity": "developments",
+      "decision": "keep-current",
+      "evidence": "visual-review-20261115:prop-xlsx-16c9037d27967dbadc194a81",
+      "images": []
+    },
+    {
+      "id": "prop-xlsx-f467c513d2891bc76484869a",
+      "title": "Diomeda Habitat / Diomeda Community",
+      "entity": "developments",
+      "decision": "keep-current",
+      "evidence": "visual-review-20261115:prop-xlsx-f467c513d2891bc76484869a",
+      "images": []
+    },
+    {
+      "id": "prop-xlsx-9b4dc89adc1cf345923a8928",
+      "title": "Distrito Zen",
+      "entity": "developments",
+      "decision": "confirmed-presale",
+      "evidence": "visual-review-20261115:prop-xlsx-9b4dc89adc1cf345923a8928",
+      "images": [
+        {
+          "index": 0,
+          "kind": "render",
+          "source": "/media/properties/prop-xlsx-9b4dc89adc1cf345923a8928/0?v=1793751555868"
+        }
+      ]
+    },
+    {
+      "id": "prop-xlsx-be431c0c775028714f7a8205",
+      "title": "El Encanto Punta Sam",
+      "entity": "developments",
+      "decision": "needs-verification",
+      "evidence": "visual-review-20261115:prop-xlsx-be431c0c775028714f7a8205",
+      "images": [
+        {
+          "index": 0,
+          "kind": "render",
+          "source": "/media/properties/prop-xlsx-be431c0c775028714f7a8205/0?v=1793750729803"
+        }
+      ]
+    },
+    {
+      "id": "prop-xlsx-8fee8ee9d723187cbcfa5a72",
+      "title": "ELENA Condos",
+      "entity": "developments",
+      "decision": "keep-current",
+      "evidence": "visual-review-20261115:prop-xlsx-8fee8ee9d723187cbcfa5a72",
+      "images": []
+    },
+    {
+      "id": "prop-8010ee66-40d8-4005-a4d8-c98172c798cd",
+      "title": "Emerald Residential Tower & Spa",
+      "entity": "developments",
+      "decision": "keep-current",
+      "evidence": "visual-review-20261115:prop-8010ee66-40d8-4005-a4d8-c98172c798cd",
+      "images": []
+    },
+    {
+      "id": "prop-xlsx-e13e26052d483f8d676c18a8",
+      "title": "Esther Wow Condos",
+      "entity": "developments",
+      "decision": "needs-verification",
+      "evidence": "visual-review-20261115:prop-xlsx-e13e26052d483f8d676c18a8",
+      "images": []
+    },
+    {
+      "id": "prop-xlsx-01c453278539508fc3e1b1a4",
+      "title": "Fiora Residencial",
+      "entity": "developments",
+      "decision": "needs-verification",
+      "evidence": "visual-review-20261115:prop-xlsx-01c453278539508fc3e1b1a4",
+      "images": []
+    },
+    {
+      "id": "prop-xlsx-c69515ef2cd94de8ea3819d0",
+      "title": "Fuego Residencial",
+      "entity": "developments",
+      "decision": "keep-current",
+      "evidence": "visual-review-20261115:prop-xlsx-c69515ef2cd94de8ea3819d0",
+      "images": []
+    },
+    {
+      "id": "prop-xlsx-d6b8546cae1790fad962d4d4",
+      "title": "Gaviotas",
+      "entity": "developments",
+      "decision": "keep-current",
+      "evidence": "visual-review-20261115:prop-xlsx-d6b8546cae1790fad962d4d4",
+      "images": []
+    },
+    {
+      "id": "prop-xlsx-917839cfb38b7e53e9312b1a",
+      "title": "Gran Vía Gated Community",
+      "entity": "developments",
+      "decision": "keep-current",
+      "evidence": "visual-review-20261115:prop-xlsx-917839cfb38b7e53e9312b1a",
+      "images": []
+    },
+    {
+      "id": "prop-xlsx-6141d0524635b80287b7ef3e",
+      "title": "Greenwood Cancún",
+      "entity": "developments",
+      "decision": "confirmed-presale",
+      "evidence": "visual-review-20261115:prop-xlsx-6141d0524635b80287b7ef3e",
+      "images": [
+        {
+          "index": 0,
+          "kind": "render",
+          "source": "/media/properties/prop-xlsx-6141d0524635b80287b7ef3e/0?v=1793751555868"
+        }
+      ]
+    },
+    {
+      "id": "prop-xlsx-938831bdd10a1dbc7578e417",
+      "title": "H Living",
+      "entity": "developments",
+      "decision": "needs-verification",
+      "evidence": "visual-review-20261115:prop-xlsx-938831bdd10a1dbc7578e417",
+      "images": [
+        {
+          "index": 0,
+          "kind": "render",
+          "source": "/media/properties/prop-xlsx-938831bdd10a1dbc7578e417/0?v=1793751555868"
+        }
+      ]
+    },
+    {
+      "id": "prop-xlsx-f5b3819d157964dc902bae61",
+      "title": "HAVEN Resort Lifestyle",
+      "entity": "developments",
+      "decision": "confirmed-presale",
+      "evidence": "visual-review-20261115:prop-xlsx-f5b3819d157964dc902bae61",
+      "images": [
+        {
+          "index": 0,
+          "kind": "render",
+          "source": "/media/properties/prop-xlsx-f5b3819d157964dc902bae61/0?v=1793750729803"
+        }
+      ]
+    },
+    {
+      "id": "prop-xlsx-902b41c557327f2712af6e32",
+      "title": "Isla Blanca Residences",
+      "entity": "developments",
+      "decision": "confirmed-presale",
+      "evidence": "visual-review-20261115:prop-xlsx-902b41c557327f2712af6e32",
+      "images": [
+        {
+          "index": 0,
+          "kind": "render",
+          "source": "/media/properties/prop-xlsx-902b41c557327f2712af6e32/0?v=1793750729803"
+        }
+      ]
+    },
+    {
+      "id": "prop-xlsx-a9da55f332595c81a2aea380",
+      "title": "Isla Dorada",
+      "entity": "developments",
+      "decision": "keep-current",
+      "evidence": "visual-review-20261115:prop-xlsx-a9da55f332595c81a2aea380",
+      "images": []
+    },
+    {
+      "id": "prop-xlsx-4de60326203d2665d1381146",
+      "title": "Isola Cancún",
+      "entity": "developments",
+      "decision": "confirmed-presale",
+      "evidence": "visual-review-20261115:prop-xlsx-4de60326203d2665d1381146",
+      "images": [
+        {
+          "index": 0,
+          "kind": "render",
+          "source": "/media/properties/prop-xlsx-4de60326203d2665d1381146/0?v=1793750827240"
+        }
+      ]
+    },
+    {
+      "id": "prop-xlsx-afa0f67f4b71a76e633f1445",
+      "title": "Ixnah",
+      "entity": "developments",
+      "decision": "keep-current",
+      "evidence": "visual-review-20261115:prop-xlsx-afa0f67f4b71a76e633f1445",
+      "images": []
+    },
+    {
+      "id": "prop-xlsx-ff329410faa0678f3b5f2961",
+      "title": "Jardines del Sur 6",
+      "entity": "developments",
+      "decision": "keep-current",
+      "evidence": "visual-review-20261115:prop-xlsx-ff329410faa0678f3b5f2961",
+      "images": []
+    },
+    {
+      "id": "prop-xlsx-541171db73aaf17faec21235",
+      "title": "JW Marriott Residences Costa Mujeres",
+      "entity": "developments",
+      "decision": "needs-verification",
+      "evidence": "visual-review-20261115:prop-xlsx-541171db73aaf17faec21235",
+      "images": [
+        {
+          "index": 0,
+          "kind": "render",
+          "source": "/media/properties/prop-xlsx-541171db73aaf17faec21235/0?v=1793751874277"
+        }
+      ]
+    },
+    {
+      "id": "prop-xlsx-2f8c6195ce40d1740b888d55",
+      "title": "Ka’anali",
+      "entity": "developments",
+      "decision": "keep-current",
+      "evidence": "visual-review-20261115:prop-xlsx-2f8c6195ce40d1740b888d55",
+      "images": []
+    },
+    {
+      "id": "prop-xlsx-d1936a5c72ba95c871eff74e",
+      "title": "Kaána",
+      "entity": "developments",
+      "decision": "keep-current",
+      "evidence": "visual-review-20261115:prop-xlsx-d1936a5c72ba95c871eff74e",
+      "images": []
+    },
+    {
+      "id": "prop-xlsx-a70322a209feb461505b3034",
+      "title": "Kabeek Residencial",
+      "entity": "developments",
+      "decision": "keep-current",
+      "evidence": "visual-review-20261115:prop-xlsx-a70322a209feb461505b3034",
+      "images": []
+    },
+    {
+      "id": "prop-xlsx-18553ba19921d4082bad1d07",
+      "title": "Kin Ha",
+      "entity": "developments",
+      "decision": "keep-current",
+      "evidence": "visual-review-20261115:prop-xlsx-18553ba19921d4082bad1d07",
+      "images": []
+    },
+    {
+      "id": "prop-xlsx-990a904b406c7e4e19bad5b3",
+      "title": "Kira Residencial",
+      "entity": "developments",
+      "decision": "keep-current",
+      "evidence": "visual-review-20261115:prop-xlsx-990a904b406c7e4e19bad5b3",
+      "images": []
+    },
+    {
+      "id": "prop-xlsx-ad242a9411f8c643fdc1798a",
+      "title": "Koa Towers",
+      "entity": "developments",
+      "decision": "needs-verification",
+      "evidence": "visual-review-20261115:prop-xlsx-ad242a9411f8c643fdc1798a",
+      "images": [
+        {
+          "index": 0,
+          "kind": "render",
+          "source": "/media/properties/prop-xlsx-ad242a9411f8c643fdc1798a/0?v=1793751035200"
+        }
+      ]
+    },
+    {
+      "id": "prop-xlsx-36fdeac721409d3f55bc791f",
+      "title": "Kuxnah Living Condos",
+      "entity": "developments",
+      "decision": "confirmed-presale",
+      "evidence": "visual-review-20261115:prop-xlsx-36fdeac721409d3f55bc791f",
+      "images": [
+        {
+          "index": 0,
+          "kind": "render",
+          "source": "/media/properties/prop-xlsx-36fdeac721409d3f55bc791f/0?v=1793750827240"
+        }
+      ]
+    },
+    {
+      "id": "prop-6c9ccecb-ba9f-4895-bc22-07a2a1c2812c",
+      "title": "La Amada Residence",
+      "entity": "developments",
+      "decision": "keep-current",
+      "evidence": "visual-review-20261115:prop-6c9ccecb-ba9f-4895-bc22-07a2a1c2812c",
+      "images": []
+    },
+    {
+      "id": "prop-xlsx-ee907fd75a2937d85f1175ef",
+      "title": "La Española — Lagos del Sol",
+      "entity": "developments",
+      "decision": "keep-current",
+      "evidence": "visual-review-20261115:prop-xlsx-ee907fd75a2937d85f1175ef",
+      "images": []
+    },
+    {
+      "id": "prop-xlsx-e1e724451b6051d9841ba703",
+      "title": "La Marina",
+      "entity": "developments",
+      "decision": "keep-current",
+      "evidence": "visual-review-20261115:prop-xlsx-e1e724451b6051d9841ba703",
+      "images": []
+    },
+    {
+      "id": "prop-xlsx-0c51891075f5d4bf7d07e41d",
+      "title": "La Punta",
+      "entity": "developments",
+      "decision": "confirmed-presale",
+      "evidence": "visual-review-20261115:prop-xlsx-0c51891075f5d4bf7d07e41d",
+      "images": [
+        {
+          "index": 0,
+          "kind": "render",
+          "source": "/media/properties/prop-xlsx-0c51891075f5d4bf7d07e41d/0?v=1793750827240"
+        }
+      ]
+    },
+    {
+      "id": "prop-xlsx-dd0d7e6c5d1d4c779b2ecef9",
+      "title": "La Vela Puerto Cancún",
+      "entity": "developments",
+      "decision": "confirmed-presale",
+      "evidence": "visual-review-20261115:prop-xlsx-dd0d7e6c5d1d4c779b2ecef9",
+      "images": [
+        {
+          "index": 0,
+          "kind": "render",
+          "source": "/media/properties/prop-xlsx-dd0d7e6c5d1d4c779b2ecef9/0?v=1793750827240"
+        }
+      ]
+    },
+    {
+      "id": "prop-xlsx-10eeee5e5c1c20335d44d2e6",
+      "title": "Lagunas 1",
+      "entity": "developments",
+      "decision": "keep-current",
+      "evidence": "visual-review-20261115:prop-xlsx-10eeee5e5c1c20335d44d2e6",
+      "images": []
+    },
+    {
+      "id": "prop-xlsx-d43f3dcfc1b157f357d3f5ac",
+      "title": "Lagunas 2",
+      "entity": "developments",
+      "decision": "keep-current",
+      "evidence": "visual-review-20261115:prop-xlsx-d43f3dcfc1b157f357d3f5ac",
+      "images": []
+    },
+    {
+      "id": "prop-xlsx-bffd4cb3a6a8ea1234fdc532",
+      "title": "Lahia Ocean Laguna Residences & Spa",
+      "entity": "developments",
+      "decision": "keep-current",
+      "evidence": "visual-review-20261115:prop-xlsx-bffd4cb3a6a8ea1234fdc532",
+      "images": []
+    },
+    {
+      "id": "prop-xlsx-cfeb50df95c481ecb00c9f7b",
+      "title": "Las Olas Residence & Spa",
+      "entity": "developments",
+      "decision": "keep-current",
+      "evidence": "visual-review-20261115:prop-xlsx-cfeb50df95c481ecb00c9f7b",
+      "images": []
+    },
+    {
+      "id": "prop-xlsx-b64492781c96d7bb2f3f1b3c",
+      "title": "Las Quintas",
+      "entity": "developments",
+      "decision": "keep-current",
+      "evidence": "visual-review-20261115:prop-xlsx-b64492781c96d7bb2f3f1b3c",
+      "images": []
+    },
+    {
+      "id": "prop-xlsx-7b93223188fad3cb52f91cb2",
+      "title": "Lausana Residencial",
+      "entity": "developments",
+      "decision": "confirmed-presale",
+      "evidence": "visual-review-20261115:prop-xlsx-7b93223188fad3cb52f91cb2",
+      "images": [
+        {
+          "index": 0,
+          "kind": "render",
+          "source": "/media/properties/prop-xlsx-7b93223188fad3cb52f91cb2/0?v=1793751035200"
+        }
+      ]
+    },
+    {
+      "id": "prop-xlsx-1cff562540cf807f4237b006",
+      "title": "Le Parc Cancún",
+      "entity": "developments",
+      "decision": "needs-verification",
+      "evidence": "visual-review-20261115:prop-xlsx-1cff562540cf807f4237b006",
+      "images": []
+    },
+    {
+      "id": "prop-xlsx-b4859afa4cb6ba96968bc551",
+      "title": "Lemuria Residences",
+      "entity": "developments",
+      "decision": "confirmed-presale",
+      "evidence": "visual-review-20261115:prop-xlsx-b4859afa4cb6ba96968bc551",
+      "images": [
+        {
+          "index": 0,
+          "kind": "render",
+          "source": "/media/properties/prop-xlsx-b4859afa4cb6ba96968bc551/0?v=1793751637786"
+        }
+      ]
+    },
+    {
+      "id": "prop-xlsx-a53b8a89adcc1815c1c643f7",
+      "title": "Long Island Cancún",
+      "entity": "developments",
+      "decision": "keep-current",
+      "evidence": "visual-review-20261115:prop-xlsx-a53b8a89adcc1815c1c643f7",
+      "images": []
+    },
+    {
+      "id": "prop-xlsx-d18904073b29fe9e3b05ee2d",
+      "title": "Los Canales",
+      "entity": "developments",
+      "decision": "keep-current",
+      "evidence": "visual-review-20261115:prop-xlsx-d18904073b29fe9e3b05ee2d",
+      "images": []
+    },
+    {
+      "id": "prop-xlsx-2efb763ee33e98fc287bcf63",
+      "title": "Losantos Cancún",
+      "entity": "developments",
+      "decision": "keep-current",
+      "evidence": "visual-review-20261115:prop-xlsx-2efb763ee33e98fc287bcf63",
+      "images": []
+    },
+    {
+      "id": "prop-xlsx-aca9d86025c0142281f35118",
+      "title": "Maderos Residencial",
+      "entity": "developments",
+      "decision": "keep-current",
+      "evidence": "visual-review-20261115:prop-xlsx-aca9d86025c0142281f35118",
+      "images": []
+    },
+    {
+      "id": "prop-xlsx-661edf1a9203ff139846f31c",
+      "title": "Madison Condos",
+      "entity": "developments",
+      "decision": "keep-current",
+      "evidence": "visual-review-20261115:prop-xlsx-661edf1a9203ff139846f31c",
+      "images": []
+    },
+    {
+      "id": "prop-c3573028-c856-4440-acfd-70facceef84b",
+      "title": "Maioris Tower",
+      "entity": "developments",
+      "decision": "keep-current",
+      "evidence": "visual-review-20261115:prop-c3573028-c856-4440-acfd-70facceef84b",
+      "images": []
+    },
+    {
+      "id": "prop-xlsx-3e205a5d9e73e151621ca42e",
+      "title": "Manglar Cumbres",
+      "entity": "developments",
+      "decision": "confirmed-presale",
+      "evidence": "visual-review-20261115:prop-xlsx-3e205a5d9e73e151621ca42e",
+      "images": [
+        {
+          "index": 0,
+          "kind": "render",
+          "source": "/media/properties/prop-xlsx-3e205a5d9e73e151621ca42e/0?v=1793751836037"
+        }
+      ]
+    },
+    {
+      "id": "prop-xlsx-d8184317cda3a8d523c5c6e7",
+      "title": "Maralago",
+      "entity": "developments",
+      "decision": "keep-current",
+      "evidence": "visual-review-20261115:prop-xlsx-d8184317cda3a8d523c5c6e7",
+      "images": []
+    },
+    {
+      "id": "prop-xlsx-ddee50b0194c341a4d123e97",
+      "title": "Marea Puerto Cancún",
+      "entity": "developments",
+      "decision": "keep-current",
+      "evidence": "visual-review-20261115:prop-xlsx-ddee50b0194c341a4d123e97",
+      "images": []
+    },
+    {
+      "id": "prop-xlsx-995931806d88540e729504b8",
+      "title": "Marina Condos",
+      "entity": "developments",
+      "decision": "keep-current",
+      "evidence": "visual-review-20261115:prop-xlsx-995931806d88540e729504b8",
+      "images": []
+    },
+    {
+      "id": "prop-xlsx-64853fdf757a5bc74ae356eb",
+      "title": "Marina Residencial",
+      "entity": "developments",
+      "decision": "keep-current",
+      "evidence": "visual-review-20261115:prop-xlsx-64853fdf757a5bc74ae356eb",
+      "images": []
+    },
+    {
+      "id": "prop-xlsx-449a2d506fb71bd4c6d9a21c",
+      "title": "Marina Turquesa",
+      "entity": "developments",
+      "decision": "keep-current",
+      "evidence": "visual-review-20261115:prop-xlsx-449a2d506fb71bd4c6d9a21c",
+      "images": []
+    },
+    {
+      "id": "prop-xlsx-6826f03f2a21b17e8ce22fc2",
+      "title": "Midtown Condos",
+      "entity": "developments",
+      "decision": "keep-current",
+      "evidence": "visual-review-20261115:prop-xlsx-6826f03f2a21b17e8ce22fc2",
+      "images": []
+    },
+    {
+      "id": "prop-xlsx-d507f9acd6b7c23bf896dcf4",
+      "title": "Mistral Costa Mujeres",
+      "entity": "developments",
+      "decision": "confirmed-presale",
+      "evidence": "visual-review-20261115:prop-xlsx-d507f9acd6b7c23bf896dcf4",
+      "images": [
+        {
+          "index": 0,
+          "kind": "render",
+          "source": "/media/properties/prop-xlsx-d507f9acd6b7c23bf896dcf4/0?v=1793750876291"
+        }
+      ]
+    },
+    {
+      "id": "prop-xlsx-3d0d5ff2d8b69246286aaa67",
+      "title": "Mondrian Residences at Grand Island Cancún",
+      "entity": "developments",
+      "decision": "confirmed-presale",
+      "evidence": "visual-review-20261115:prop-xlsx-3d0d5ff2d8b69246286aaa67",
+      "images": []
+    },
+    {
+      "id": "prop-xlsx-1c59ef7798d584ffcd9b3b24",
+      "title": "Na Ha",
+      "entity": "developments",
+      "decision": "keep-current",
+      "evidence": "visual-review-20261115:prop-xlsx-1c59ef7798d584ffcd9b3b24",
+      "images": []
+    },
+    {
+      "id": "prop-xlsx-c87983fa7d42630227a0de17",
+      "title": "Naima",
+      "entity": "developments",
+      "decision": "keep-current",
+      "evidence": "visual-review-20261115:prop-xlsx-c87983fa7d42630227a0de17",
+      "images": []
+    },
+    {
+      "id": "prop-xlsx-0678dfd31a7da18ab0bfcb10",
+      "title": "Náutica Isla Dorada",
+      "entity": "developments",
+      "decision": "keep-current",
+      "evidence": "visual-review-20261115:prop-xlsx-0678dfd31a7da18ab0bfcb10",
+      "images": []
+    },
+    {
+      "id": "prop-xlsx-15252568ae5a9bb214f82648",
+      "title": "Nautica Residences by Nauma",
+      "entity": "developments",
+      "decision": "confirmed-presale",
+      "evidence": "visual-review-20261115:prop-xlsx-15252568ae5a9bb214f82648",
+      "images": [
+        {
+          "index": 0,
+          "kind": "render",
+          "source": "/media/properties/prop-xlsx-15252568ae5a9bb214f82648/0?v=1793750918034"
+        }
+      ]
+    },
+    {
+      "id": "prop-ddfe8334-300a-48f3-bc36-7be72942f118",
+      "title": "Novo Cancún",
+      "entity": "developments",
+      "decision": "needs-verification",
+      "evidence": "visual-review-20261115:prop-ddfe8334-300a-48f3-bc36-7be72942f118",
+      "images": [
+        {
+          "index": 12,
+          "kind": "render",
+          "source": "/media/properties/prop-ddfe8334-300a-48f3-bc36-7be72942f118/12?v=1788480696558"
+        }
+      ]
+    },
+    {
+      "id": "prop-xlsx-c6502d47d97dbf625a6ee102",
+      "title": "Ocean Towers Residences",
+      "entity": "developments",
+      "decision": "confirmed-presale",
+      "evidence": "visual-review-20261115:prop-xlsx-c6502d47d97dbf625a6ee102",
+      "images": [
+        {
+          "index": 0,
+          "kind": "render",
+          "source": "/media/properties/prop-xlsx-c6502d47d97dbf625a6ee102/0?v=1793750918034"
+        }
+      ]
+    },
+    {
+      "id": "prop-xlsx-b128d2d4bf57d0916e89f8ae",
+      "title": "OM Apartments",
+      "entity": "developments",
+      "decision": "confirmed-presale",
+      "evidence": "visual-review-20261115:prop-xlsx-b128d2d4bf57d0916e89f8ae",
+      "images": [
+        {
+          "index": 0,
+          "kind": "render",
+          "source": "/media/properties/prop-xlsx-b128d2d4bf57d0916e89f8ae/0?v=1793751035200"
+        }
+      ]
+    },
+    {
+      "id": "prop-xlsx-52c6a04ea5d2370b9cc39b46",
+      "title": "Ombú Apartments",
+      "entity": "developments",
+      "decision": "keep-current",
+      "evidence": "visual-review-20261115:prop-xlsx-52c6a04ea5d2370b9cc39b46",
+      "images": []
+    },
+    {
+      "id": "prop-xlsx-e7f2634e09c3e02f0ed02cfa",
+      "title": "One Laguna Residences & Marina Club",
+      "entity": "developments",
+      "decision": "confirmed-presale",
+      "evidence": "visual-review-20261115:prop-xlsx-e7f2634e09c3e02f0ed02cfa",
+      "images": [
+        {
+          "index": 0,
+          "kind": "render",
+          "source": "/media/properties/prop-xlsx-e7f2634e09c3e02f0ed02cfa/0?v=1793750918034"
+        }
+      ]
+    },
+    {
+      "id": "prop-xlsx-e28a760372e202f2797de6ef",
+      "title": "Palmaris Residencial",
+      "entity": "developments",
+      "decision": "keep-current",
+      "evidence": "visual-review-20261115:prop-xlsx-e28a760372e202f2797de6ef",
+      "images": []
+    },
+    {
+      "id": "prop-xlsx-5687022d4dcaee798b21aebd",
+      "title": "Palmeras Puerto Cancún",
+      "entity": "developments",
+      "decision": "keep-current",
+      "evidence": "visual-review-20261115:prop-xlsx-5687022d4dcaee798b21aebd",
+      "images": []
+    },
+    {
+      "id": "prop-xlsx-b6e055f34fcd6ef39d004c91",
+      "title": "Península Cancún",
+      "entity": "developments",
+      "decision": "keep-current",
+      "evidence": "visual-review-20261115:prop-xlsx-b6e055f34fcd6ef39d004c91",
+      "images": []
+    },
+    {
+      "id": "prop-xlsx-f805e10e5a2796028903c772",
+      "title": "Pescadores",
+      "entity": "developments",
+      "decision": "keep-current",
+      "evidence": "visual-review-20261115:prop-xlsx-f805e10e5a2796028903c772",
+      "images": []
+    },
+    {
+      "id": "prop-xlsx-09f97f9746f21ef765802cc6",
+      "title": "Pez Volador",
+      "entity": "developments",
+      "decision": "keep-current",
+      "evidence": "visual-review-20261115:prop-xlsx-09f97f9746f21ef765802cc6",
+      "images": []
+    },
+    {
+      "id": "prop-xlsx-140f511dab227bf6b1c55967",
+      "title": "Pok Ta Pok",
+      "entity": "developments",
+      "decision": "keep-current",
+      "evidence": "visual-review-20261115:prop-xlsx-140f511dab227bf6b1c55967",
+      "images": []
+    },
+    {
+      "id": "prop-xlsx-7d2560733369ab14c64095a3",
+      "title": "Portofino",
+      "entity": "developments",
+      "decision": "keep-current",
+      "evidence": "visual-review-20261115:prop-xlsx-7d2560733369ab14c64095a3",
+      "images": []
+    },
+    {
+      "id": "prop-c2d9955e-b6a5-42f9-80e1-46a6adfb7a87",
+      "title": "PUNTA CANCUN",
+      "entity": "developments",
+      "decision": "keep-current",
+      "evidence": "visual-review-20261115:prop-c2d9955e-b6a5-42f9-80e1-46a6adfb7a87",
+      "images": []
+    },
+    {
+      "id": "prop-xlsx-8086162f60fec22543ab03b4",
+      "title": "Punta del Mar",
+      "entity": "developments",
+      "decision": "keep-current",
+      "evidence": "visual-review-20261115:prop-xlsx-8086162f60fec22543ab03b4",
+      "images": []
+    },
+    {
+      "id": "prop-xlsx-793614c2bef1a5a088dca346",
+      "title": "Punta Veinte",
+      "entity": "developments",
+      "decision": "keep-current",
+      "evidence": "visual-review-20261115:prop-xlsx-793614c2bef1a5a088dca346",
+      "images": []
+    },
+    {
+      "id": "prop-xlsx-3b990172db91d93479a900d2",
+      "title": "Quintas del Mar",
+      "entity": "developments",
+      "decision": "keep-current",
+      "evidence": "visual-review-20261115:prop-xlsx-3b990172db91d93479a900d2",
+      "images": []
+    },
+    {
+      "id": "prop-xlsx-b784237341b0370154721242",
+      "title": "Residencial Campestre",
+      "entity": "developments",
+      "decision": "keep-current",
+      "evidence": "visual-review-20261115:prop-xlsx-b784237341b0370154721242",
+      "images": []
+    },
+    {
+      "id": "prop-xlsx-765684d1b44a407170850920",
+      "title": "Residencial Cumbres",
+      "entity": "developments",
+      "decision": "keep-current",
+      "evidence": "visual-review-20261115:prop-xlsx-765684d1b44a407170850920",
+      "images": []
+    },
+    {
+      "id": "prop-xlsx-ba8222eabd99c65b3b77fb11",
+      "title": "Residencial del Mar",
+      "entity": "developments",
+      "decision": "keep-current",
+      "evidence": "visual-review-20261115:prop-xlsx-ba8222eabd99c65b3b77fb11",
+      "images": []
+    },
+    {
+      "id": "prop-7012bd50-561e-4e06-922d-9532a03ca626",
+      "title": "Residencial Lagos del Sol",
+      "entity": "developments",
+      "decision": "keep-current",
+      "evidence": "visual-review-20261115:prop-7012bd50-561e-4e06-922d-9532a03ca626",
+      "images": []
+    },
+    {
+      "id": "prop-xlsx-6fffa45ef4d06f253f871828",
+      "title": "Residencial Las Cascadas",
+      "entity": "developments",
+      "decision": "keep-current",
+      "evidence": "visual-review-20261115:prop-xlsx-6fffa45ef4d06f253f871828",
+      "images": []
+    },
+    {
+      "id": "prop-xlsx-5c5f7265ebea9ec1889f08e3",
+      "title": "Residencial Las Cúpulas",
+      "entity": "developments",
+      "decision": "keep-current",
+      "evidence": "visual-review-20261115:prop-xlsx-5c5f7265ebea9ec1889f08e3",
+      "images": []
+    },
+    {
+      "id": "prop-xlsx-c952d2c25b4388f063cc8c1e",
+      "title": "Residencial Nautilus",
+      "entity": "developments",
+      "decision": "keep-current",
+      "evidence": "visual-review-20261115:prop-xlsx-c952d2c25b4388f063cc8c1e",
+      "images": []
+    },
+    {
+      "id": "prop-xlsx-3567625bcb8f103dbfd959dc",
+      "title": "Residencial Río",
+      "entity": "developments",
+      "decision": "keep-current",
+      "evidence": "visual-review-20261115:prop-xlsx-3567625bcb8f103dbfd959dc",
+      "images": []
+    },
+    {
+      "id": "prop-xlsx-6954138fa174d915e2b09278",
+      "title": "Riva Puerto Cancún",
+      "entity": "developments",
+      "decision": "needs-verification",
+      "evidence": "visual-review-20261115:prop-xlsx-6954138fa174d915e2b09278",
+      "images": [
+        {
+          "index": 9,
+          "kind": "render",
+          "source": "/media/properties/prop-xlsx-6954138fa174d915e2b09278/9?v=1794089604296"
+        }
+      ]
+    },
+    {
+      "id": "prop-xlsx-4b422b6582c1bf1003244992",
+      "title": "Rue Contemporary",
+      "entity": "developments",
+      "decision": "keep-current",
+      "evidence": "visual-review-20261115:prop-xlsx-4b422b6582c1bf1003244992",
+      "images": []
+    },
+    {
+      "id": "prop-xlsx-57fc32924a1be558c6361ec2",
+      "title": "Sayab Residencial",
+      "entity": "developments",
+      "decision": "keep-current",
+      "evidence": "visual-review-20261115:prop-xlsx-57fc32924a1be558c6361ec2",
+      "images": []
+    },
+    {
+      "id": "prop-xlsx-6b9df05f7381066251202481",
+      "title": "See Towers",
+      "entity": "developments",
+      "decision": "confirmed-presale",
+      "evidence": "visual-review-20261115:prop-xlsx-6b9df05f7381066251202481",
+      "images": [
+        {
+          "index": 0,
+          "kind": "render",
+          "source": "/media/properties/prop-xlsx-6b9df05f7381066251202481/0?v=1793751909527"
+        }
+      ]
+    },
+    {
+      "id": "prop-xlsx-8ffbbf35a04e531d23bb647b",
+      "title": "SENSE Residencial",
+      "entity": "developments",
+      "decision": "needs-verification",
+      "evidence": "visual-review-20261115:prop-xlsx-8ffbbf35a04e531d23bb647b",
+      "images": []
+    },
+    {
+      "id": "prop-xlsx-c9d6eb0fbf1fe6fa17ba1e1c",
+      "title": "Sereia Tower",
+      "entity": "developments",
+      "decision": "needs-verification",
+      "evidence": "visual-review-20261115:prop-xlsx-c9d6eb0fbf1fe6fa17ba1e1c",
+      "images": []
+    },
+    {
+      "id": "prop-xlsx-768e11f77827a1bd4fb6214c",
+      "title": "SHA Residences México",
+      "entity": "developments",
+      "decision": "needs-verification",
+      "evidence": "visual-review-20261115:prop-xlsx-768e11f77827a1bd4fb6214c",
+      "images": [
+        {
+          "index": 0,
+          "kind": "render",
+          "source": "/media/properties/prop-xlsx-768e11f77827a1bd4fb6214c/0?v=1793750947869"
+        }
+      ]
+    },
+    {
+      "id": "prop-6a8823d5-14eb-4c48-9017-62db866d9bbd",
+      "title": "Shark Tower",
+      "entity": "developments",
+      "decision": "keep-current",
+      "evidence": "visual-review-20261115:prop-6a8823d5-14eb-4c48-9017-62db866d9bbd",
+      "images": []
+    },
+    {
+      "id": "prop-xlsx-92592c4b66d5a30ce173707b",
+      "title": "Sky Cancún Residences (2 torres)",
+      "entity": "developments",
+      "decision": "keep-current",
+      "evidence": "visual-review-20261115:prop-xlsx-92592c4b66d5a30ce173707b",
+      "images": []
+    },
+    {
+      "id": "prop-xlsx-43312fed4b886341d9e6df9f",
+      "title": "SLS Bahía Beach",
+      "entity": "developments",
+      "decision": "confirmed-presale",
+      "evidence": "visual-review-20261115:prop-xlsx-43312fed4b886341d9e6df9f",
+      "images": [
+        {
+          "index": 0,
+          "kind": "render",
+          "source": "/media/properties/prop-xlsx-43312fed4b886341d9e6df9f/0?v=1793750947869"
+        }
+      ]
+    },
+    {
+      "id": "prop-xlsx-3adebce5306a6ff7fde3617e",
+      "title": "SLS Cancún Hotel & Residences",
+      "entity": "developments",
+      "decision": "keep-current",
+      "evidence": "visual-review-20261115:prop-xlsx-3adebce5306a6ff7fde3617e",
+      "images": []
+    },
+    {
+      "id": "prop-6483e3e1-0141-4dc5-a63f-8e317416c53f",
+      "title": "SLS Harbour Beach",
+      "entity": "developments",
+      "decision": "keep-current",
+      "evidence": "visual-review-20261115:prop-6483e3e1-0141-4dc5-a63f-8e317416c53f",
+      "images": []
+    },
+    {
+      "id": "prop-xlsx-004e74976d46e830b686b450",
+      "title": "SLS Marina Beach",
+      "entity": "developments",
+      "decision": "keep-current",
+      "evidence": "visual-review-20261115:prop-xlsx-004e74976d46e830b686b450",
+      "images": []
+    },
+    {
+      "id": "prop-xlsx-3c452a76efc5fa8410cda148",
+      "title": "SLS Ocean Beach Residences",
+      "entity": "developments",
+      "decision": "confirmed-presale",
+      "evidence": "visual-review-20261115:prop-xlsx-3c452a76efc5fa8410cda148",
+      "images": [
+        {
+          "index": 0,
+          "kind": "render",
+          "source": "/media/properties/prop-xlsx-3c452a76efc5fa8410cda148/0?v=1793750947869"
+        }
+      ]
+    },
+    {
+      "id": "prop-xlsx-d4b5ec9faeb41ff97b145e5f",
+      "title": "Terraquia",
+      "entity": "developments",
+      "decision": "confirmed-presale",
+      "evidence": "visual-review-20261115:prop-xlsx-d4b5ec9faeb41ff97b145e5f",
+      "images": [
+        {
+          "index": 0,
+          "kind": "render",
+          "source": "/media/properties/prop-xlsx-d4b5ec9faeb41ff97b145e5f/0?v=1793751909527"
+        }
+      ]
+    },
+    {
+      "id": "prop-xlsx-422071be545fa43c5b4ea313",
+      "title": "Thalassa Tower",
+      "entity": "developments",
+      "decision": "needs-verification",
+      "evidence": "visual-review-20261115:prop-xlsx-422071be545fa43c5b4ea313",
+      "images": [
+        {
+          "index": 0,
+          "kind": "render",
+          "source": "/media/properties/prop-xlsx-422071be545fa43c5b4ea313/0?v=1793750947869"
+        }
+      ]
+    },
+    {
+      "id": "prop-xlsx-4d7e21cdb6ac3ed818973c2b",
+      "title": "The Residences at The St. Regis Costa Mujeres Resort",
+      "entity": "developments",
+      "decision": "confirmed-presale",
+      "evidence": "visual-review-20261115:prop-xlsx-4d7e21cdb6ac3ed818973c2b",
+      "images": [
+        {
+          "index": 0,
+          "kind": "render",
+          "source": "/media/properties/prop-xlsx-4d7e21cdb6ac3ed818973c2b/0?v=1793750947869"
+        }
+      ]
+    },
+    {
+      "id": "prop-xlsx-86a3f02951f7c86ef9a292d5",
+      "title": "The Ritz-Carlton Residences, Cancún, Punta Nizuc",
+      "entity": "developments",
+      "decision": "confirmed-presale",
+      "evidence": "visual-review-20261115:prop-xlsx-86a3f02951f7c86ef9a292d5",
+      "images": [
+        {
+          "index": 0,
+          "kind": "render",
+          "source": "/media/properties/prop-xlsx-86a3f02951f7c86ef9a292d5/0?v=1793750947869"
+        }
+      ]
+    },
+    {
+      "id": "prop-xlsx-5134cdaa4dc959d9a942f906",
+      "title": "Thompson Private Residences",
+      "entity": "developments",
+      "decision": "confirmed-presale",
+      "evidence": "visual-review-20261115:prop-xlsx-5134cdaa4dc959d9a942f906",
+      "images": [
+        {
+          "index": 0,
+          "kind": "render",
+          "source": "/media/properties/prop-xlsx-5134cdaa4dc959d9a942f906/0?v=1793750947869"
+        }
+      ]
+    },
+    {
+      "id": "prop-xlsx-d39c7a89805f7a8fb629c42a",
+      "title": "Torre Ghalia",
+      "entity": "developments",
+      "decision": "needs-verification",
+      "evidence": "visual-review-20261115:prop-xlsx-d39c7a89805f7a8fb629c42a",
+      "images": [
+        {
+          "index": 0,
+          "kind": "render",
+          "source": "/media/properties/prop-xlsx-d39c7a89805f7a8fb629c42a/0?v=1793751909527"
+        }
+      ]
+    },
+    {
+      "id": "prop-xlsx-818c2a41642fc4990a7f9e61",
+      "title": "Torre Insignia",
+      "entity": "developments",
+      "decision": "confirmed-presale",
+      "evidence": "visual-review-20261115:prop-xlsx-818c2a41642fc4990a7f9e61",
+      "images": [
+        {
+          "index": 0,
+          "kind": "render",
+          "source": "/media/properties/prop-xlsx-818c2a41642fc4990a7f9e61/0?v=1793750979324"
+        }
+      ]
+    },
+    {
+      "id": "prop-xlsx-6e645241d1a1162c255bbbdd",
+      "title": "Torre Nikté",
+      "entity": "developments",
+      "decision": "needs-verification",
+      "evidence": "visual-review-20261115:prop-xlsx-6e645241d1a1162c255bbbdd",
+      "images": [
+        {
+          "index": 0,
+          "kind": "render",
+          "source": "/media/properties/prop-xlsx-6e645241d1a1162c255bbbdd/0?v=1793751909527"
+        }
+      ]
+    },
+    {
+      "id": "prop-xlsx-0107bd62198e3d51950f0f4f",
+      "title": "Ummbal Luxury Condos",
+      "entity": "developments",
+      "decision": "keep-current",
+      "evidence": "visual-review-20261115:prop-xlsx-0107bd62198e3d51950f0f4f",
+      "images": []
+    },
+    {
+      "id": "prop-xlsx-71519247623a9568104d3d00",
+      "title": "Valle Aurora Cancún",
+      "entity": "developments",
+      "decision": "needs-verification",
+      "evidence": "visual-review-20261115:prop-xlsx-71519247623a9568104d3d00",
+      "images": []
+    },
+    {
+      "id": "prop-xlsx-4124d694b746d4989dd93b20",
+      "title": "Valmira Living",
+      "entity": "developments",
+      "decision": "keep-current",
+      "evidence": "visual-review-20261115:prop-xlsx-4124d694b746d4989dd93b20",
+      "images": []
+    },
+    {
+      "id": "prop-xlsx-1ec4428ebe58ff11b3b629ec",
+      "title": "Vellmari Grand Living (2 torres)",
+      "entity": "developments",
+      "decision": "confirmed-presale",
+      "evidence": "visual-review-20261115:prop-xlsx-1ec4428ebe58ff11b3b629ec",
+      "images": [
+        {
+          "index": 0,
+          "kind": "render",
+          "source": "/media/properties/prop-xlsx-1ec4428ebe58ff11b3b629ec/0?v=1793751035200"
+        }
+      ]
+    },
+    {
+      "id": "prop-xlsx-08281f0dcd01ba941f598e61",
+      "title": "Vía Cumbres Residencial",
+      "entity": "developments",
+      "decision": "keep-current",
+      "evidence": "visual-review-20261115:prop-xlsx-08281f0dcd01ba941f598e61",
+      "images": []
+    },
+    {
+      "id": "prop-xlsx-9be3608430c9df8e13ecf60c",
+      "title": "Vidaraa Tower",
+      "entity": "developments",
+      "decision": "needs-verification",
+      "evidence": "visual-review-20261115:prop-xlsx-9be3608430c9df8e13ecf60c",
+      "images": [
+        {
+          "index": 0,
+          "kind": "render",
+          "source": "/media/properties/prop-xlsx-9be3608430c9df8e13ecf60c/0?v=1793750979324"
+        }
+      ]
+    },
+    {
+      "id": "prop-xlsx-8488950a488733118fb5d7e9",
+      "title": "View Towers Cancún",
+      "entity": "developments",
+      "decision": "confirmed-presale",
+      "evidence": "visual-review-20261115:prop-xlsx-8488950a488733118fb5d7e9",
+      "images": [
+        {
+          "index": 0,
+          "kind": "render",
+          "source": "/media/properties/prop-xlsx-8488950a488733118fb5d7e9/0?v=1793751035200"
+        }
+      ]
+    },
+    {
+      "id": "prop-xlsx-88faab87bed83cda5a3da6ca",
+      "title": "Villa Magna Residencial",
+      "entity": "developments",
+      "decision": "keep-current",
+      "evidence": "visual-review-20261115:prop-xlsx-88faab87bed83cda5a3da6ca",
+      "images": []
+    },
+    {
+      "id": "prop-xlsx-e822cf26c71c7e82441d43ef",
+      "title": "Villa Sicilia",
+      "entity": "developments",
+      "decision": "keep-current",
+      "evidence": "visual-review-20261115:prop-xlsx-e822cf26c71c7e82441d43ef",
+      "images": []
+    },
+    {
+      "id": "prop-xlsx-5f80019471dd42067bd89f63",
+      "title": "Villalta Laguna (El Table, acceso Zona Hotelera)",
+      "entity": "developments",
+      "decision": "needs-verification",
+      "evidence": "visual-review-20261115:prop-xlsx-5f80019471dd42067bd89f63",
+      "images": []
+    },
+    {
+      "id": "prop-xlsx-b1a8b86dfbef43794c2ffb47",
+      "title": "Villas Lagunas del Mar",
+      "entity": "developments",
+      "decision": "keep-current",
+      "evidence": "visual-review-20261115:prop-xlsx-b1a8b86dfbef43794c2ffb47",
+      "images": []
+    },
+    {
+      "id": "prop-xlsx-499ac32cd2da0debc85c1e60",
+      "title": "Villas Marlin",
+      "entity": "developments",
+      "decision": "keep-current",
+      "evidence": "visual-review-20261115:prop-xlsx-499ac32cd2da0debc85c1e60",
+      "images": []
+    },
+    {
+      "id": "prop-xlsx-89066528ccb62e0bf9b0b08f",
+      "title": "Villas Nissa",
+      "entity": "developments",
+      "decision": "keep-current",
+      "evidence": "visual-review-20261115:prop-xlsx-89066528ccb62e0bf9b0b08f",
+      "images": []
+    },
+    {
+      "id": "prop-xlsx-1f5adf34a49f12edd26af405",
+      "title": "Villas Tropical",
+      "entity": "developments",
+      "decision": "keep-current",
+      "evidence": "visual-review-20261115:prop-xlsx-1f5adf34a49f12edd26af405",
+      "images": []
+    },
+    {
+      "id": "prop-xlsx-bc8fdd7267f2dedae8ae8215",
+      "title": "Vista Hermosa — Cancún Country Club",
+      "entity": "developments",
+      "decision": "needs-verification",
+      "evidence": "visual-review-20261115:prop-xlsx-bc8fdd7267f2dedae8ae8215",
+      "images": []
+    },
+    {
+      "id": "prop-xlsx-c5b6bf56466a858bbcc08b97",
+      "title": "Vita Residenze",
+      "entity": "developments",
+      "decision": "needs-verification",
+      "evidence": "visual-review-20261115:prop-xlsx-c5b6bf56466a858bbcc08b97",
+      "images": [
+        {
+          "index": 0,
+          "kind": "render",
+          "source": "/media/properties/prop-xlsx-c5b6bf56466a858bbcc08b97/0?v=1793751909527"
+        }
+      ]
+    },
+    {
+      "id": "prop-xlsx-ba51aaf2f2680ac051744f15",
+      "title": "W Residences Costa Mujeres",
+      "entity": "developments",
+      "decision": "needs-verification",
+      "evidence": "visual-review-20261115:prop-xlsx-ba51aaf2f2680ac051744f15",
+      "images": [
+        {
+          "index": 0,
+          "kind": "render",
+          "source": "/media/properties/prop-xlsx-ba51aaf2f2680ac051744f15/0?v=1793751909527"
+        }
+      ]
+    },
+    {
+      "id": "prop-xlsx-51f5f2301d056d092b9c9238",
+      "title": "WOHA Puerto Cancún",
+      "entity": "developments",
+      "decision": "confirmed-presale",
+      "evidence": "visual-review-20261115:prop-xlsx-51f5f2301d056d092b9c9238",
+      "images": [
+        {
+          "index": 0,
+          "kind": "render",
+          "source": "/media/properties/prop-xlsx-51f5f2301d056d092b9c9238/0?v=1793750979324"
+        }
+      ]
+    },
+    {
+      "id": "prop-xlsx-7e20d3557fefd36daf81ab99",
+      "title": "Ximena Wow Condos",
+      "entity": "developments",
+      "decision": "confirmed-presale",
+      "evidence": "visual-review-20261115:prop-xlsx-7e20d3557fefd36daf81ab99",
+      "images": [
+        {
+          "index": 0,
+          "kind": "render",
+          "source": "/media/properties/prop-xlsx-7e20d3557fefd36daf81ab99/0?v=1793751035200"
+        }
+      ]
+    },
+    {
+      "id": "prop-xlsx-19cd848bbec14b0b4c01d56e",
+      "title": "Zelva-44 Río",
+      "entity": "developments",
+      "decision": "needs-verification",
+      "evidence": "visual-review-20261115:prop-xlsx-19cd848bbec14b0b4c01d56e",
+      "images": [
+        {
+          "index": 0,
+          "kind": "render",
+          "source": "/media/properties/prop-xlsx-19cd848bbec14b0b4c01d56e/0?v=1793751909527"
+        }
+      ]
+    },
+    {
+      "id": "prop-2310b09c-00ea-4908-b4f7-c3590b0f53dc",
+      "title": "Zen Gardens",
+      "entity": "developments",
+      "decision": "confirmed-presale",
+      "evidence": "visual-review-20261115:prop-2310b09c-00ea-4908-b4f7-c3590b0f53dc",
+      "images": [
+        {
+          "index": 0,
+          "kind": "render",
+          "source": "/media/properties/prop-2310b09c-00ea-4908-b4f7-c3590b0f53dc/0?v=1788478465254"
+        },
+        {
+          "index": 1,
+          "kind": "render",
+          "source": "/media/properties/prop-2310b09c-00ea-4908-b4f7-c3590b0f53dc/1?v=1788478465254"
+        },
+        {
+          "index": 2,
+          "kind": "render",
+          "source": "/media/properties/prop-2310b09c-00ea-4908-b4f7-c3590b0f53dc/2?v=1788478465254"
+        },
+        {
+          "index": 3,
+          "kind": "render",
+          "source": "/media/properties/prop-2310b09c-00ea-4908-b4f7-c3590b0f53dc/3?v=1788478465254"
+        },
+        {
+          "index": 4,
+          "kind": "render",
+          "source": "/media/properties/prop-2310b09c-00ea-4908-b4f7-c3590b0f53dc/4?v=1788478465254"
+        },
+        {
+          "index": 5,
+          "kind": "render",
+          "source": "/media/properties/prop-2310b09c-00ea-4908-b4f7-c3590b0f53dc/5?v=1788478465254"
+        },
+        {
+          "index": 7,
+          "kind": "render",
+          "source": "/media/properties/prop-2310b09c-00ea-4908-b4f7-c3590b0f53dc/7?v=1788478465254"
+        },
+        {
+          "index": 8,
+          "kind": "render",
+          "source": "/media/properties/prop-2310b09c-00ea-4908-b4f7-c3590b0f53dc/8?v=1788478465254"
+        },
+        {
+          "index": 9,
+          "kind": "render",
+          "source": "/media/properties/prop-2310b09c-00ea-4908-b4f7-c3590b0f53dc/9?v=1788478465254"
+        },
+        {
+          "index": 10,
+          "kind": "render",
+          "source": "/media/properties/prop-2310b09c-00ea-4908-b4f7-c3590b0f53dc/10?v=1788478465254"
+        },
+        {
+          "index": 11,
+          "kind": "render",
+          "source": "/media/properties/prop-2310b09c-00ea-4908-b4f7-c3590b0f53dc/11?v=1788478465254"
+        }
+      ]
+    },
+    {
+      "id": "prop-xlsx-f874cada0525b58844b7372a",
+      "title": "Zenit Cancún",
+      "entity": "developments",
+      "decision": "confirmed-presale",
+      "evidence": "visual-review-20261115:prop-xlsx-f874cada0525b58844b7372a",
+      "images": [
+        {
+          "index": 0,
+          "kind": "render",
+          "source": "/media/properties/prop-xlsx-f874cada0525b58844b7372a/0?v=1793750979324"
+        }
+      ]
+    },
+    {
+      "id": "prop-xlsx-65ecaa9b845425ab9c184bf2",
+      "title": "Zienna Residencial",
+      "entity": "developments",
+      "decision": "confirmed-presale",
+      "evidence": "visual-review-20261115:prop-xlsx-65ecaa9b845425ab9c184bf2",
+      "images": [
+        {
+          "index": 0,
+          "kind": "render",
+          "source": "/media/properties/prop-xlsx-65ecaa9b845425ab9c184bf2/0?v=1793751105679"
+        }
+      ]
+    },
+    {
+      "id": "prop-6954a2d1-ba0e-43fd-917b-071a4a14f61b",
+      "title": "DEPARTAMENTO EN PREVENTA SM10 CANCÚN",
+      "entity": "properties",
+      "decision": "confirmed-presale",
+      "evidence": "visual-review-20261115:prop-6954a2d1-ba0e-43fd-917b-071a4a14f61b",
+      "images": [
+        {
+          "index": 0,
+          "kind": "render",
+          "source": "/media/properties/prop-6954a2d1-ba0e-43fd-917b-071a4a14f61b/0?v=1788036582891"
+        },
+        {
+          "index": 1,
+          "kind": "render",
+          "source": "/media/properties/prop-6954a2d1-ba0e-43fd-917b-071a4a14f61b/1?v=1788036582891"
+        },
+        {
+          "index": 2,
+          "kind": "render",
+          "source": "/media/properties/prop-6954a2d1-ba0e-43fd-917b-071a4a14f61b/2?v=1788036582891"
+        },
+        {
+          "index": 3,
+          "kind": "render",
+          "source": "/media/properties/prop-6954a2d1-ba0e-43fd-917b-071a4a14f61b/3?v=1788036582891"
+        },
+        {
+          "index": 4,
+          "kind": "render",
+          "source": "/media/properties/prop-6954a2d1-ba0e-43fd-917b-071a4a14f61b/4?v=1788036582891"
+        },
+        {
+          "index": 5,
+          "kind": "render",
+          "source": "/media/properties/prop-6954a2d1-ba0e-43fd-917b-071a4a14f61b/5?v=1788036582891"
+        },
+        {
+          "index": 6,
+          "kind": "render",
+          "source": "/media/properties/prop-6954a2d1-ba0e-43fd-917b-071a4a14f61b/6?v=1788036582891"
+        }
+      ]
+    }
+  ]
+}

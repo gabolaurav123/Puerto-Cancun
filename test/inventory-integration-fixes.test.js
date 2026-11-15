@@ -6,6 +6,7 @@ const { createHash } = require("node:crypto");
 const inventory = require("../inventory-contract");
 const { publicProperty } = require("../inventory-metadata");
 const { savedCatalogQuery } = require("../saved-catalog-search");
+const { publicExchangeFixture } = require("./helpers/public-exchange-fixture");
 const server = fs.readFileSync(require.resolve("../server.js"), "utf8");
 const app = fs.readFileSync(require.resolve("../app.js"), "utf8");
 const plain = (value) => JSON.parse(JSON.stringify(value));
@@ -71,11 +72,11 @@ function alerts(publicRows, searches, { inserted = true, enabled = true, queryTe
   return { run: runtime.createSavedSearchAlertsForProperty, calls };
 }
 
-function ui({ rows = [], filters = {}, budget = 0, beds = 0, lang = "es", page = "catalog", sort = "low", contract = inventory } = {}) {
+function ui({ rows = [], filters = {}, budget = 0, beds = 0, lang = "es", page = "catalog", sort = "low", contract = inventory, exchangeRate = publicExchangeFixture() } = {}) {
   const state = {
     properties: rows, filters: { type: "", zone: "", operation: "", text: "", featured: false, ...filters },
     guided: { budget, beds }, intelligentSearch: { active: false, ids: [] },
-    favorites: [], compare: [], lang,
+    favorites: [], compare: [], lang, config: { currencyExchange: exchangeRate },
   };
   const nodes = new Map([
     ["#propertyGrid", { innerHTML: "" }], ["#resultCount", { textContent: "" }],
@@ -260,8 +261,8 @@ test("I03: valid prices/bases and explicit null survive the DTO mapping", () => 
   }
 });
 
-test("I04: price helpers never revive a canonical null or invent a currency", () => {
-  const api = ui();
+test("I04: internal price helpers never revive a canonical null or invent a currency", () => {
+  const api = ui({ page: "panel" });
   for (const p of [
     property({ price: null, priceUsd: 900 }), property({ price: null, priceMxn: 900, currency: "MXN" }),
     property({ price: 100, currency: null }), property({ price: 100, currency: "EUR" }),
@@ -274,8 +275,8 @@ test("I04: price helpers never revive a canonical null or invent a currency", ()
   }
 });
 
-test("I04: supported legacy named amounts and canonical decimal amounts still display", () => {
-  const api = ui();
+test("I04: internal source currency and canonical decimal amounts still display", () => {
+  const api = ui({ page: "panel" });
   for (const [p, expected] of [[{ price_usd: 250 }, ["USD", 250]], [{ price_mxn: 4500 }, ["MXN", 4500]], [property({ price: 123.45 }), ["USD", 123.45]]]) {
     assert.deepEqual(Array.from(api.localizedPropertyPrice(p)), expected);
     assert.match(api.formatPriceSummary(p), new RegExp(expected[0]));
@@ -284,11 +285,26 @@ test("I04: supported legacy named amounts and canonical decimal amounts still di
 });
 
 test("I04: consult-price policy and missing engine do not produce fabricated amounts", () => {
-  assert.equal(ui().formatPriceSummary(property({ price: null, catalogData: { priceOnRequest: true } })), "Consultar precio");
+  assert.equal(ui().formatPriceSummary(property({ price: null, catalogData: { priceOnRequest: true } })), "Precio a consultar");
   assert.equal(ui({ lang: "en" }).formatPriceSummary(property({ price: null, catalogData: { priceOnRequest: true } })), "Price on request");
-  assert.equal(ui({ lang: "en" }).formatPriceSummary(property({ price: null })), "Price to be confirmed");
+  assert.equal(ui({ lang: "en" }).formatPriceSummary(property({ price: null })), "Price on request");
   const missing = ui({ contract: null });
   assert.equal(missing.localizedPropertyPrice(property()), null);
+});
+
+test("I04: public price helpers convert once with a current rate and preserve stored amounts", () => {
+  const p = property({ price: 4500, currency: "MXN" }), before = plain(p);
+  for (const lang of ["es", "en"]) {
+    const api = ui({ lang });
+    assert.deepEqual(Array.from(api.localizedPropertyPrice(p)), ["USD", 225]);
+    assert.match(api.formatPriceSummary(p), /≈ USD \$225/);
+    assert.match(api.formatPriceSummary(p), lang === "en" ? / · rate / : / · TC /);
+    assert.equal(api.formatPriceSummary(property({ price: 250 })), "USD $250");
+    assert.equal(api.localizedPropertyPrice(property({ price: null, priceUsd: 900 })), null);
+    assert.equal(ui({ lang, exchangeRate: null }).localizedPropertyPrice(p), null);
+    assert.match(ui({ lang, exchangeRate: null }).formatPriceSummary(p), lang === "en" ? /USD price to be confirmed/ : /Precio en USD por confirmar/);
+  }
+  assert.deepEqual(plain(p), before);
 });
 
 for (const [lang, labels] of [["es", { month: " / mes", day: " / d\u00eda", year: " / a\u00f1o" }], ["en", { month: " / month", day: " / day", year: " / year" }]]) {
@@ -300,25 +316,27 @@ for (const [lang, labels] of [["es", { month: " / mes", day: " / d\u00eda", year
     }
     for (const rentPeriod of [undefined, "unclassified", "invalid"]) {
       const summary = api.formatPriceSummary(property({ operation: "rent", catalogData: { rentPeriod } }));
-      assert.match(summary, lang === "en" ? /period to be confirmed/ : /periodo por confirmar/);
+      assert.match(summary, lang === "en" ? /rental period unconfirmed/ : /periodo por confirmar/);
       assert.ok(!summary.includes(labels.month));
     }
-    assert.equal(api.formatPriceSummary(property()), "USD 100");
+    assert.equal(api.formatPriceSummary(property()), "USD $100");
     assert.match(api.formatCurrencyLine("USD", 100, "rent"), lang === "en" ? /period to be confirmed/ : /periodo por confirmar/);
   });
 }
 
-test("I06: snake-case price metadata preserves rent period and square-meter basis", () => {
+test("I06: snake-case price metadata converts to USD while preserving rent period and square-meter basis", () => {
   const summary = ui().formatPriceSummary({ price_amount: 4200, price_currency: "MXN", price_unit: "sqm", operation: "rent", catalog_data: { rentPeriod: "day" } });
-  assert.match(summary, /MXN/);
+  assert.match(summary, /≈ USD \$210/);
   assert.match(summary, /d\u00eda/);
-  assert.match(summary, /por m\u00b2/);
+  assert.match(summary, /\/ m\u00b2/);
+  assert.match(summary, / · TC /);
 });
 
-test("I05: guided budgets reject missing prices, other currencies, sqm and over-budget records", () => {
+test("I05: guided USD budgets include equivalent MXN prices and reject incomparable or over-budget records", () => {
   const api = ui({ filters: { operation: "sale" }, budget: 1000 });
   assert.equal(api.propertyMatches(property({ price: 1000 })), true);
-  for (const patch of [{ price: null }, { price: null, priceUsd: 500 }, { currency: "MXN" }, { currency: null }, { priceUnit: "sqm" }, { priceUnit: "from" }, { price: 1001 }, { operation: "rent" }]) {
+  assert.equal(api.propertyMatches(property({ currency: "MXN", price: 20000 })), true);
+  for (const patch of [{ price: null }, { price: null, priceUsd: 500 }, { currency: "MXN", price: 20001 }, { currency: null }, { priceUnit: "sqm" }, { priceUnit: "from" }, { price: 1001 }, { operation: "rent" }]) {
     assert.equal(api.propertyMatches(property(patch)), false, JSON.stringify(patch));
   }
 });
@@ -369,7 +387,7 @@ for (const [sort, expectedSort] of [["low", "price-asc"], ["high", "price-desc"]
     const api = ui({ rows, sort });
     const before = plain(rows);
     api.renderProperties();
-    assert.deepEqual(api.ids(), inventory.queryInventory(rows, { sort: expectedSort }).all.map((p) => p.id));
+    assert.deepEqual(api.ids(), inventory.queryInventory(rows, { sort: expectedSort }, { publicPricing: true, exchangeRate: api.state.config.currencyExchange }).all.map((p) => p.id));
     assert.deepEqual(plain(rows), before);
     assert.equal(api.ids().filter((id) => id === "a").length, 1);
     assert.ok(api.ids().includes("b"), "MLS collisions remain separate");

@@ -4,7 +4,7 @@ const inventory = require("./inventory-contract");
 const { fold } = require("./intelligence-utils");
 const { interpretCatalogSearch, catalogLanguage, localizeCatalogError } = require("./catalog-search");
 
-const QUERY_KEYS = ["entity", "text", "locations", "bounds", "zone", "subarea", "gated", "development", "type", "operation", "modality", "currency", "priceBasis", "priceBasisExplicit", "rentPeriod", "min", "max", "beds", "baths", "parking", "minBuilt", "maxBuilt", "minLot", "maxLot", "featured", "sort", "page"];
+const QUERY_KEYS = ["entity", "text", "locations", "bounds", "zone", "subarea", "gated", "development", "type", "operation", "modality", "currency", "priceMode", "priceBasis", "priceBasisExplicit", "rentPeriod", "min", "max", "beds", "baths", "parking", "minBuilt", "maxBuilt", "minLot", "maxLot", "featured", "sort", "page"];
 const LEGACY_KEYS = ["propertyType", "location", "minPrice", "maxPrice", "bedrooms", "q"];
 const META_KEYS = ["contractVersion", "queryText", "query_text", "language", "lang", "errors", "conversation", "warnings", "clarificationRequired", "needsChoice", "understood"];
 const KNOWN_KEYS = new Set([...QUERY_KEYS, ...LEGACY_KEYS, ...META_KEYS]);
@@ -88,7 +88,7 @@ function savedCatalogQuery(input = {}, options = {}) {
   errors.push(...interpreted.warnings);
   const merged = { ...interpreted.filters };
   const normalized = inventory.parseQuery(merged, {}, { areas }).query;
-  for (const key of ["entity", "type", "operation", "modality", "currency", "rentPeriod", "zone", "subarea", "development", "priceBasis"]) {
+  for (const key of ["entity", "type", "operation", "modality", "currency", "priceMode", "rentPeriod", "zone", "subarea", "development", "priceBasis"]) {
     const implicitSale = key === "operation" && base.query.modality;
     const budgetBasis = key === "priceBasis" && (base.query.min !== null || base.query.max !== null);
     const constrained = present(raw[key]) && !(key === "priceBasis" && raw.priceBasisExplicit === false && raw.priceBasis === "total");

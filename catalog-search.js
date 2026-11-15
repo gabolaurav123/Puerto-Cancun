@@ -3,7 +3,7 @@
 const { fold } = require("./intelligence-utils");
 const inventory = require("./inventory-contract");
 
-const FILTER_KEYS = ["entity", "text", "locations", "bounds", "zone", "subarea", "gated", "type", "operation", "modality", "currency", "min", "max", "beds", "baths", "parking", "minBuilt", "maxBuilt", "minLot", "maxLot", "development", "featured", "priceBasis", "priceBasisExplicit", "rentPeriod"];
+const FILTER_KEYS = ["entity", "text", "locations", "bounds", "zone", "subarea", "gated", "type", "operation", "modality", "currency", "priceMode", "min", "max", "beds", "baths", "parking", "minBuilt", "maxBuilt", "minLot", "maxLot", "development", "featured", "priceBasis", "priceBasisExplicit", "rentPeriod"];
 const SUBAREA_CHOICE = "Elige una sola subzona o confirma que quieres buscar en todas las ubicaciones seleccionadas.";
 const MESSAGES = [
   ["input_type", "La consulta debe ser texto.", "The search must be text."],

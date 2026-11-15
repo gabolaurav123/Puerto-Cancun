@@ -42,11 +42,11 @@ test("repeating the same saved-search POST creates one lead even after inventory
     calls.push([sql, values]);
     if (sql.startsWith("SELECT key, value FROM app_settings")) return { rows: [] };
     if (sql.startsWith("SELECT id, payload FROM lead_requests")) {
-      const match = records.get(values[0]) || [...records.values()].find(record => record.phone === values[1] && record.payload.inquiryFingerprint === values[2]);
+      const match = records.get(values[0]) || [...records.values()].find(record => ((values[1] && record.phone === values[1]) || (values[3] && record.email === values[3])) && record.payload.inquiryFingerprint === values[2]);
       return { rows: match ? [match] : [] };
     }
     if (sql.startsWith("INSERT INTO lead_requests")) {
-      records.set(values[0], { id: values[0], phone: values[3], payload: JSON.parse(values[7]) });
+      records.set(values[0], { id: values[0], phone: values[3], email: values[4], payload: JSON.parse(values[8]) });
       return { rows: [], rowCount: 1 };
     }
     return { rows: [], rowCount: 1 };
@@ -58,7 +58,7 @@ test("repeating the same saved-search POST creates one lead even after inventory
   app.use((error, req, res, next) => res.status(error.status || 500).json({ error: error.message }));
   const server = http.createServer(app); await new Promise(resolve => server.listen(0, "127.0.0.1", resolve));
   t.after(() => new Promise(resolve => server.close(resolve)));
-  const body = { intent: "buy", lang: "es", country: "US", phone: "+14155552671", consent: true, formStartedAt: Date.now() - 2500, requestId: "search-retry-fixture", sourcePath: "/propiedades", service: "search-watch", searchFilters: criteria, alertChannel: "email", alertEmail: "buyer@example.test", alertConsent: true, summary: "Necesito dos recámaras dentro de mi presupuesto" };
+  const body = { intent: "buy", lang: "es", contactChannel: "email", email: "buyer@example.test", consent: true, formStartedAt: Date.now() - 2500, requestId: "search-retry-fixture", sourcePath: "/propiedades", service: "search-watch", searchFilters: criteria, alertChannel: "email", alertConsent: true, summary: "Necesito dos recámaras dentro de mi presupuesto" };
   const post = () => fetch("http://127.0.0.1:" + server.address().port + "/api/inquiries", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
   const first = await post(); assert.equal(first.status, 201); const firstResult = await first.json();
   properties.push({ ...unit, id: "fixture-newly-published" });

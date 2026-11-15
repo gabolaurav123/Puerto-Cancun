@@ -8972,6 +8972,7 @@ button[aria-busy="true"] {
 }
 
 .property-gallery-slide {
+  position: relative;
   display: none;
   margin: 0;
   padding: 10px;
@@ -9007,6 +9008,28 @@ button[aria-busy="true"] {
   line-height: 1.45;
   text-align: center;
 }
+
+.property-render-label {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  z-index: 1;
+  max-width: calc(100% - 24px);
+  padding: 6px 10px;
+  border-radius: 4px;
+  color: #fff;
+  background: rgba(7, 53, 64, .92);
+  font: 600 .8rem/1.4 Arial, sans-serif;
+  overflow-wrap: anywhere;
+  pointer-events: none;
+}
+
+.public-location-section { min-width: 0; scroll-margin-top: 110px; }
+.public-location-section :is(.public-location-summary, .public-location-address, .public-location-precision, .public-location-notice) { margin: 8px 0; overflow-wrap: anywhere; }
+.public-location-precision { font-weight: 600; }
+.public-location-canvas { width: 100%; margin-top: 14px; border: 1px solid #c9dcdd; border-radius: 6px; overflow: hidden; }
+.public-location-status { margin: 8px 0; font-size: .9rem; line-height: 1.5; }
+.public-location-contact { display: inline-flex; align-items: center; min-height: 44px; margin-top: 4px; font-weight: 600; }
 
 .property-gallery-open {
   position: absolute;
