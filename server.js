@@ -12342,7 +12342,7 @@ function decoratePublicHtml({ page, seo, pageContent = "", bodyPage = "seo", noi
   html = html.replace(/site-language\.js\?v=[^"']+/g, `site-language.js?v=${assetVersion}`);
   html = html.replace(/app\.js\?v=[^"']+/g, `app.js?v=${assetVersion}`);
   html = html.replace(/exchange-rate-view\.js\?v=[^"']+/g, `exchange-rate-view.js?v=${assetVersion}`);
-  html = html.replace(/(catalog\.css|catalog-ui\.js|catalog-map\.js|catalog-assistant\.js|admin-inventory-ui\.js|admin-inventory\.css|comparison-ui\.js|comparison\.css|inventory-contract\.js|contact-config\.js|csv-utils\.js)\?v=[^"']+/g, `$1?v=${assetVersion}`);
+  html = html.replace(/(catalog\.css|public-journey\.css|catalog-ui\.js|catalog-map\.js|catalog-assistant\.js|admin-inventory-ui\.js|admin-inventory\.css|comparison-ui\.js|comparison\.css|inventory-contract\.js|contact-config\.js|csv-utils\.js)\?v=[^"']+/g, `$1?v=${assetVersion}`);
   const alternateUrl = absoluteUrl(seo.alternate || "/", siteUrl);
   const spanishUrl = seo.lang === "en" ? alternateUrl : seo.canonical;
   const englishUrl = seo.lang === "en" ? seo.canonical : alternateUrl;
