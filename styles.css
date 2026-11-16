@@ -16237,11 +16237,15 @@ body[data-page="home"] .hero {
   padding: calc(var(--public-header-height, 104px) + 40px) 24px 40px;
 }
 body[data-page="home"] .hero h1 {
-  max-width: 850px;
-  margin: 0 auto 16px;
-  font-size: clamp(2.2rem, 4vw, 3.5rem);
-  line-height: 1.08;
-  text-transform: none;
+  max-width: 980px;
+  margin: 18px auto 22px;
+  font-family: "Playfair Display", Georgia, serif;
+  font-size: clamp(2.5rem, 5vw, 4.5rem);
+  font-weight: 700;
+  line-height: .96;
+  letter-spacing: 0;
+  text-transform: uppercase;
+  text-shadow: 0 4px 24px rgba(0, 0, 0, .68);
 }
 body[data-page="home"] .hero-subtitle {
   max-width: 740px;
@@ -16256,21 +16260,37 @@ body[data-page="home"] .contact-strip[aria-labelledby="homeContactTitle"] {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 12px 24px;
-  margin: 0 auto;
-  padding: 16px 0;
-  border: 0;
-  border-radius: 0;
+  flex-wrap: wrap;
+  gap: 16px 28px;
+  margin: 30px auto 32px;
+  padding: 22px;
+  border: 1px solid rgba(201, 154, 54, .46);
+  border-radius: 6px;
   background: var(--blue-900);
 }
 body[data-page="home"] .contact-strip #homeContactTitle {
   margin: 0;
   padding: 0;
   color: var(--gold-light);
-  font-size: 1.2rem;
+  font-size: clamp(1.35rem, 2.5vw, 2rem);
   line-height: 1.3;
   text-align: left;
 }
+/* The homepage strip keeps the original single-line office shortcuts. */
+body[data-page="home"] .contact-strip .office-inquiry-buttons { width: min(100%, 32rem); }
+body[data-page="home"] .contact-strip .office-inquiry-button {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 0 .35em;
+  min-height: 52px;
+  padding: 12px 18px;
+  border-radius: 4px;
+  font-size: .9rem;
+}
+body[data-page="home"] .contact-strip .office-method { font: inherit; }
+body[data-page="home"] .contact-strip [data-contact-number] { display: none; }
 body[data-page="home"] :is(.zones-band, .type-section) { padding-block: 32px; }
 body[data-page="home"] :is(.zones-band, .type-section) .section-heading { margin-bottom: 18px; }
 body[data-page="home"] :is(.zones-band, .type-section) .section-heading h2 { font-size: clamp(1.65rem, 2.5vw, 2.25rem); }
@@ -16303,11 +16323,12 @@ body:has(#mainNav.open) #whatsappButton,
 body:has(#cookieBanner:not([hidden])) #whatsappButton { display: none !important; }
 @media (max-width: 700px) {
   body[data-page="home"] .hero { padding: calc(var(--public-header-height, 115px) + 24px) 16px 28px; }
-  body[data-page="home"] .hero h1 { max-width: 520px; margin-bottom: 12px; font-size: clamp(1.95rem, 7.5vw, 2.5rem); line-height: 1.12; }
+  body[data-page="home"] .hero h1 { max-width: 520px; margin: 0 auto 18px; font-size: clamp(2rem, 9.4vw, 2.55rem); line-height: .98; }
   body[data-page="home"] .hero-subtitle { max-width: 450px; margin-bottom: 18px; font-size: .86rem; line-height: 1.5; }
   body[data-page="home"] .search-panel { padding: 12px; }
-  body[data-page="home"] .contact-strip[aria-labelledby="homeContactTitle"] { width: calc(100% - 32px); flex-direction: column; align-items: stretch; gap: 8px; padding: 14px 0; }
-  body[data-page="home"] .contact-strip #homeContactTitle { font-size: 1.08rem; }
+  body[data-page="home"] .contact-strip[aria-labelledby="homeContactTitle"] { width: calc(100% - 32px); flex-direction: column; align-items: stretch; gap: 12px; margin: 18px auto 24px; padding: 16px 12px; }
+  body[data-page="home"] .contact-strip #homeContactTitle { font-size: 1.5rem; text-align: center; }
+  body[data-page="home"] .contact-strip .office-inquiry-button { min-height: 48px; padding: 8px 5px; font-size: .78rem; }
   body[data-page="home"] .office-inquiry-buttons { width: 100%; }
   body[data-page="home"] :is(.zones-band, .type-section) { padding-block: 24px; }
   body[data-page="home"] :is(.zones-band, .type-section) .section-heading { gap: 10px; margin-bottom: 14px; }
