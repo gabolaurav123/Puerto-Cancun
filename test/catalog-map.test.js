@@ -41,6 +41,17 @@ test("no rechaza coordenadas cero reales ni crea ceros desde null", () => {
   assert.equal(prepareItems([item({ latitude: null, longitude: null })]).items.length, 0);
 });
 
+test("un desarrollo sin punto exacto conserva sus acciones pero nunca usa un centro aproximado", () => {
+  const contactUrl = '/contacto?developmentId=fixture-a&origin=development-map';
+  const result = prepareItems([item({kind:'development',locationPrecision:'approximate',contactUrl})],base);
+  assert.equal(result.items.length,0);
+  assert.equal(result.missing[0].reason,'unverified');
+  assert.equal(result.missing[0].url,'/propiedades/unidad-a?lang=es');
+  assert.equal(result.missing[0].contactUrl,contactUrl);
+  assert.equal(result.missing[0].latitude,undefined);
+  assert.equal(result.missing[0].longitude,undefined);
+});
+
 test("valida rangos geograficos", () => {
   for (const patch of [{ latitude: 91 }, { latitude: -91 }, { longitude: 181 }, { longitude: -181 }]) assert.equal(prepareItems([item(patch)]).items.length, 0);
 });

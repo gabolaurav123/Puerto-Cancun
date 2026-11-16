@@ -1,649 +1,178 @@
 {
   "reviewedOn": "2026-11-16",
+  "snapshot": "outputs/qa-20261116-development-map/public-inventory.json",
+  "coverageStatus": "awaiting-location-confirmation",
+  "baseline": {
+    "publicDevelopments": 174,
+    "mapped": 67
+  },
   "publicDevelopments": 174,
-  "mapped": 67,
+  "mapped": 160,
+  "registryAudit": {
+    "records": 144,
+    "presentInSnapshot": 144,
+    "titleGuardMatches": 144,
+    "missingIds": [],
+    "titleMismatches": []
+  },
   "pending": [
     {
       "id": "prop-xlsx-09f97f9746f21ef765802cc6",
       "title": "Pez Volador",
       "zone": "Zona Hotelera",
-      "reason": "Falta una fuente pública inequívoca para un punto del desarrollo. No se publicó un centro de zona como sustituto."
-    },
-    {
-      "id": "prop-xlsx-b1a8b86dfbef43794c2ffb47",
-      "title": "Villas Lagunas del Mar",
-      "zone": "Zona Hotelera",
-      "reason": "Falta una fuente pública inequívoca para un punto del desarrollo. No se publicó un centro de zona como sustituto."
-    },
-    {
-      "id": "prop-xlsx-c952d2c25b4388f063cc8c1e",
-      "title": "Residencial Nautilus",
-      "zone": "Zona Hotelera",
-      "reason": "Falta una fuente pública inequívoca para un punto del desarrollo. No se publicó un centro de zona como sustituto."
-    },
-    {
-      "id": "prop-xlsx-f805e10e5a2796028903c772",
-      "title": "Pescadores",
-      "zone": "Zona Hotelera",
-      "reason": "Falta una fuente pública inequívoca para un punto del desarrollo. No se publicó un centro de zona como sustituto."
-    },
-    {
-      "id": "prop-xlsx-6fffa45ef4d06f253f871828",
-      "title": "Residencial Las Cascadas",
-      "zone": "Zona Hotelera",
-      "reason": "Falta una fuente pública inequívoca para un punto del desarrollo. No se publicó un centro de zona como sustituto."
-    },
-    {
-      "id": "prop-xlsx-1f5adf34a49f12edd26af405",
-      "title": "Villas Tropical",
-      "zone": "Zona Hotelera",
-      "reason": "Falta una fuente pública inequívoca para un punto del desarrollo. No se publicó un centro de zona como sustituto."
-    },
-    {
-      "id": "prop-xlsx-5c5f7265ebea9ec1889f08e3",
-      "title": "Residencial Las Cúpulas",
-      "zone": "Zona Hotelera",
-      "reason": "Falta una fuente pública inequívoca para un punto del desarrollo. No se publicó un centro de zona como sustituto."
-    },
-    {
-      "id": "prop-xlsx-b6e055f34fcd6ef39d004c91",
-      "title": "Península Cancún",
-      "zone": "Zona Hotelera",
-      "reason": "Falta una fuente pública inequívoca para un punto del desarrollo. No se publicó un centro de zona como sustituto."
+      "reason": "El resultado nombrado es la calle Pez Volador, no un desarrollo delimitado. La ficha describe un sector y su foto referencia Condominio Delfines; no hay identidad inequívoca para asignar coordenadas exactas de un desarrollo.",
+      "sourcesTried": [
+        "https://maps.google.com/maps?q=Pez%20Volador%20Canc%C3%BAn%20Quintana%20Roo&output=embed&hl=en",
+        "https://tamarrealty.com/desarrollo/pez-volador"
+      ]
     },
     {
       "id": "prop-xlsx-89066528ccb62e0bf9b0b08f",
       "title": "Villas Nissa",
       "zone": "Zona Hotelera",
-      "reason": "Falta una fuente pública inequívoca para un punto del desarrollo. No se publicó un centro de zona como sustituto."
-    },
-    {
-      "id": "prop-xlsx-d6b8546cae1790fad962d4d4",
-      "title": "Gaviotas",
-      "zone": "Zona Hotelera",
-      "reason": "Falta una fuente pública inequívoca para un punto del desarrollo. No se publicó un centro de zona como sustituto."
-    },
-    {
-      "id": "prop-xlsx-e822cf26c71c7e82441d43ef",
-      "title": "Villa Sicilia",
-      "zone": "Zona Hotelera",
-      "reason": "Falta una fuente pública inequívoca para un punto del desarrollo. No se publicó un centro de zona como sustituto."
+      "reason": "No devuelve POI nombrado; la ficha Tamar aporta superficie pero no dirección o mapa verificable. No se usa ninguna residencia particular de registros ajenos como sustituto. El inventario federal confirma el nombre Condominios Villas Nissa Penc, pero no publica un punto geográfico identificable. Búsquedas alternativas Nissa/Nisa/Niza no produjeron POI del conjunto.",
+      "sourcesTried": [
+        "https://maps.google.com/maps?q=Villas%20Nissa%20Canc%C3%BAn%20Quintana%20Roo&output=embed&hl=en",
+        "https://maps.google.com/maps?q=Villas%20Nissa%20Cancun&output=embed&hl=en",
+        "https://tamarrealty.com/desarrollo/villas-nissa",
+        "https://dsiappsdev.semarnat.gob.mx/inai/XLV/2025/1T/inventario_oc/DIRECCION_GENERAL_DE_ZONA_FEDERAL_MARITIMO_TERRESTRE_Y_AMBIENTES_COSTEROS.pdf"
+      ]
     },
     {
       "id": "prop-xlsx-b784237341b0370154721242",
       "title": "Residencial Campestre",
       "zone": "Corredor Colosio",
-      "reason": "Falta una fuente pública inequívoca para un punto del desarrollo. No se publicó un centro de zona como sustituto."
-    },
-    {
-      "id": "prop-xlsx-3b990172db91d93479a900d2",
-      "title": "Quintas del Mar",
-      "zone": "Costa Mujeres / Punta Sam",
-      "reason": "Falta una fuente pública inequívoca para un punto del desarrollo. No se publicó un centro de zona como sustituto."
-    },
-    {
-      "id": "prop-xlsx-ba8222eabd99c65b3b77fb11",
-      "title": "Residencial del Mar",
-      "zone": "Zona Hotelera",
-      "reason": "Falta una fuente pública inequívoca para un punto del desarrollo. No se publicó un centro de zona como sustituto."
-    },
-    {
-      "id": "prop-xlsx-19cd848bbec14b0b4c01d56e",
-      "title": "Zelva-44 Río",
-      "zone": "Huayacán",
-      "reason": "Falta una fuente pública inequívoca para un punto del desarrollo. No se publicó un centro de zona como sustituto."
+      "reason": "El listado del INE y la vía OSM identifican el entorno y un acceso privado, pero no aportan un punto oficial o una geometría inequívoca del Residencial Campestre completo. No se publica ese acceso sin confirmar su identidad y alcance.",
+      "sourcesTried": [
+        "https://portal.ine.mx/wp-content/uploads/2024/06/PEC24_QROO_Listado_de_ubicacion_e_Integracion_de_casillas.pdf",
+        "https://www.openstreetmap.org/way/908394673"
+      ]
     },
     {
       "id": "prop-xlsx-ba51aaf2f2680ac051744f15",
       "title": "W Residences Costa Mujeres",
       "zone": "Costa Mujeres / Punta Sam",
-      "reason": "Falta una fuente pública inequívoca para un punto del desarrollo. No se publicó un centro de zona como sustituto."
-    },
-    {
-      "id": "prop-xlsx-4b422b6582c1bf1003244992",
-      "title": "Rue Contemporary",
-      "zone": "Huayacán",
-      "reason": "Falta una fuente pública inequívoca para un punto del desarrollo. No se publicó un centro de zona como sustituto."
-    },
-    {
-      "id": "prop-xlsx-d4b5ec9faeb41ff97b145e5f",
-      "title": "Terraquia",
-      "zone": "Huayacán",
-      "reason": "Falta una fuente pública inequívoca para un punto del desarrollo. No se publicó un centro de zona como sustituto."
-    },
-    {
-      "id": "prop-xlsx-c5b6bf56466a858bbcc08b97",
-      "title": "Vita Residenze",
-      "zone": "Huayacán",
-      "reason": "Falta una fuente pública inequívoca para un punto del desarrollo. No se publicó un centro de zona como sustituto."
-    },
-    {
-      "id": "prop-xlsx-6e645241d1a1162c255bbbdd",
-      "title": "Torre Nikté",
-      "zone": "Huayacán",
-      "reason": "Falta una fuente pública inequívoca para un punto del desarrollo. No se publicó un centro de zona como sustituto."
-    },
-    {
-      "id": "prop-xlsx-6b9df05f7381066251202481",
-      "title": "See Towers",
-      "zone": "Corredor Colosio",
-      "reason": "Falta una fuente pública inequívoca para un punto del desarrollo. No se publicó un centro de zona como sustituto."
-    },
-    {
-      "id": "prop-xlsx-d39c7a89805f7a8fb629c42a",
-      "title": "Torre Ghalia",
-      "zone": "Huayacán",
-      "reason": "Falta una fuente pública inequívoca para un punto del desarrollo. No se publicó un centro de zona como sustituto."
-    },
-    {
-      "id": "prop-xlsx-bc8fdd7267f2dedae8ae8215",
-      "title": "Vista Hermosa — Cancún Country Club",
-      "zone": "Corredor Colosio",
-      "reason": "Falta una fuente pública inequívoca para un punto del desarrollo. No se publicó un centro de zona como sustituto."
-    },
-    {
-      "id": "prop-xlsx-8a5fceebb302c7021551c382",
-      "title": "Astoria Gated Community",
-      "zone": "Huayacán",
-      "reason": "Falta una fuente pública inequívoca para un punto del desarrollo. No se publicó un centro de zona como sustituto."
-    },
-    {
-      "id": "prop-xlsx-64853fdf757a5bc74ae356eb",
-      "title": "Marina Residencial",
-      "zone": "Puerto Cancún",
-      "reason": "Falta una fuente pública inequívoca para un punto del desarrollo. No se publicó un centro de zona como sustituto."
+      "reason": "AB Living confirma el proyecto en Isla Mujeres/Costa Mujeres, pero no publica un punto geográfico inequívoco. El resultado nombrado St. Regis pertenece a otro complejo y se rechaza.",
+      "sourcesTried": [
+        "https://abliving.com/es/locations/w-marriot-costa-mujeres/"
+      ]
     },
     {
       "id": "prop-xlsx-541171db73aaf17faec21235",
       "title": "JW Marriott Residences Costa Mujeres",
       "zone": "Costa Mujeres / Punta Sam",
-      "reason": "Falta una fuente pública inequívoca para un punto del desarrollo. No se publicó un centro de zona como sustituto."
-    },
-    {
-      "id": "prop-xlsx-449a2d506fb71bd4c6d9a21c",
-      "title": "Marina Turquesa",
-      "zone": "Corredor Colosio",
-      "reason": "Falta una fuente pública inequívoca para un punto del desarrollo. No se publicó un centro de zona como sustituto."
-    },
-    {
-      "id": "prop-xlsx-ff329410faa0678f3b5f2961",
-      "title": "Jardines del Sur 6",
-      "zone": "Huayacán",
-      "reason": "Falta una fuente pública inequívoca para un punto del desarrollo. No se publicó un centro de zona como sustituto."
+      "reason": "AB Living confirma el proyecto en Isla Mujeres/Costa Mujeres, pero no publica un punto geográfico inequívoco. El JW Marriott de Zona Hotelera no es este proyecto y su punto se rechaza.",
+      "sourcesTried": [
+        "https://abliving.com/es/locations/jw-marriot/"
+      ]
     },
     {
       "id": "prop-xlsx-0c49d1af748ca6ba283e29ff",
       "title": "Álamos II",
       "zone": "Corredor Colosio",
-      "reason": "Falta una fuente pública inequívoca para un punto del desarrollo. No se publicó un centro de zona como sustituto."
-    },
-    {
-      "id": "prop-xlsx-afa0f67f4b71a76e633f1445",
-      "title": "Ixnah",
-      "zone": "Zona Hotelera",
-      "reason": "Falta una fuente pública inequívoca para un punto del desarrollo. No se publicó un centro de zona como sustituto."
-    },
-    {
-      "id": "prop-xlsx-1c59ef7798d584ffcd9b3b24",
-      "title": "Na Ha",
-      "zone": "Zona Hotelera",
-      "reason": "Falta una fuente pública inequívoca para un punto del desarrollo. No se publicó un centro de zona como sustituto."
-    },
-    {
-      "id": "prop-xlsx-ee907fd75a2937d85f1175ef",
-      "title": "La Española — Lagos del Sol",
-      "zone": "Corredor Colosio",
-      "reason": "Falta una fuente pública inequívoca para un punto del desarrollo. No se publicó un centro de zona como sustituto."
-    },
-    {
-      "id": "prop-xlsx-3e205a5d9e73e151621ca42e",
-      "title": "Manglar Cumbres",
-      "zone": "Huayacán",
-      "reason": "Falta una fuente pública inequívoca para un punto del desarrollo. No se publicó un centro de zona como sustituto."
-    },
-    {
-      "id": "prop-xlsx-60231635df1962b7dc647b1a",
-      "title": "Azürea Marina Residences",
-      "zone": "Zona Hotelera",
-      "reason": "Falta una fuente pública inequívoca para un punto del desarrollo. No se publicó un centro de zona como sustituto."
-    },
-    {
-      "id": "prop-xlsx-18553ba19921d4082bad1d07",
-      "title": "Kin Ha",
-      "zone": "Zona Hotelera",
-      "reason": "Falta una fuente pública inequívoca para un punto del desarrollo. No se publicó un centro de zona como sustituto."
-    },
-    {
-      "id": "prop-xlsx-d1936a5c72ba95c871eff74e",
-      "title": "Kaána",
-      "zone": "Zona Hotelera",
-      "reason": "Falta una fuente pública inequívoca para un punto del desarrollo. No se publicó un centro de zona como sustituto."
-    },
-    {
-      "id": "prop-xlsx-b64492781c96d7bb2f3f1b3c",
-      "title": "Las Quintas",
-      "zone": "Zona Hotelera",
-      "reason": "Falta una fuente pública inequívoca para un punto del desarrollo. No se publicó un centro de zona como sustituto."
-    },
-    {
-      "id": "prop-xlsx-c87983fa7d42630227a0de17",
-      "title": "Naima",
-      "zone": "Zona Hotelera",
-      "reason": "Falta una fuente pública inequívoca para un punto del desarrollo. No se publicó un centro de zona como sustituto."
-    },
-    {
-      "id": "prop-xlsx-565ec48690065d0c201c59e6",
-      "title": "Aqua Residencial",
-      "zone": "Huayacán",
-      "reason": "Falta una fuente pública inequívoca para un punto del desarrollo. No se publicó un centro de zona como sustituto."
+      "reason": "El PDU y los documentos electorales corroboran referencias al barrio Álamos II, pero las referencias a SM313 y SM523 son contradictorias para asignar un punto único. Falta identificar inequívocamente el desarrollo del inventario; no se elige un centro de barrio como sustituto.",
+      "sourcesTried": [
+        "https://implancancun.gob.mx/uploads/pdu/2014/PDUCP2014.pdf",
+        "https://www.ieqroo.org.mx/descargas/2025/encarte/2A_PUB_ESTATAL.pdf"
+      ]
     },
     {
       "id": "prop-xlsx-f8d4bf2f191ee97c640f2fd2",
       "title": "Álamos I",
       "zone": "Corredor Colosio",
-      "reason": "Falta una fuente pública inequívoca para un punto del desarrollo. No se publicó un centro de zona como sustituto."
-    },
-    {
-      "id": "prop-xlsx-6334dee5252449886483b2c9",
-      "title": "Bahía",
-      "zone": "Zona Hotelera",
-      "reason": "Falta una fuente pública inequívoca para un punto del desarrollo. No se publicó un centro de zona como sustituto."
-    },
-    {
-      "id": "prop-xlsx-938831bdd10a1dbc7578e417",
-      "title": "H Living",
-      "zone": "Huayacán",
-      "reason": "Falta una fuente pública inequívoca para un punto del desarrollo. No se publicó un centro de zona como sustituto."
-    },
-    {
-      "id": "prop-xlsx-d4fe36254536f81581a812d0",
-      "title": "Arbolada Lofts",
-      "zone": "Huayacán",
-      "reason": "Falta una fuente pública inequívoca para un punto del desarrollo. No se publicó un centro de zona como sustituto."
-    },
-    {
-      "id": "prop-xlsx-8e64be8082fc65f7ba29be80",
-      "title": "Bellamar",
-      "zone": "Zona Hotelera",
-      "reason": "Falta una fuente pública inequívoca para un punto del desarrollo. No se publicó un centro de zona como sustituto."
-    },
-    {
-      "id": "prop-xlsx-2b358121d230861c1f4746d9",
-      "title": "Alzia Residencial",
-      "zone": "Corredor Colosio",
-      "reason": "Falta una fuente pública inequívoca para un punto del desarrollo. No se publicó un centro de zona como sustituto."
-    },
-    {
-      "id": "prop-xlsx-990a904b406c7e4e19bad5b3",
-      "title": "Kira Residencial",
-      "zone": "Huayacán",
-      "reason": "Falta una fuente pública inequívoca para un punto del desarrollo. No se publicó un centro de zona como sustituto."
-    },
-    {
-      "id": "prop-xlsx-b397916d61c7581a8613fa56",
-      "title": "Belorizonte",
-      "zone": "Puerto Cancún",
-      "reason": "Falta una fuente pública inequívoca para un punto del desarrollo. No se publicó un centro de zona como sustituto."
-    },
-    {
-      "id": "prop-xlsx-01c453278539508fc3e1b1a4",
-      "title": "Fiora Residencial",
-      "zone": "Huayacán",
-      "reason": "Falta una fuente pública inequívoca para un punto del desarrollo. No se publicó un centro de zona como sustituto."
-    },
-    {
-      "id": "prop-xlsx-5a093f3c6cf984f831ad8f00",
-      "title": "Arbolada Grand",
-      "zone": "Huayacán",
-      "reason": "Falta una fuente pública inequívoca para un punto del desarrollo. No se publicó un centro de zona como sustituto."
+      "reason": "El PDU y los documentos electorales corroboran el barrio Álamos I, pero no aportan un punto único ni una geometría inequívoca del desarrollo del inventario. No se asigna como ubicación exacta el centro del barrio o una vivienda individual.",
+      "sourcesTried": [
+        "https://implancancun.gob.mx/uploads/pdu/2014/PDUCP2014.pdf",
+        "https://www.ieqroo.org.mx/descargas/2025/encarte/2A_PUB_ESTATAL.pdf"
+      ]
     },
     {
       "id": "prop-xlsx-0678dfd31a7da18ab0bfcb10",
       "title": "Náutica Isla Dorada",
       "zone": "Zona Hotelera",
-      "reason": "Falta una fuente pública inequívoca para un punto del desarrollo. No se publicó un centro de zona como sustituto."
+      "reason": "No devuelve POI inequívoco del subconjunto Náutica. No se usa el centro del complejo Isla Dorada como sustituto. Cancun.estate publica marcador 21.112212,-86.768943 en ficha específica de Isla Náutica (16 unidades y dos torres), pero falta corroborar precisión del punto con el desarrollador/huella nominal. Google devuelve Nautica Residences by Nauma fuera de Isla Dorada; se rechazó como homónimo.",
+      "sourcesTried": [
+        "https://maps.google.com/maps?q=N%C3%A1utica%20Isla%20Dorada%20Canc%C3%BAn%20Quintana%20Roo&output=embed&hl=en",
+        "https://cancun.estate/isla-nautica-hotel-zone-cancun-quintana-roo",
+        "https://www.revistaequipar.com/mexico/contenido-editorial/nautica-isla-dorada",
+        "https://lemmusrealestate.com/cancun/departamento-de-355-m2-en-venta-en-nautica-isla-dorada-5613/",
+        "https://s3.amazonaws.com/assets.moveglobally.com/property_files/1020160/56488/NAUTICA_RESIDENCES_101.pdf"
+      ]
     },
     {
-      "id": "prop-xlsx-917839cfb38b7e53e9312b1a",
-      "title": "Gran Vía Gated Community",
-      "zone": "Huayacán",
-      "reason": "Falta una fuente pública inequívoca para un punto del desarrollo. No se publicó un centro de zona como sustituto."
-    },
-    {
-      "id": "prop-xlsx-010b703258d5c20262149bb1",
-      "title": "Altai Residencial",
-      "zone": "Huayacán",
-      "reason": "Falta una fuente pública inequívoca para un punto del desarrollo. No se publicó un centro de zona como sustituto."
-    },
-    {
-      "id": "prop-xlsx-57fc32924a1be558c6361ec2",
-      "title": "Sayab Residencial",
-      "zone": "Huayacán",
-      "reason": "Falta una fuente pública inequívoca para un punto del desarrollo. No se publicó un centro de zona como sustituto."
-    },
-    {
-      "id": "prop-xlsx-8ffbbf35a04e531d23bb647b",
-      "title": "SENSE Residencial",
-      "zone": "Huayacán",
-      "reason": "Falta una fuente pública inequívoca para un punto del desarrollo. No se publicó un centro de zona como sustituto."
-    },
-    {
-      "id": "prop-xlsx-765684d1b44a407170850920",
-      "title": "Residencial Cumbres",
-      "zone": "Corredor Colosio",
-      "reason": "Falta una fuente pública inequívoca para un punto del desarrollo. No se publicó un centro de zona como sustituto."
-    },
-    {
-      "id": "prop-xlsx-65ecaa9b845425ab9c184bf2",
-      "title": "Zienna Residencial",
-      "zone": "Huayacán",
-      "reason": "Falta una fuente pública inequívoca para un punto del desarrollo. No se publicó un centro de zona como sustituto."
-    },
-    {
-      "id": "prop-xlsx-08281f0dcd01ba941f598e61",
-      "title": "Vía Cumbres Residencial",
-      "zone": "Huayacán",
-      "reason": "Falta una fuente pública inequívoca para un punto del desarrollo. No se publicó un centro de zona como sustituto."
-    },
-    {
-      "id": "prop-xlsx-4124d694b746d4989dd93b20",
-      "title": "Valmira Living",
-      "zone": "Huayacán",
-      "reason": "Falta una fuente pública inequívoca para un punto del desarrollo. No se publicó un centro de zona como sustituto."
-    },
-    {
-      "id": "prop-xlsx-ad242a9411f8c643fdc1798a",
-      "title": "Koa Towers",
-      "zone": "Huayacán",
-      "reason": "Falta una fuente pública inequívoca para un punto del desarrollo. No se publicó un centro de zona como sustituto."
-    },
-    {
-      "id": "prop-xlsx-2efb763ee33e98fc287bcf63",
-      "title": "Losantos Cancún",
-      "zone": "Huayacán",
-      "reason": "Falta una fuente pública inequívoca para un punto del desarrollo. No se publicó un centro de zona como sustituto."
-    },
-    {
-      "id": "prop-xlsx-7e20d3557fefd36daf81ab99",
-      "title": "Ximena Wow Condos",
-      "zone": "Huayacán",
-      "reason": "Falta una fuente pública inequívoca para un punto del desarrollo. No se publicó un centro de zona como sustituto."
+      "id": "prop-xlsx-b397916d61c7581a8613fa56",
+      "title": "Belorizonte",
+      "zone": "Puerto Cancún",
+      "reason": "Bunik identifica Belorizonte como 116 unidades en Cancún; las páginas oficiales de próximos desarrollos y ubicaciones no publican un punto o dirección específica del proyecto. No se sustituye por el centro de Cancún ni por un homónimo de otra ciudad.",
+      "sourcesTried": [
+        "https://www.bunik.mx/desarrollos-proximos/",
+        "https://www.bunik.mx/ubicaciones/"
+      ]
     },
     {
       "id": "prop-xlsx-2e42e57dec365e924717b330",
       "title": "Bardenna",
       "zone": "Huayacán",
-      "reason": "Falta una fuente pública inequívoca para un punto del desarrollo. No se publicó un centro de zona como sustituto."
-    },
-    {
-      "id": "prop-xlsx-b128d2d4bf57d0916e89f8ae",
-      "title": "OM Apartments",
-      "zone": "Corredor Colosio",
-      "reason": "Falta una fuente pública inequívoca para un punto del desarrollo. No se publicó un centro de zona como sustituto."
-    },
-    {
-      "id": "prop-xlsx-7b93223188fad3cb52f91cb2",
-      "title": "Lausana Residencial",
-      "zone": "Corredor Colosio",
-      "reason": "Falta una fuente pública inequívoca para un punto del desarrollo. No se publicó un centro de zona como sustituto."
-    },
-    {
-      "id": "prop-xlsx-f874cada0525b58844b7372a",
-      "title": "Zenit Cancún",
-      "zone": "Corredor Colosio",
-      "reason": "Falta una fuente pública inequívoca para un punto del desarrollo. No se publicó un centro de zona como sustituto."
-    },
-    {
-      "id": "prop-xlsx-0107bd62198e3d51950f0f4f",
-      "title": "Ummbal Luxury Condos",
-      "zone": "Huayacán",
-      "reason": "Falta una fuente pública inequívoca para un punto del desarrollo. No se publicó un centro de zona como sustituto."
-    },
-    {
-      "id": "prop-xlsx-88faab87bed83cda5a3da6ca",
-      "title": "Villa Magna Residencial",
-      "zone": "Corredor Colosio",
-      "reason": "Falta una fuente pública inequívoca para un punto del desarrollo. No se publicó un centro de zona como sustituto."
-    },
-    {
-      "id": "prop-xlsx-5f80019471dd42067bd89f63",
-      "title": "Villalta Laguna (El Table, acceso Zona Hotelera)",
-      "zone": "Zona Hotelera",
-      "reason": "Falta una fuente pública inequívoca para un punto del desarrollo. No se publicó un centro de zona como sustituto."
-    },
-    {
-      "id": "prop-xlsx-71519247623a9568104d3d00",
-      "title": "Valle Aurora Cancún",
-      "zone": "Huayacán",
-      "reason": "Falta una fuente pública inequívoca para un punto del desarrollo. No se publicó un centro de zona como sustituto."
-    },
-    {
-      "id": "prop-xlsx-43312fed4b886341d9e6df9f",
-      "title": "SLS Bahía Beach",
-      "zone": "Puerto Cancún",
-      "reason": "Falta una fuente pública inequívoca para un punto del desarrollo. No se publicó un centro de zona como sustituto."
-    },
-    {
-      "id": "prop-xlsx-5134cdaa4dc959d9a942f906",
-      "title": "Thompson Private Residences",
-      "zone": "Puerto Cancún",
-      "reason": "Falta una fuente pública inequívoca para un punto del desarrollo. No se publicó un centro de zona como sustituto."
+      "reason": "Se identifica dentro de Zienna, pero las fuentes consultadas no publican un punto individual inequívoco. El resultado de mapa devuelve Cancún centro (21.161908,-86.8515279), que se rechaza; tampoco se sustituye por el acceso de Zienna. El masterplan oficial vincula el logo Bardenna con el lote L284. El SVG usa coordenadas de dibujo, sin georreferenciación; no permite publicar latitud/longitud exactas sin confirmar el lote sobre cartografía geográfica.",
+      "sourcesTried": [
+        "https://onixliving.mx/",
+        "https://www.tresor.mx/onix-living",
+        "https://plalla.com/propiedad/bardenna-residences-cancun/",
+        "https://www.playarealtors.com.mx/d/70416-Canc%C3%BAn---BARDENNA---Confort-y-Privacidad-en-Canc%C3%BAn",
+        "https://maps.google.com/maps?q=Bardenna%20Canc%C3%BAn%20Quintana%20Roo&output=embed&hl=en",
+        "https://onixliving.mx/proyecto-zienna/",
+        "https://onix-living.s3.us-east-2.amazonaws.com/ZIENNA/mapa-disponibilidad/zienna.json"
+      ]
     },
     {
       "id": "prop-xlsx-004e74976d46e830b686b450",
       "title": "SLS Marina Beach",
       "zone": "Puerto Cancún",
-      "reason": "Falta una fuente pública inequívoca para un punto del desarrollo. No se publicó un centro de zona como sustituto."
-    },
-    {
-      "id": "prop-xlsx-86a3f02951f7c86ef9a292d5",
-      "title": "The Ritz-Carlton Residences, Cancún, Punta Nizuc",
-      "zone": "Zona Hotelera",
-      "reason": "Falta una fuente pública inequívoca para un punto del desarrollo. No se publicó un centro de zona como sustituto."
-    },
-    {
-      "id": "prop-xlsx-3567625bcb8f103dbfd959dc",
-      "title": "Residencial Río",
-      "zone": "Huayacán",
-      "reason": "Falta una fuente pública inequívoca para un punto del desarrollo. No se publicó un centro de zona como sustituto."
-    },
-    {
-      "id": "prop-xlsx-c6502d47d97dbf625a6ee102",
-      "title": "Ocean Towers Residences",
-      "zone": "Costa Mujeres / Punta Sam",
-      "reason": "Falta una fuente pública inequívoca para un punto del desarrollo. No se publicó un centro de zona como sustituto."
-    },
-    {
-      "id": "prop-xlsx-15252568ae5a9bb214f82648",
-      "title": "Nautica Residences by Nauma",
-      "zone": "Corredor Colosio",
-      "reason": "Falta una fuente pública inequívoca para un punto del desarrollo. No se publicó un centro de zona como sustituto."
-    },
-    {
-      "id": "prop-xlsx-e28a760372e202f2797de6ef",
-      "title": "Palmaris Residencial",
-      "zone": "Huayacán",
-      "reason": "Falta una fuente pública inequívoca para un punto del desarrollo. No se publicó un centro de zona como sustituto."
-    },
-    {
-      "id": "prop-xlsx-793614c2bef1a5a088dca346",
-      "title": "Punta Veinte",
-      "zone": "Huayacán",
-      "reason": "Falta una fuente pública inequívoca para un punto del desarrollo. No se publicó un centro de zona como sustituto."
-    },
-    {
-      "id": "prop-xlsx-e7f2634e09c3e02f0ed02cfa",
-      "title": "One Laguna Residences & Marina Club",
-      "zone": "Zona Hotelera",
-      "reason": "Falta una fuente pública inequívoca para un punto del desarrollo. No se publicó un centro de zona como sustituto."
-    },
-    {
-      "id": "prop-xlsx-661edf1a9203ff139846f31c",
-      "title": "Madison Condos",
-      "zone": "Huayacán",
-      "reason": "Falta una fuente pública inequívoca para un punto del desarrollo. No se publicó un centro de zona como sustituto."
-    },
-    {
-      "id": "prop-xlsx-cfeb50df95c481ecb00c9f7b",
-      "title": "Las Olas Residence & Spa",
-      "zone": "Zona Hotelera",
-      "reason": "Falta una fuente pública inequívoca para un punto del desarrollo. No se publicó un centro de zona como sustituto."
-    },
-    {
-      "id": "prop-xlsx-1cff562540cf807f4237b006",
-      "title": "Le Parc Cancún",
-      "zone": "Corredor Colosio",
-      "reason": "Falta una fuente pública inequívoca para un punto del desarrollo. No se publicó un centro de zona como sustituto."
-    },
-    {
-      "id": "prop-xlsx-d18904073b29fe9e3b05ee2d",
-      "title": "Los Canales",
-      "zone": "Puerto Cancún",
-      "reason": "Falta una fuente pública inequívoca para un punto del desarrollo. No se publicó un centro de zona como sustituto."
-    },
-    {
-      "id": "prop-xlsx-6826f03f2a21b17e8ce22fc2",
-      "title": "Midtown Condos",
-      "zone": "Huayacán",
-      "reason": "Falta una fuente pública inequívoca para un punto del desarrollo. No se publicó un centro de zona como sustituto."
+      "reason": "Conflicto entre puntos publicados y plano oficial. Inmobilia publica 21.167297,-86.8038; Repex 21.1672286,-86.8038465; Century21 21.167327399567,-86.803878224792. Los tres están junto al SLS Cancún Hotel (21.1669201,-86.8041045), al este del conjunto. El plano oficial del folleto de Bahía identifica Marina en el lado noroeste de Novo y separa explícitamente Marina del hotel. Accor publica 21.161907,-86.851524, centro urbano claramente impropio para estas torres; ProspeRE enlaza solo Avenida Puerto Cancún. No aceptado hasta identificar la huella/POI de Marina sin confundir hotel. La coincidencia numérica de intermediarios no resuelve la discrepancia del plano.",
+      "sourcesTried": [
+        "https://www.inmobilia.mx/en/project/sls-marina-beach",
+        "https://www.repexinternational.com/projects/sls-marina-beach",
+        "https://century21evo.com/propiedad/635186",
+        "https://accor-residences.com/property/sls-marina-beach-residences-cancun-mexico/",
+        "https://prospereinternational.com/sls-marina-beach/",
+        "https://relatedgroup.com/wp-content/uploads/2019/10/SLS_Marina_Beach_Brochure.pdf",
+        "https://assets.easybroker.com/property_files/2735304/252861/Bah%C3%ADa_Beach_Residences.pdf"
+      ]
     },
     {
       "id": "prop-xlsx-0c51891075f5d4bf7d07e41d",
       "title": "La Punta",
       "zone": "Puerto Cancún",
-      "reason": "Falta una fuente pública inequívoca para un punto del desarrollo. No se publicó un centro de zona como sustituto."
-    },
-    {
-      "id": "prop-xlsx-36fdeac721409d3f55bc791f",
-      "title": "Kuxnah Living Condos",
-      "zone": "Huayacán",
-      "reason": "Falta una fuente pública inequívoca para un punto del desarrollo. No se publicó un centro de zona como sustituto."
-    },
-    {
-      "id": "prop-xlsx-e1e724451b6051d9841ba703",
-      "title": "La Marina",
-      "zone": "Puerto Cancún",
-      "reason": "Falta una fuente pública inequívoca para un punto del desarrollo. No se publicó un centro de zona como sustituto."
+      "reason": "Arhea confirma el conjunto de 16 casas Legorreta + Legorreta en los canales de Puerto Cancún, pero no publica dirección, pin, coordenadas ni plano georreferenciable. Su enlace 'Sitio web' del modal de La Punta dirige a nuevomolino.mx, que corresponde a otro desarrollo, por lo que no se emplea. Las búsquedas con Legorreta y muelle llevan a Mistral Costa Mujeres o al antiguo Camino Real Punta Cancún, ambos otros proyectos. No hay evidencia suficiente para elegir una calle o lote exacto.",
+      "sourcesTried": [
+        "https://arhea.mx/proyectos/",
+        "https://arhea.mx/en/projects/",
+        "https://arhea.helloediteam.com/proyectos/"
+      ]
     },
     {
       "id": "prop-xlsx-d43f3dcfc1b157f357d3f5ac",
       "title": "Lagunas 2",
       "zone": "Puerto Cancún",
-      "reason": "Falta una fuente pública inequívoca para un punto del desarrollo. No se publicó un centro de zona como sustituto."
+      "reason": "La ficha de Hernández Gómez del lote 73 contiene plano llave que identifica claramente el sector La Laguna II junto a Laguna Morales, con acceso desde Boulevard Puerto Cancún, y no es La Laguna I. No contiene coordenadas del acceso o polígono georreferenciado. Preferred publica 21.163349909754,-86.804775595665 para un terreno individual; otros anuncios son lotes 69/73 u hogares, no ubicación del conjunto completo. La documentación de Punta del Mar confirma estar dentro de Laguna II, pero su edificio no se sustituye por el acceso del residencial. Sin pin nominal ni geometría oficial no se inventa un centro de zona o punto de entrada.",
+      "sourcesTried": [
+        "https://www.hernandezgomezinmobiliaria.com/lote73",
+        "https://www.hernandezgomezinmobiliaria.com/_files/ugd/c787cc_0370ee8eeb8944ceabb535ddfcdbfcc3.pdf",
+        "https://www.preferredrealestate.com.mx/propiedad/terreno-la-laguna-ii-puerto-cancun-2/",
+        "https://www.puertorealty.com/puerto-cancun-la-laguna.php",
+        "https://carpentergroup.com.mx/propiedades/terreno-en-laguna-ii-en-puerto-cancun/",
+        "https://www.yumpu.com/es/document/view/59581018/punta-del-mar-brochure"
+      ]
     },
     {
       "id": "prop-xlsx-f5b3819d157964dc902bae61",
       "title": "HAVEN Resort Lifestyle",
       "zone": "Corredor Colosio",
-      "reason": "Falta una fuente pública inequívoca para un punto del desarrollo. No se publicó un centro de zona como sustituto."
-    },
-    {
-      "id": "prop-xlsx-dffdfbd114ef185773c09fab",
-      "title": "Cuore Cumbres",
-      "zone": "Huayacán",
-      "reason": "Falta una fuente pública inequívoca para un punto del desarrollo. No se publicó un centro de zona como sustituto."
-    },
-    {
-      "id": "prop-xlsx-902b41c557327f2712af6e32",
-      "title": "Isla Blanca Residences",
-      "zone": "Huayacán",
-      "reason": "Falta una fuente pública inequívoca para un punto del desarrollo. No se publicó un centro de zona como sustituto."
-    },
-    {
-      "id": "prop-xlsx-c69515ef2cd94de8ea3819d0",
-      "title": "Fuego Residencial",
-      "zone": "Huayacán",
-      "reason": "Falta una fuente pública inequívoca para un punto del desarrollo. No se publicó un centro de zona como sustituto."
-    },
-    {
-      "id": "prop-xlsx-8fee8ee9d723187cbcfa5a72",
-      "title": "ELENA Condos",
-      "zone": "Huayacán",
-      "reason": "Falta una fuente pública inequívoca para un punto del desarrollo. No se publicó un centro de zona como sustituto."
-    },
-    {
-      "id": "prop-xlsx-e13e26052d483f8d676c18a8",
-      "title": "Esther Wow Condos",
-      "zone": "Huayacán",
-      "reason": "Falta una fuente pública inequívoca para un punto del desarrollo. No se publicó un centro de zona como sustituto."
-    },
-    {
-      "id": "prop-xlsx-f467c513d2891bc76484869a",
-      "title": "Diomeda Habitat / Diomeda Community",
-      "zone": "Puerto Cancún",
-      "reason": "Falta una fuente pública inequívoca para un punto del desarrollo. No se publicó un centro de zona como sustituto."
-    },
-    {
-      "id": "prop-xlsx-9413f6afdc388f28f8282fb2",
-      "title": "Bay View Grand at Grand Island",
-      "zone": "Zona Hotelera",
-      "reason": "Falta una fuente pública inequívoca para un punto del desarrollo. No se publicó un centro de zona como sustituto."
-    },
-    {
-      "id": "prop-xlsx-fde0c6d0e1780ad16030cb0e",
-      "title": "Attha Cancún",
-      "zone": "Huayacán",
-      "reason": "Falta una fuente pública inequívoca para un punto del desarrollo. No se publicó un centro de zona como sustituto."
-    },
-    {
-      "id": "prop-xlsx-b47164b51a1f68d64e7c8d21",
-      "title": "Catania Residencial",
-      "zone": "Huayacán",
-      "reason": "Falta una fuente pública inequívoca para un punto del desarrollo. No se publicó un centro de zona como sustituto."
-    },
-    {
-      "id": "prop-xlsx-acb3b2db5b3ad18d0c539c05",
-      "title": "Bay View Grand Cancún (original)",
-      "zone": "Zona Hotelera",
-      "reason": "Falta una fuente pública inequívoca para un punto del desarrollo. No se publicó un centro de zona como sustituto."
-    },
-    {
-      "id": "prop-xlsx-91cda9d39ecf18456f8ff1ef",
-      "title": "Aurora Towers",
-      "zone": "Huayacán",
-      "reason": "Falta una fuente pública inequívoca para un punto del desarrollo. No se publicó un centro de zona como sustituto."
-    },
-    {
-      "id": "prop-xlsx-0dd82da131812df790bcea23",
-      "title": "Altea Vía Cumbres",
-      "zone": "Huayacán",
-      "reason": "Falta una fuente pública inequívoca para un punto del desarrollo. No se publicó un centro de zona como sustituto."
-    },
-    {
-      "id": "prop-xlsx-0795610708694773b78498da",
-      "title": "Arbolada Residential Suites",
-      "zone": "Huayacán",
-      "reason": "Falta una fuente pública inequívoca para un punto del desarrollo. No se publicó un centro de zona como sustituto."
-    },
-    {
-      "id": "prop-xlsx-78b2032b20783a37efbbc358",
-      "title": "Agua 9 Vía Cumbres",
-      "zone": "Huayacán",
-      "reason": "Falta una fuente pública inequívoca para un punto del desarrollo. No se publicó un centro de zona como sustituto."
-    },
-    {
-      "id": "prop-xlsx-8986b11e89004d5904f13b10",
-      "title": "Areka Towers",
-      "zone": "Huayacán",
-      "reason": "Falta una fuente pública inequívoca para un punto del desarrollo. No se publicó un centro de zona como sustituto."
-    },
-    {
-      "id": "prop-xlsx-12d8e63d54e96e3308c5978a",
-      "title": "Aqua Vivant",
-      "zone": "Huayacán",
-      "reason": "Falta una fuente pública inequívoca para un punto del desarrollo. No se publicó un centro de zona como sustituto."
-    },
-    {
-      "id": "prop-xlsx-82b7ce8fbd98aec7bf7991dd",
-      "title": "AIRE Residencial",
-      "zone": "Huayacán",
-      "reason": "Falta una fuente pública inequívoca para un punto del desarrollo. No se publicó un centro de zona como sustituto."
-    },
-    {
-      "id": "prop-xlsx-d8184317cda3a8d523c5c6e7",
-      "title": "Maralago",
-      "zone": "Zona Hotelera",
-      "reason": "Falta una fuente pública inequívoca para un punto del desarrollo. No se publicó un centro de zona como sustituto."
+      "reason": "La web oficial de HAVEN identifica lote 1-15, SM295, pero no publica coordenadas. El folleto presenta un mapa ilustrado sin georreferenciación. Se descartaron un enlace de BrokerCenter que dirige a Le Parc y un iframe de plantilla de Luna Especialistas; ninguno prueba el punto de HAVEN.",
+      "sourcesTried": [
+        "https://havencancun.com/",
+        "https://sucasacancun.com/wp-content/uploads/2024/07/Haven-Resort-Lifestyle-Departamentos-en-Cancun-mapa.pdf"
+      ]
     }
   ]
 }

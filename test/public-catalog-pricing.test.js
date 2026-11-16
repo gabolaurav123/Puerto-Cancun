@@ -6,6 +6,7 @@ const vm = require("node:vm");
 const http = require("node:http");
 const express = require("express");
 const inventory = require("../inventory-contract");
+const { queryPublicInventory } = require("../public-inventory-query");
 const { renderCatalog } = require("../catalog-view");
 const { prepareItems } = require("../catalog-map");
 const { interpretCatalogSearch, localizeCatalogError } = require("../catalog-search");
@@ -64,7 +65,7 @@ test("public catalog and intelligent API queries use the same FX snapshot and re
   const end = serverSource.indexOf('app.get("/api/location-options"', begin);
   const savedStart = serverSource.indexOf("async function evaluateSavedSearch(");
   const savedEnd = serverSource.indexOf("\nasync function createSavedSearchAlertsForProperty", savedStart);
-  const context = { app: { get: (_path, fn) => { catalog = fn; }, post: (_path, fn) => { intelligent = fn; } }, inventoryContract: inventory,
+  const context = { app: { get: (_path, fn) => { catalog = fn; }, post: (_path, fn) => { intelligent = fn; } }, inventoryContract: inventory, queryPublicInventory,
     interpretCatalogSearch, localizeCatalogError, getPublicProperties: async () => rows, publicPropertyCache: {}, exchangeRateService: { getSnapshot: snapshot },
     query: async () => ({ rows: [] }), savedCatalogQuery, createSavedSearchMatch: async () => { throw Error("read-only test"); },
   };

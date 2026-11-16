@@ -12,6 +12,17 @@ const project = (entry = data[0], extra = {}) => ({ id: entry.id, titleEs: entry
   publicationSection: "developments", status: "active", isPublic: true, zone: "Puerto Cancún", city: "Cancún",
   locationPrecision: "approximate", latitude: null, longitude: null, ...extra });
 
+test("curated location references retain unique identities and auditable coordinate evidence", () => {
+  assert.equal(new Set(data.map(row => row.id)).size, data.length);
+  for (const row of data) {
+    assert.ok(row.evidence?.trim(), row.title);
+    assert.match(row.sourceUrl, /^https:\/\//, row.title);
+    assert.match(row.verifiedOn, /^\d{4}-\d{2}-\d{2}$/, row.title);
+    assert.ok(Number.isFinite(row.latitude) && Number.isFinite(row.longitude), row.title);
+    assert.ok(row.latitude > 18 && row.latitude < 23 && row.longitude > -89 && row.longitude < -86, row.title);
+  }
+});
+
 test("verified locations require both the development ID and normalized Spanish title", () => {
   assert.ok(data.length > 0);
   for (const entry of data) {

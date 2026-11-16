@@ -1,6 +1,7 @@
 "use strict";
 
 const inventory = require("./inventory-contract");
+const { queryPublicInventory } = require("./public-inventory-query");
 const { interpretCatalogSearch, localizeCatalogError, describeCatalogFilters } = require("./catalog-search");
 const { propertyPath } = require("./seo-pages");
 
@@ -302,7 +303,7 @@ async function askAdvisor(body, dependencies) {
   const errors = [...new Set([...(interpretation?.warnings || []), ...parsed.errors.map(error => localizeCatalogError(error, lang))])];
   const needsClarification = Boolean(interpretation?.clarificationRequired || parsed.errors.length || turn.dialogue.coastalPending);
   const ready = Boolean(filters.operation && (filters.type || filters.locations?.length || filters.zone || filters.development || filters.subarea || filters.text || turn.dialogue.anyLocation) && !(changedOperation && !(filters.max || filters.min || turn.dialogue.anyBudget)));
-  const queried = needsClarification ? { all: [], total: 0 } : inventory.queryInventory(properties, parsed, { areas, lang });
+  const queried = needsClarification ? { all: [], total: 0 } : queryPublicInventory(properties, parsed, { areas, lang });
   if (turn.dialogue.housing && !filters.type) queried.all = queried.all.filter(property => ["Casa", "Departamento"].includes(property.type));
   const compatible = queried.all.filter(property => preferences.every(preference => preferenceEvidence(property, preference) === "yes"));
   const alternatives = preferences.length ? queried.all.filter(property => !compatible.includes(property)).slice(0, 3).map(property => ({ ...cardFor(property, lang, preferences), differences: preferences.filter(preference => preferenceEvidence(property, preference) !== "yes").map(preference => (preferenceNames[preference]?.[en ? 1 : 0] || preference) + ": " + (preferenceEvidence(property, preference) === "no" ? t("no cumple según la ficha", "does not meet this preference according to the listing") : t("por confirmar con el equipo", "needs confirmation with the team"))) })) : [];

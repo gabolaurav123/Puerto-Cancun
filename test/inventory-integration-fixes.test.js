@@ -4,6 +4,7 @@ const fs = require("node:fs");
 const vm = require("node:vm");
 const { createHash } = require("node:crypto");
 const inventory = require("../inventory-contract");
+const { createPublicLocationResolver } = require("../public-inventory-query");
 const { publicProperty } = require("../inventory-metadata");
 const { savedCatalogQuery } = require("../saved-catalog-search");
 const { publicExchangeFixture } = require("./helpers/public-exchange-fixture");
@@ -55,7 +56,7 @@ function alerts(publicRows, searches, { inserted = true, enabled = true, queryTe
   const runtime = extract(server, ["createSavedSearchAlertsForProperty"], {
     featureEnabled: () => enabled, process: { env: {} },
     PUBLIC_PROPERTY_STATUSES: new Set(["active", "featured"]), inventoryContract: inventory,
-    savedCatalogQuery,
+    savedCatalogQuery, createPublicLocationResolver,
     publicPropertyCache: { directory: { areas: inventory.LOCATIONS } },
     commercialWorkflow: { evaluateWatches: async () => {} },
     getPublicProperties: async () => { calls.projections++; return publicRows; },

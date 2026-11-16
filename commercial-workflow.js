@@ -2,6 +2,7 @@
 
 const crypto = require("node:crypto");
 const inventory = require("./inventory-contract");
+const { queryPublicInventory, createPublicLocationResolver } = require("./public-inventory-query");
 const { savedCatalogQuery } = require("./saved-catalog-search");
 const { propertyPath } = require("./seo-pages");
 const stages = ["new", "contacted", "qualified", "visit_requested", "visit_confirmed", "visit_completed", "captured", "closed_won", "closed_lost"];
@@ -56,7 +57,7 @@ async function enrichCommercialInquiry(body, data, properties, channels, areas =
     if (channel && body.alertConsent !== true) bad("Autoriza los avisos para activar este canal.");
     const email = clean(body.email || body.alertEmail, 254).toLowerCase();
     if (channel === "email" && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) bad("Escribe un correo válido para recibir los avisos.");
-    const result = inventory.queryInventory(properties, criteria, { areas, exchangeRate });
+    const result = queryPublicInventory(properties, criteria, { areas, exchangeRate });
     if (result.errors.length) bad(result.errors.join(" "));
     data.service = "search-watch";
     data.searchWatch = { filters: criteria, preferences: data.preferences || "", channel, email: channel === "email" ? email : "", consentAt: channel ? new Date().toISOString() : null,
@@ -66,6 +67,7 @@ async function enrichCommercialInquiry(body, data, properties, channels, areas =
 }
 
 function matchingListings(lead, properties, areas = inventory.LOCATIONS, exchangeRate = null) {
+  const publicLocationFor = createPublicLocationResolver(properties, {areas});
   const p = lead.payload || {};
   if (!["buy", "rent"].includes(p.intent)) return { matches: [], pending: [] };
   let criteria;
@@ -87,7 +89,7 @@ function matchingListings(lead, properties, areas = inventory.LOCATIONS, exchang
     criteria = savedCatalogQuery(raw, { properties, language: p.lang, areas });
   }
   if (criteria.errors.length) return { matches: [], pending: criteria.errors };
-  const result = inventory.queryInventory(properties, criteria, { areas, exchangeRate });
+  const result = queryPublicInventory(properties, criteria, { areas, exchangeRate, publicLocationFor });
   return { matches: result.all.slice(0, 30).map(row => ({ id: row.id, title: row.titleEs, url: propertyPath(row, "es"), price: inventory.priceOf(row) })), pending: p.preferences ? ["Confirmar preferencias con el asesor: " + p.preferences] : [] };
 }
 
@@ -216,7 +218,7 @@ function registerCommercialRoutes(app, deps) {
         if (!watch.consentAt || !channels()[watch.channel] || watch.preferences) continue;
         const criteria = savedCatalogQuery(watch.filters, { properties, areas: getAreas() });
         if (criteria.errors.length) continue;
-        const result = inventory.queryInventory(properties, criteria, { areas: getAreas(), exchangeRate:getExchangeRate() });
+        const result = queryPublicInventory(properties, criteria, { areas: getAreas(), exchangeRate:getExchangeRate() });
         const newMatches = result.all.filter(p => !watch.knownPropertyIds?.includes(p.id) && !watch.deliveries?.[p.id]);
         if (!newMatches.length) continue;
         const en = lead.payload.lang === "en";
