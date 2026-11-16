@@ -55,7 +55,7 @@ test("one-step inquiries preserve channel, context, focus and retry identity in 
     await page.goto(h.base + (lang === "en" ? "/en/contact" : "/contacto") + "?" + new URLSearchParams({ inquiry: "1", origin: "browser-" + randomUUID(), ...values }));
     const dialog = page.locator("dialog.contextual-inquiry[open]"); await dialog.locator('[name="contactChannel"]').waitFor(); return dialog;
   };
-  for (const [propertyId, intent, heading] of [["fixture-rent", "rent", "Request information"], ["fixture-presale", "buy", "Request presale information"], ["fixture-land", "buy", "Request information"]]) {
+  for (const [propertyId, intent, heading] of [["fixture-rent", "rent", "Request information"], ["fixture-presale", "buy", "Presale information"], ["fixture-land", "buy", "Request information"]]) {
     const dialog = await open({ propertyId, intent: intent === "rent" ? "buy" : "rent" });
     assert.equal(await dialog.locator('[name="intent"]').inputValue(), intent);
     assert.equal(await dialog.locator("h2").innerText(), heading);

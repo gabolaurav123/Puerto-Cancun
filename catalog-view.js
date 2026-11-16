@@ -287,7 +287,11 @@ function renderCatalog(page, properties, params = {}, renderCards) {
   const label = mixed ? t(singular ? "resultado destacado":"resultados destacados",singular ? "featured result":"featured results") : presales ? t(singular ? "preventa":"preventas",singular ? "presale":"presales") : projects ? t(singular ? "desarrollo":"desarrollos",singular ? "development":"developments") : t(singular ? "propiedad":"propiedades",singular ? "listing":"listings");
   const cardContext = { ...ctx, sourcePath, records:publicRows };
   let cards = "";
-  if (presales && params.project && result.items[0]) cards = projectDetail(result.items[0], areas, lang, sourcePath);
+  if (presales && params.project && result.items[0]) {
+    // A project is a detail view, not a one-result directory. Keep its public
+    // location map independent from the catalog's list/map controls.
+    return `<section id="category-inventory" class="category-inventory catalog-experience catalog-project-view">${projectDetail(result.items[0], areas, lang, sourcePath)}</section>`;
+  }
   else if (grouped && result.items.length) {
     const groups = new Map();
     for (const row of result.items) {
@@ -327,14 +331,14 @@ function renderCatalog(page, properties, params = {}, renderCards) {
     service:"search-watch", intent:query.operation === "rent" ? "rent" : "buy", searchFilters:JSON.stringify(query), origin:"catalog-no-results", sourcePath,
   }, "outline-dark-button").replace("data-contact-inquiry", "data-contact-inquiry data-save-search") : "";
   return `<section id="category-inventory" class="category-inventory catalog-experience" data-catalog-root data-catalog-query="${escape(inventory.toSearchParams(query))}" data-catalog-map-total="${mapItems.length}">
-    ${entityNavigation(ctx,publicRows)}${areaIndex}<div class="catalog-controls"><div class="catalog-search-row">
+    <div class="public-catalog-toolbar">${entityNavigation(ctx,publicRows)}${areaIndex}<div class="catalog-controls"><div class="catalog-search-row">
       <input type="search" name="q" form="catalogFilters" value="${escape(query.text)}" aria-label="${searchLabel}" placeholder="${projects ? t("Nombre del proyecto","Project name") : t("Zona, desarrollo, título o MLS","Zone, development, title or MLS")}" autocomplete="off" />
       <button type="submit" form="catalogFilters" class="primary-button">${t("Buscar","Search")}</button></div>
       ${catalogFilters(ctx,presales ? records : publicRows)}
       ${projects ? "" : `<details class="catalog-conversation"><summary>${t("Búsqueda guiada","Guided search")}</summary><form data-catalog-assistant><label>${t("Describe lo que buscas","Describe what you are looking for")}<input name="query" maxlength="600" required /></label><button type="submit" class="primary-button">${t("Buscar","Search")}</button><div data-search-status aria-live="polite"></div></form></details>`}</div>
     ${presales ? "" : suggestionLinks(ctx,records)}<div class="catalog-active-filters">${activeChips(ctx,publicRows)}</div>
     <div class="catalog-result-bar"><p id="categoryInventoryCount" role="status">${total} ${label}</p><div class="catalog-view-toggle" role="group" aria-label="${t("Vista","View")}"><button type="button" data-catalog-view="list" aria-pressed="true">${t("Lista","List")}</button><button type="button" data-catalog-view="map" aria-pressed="false">${t("Mapa","Map")}</button></div></div>
-    <p class="catalog-request-status" aria-live="polite"></p>
+    <p class="catalog-request-status" aria-live="polite"></p></div>
     ${result.errors.length ? `<div class="catalog-errors" role="alert"><h3>${t("Revisa los filtros","Review filters")}</h3><ul>${result.errors.map(error => `<li>${escape(error)}</li>`).join("")}</ul></div>` : ""}
     <div class="catalog-results"><div data-catalog-list>${cards || (result.errors.length ? "" : `<p class="inventory-empty">${t("Aún no hay publicaciones que coincidan con esta búsqueda.","There are no published matches for this search yet.")}</p>${saveSearch}`)}${pagination}</div><div data-catalog-map hidden><div class="catalog-map-canvas" role="region" aria-label="${t("Mapa de resultados","Results map")}"></div><p class="catalog-map-status" role="status"></p></div></div>
     ${!total || presales && params.project && result.items.length ? "" : catalogHelp(ctx,publicRows,sourcePath)}<script type="application/json" data-catalog-map-data>${JSON.stringify(mapItems).replace(/</g,"\\u003c")}</script></section>`;

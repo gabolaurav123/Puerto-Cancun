@@ -25,10 +25,16 @@ test("la venta sin registro solicita datos esenciales y un canal en un solo paso
   assert.match(html, /seller-option-benefits/);
   assert.match(styles, /\.guest-consent-field\s*\{[\s\S]*grid-template-columns:\s*20px minmax\(0, 1fr\)/);
   const sellPage = renderSeoPage("/vender-casa-cancun");
-  assert.match(sellPage, /Enviar propiedad sin registro/);
-  assert.match(sellPage, /data-open-guest-sale/);
+  assert.match(sellPage, /<button[^>]*data-open-guest-sale>Enviar una ficha para publicar<\/button>/);
   assert.match(sellPage, /data-intent="sell"/);
-  assert.match(sellPage, /value="valuacion-inmobiliaria"/);
+  assert.match(sellPage, /data-intent="let"/);
+  assert.match(sellPage, /href="\/valuacion-inmobiliaria-cancun#valuation-form"[^>]*>Solicitar valoración<\/a>/);
+  assert.match(renderSeoPage("/valuacion-inmobiliaria-cancun"), /id="valuation-form"[\s\S]*value="valuacion-inmobiliaria"/);
+  assert.doesNotMatch(sellPage, /value="valuacion-inmobiliaria"/);
+  const accountOptions = sellPage.match(/<details class="owner-publishing-options">[\s\S]*?<\/details>/)?.[0] || "";
+  assert.match(accountOptions, /data-seller-access="register"/);
+  assert.match(accountOptions, /data-seller-access="login"/);
+  assert.ok(sellPage.indexOf("data-open-guest-sale") < sellPage.indexOf(accountOptions));
 });
 
 test("las solicitudes sin cuenta se conservan en una tabla aditiva y tienen panel propio", () => {

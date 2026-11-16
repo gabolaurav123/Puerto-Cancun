@@ -163,3 +163,164 @@ body[data-page=home] .presale-feature:not(.has-home-cover) .primary-button { wid
 .catalog-compare-button { min-height: 44px; display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 8px 12px; background: white; color: #064e5b; border: 1px solid #bed0d1; border-radius: 4px; cursor: pointer; }
 .catalog-compare-button svg { width: 18px; height: 18px; }
 .catalog-compare-button[aria-pressed="true"] { background: #064e5b; color: white; }
+
+/* Public decision hierarchy: one control group, one primary action per card. */
+.public-catalog-toolbar {
+  padding: 18px 20px 14px;
+  margin-bottom: 24px;
+  border: 1px solid var(--line, #cbdedf);
+  border-radius: 8px;
+  background: #fff;
+}
+.public-catalog-toolbar .catalog-controls {
+  grid-template-columns: minmax(180px, 1fr) auto auto;
+  justify-content: stretch;
+  gap: 10px;
+}
+.public-catalog-toolbar .catalog-controls > details > summary {
+  min-height: 46px;
+  font-family: inherit;
+  line-height: 1.4;
+}
+.public-catalog-toolbar .catalog-search-row { gap: 8px; }
+.public-catalog-toolbar .catalog-search-row :is(input, button) { min-height: 46px; }
+.public-catalog-toolbar .catalog-search-row button { flex: 0 0 auto; }
+.public-catalog-toolbar .catalog-result-bar {
+  margin: 16px 0 0;
+  padding-top: 14px;
+  border-top: 1px solid var(--line, #cbdedf);
+}
+.public-catalog-toolbar .catalog-entity-bar { gap: 8px 16px; margin-bottom: 16px; }
+.public-catalog-toolbar .catalog-entity-nav {
+  border-color: #cbdedf;
+  border-radius: 5px;
+  background: #f5f9f8;
+  overflow: hidden;
+}
+.public-catalog-toolbar .catalog-entity-nav a { font-family: inherit; font-size: .85rem; }
+.public-catalog-toolbar .catalog-entity-nav [aria-current] {
+  color: var(--blue-900, #075562);
+  background: #e4f0ee;
+  box-shadow: inset 0 -3px 0 var(--blue-900, #075562);
+}
+.public-catalog-toolbar .catalog-entity-bar > .text-link {
+  font-family: inherit;
+  font-size: .8rem;
+  font-weight: 500;
+  padding-inline: 0;
+}
+.public-catalog-toolbar #categoryInventoryCount { font-family: inherit; font-size: .95rem; font-weight: 600; }
+.public-catalog-toolbar .catalog-view-toggle { border-radius: 5px; }
+.public-catalog-toolbar .catalog-view-toggle button { min-width: 64px; font-family: inherit; font-size: .85rem; font-weight: 600; line-height: 1.4; }
+.public-catalog-toolbar .catalog-area-index { gap: 6px; margin-bottom: 16px; }
+.public-catalog-toolbar .catalog-area-index a { font-size: .8rem; background: #f5f9f8; }
+.public-catalog-toolbar .catalog-active-filters { gap: 6px; margin-top: 12px; }
+.public-catalog-toolbar .catalog-active-filters:empty { margin: 0; }
+.public-catalog-toolbar .catalog-request-status:not(:empty) { margin-top: 12px; }
+.catalog-experience .seo-property-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 22px; }
+.catalog-experience .seo-property-card { display: flex; flex-direction: column; min-width: 0; }
+.seo-property-card > .seo-property-image { display: block; aspect-ratio: 4 / 3; overflow: hidden; background: #eaf1ef; }
+.seo-property-card > .seo-property-image img { width: 100%; height: 100%; aspect-ratio: auto; object-fit: contain; }
+.catalog-experience .seo-property-card > div { display: flex; flex-direction: column; flex: 1; gap: 10px; padding: 20px; min-width: 0; }
+.catalog-experience .seo-property-card h2 { margin: 0; font-size: 1.2rem; line-height: 1.3; }
+.seo-property-card h2 a { color: inherit; text-decoration: none; }
+.seo-property-card h2 a:hover { text-decoration: underline; text-underline-offset: 3px; }
+.catalog-experience .seo-property-card .seo-property-price { margin: 0; font-size: 1.3rem; line-height: 1.35; }
+.seo-property-card .seo-property-price-note {
+  display: block;
+  margin-top: 5px;
+  font-family: "Montserrat", Arial, sans-serif;
+  font-size: .75rem;
+  line-height: 1.45;
+  font-weight: 400;
+  color: var(--muted, #526d73);
+}
+.catalog-experience .seo-property-card > div > p:not(.seo-property-price) { margin: 0; line-height: 1.5; }
+.catalog-experience .seo-property-card .seo-property-facts { color: var(--blue-900, #075562); font-size: .82rem; font-weight: 600; }
+.catalog-experience .seo-property-description { font-size: .85rem; line-height: 1.6; -webkit-line-clamp: 2; }
+.catalog-experience .seo-property-actions, .seo-property-card .seo-property-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  align-items: stretch;
+  margin-top: auto;
+  padding-top: 16px;
+}
+.seo-property-card .seo-property-actions > :is(a, button) {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-width: 0;
+  min-height: 48px;
+  margin: 0;
+  padding: 10px 8px;
+  font-size: .78rem;
+  font-weight: 650;
+  line-height: 1.4;
+  text-align: center;
+  white-space: normal;
+  overflow-wrap: normal;
+  border-radius: 5px;
+}
+.seo-property-card .seo-property-actions > :is(.primary-button,.text-link) { color: white; background: var(--blue-900, #075562); border-color: var(--blue-900, #075562); }
+.seo-property-card .seo-property-actions > .outline-dark-button { color: var(--blue-900, #075562); background: transparent; border-color: #acc5c7; box-shadow: none; }
+.seo-property-card .seo-property-actions > .outline-dark-button:hover { background: #edf5f3; border-color: var(--blue-900, #075562); }
+.seo-property-card .seo-property-actions > a:only-child { grid-column: 1 / -1; justify-self: start; width: auto; padding-inline: 16px; }
+.catalog-experience :is(a,button,input,select,summary):focus-visible { outline: 3px solid var(--gold, #a6812f); outline-offset: 3px; }
+.catalog-map-open .seo-property-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+
+/* A selected presale reads as a project, with its own title and primary CTA. */
+body[data-page=seo]:has(.catalog-project-view) .seo-page-hero { display: none; }
+body[data-page=seo]:has(.catalog-project-view) .seo-page-content { padding-top: 22px; }
+.catalog-project-detail { max-width: none; padding-top: 0; }
+.catalog-project-back { display: inline-flex; min-height: 44px; align-items: center; font-size: .85rem; font-weight: 500; text-underline-offset: 3px; }
+.catalog-project-intro { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(240px, 1fr); gap: 20px 32px; align-items: center; margin: 12px 0 32px; }
+.catalog-project-heading { grid-column: 1 / -1; display: block; padding: 0; background: transparent; border: 0; }
+.catalog-project-heading .seo-eyebrow { font-size: .75rem; letter-spacing: .08em; color: var(--gold-700, #93651b); }
+.catalog-project-heading h1 { margin: 8px 0 10px; font-size: clamp(1.8rem, 3.2vw, 2.65rem); line-height: 1.15; overflow-wrap: break-word; }
+.catalog-project-heading .catalog-project-location { margin: 0; color: var(--muted, #526d73); font-size: .95rem; line-height: 1.5; }
+.catalog-project-cover { width: 100%; max-width: none; border-radius: 8px; overflow: hidden; }
+.catalog-project-intro .catalog-project-contact { min-width: 0; }
+.catalog-project-actions { display: flex; flex-direction: column; align-items: flex-start; gap: 14px; }
+.catalog-project-actions .primary-button { min-height: 48px; padding: 12px 22px; text-align: center; }
+.catalog-project-actions .text-link { min-height: 44px; display: inline-flex; align-items: center; font-size: .85rem; font-weight: 500; line-height: 1.5; }
+.catalog-project-reference { margin: 12px 0 0; font-size: .75rem; color: var(--muted, #526d73); }
+.catalog-project-detail > section { max-width: none; margin-top: 28px; }
+.catalog-project-detail > section > p { max-width: 78ch; }
+.catalog-project-detail .public-location-section { padding-top: 24px; border-top: 1px solid var(--line, #cbdedf); }
+.catalog-project-detail .public-location-section h2 { font-size: 1.5rem; }
+.catalog-project-detail .public-location-section :is(.public-location-precision,.public-location-notice) { font-size: .85rem; line-height: 1.5; }
+.catalog-project-gallery h3 { margin-bottom: 16px; }
+
+@media (max-width: 1100px) {
+  .catalog-experience .seo-property-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .catalog-map-open .seo-property-grid { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 700px) {
+  .public-catalog-toolbar { padding: 12px; margin-bottom: 18px; }
+  .public-catalog-toolbar .catalog-entity-bar { margin-bottom: 8px; }
+  .public-catalog-toolbar .catalog-result-bar { margin-top: 8px; padding-top: 8px; }
+  .public-catalog-toolbar .catalog-controls { grid-template-columns: auto minmax(0, 1fr); gap: 8px; }
+  .public-catalog-toolbar .catalog-search-row { grid-column: 1 / -1; }
+  .public-catalog-toolbar .catalog-entity-nav { width: 100%; }
+  .public-catalog-toolbar .catalog-entity-nav a { flex: 1; justify-content: center; padding-inline: 8px; font-size: .8rem; }
+  .public-catalog-toolbar .catalog-controls > details > summary { padding-inline: 10px; font-size: .8rem; }
+  .catalog-project-intro { grid-template-columns: minmax(0, 1fr); gap: 18px; margin-top: 8px; }
+  .catalog-project-heading { grid-column: auto; }
+  .catalog-project-contact { grid-row: 2; }
+  .catalog-project-actions { gap: 8px; }
+  .catalog-project-actions .primary-button { width: 100%; }
+  .catalog-project-actions .text-link { font-size: .8rem; }
+  .catalog-project-cover { grid-row: 3; }
+  .catalog-project-heading h1 { font-size: clamp(1.7rem, 6.4vw, 2.2rem); }
+  .catalog-project-heading .catalog-project-location { font-size: .85rem; }
+}
+@media (max-width: 640px) {
+  .catalog-experience .seo-property-grid { grid-template-columns: minmax(0, 1fr); gap: 20px; }
+  .catalog-experience .seo-property-card > div { padding: 16px; }
+  .catalog-experience .seo-property-card h2 { font-size: 1.2rem; }
+  .catalog-experience .seo-property-card .seo-property-price { font-size: 1.3rem; }
+  .public-catalog-toolbar .catalog-result-bar { gap: 8px; }
+  .public-catalog-toolbar #categoryInventoryCount { font-size: .85rem; }
+}

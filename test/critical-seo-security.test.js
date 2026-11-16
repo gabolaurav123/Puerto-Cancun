@@ -30,7 +30,8 @@ test("el terreno convierte a USD por m² también en datos estructurados sin fab
   const page = renderPropertyPage(unitPriceLand, "es", [], {}, [], exchangeRate);
   const head = renderPropertyHead(unitPriceLand, "https://www.puertocancun.center", "es", exchangeRate);
 
-  assert.match(page.html, /≈ USD \$210 \/ m² · TC /);
+  assert.match(page.html, /<span class="public-price-amount">≈ USD \$210 \/ m²<\/span>/);
+  assert.match(page.html, /<small class="seo-property-price-note">Tipo de cambio: .*Importe aproximado en USD/);
   assert.match(head.jsonLd, /"@type":"UnitPriceSpecification"/);
   assert.match(head.jsonLd, /"price":210/);
   assert.match(head.jsonLd, /"priceCurrency":"USD"/);

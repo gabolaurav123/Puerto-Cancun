@@ -54,9 +54,12 @@ test("Spanish and English office buttons open WhatsApp directly with a prepared 
         assert.equal([...href.searchParams].length, 1);
         assert.doesNotMatch(tag, /data-contact-inquiry|data-business-contact/);
         assert.match(tag, /target="_blank" rel="noopener noreferrer"/);
-        assert.match(tag, /<span>WhatsApp /);
-        if (origin === "contact-page") assert.ok(tag.includes(display));
-        else assert.doesNotMatch(tag, /data-contact-number/);
+        const officeLabel = id === "mx" ? (lang === "en" ? "Mexico" : "México") : (lang === "en" ? "United States" : "Estados Unidos");
+        assert.ok(tag.includes('aria-label="WhatsApp ' + officeLabel + '"'));
+        assert.match(tag, /<span class="office-method">WhatsApp<\/span>/);
+        assert.ok(tag.includes('<span>' + officeLabel + '</span>'));
+        assert.ok(tag.includes('<span data-contact-number>' + display + '</span>'));
+        assert.ok(tag.includes('data-origin="' + origin + '"'));
       }
     }
     const custom = seo.renderSeoPage(route, { offices: [{ id: "us", display: "+1 202 555 0199" }] });

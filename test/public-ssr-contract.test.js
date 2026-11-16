@@ -41,7 +41,7 @@ function listingSchema(p, lang = "es") {
 
 function cardPrice(p, lang = "es") {
   const html = seo.renderCategoryPage({ ...seo.getPageByPath(lang === "en" ? "/en/properties" : "/propiedades"), currencyExchange: exchangeRate }, [p]);
-  return html.match(/class="seo-property-price">([^<]*)</)?.[1];
+  return html.match(/class="seo-property-price"><span class="public-price-amount">([^<]*)</)?.[1];
 }
 
 // Exercise the production projection and invalidation independently of database or media I/O.
@@ -84,7 +84,7 @@ for (const [name, patch] of [
     assert.equal(seo.localizedListingPrice(p), null);
     assert.equal(cardPrice(p), "Precio a consultar");
     assert.equal(cardPrice(p, "en"), "Price on request");
-    assert.match(seo.renderPropertyPage(p).html, /class="property-page-price">Precio a consultar</);
+    assert.match(seo.renderPropertyPage(p).html, /class="property-page-price"><span class="public-price-amount">Precio a consultar</);
     assert.equal(Object.hasOwn(listingSchema(p), "offers"), false);
   });
 }
@@ -108,7 +108,10 @@ for (const currency of ["USD", "MXN"]) {
     assert.equal(offer.priceCurrency, "USD");
     assert.equal(Object.hasOwn(offer, "priceSpecification"), false);
     assert.match(cardPrice(p), /USD/);
-    if (currency === "MXN") assert.match(cardPrice(p), /≈ USD \$62 · TC /);
+    if (currency === "MXN") {
+      assert.equal(cardPrice(p), "≈ USD $62");
+      assert.match(seo.renderPropertyPage(p, "es", [], {}, [], exchangeRate).html, /<small class="seo-property-price-note">Tipo de cambio: .*Importe aproximado en USD/);
+    }
     assert.deepEqual(plain(p), before);
   });
 }
@@ -122,7 +125,7 @@ test("canonical null does not revive legacy amounts; unambiguous legacy still wo
 
 test("snake-case square-meter prices remain unit prices in rendering and JSON-LD", () => {
   const p = property({ price: undefined, currency: undefined, priceUnit: undefined, price_amount: "4200.5", price_currency: "MXN", price_unit: "sqm" });
-  assert.match(cardPrice(p), /≈ USD \$210 \/ m\u00b2 · TC /);
+  assert.equal(cardPrice(p), "≈ USD $210 / m²");
   const offer = listingSchema(p).offers;
   assert.equal(Object.hasOwn(offer, "price"), false);
   assert.equal(offer.priceSpecification.price, 210.03);
