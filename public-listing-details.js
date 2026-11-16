@@ -133,7 +133,7 @@ function linkedPublicDevelopment(property, properties) {
 function resolvePublicLocation(property = {}, { lang = "es", directory = {}, properties = [] } = {}) {
   const english = lang === "en", t = (es, en) => english ? en : es;
   const entity = inventory.entityOf(property);
-  const heading = entity === "developments" ? t("Ubicación del desarrollo", "Community location") : t("Ubicación de la propiedad", "Property location");
+  const heading = entity === "developments" ? t("Ubicación del desarrollo", "Development location") : t("Ubicación de la propiedad", "Property location");
   const declaredPrecision = locationPrecisionOf(property);
   const names = locationNames(property, directory, lang);
   const result = { entity, heading, compact: names.compact, declaredPrecision, precision: "unavailable", address: "", latitude: null, longitude: null, geocodeQuery: "", coordinateSource: "none", sourceId: "", sourceName: "", sourceUrl: "", locationScope: "", notice: "", evidenceLabel: "" };
@@ -168,7 +168,7 @@ function resolvePublicLocation(property = {}, { lang = "es", directory = {}, pro
     result.sourceId = source.id || "";
     if (source !== property) {
       result.sourceName = locationText(source[english ? "titleEn" : "titleEs"] || source.titleEs || source.titleEn);
-      result.notice = t("Referencia del desarrollo vinculado", "Linked community reference") + (result.sourceName ? `: ${result.sourceName}.` : ".");
+      result.notice = t("Referencia del desarrollo vinculado", "Linked development reference") + (result.sourceName ? `: ${result.sourceName}.` : ".");
       if (!result.compact) result.compact = locationNames(source, directory, lang).compact;
     }
     if (exact) result.address = locationText(source.address);
@@ -178,16 +178,16 @@ function resolvePublicLocation(property = {}, { lang = "es", directory = {}, pro
     result.geocodeQuery = names.geocodeQuery;
   }
   if (result.precision === "exact") {
-    result.evidenceLabel = entity === "developments" ? t("Ubicación publicada del desarrollo", "Published community location")
-      : result.coordinateSource === "development" ? t("Ubicación exacta del desarrollo vinculado", "Exact location of the linked community") : t("Ubicación exacta publicada", "Published exact location");
-    if (entity === "developments") result.notice = t("El punto corresponde al desarrollo; no identifica una unidad específica.", "The point identifies the community, not an individual unit.");
+    result.evidenceLabel = entity === "developments" ? t("Ubicación publicada del desarrollo", "Published development location")
+      : result.coordinateSource === "development" ? t("Ubicación exacta del desarrollo vinculado", "Exact location of the linked development") : t("Ubicación exacta publicada", "Published exact location");
+    if (entity === "developments") result.notice = t("El punto corresponde al desarrollo; no identifica una unidad específica.", "The point identifies the development, not an individual unit.");
   } else if (result.precision === "approximate") {
     result.evidenceLabel = t("Ubicación aproximada de la zona", "Approximate zone location");
     result.notice = [result.notice, t("El mapa muestra una referencia de la zona, no el punto exacto del inmueble.", "The map shows the surrounding zone, not the property's exact position.")].filter(Boolean).join(" ");
   } else {
     result.evidenceLabel = t("Ubicación por confirmar", "Location to be confirmed");
     result.notice = entity === "developments"
-      ? t("La ubicación de este desarrollo está pendiente de confirmar. Puedes pedir información para conocerla.", "This community's location is awaiting confirmation. Request information to learn more.")
+      ? t("La ubicación de este desarrollo está pendiente de confirmar. Puedes pedir información para conocerla.", "This development's location is awaiting confirmation. Request information to learn more.")
       : t("No hay un punto verificado para mostrar. Consulta la ubicación con nuestro equipo.", "There is no verified point to display. Ask our team about the location.");
   }
   return result;

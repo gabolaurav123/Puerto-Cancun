@@ -33,7 +33,7 @@ test("a linked presale keeps its public description and cover, with compact card
         assert.match(html, /data-public-location[^>]*data-location-precision="exact"/);
         assert.ok(html.includes(en ? "Swimming pool" : "Alberca"));
         assert.ok(html.includes(`href="${en ? development.urlEn : development.urlEs}"`));
-        assert.ok(html.includes(en ? ">View community details</a>" : ">Ver ficha del desarrollo</a>"));
+        assert.ok(html.includes(en ? ">View development details</a>" : ">Ver ficha del desarrollo</a>"));
         assert.match(html, /data-origin="presale-project"/);
         assert.match(html, /data-reference="master"/);
       } else {

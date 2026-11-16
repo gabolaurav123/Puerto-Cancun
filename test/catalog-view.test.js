@@ -131,11 +131,11 @@ test('a new area scopes both entities, dependent selectors and counts; land has 
   ];
   const page = {...getPageByPath('/en/properties'),catalogAreas:areas};
   const html = renderCategoryPage(page,rows,{location:'coral'});
-  assert.match(html,/Properties \(3\)/); assert.match(html,/Communities \(1\)/);
+  assert.match(html,/Properties \(3\)/); assert.match(html,/Developments \(1\)/);
   assert.match(html,/option value="project-a"/); assert.doesNotMatch(html,/option value="project-b"/);
   const dev = renderCategoryPage(page,rows,{entity:'developments',location:'coral',gated:'1'});
   assert.match(dev,/data-category-property="project-a"/); assert.doesNotMatch(dev,/data-category-property="project-b"|name="beds"|name="min"|name="currency"|data-compare-id/);
-  assert.match(dev,/Gated community/); assert.match(dev,/View community/);
+  assert.match(dev,/Gated community/); assert.match(dev,/View development/);
   const land = renderCategoryPage({...getPageByPath('/en/properties/land-cancun'),catalogAreas:areas},rows,{type:'Casa',entity:'developments',sort:'lot-desc'});
   const ids = [...land.matchAll(/data-category-property="([^"]+)"/g)].map(match => match[1]);
   assert.deepEqual(ids,['large-land','independent-land']); assert.match(land,/I want to buy land/); assert.match(land,/I want to sell land/);
@@ -145,7 +145,7 @@ test('a new area scopes both entities, dependent selectors and counts; land has 
   const grouped = renderCategoryPage(page,rows,{entity:'developments'});
   assert.ok(grouped.indexOf('>Coral Coast</a></h2>') < grouped.indexOf('>Beach</a></h2>'));
   const suggestions = renderCategoryPage(page,rows,{q:'project'});
-  assert.match(suggestions,/<strong>Community<\/strong>/); assert.match(suggestions,/href="\/en\/properties\/project-a"/);
+  assert.match(suggestions,/<strong>Development<\/strong>/); assert.match(suggestions,/href="\/en\/properties\/project-a"/);
 });
 
 test('the map includes all filtered pages and withholds hidden coordinates; project CTA preserves confirmed context', () => {

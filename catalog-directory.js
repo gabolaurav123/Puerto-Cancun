@@ -110,7 +110,7 @@ function projectDetail(row, areas, lang, sourcePath) {
     return url && url.startsWith("/") && !url.startsWith("//") ? `<a class="text-link" href="${escape(url)}">${escape(label || (en ? property.titleEn : property.titleEs) || property.titleEs)}</a>` : "";
   };
   const unitLinks = row.publicUnits.map(unit => link(unit)).filter(Boolean);
-  const developmentLink = linked && link(linked, en ? "View community details" : "Ver ficha del desarrollo");
+  const developmentLink = linked && link(linked, en ? "View development details" : "Ver ficha del desarrollo");
   const context = { intent: "buy", zone, subzone, developmentId:linked?.id || "", propertyId:row.linkedProperty?.id || "", projectId:project.id,
     development: linked && ((en ? linked.titleEn : linked.titleEs) || linked.titleEs), project: title, reference: project.reference || project.id, origin: "presale-project", sourcePath };
   const photo = row.images[0] && optimizedPublicImage(row.images[0], 960);

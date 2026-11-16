@@ -303,7 +303,7 @@
           propertyLink.addEventListener("mouseenter", () => highlight([item.id]));
           propertyLink.addEventListener("mouseleave", clearHighlight);
           propertyLink.addEventListener("blur", clearHighlight);
-          const kindLabel = item.kind === "presale" ? t("Preventa", "Presale") : item.kind === "development" ? t("Desarrollo", "Community") : t("Propiedad", "Property");
+          const kindLabel = item.kind === "presale" ? t("Preventa", "Presale") : item.kind === "development" ? t("Desarrollo", "Development") : t("Propiedad", "Property");
           const precision = doc.createElement("small"); precision.textContent = kindLabel + " · " + (item.evidenceLabel || (item.precision === "exact" ? t("Ubicación exacta publicada", "Published exact location") : t("Ubicación aproximada", "Approximate location"))); row.append(precision);
         }
         marker.bindPopup(popup, { autoPanPadding: [16, 16], maxWidth: Math.max(120, Math.min(280, canvas.clientWidth - 72)) }).addTo(map);
