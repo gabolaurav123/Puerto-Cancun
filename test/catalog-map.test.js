@@ -13,6 +13,17 @@ test("preserva precision exacta y rutas sin fabricar slugs", () => {
   assert.equal(point.url, "/propiedades/unidad-a?lang=es");
 });
 
+test("preserva el alcance y la evidencia verificada del conjunto sin publicarlos en ubicaciones ocultas o aproximadas", () => {
+  const row = item({kind:"development",locationScope:"complex",evidenceLabel:"Verified complex location"});
+  const point = prepareItems([row],base).items[0];
+  assert.equal(point.locationScope,"complex"); assert.equal(point.evidenceLabel,"Verified complex location");
+  for (const precision of ["hidden","approximate"]) {
+    const prepared = prepareItems([{...row,locationPrecision:precision}],base);
+    const result = [...prepared.items,...prepared.missing][0];
+    assert.equal(result.locationScope,undefined); assert.equal(result.evidenceLabel,undefined);
+  }
+});
+
 for (const value of [null, undefined, "", "   ", false, true, [], {}, NaN, Infinity, "not-a-coordinate"]) {
   for (const field of ["latitude", "longitude"]) {
     test(`rechaza ${field} ausente/invalida: ${String(value)}`, () => {
@@ -96,6 +107,15 @@ test("conserva la ficha inglesa y omite el enlace externo administrativo", () =>
   const result = prepareItems([item({ url: "/en/properties/unit-a", googleMapsUrl: "https://maps.app.goo.gl/example" })], base).items[0];
   assert.equal(result.url, "/en/properties/unit-a");
   assert.equal(result.mapsUrl, undefined);
+});
+
+test("preserva consulta contextual local y rechaza destinos externos o ajenos a contacto", () => {
+  const contactUrl = '/en/contact?propertyId=fixture-a&intent=rent&sourcePath=%2Fen%2Fproperties%3Flocation%3Dpuerto-cancun';
+  const point = prepareItems([item({contactUrl})],base).items[0];
+  assert.equal(point.contactUrl,contactUrl);
+  for (const contactUrl of ['https://evil.example/contacto','javascript:alert(1)','/admin','/propiedades']) {
+    assert.equal(prepareItems([item({contactUrl})],base).items[0].contactUrl,undefined);
+  }
 });
 
 test("ignora enlaces de mapas externos en el catálogo público", () => {

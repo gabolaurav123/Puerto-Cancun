@@ -14,6 +14,66 @@
   ];
   const TYPES = ["Casa", "Departamento", "Terreno", "Comercial"];
   const fold = (value) => String(value ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim().replace(/\s+/g, " ");
+  const searchWords = value => fold(value).match(/[a-z0-9]+/g) || [];
+  const searchStopWords = new Set("a al de del el la los las en con por para un una unos unas y o que busco buscar quiero necesito me the an in at with for of and or to looking find want near cerca".split(" "));
+  const searchGroups = [
+    ["casa", "casas", "house", "houses", "home", "homes"],
+    ["departamento", "departamentos", "depa", "depas", "apartamento", "apartamentos", "apartment", "apartments", "condo", "condos", "flat", "flats"],
+    ["terreno", "terrenos", "lote", "lotes", "land", "lot", "lots"],
+    ["desarrollo", "desarrollos", "comunidad", "comunidades", "development", "developments", "community", "communities"],
+    ["alberca", "albercas", "piscina", "piscinas", "pool", "pools"],
+    ["terraza", "terrazas", "terrace", "terraces"],
+    ["playa", "playas", "beach", "beaches"],
+    ["mar", "sea", "ocean", "oceano"],
+    ["venta", "comprar", "compra", "sale", "buy"],
+    ["renta", "rentar", "alquiler", "rent", "rental", "rentals"],
+    ["preventa", "preventas", "presale", "presales"],
+    ["amueblado", "amueblada", "furnished"],
+    ["gimnasio", "gym"],
+  ];
+  const searchConcept = new Map(searchGroups.flatMap(group => group.map(word => [word, group[0]])));
+  const canonicalWord = word => searchConcept.get(word) || word;
+
+  function nearbyWord(left, right, shortProjectName = false) {
+    if (left === right) return true;
+    // Four-letter project names allow one typo (Riba -> Riva). Other short
+    // words and all numeric references/MLS codes keep exact matching.
+    const minimum = shortProjectName && left.length === 4 && right.length === 4 ? 4 : 5;
+    if (Math.min(left.length, right.length) < minimum || /\d/.test(left + right) || Math.abs(left.length - right.length) > 1) return false;
+    let first = 0;
+    while (first < Math.min(left.length, right.length) && left[first] === right[first]) first++;
+    if (left.length === right.length) return left.slice(first + 1) === right.slice(first + 1)
+      || left[first] === right[first + 1] && left[first + 1] === right[first] && left.slice(first + 2) === right.slice(first + 2);
+    const longer = left.length > right.length ? left : right, shorter = left.length > right.length ? right : left;
+    return longer.slice(first + 1) === shorter.slice(first);
+  }
+
+  function matchesSearch(p, text, areas) {
+    const location = areas.find(area => area.id === resolveLocation(p, areas).id);
+    const areaNames = { "zona-hotelera": "zona hotelera hotel zone", "puerto-cancun": "puerto cancun", "cancun-city": "ciudad cancun centro downtown cancun city", "fuera-de-cancun": "fuera cancun outside cancun" };
+    const hidden = p.portalHiddenBlocks || [];
+    const source = [p.titleEs, p.title_es, p.titleEn, p.title_en, p.mls, p.zone, p.city, p.neighborhood, p.type,
+      hidden.includes("location") ? "" : p.address, location?.name, location?.nameEs, location?.nameEn, areaNames[location?.id],
+      p.parentDevelopment?.nameEs, p.parentDevelopment?.nameEn, ...(p.keywords || []),
+      ...(hidden.includes("amenities") ? [] : Array.isArray(p.amenities) ? p.amenities : []),
+      hidden.includes("description") ? "" : p.descriptionEs || p.description_es, hidden.includes("description") ? "" : p.descriptionEn || p.description_en,
+      p.operation === "sale" ? "venta" : p.operation === "rent" ? "renta" : "", modalityOf(p) === "presale" ? "preventa" : "",
+      entityOf(p) === "developments" ? "desarrollo" : ["Casa", "Departamento"].includes(p.type) ? "vivienda housing" : "",
+    ].filter(value => typeof value === "string").join(" ");
+    const rawWords = searchWords(source), words = new Set(rawWords.map(canonicalWord));
+    const projectNames = new Set(searchWords([
+      entityOf(p) === "developments" ? [p.titleEs,p.title_es,p.titleEn,p.title_en].filter(Boolean).join(" ") : "",
+      p.parentDevelopment?.nameEs, p.parentDevelopment?.nameEn,
+    ].filter(Boolean).join(" ")).filter(word => word.length === 4 && !searchConcept.has(word) && !searchStopWords.has(word)));
+    const terms = searchWords(text).filter(word => !searchStopWords.has(word));
+    return terms.every(term => {
+      const canonical = canonicalWord(term);
+      if (words.has(canonical)) return true;
+      if (/\d/.test(term)) return rawWords.some(word => word.includes(term));
+      if (!/\d/.test(term) && term.length >= 3 && rawWords.some(word => word.startsWith(term))) return true;
+      return rawWords.some(word => nearbyWord(term, word, projectNames.has(word))) || searchGroups.some(group => words.has(group[0]) && group.some(word => nearbyWord(term, word)));
+    });
+  }
   const field = (p, camel, snake = camel) => p[camel] ?? p[snake];
   const owns = (object, key) => Object.prototype.hasOwnProperty.call(object, key);
   const suppliedField = (p, camel, snake = camel) => p[camel] !== undefined ? p[camel] : p[snake];
@@ -289,10 +349,7 @@
       if (query.min !== null && price.amount < query.min) return false;
       if (query.max !== null && price.amount > query.max) return false;
     }
-    if (query.text) {
-      const haystack = fold([p.titleEs, p.title_es, p.titleEn, p.title_en, p.mls, p.zone, p.city, p.neighborhood, p.address, p.type, p.parentDevelopment?.nameEs, p.parentDevelopment?.nameEn, ...(p.keywords || [])].filter(Boolean).join(" "));
-      if (!fold(query.text).split(/\s+/).every((term) => haystack.includes(term))) return false;
-    }
+    if (query.text && !matchesSearch(p, query.text, areas)) return false;
     return true;
   }
 

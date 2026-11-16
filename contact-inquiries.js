@@ -148,10 +148,15 @@ function prepareSearchContext(body, data, properties, areas = inventoryContract.
     criteria.development = development.length === 1 ? development[0].developmentData?.id || development[0].id : data.development || "";
   }
   if (Object.hasOwn(body, "budget")) {
+    if (criteria.currency !== data.currency || (criteria.priceMode === "public-usd") !== (data.priceMode === "public-usd")) {
+      data.originalSearchFilters ||= source;
+      criteria.min = null; // Never carry a numeric lower bound into a different currency.
+    }
     criteria.max = data.budget || null;
     if (!data.budget || (criteria.min !== null && criteria.min > data.budget)) criteria.min = null;
     criteria.currency = data.currency || "";
     if (data.priceMode === "public-usd") criteria.priceMode = "public-usd";
+    else delete criteria.priceMode;
   }
   if (operation === "rent") criteria.rentPeriod = data.rentPeriod || "";
   else criteria.rentPeriod = "";

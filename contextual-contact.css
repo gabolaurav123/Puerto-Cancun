@@ -34,6 +34,13 @@
 .contextual-inquiry .inquiry-context { display: grid; gap: 4px; padding: 0 0 4px; line-height: 1.45; }
 .contextual-inquiry .inquiry-context strong { font-size: .95rem; font-weight: 650; }
 .contextual-inquiry .inquiry-context span { color: #587076; font-size: .8rem; }
+.contextual-inquiry .inquiry-direct-offices { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 8px; }
+.contextual-inquiry .inquiry-direct-offices a { min-height: 58px; font-size: .8rem; }
+.contextual-inquiry .inquiry-direct-offices small { font-size: .7rem; font-weight: 400; white-space: nowrap; }
+.contextual-inquiry .inquiry-reply-label { margin: 0; padding-top: 4px; font-size: .85rem; line-height: 1.45; }
+.contextual-inquiry .inquiry-data-use { margin: 2px 0 0; color: #587076; font-size: .78rem; line-height: 1.5; }
+.contextual-inquiry .inquiry-budget-note { margin: 0; font-size: .78rem; line-height: 1.5; color: #587076; }
+.contextual-inquiry .inquiry-budget-note:empty { display: none; }
 .contextual-inquiry [data-inquiry-success] { overflow-wrap: anywhere; }
 .inquiry-admin-filters { display: flex; gap: 12px; flex-wrap: wrap; align-items: end; margin: 12px 0; }
 .inquiry-admin-filters label { display: grid; gap: 4px; }

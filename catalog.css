@@ -2,14 +2,22 @@
 .catalog-area-index a { display:inline-flex; align-items:center; min-height:40px; padding:6px 12px; border:1px solid #bcd2d4; border-radius:4px; background:#fff; color:#07515a; text-decoration:none; }
 /* Shared catalog: restrained controls, consistent dimensions and progressive enhancement. */
 .catalog-experience { scroll-margin-top: 100px; }
-.catalog-controls { display: grid; grid-template-columns: minmax(200px, 36rem) auto auto; justify-content: start; align-items: start; gap: 8px 12px; }
+.catalog-controls { display: grid; grid-template-columns: minmax(200px, 36rem) auto auto; justify-content: start; align-items: start; gap: 8px 12px; overflow-anchor: none; }
 .catalog-search-row { display: flex; align-items: stretch; gap: 6px; min-width: 0; }
 .catalog-search-row input { min-width: 0; width: 100%; min-height: 44px; padding: 8px 12px; border: 1px solid #a9c4c8; border-radius: 4px; background: #fff; color: #073540; font: inherit; }
 .catalog-search-row button { min-height: 44px; padding: 8px 16px; }
-.catalog-controls > details { min-width: 0; margin: 0; }
-.catalog-controls > details[open] { grid-column: 1 / -1; }
+.catalog-controls > details { display: contents; min-width: 0; margin: 0; }
+/* Native details content has its own box in current browsers. Flatten it too,
+   so the full-width form cannot resize the column holding either summary. */
+.catalog-controls > details::details-content { display: contents; }
+.catalog-controls > .catalog-filter-panel > summary { grid-column: 2; grid-row: 1; }
+.catalog-controls > .catalog-conversation > summary { grid-column: 3; grid-row: 1; }
+.catalog-controls > details > form { grid-column: 1 / -1; min-width: 0; }
+.catalog-controls > .catalog-filter-panel > form { grid-row: 2; }
+.catalog-controls > .catalog-conversation > form { grid-row: 3; }
+.catalog-controls > details:not([open]) > form { display: none; }
 .catalog-controls > details > summary { width: fit-content; min-height: 44px; padding: 10px 12px; border: 1px solid #bcd2d4; border-radius: 4px; cursor: pointer; color: #073540; font: 600 .9rem/1.45 Arial, sans-serif; }
-.catalog-controls > details[open] > summary { margin-bottom: 8px; }
+.catalog-controls > details[open] > summary { background: #e4f0ee; border-color: #075562; }
 .catalog-controls :focus-visible { outline: 2px solid #805f27; outline-offset: 2px; }
 .catalog-conversation form { display: flex; flex-wrap: wrap; gap: 12px; align-items: end; padding-bottom: 16px; }
 .catalog-conversation label { flex: 1 1 280px; display: grid; gap: 8px; }
@@ -210,8 +218,8 @@ body[data-page=home] .presale-feature:not(.has-home-cover) .primary-button { wid
   padding-inline: 0;
 }
 .public-catalog-toolbar #categoryInventoryCount { font-family: inherit; font-size: .95rem; font-weight: 600; }
-.public-catalog-toolbar .catalog-view-toggle { border-radius: 5px; }
-.public-catalog-toolbar .catalog-view-toggle button { min-width: 64px; font-family: inherit; font-size: .85rem; font-weight: 600; line-height: 1.4; }
+.public-catalog-toolbar .catalog-view-toggle { border: 2px solid #075562; border-radius: 6px; box-shadow: 0 2px 7px #07354012; }
+.public-catalog-toolbar .catalog-view-toggle button { min-width: 84px; min-height: 48px; font-family: inherit; font-size: .9rem; font-weight: 700; line-height: 1.4; }
 .public-catalog-toolbar .catalog-area-index { gap: 6px; margin-bottom: 16px; }
 .public-catalog-toolbar .catalog-area-index a { font-size: .8rem; background: #f5f9f8; }
 .public-catalog-toolbar .catalog-active-filters { gap: 6px; margin-top: 12px; }
@@ -303,6 +311,11 @@ body[data-page=seo]:has(.catalog-project-view) .seo-page-content { padding-top: 
   .public-catalog-toolbar .catalog-result-bar { margin-top: 8px; padding-top: 8px; }
   .public-catalog-toolbar .catalog-controls { grid-template-columns: auto minmax(0, 1fr); gap: 8px; }
   .public-catalog-toolbar .catalog-search-row { grid-column: 1 / -1; }
+  .catalog-controls > .catalog-filter-panel > summary { grid-column: 1; grid-row: 2; }
+  .catalog-controls > .catalog-conversation > summary { grid-column: 2; grid-row: 2; }
+  .catalog-controls > .catalog-filter-panel > form { grid-row: 3; }
+  .catalog-controls > .catalog-conversation > form { grid-row: 4; }
+  .public-catalog-toolbar .catalog-view-toggle button { min-width: 68px; }
   .public-catalog-toolbar .catalog-entity-nav { width: 100%; }
   .public-catalog-toolbar .catalog-entity-nav a { flex: 1; justify-content: center; padding-inline: 8px; font-size: .8rem; }
   .public-catalog-toolbar .catalog-controls > details > summary { padding-inline: 10px; font-size: .8rem; }

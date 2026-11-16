@@ -33,6 +33,7 @@ test("a linked presale keeps its public description and cover, with compact card
         assert.match(html, /data-public-location[^>]*data-location-precision="exact"/);
         assert.ok(html.includes(en ? "Swimming pool" : "Alberca"));
         assert.ok(html.includes(`href="${en ? development.urlEn : development.urlEs}"`));
+        assert.ok(html.includes(en ? ">View community details</a>" : ">Ver ficha del desarrollo</a>"));
         assert.match(html, /data-origin="presale-project"/);
         assert.match(html, /data-reference="master"/);
       } else {
@@ -51,8 +52,34 @@ test("editorial descriptions and images take precedence per language, and approx
   assert.match(es, /Nueva descripción de preventa/); assert.doesNotMatch(es, /Residencias frente al muelle/);
   assert.ok(es.includes("/assets/presale-approved.webp"));
   assert.ok(es.includes("Marina")); assert.ok(es.includes("Puerto Cancún")); assert.ok(!es.includes(development.address));
-  assert.match(es, /data-public-location[\s\S]*data-location-precision="approximate"/);
+  assert.match(es, /data-public-location[\s\S]*data-location-precision="unavailable"/);
+  assert.match(es, /pendiente de confirmar/);
+  assert.doesNotMatch(es, /data-location-query|data-location-canvas/);
   assert.ok(render(master, "en", true, edit).includes(development.descriptionEn));
+});
+
+test("presale project office buttons open each WhatsApp number directly with its localized project context", () => {
+  const contacts = require("../contact-config").contacts;
+  for (const lang of ["es", "en"]) {
+    const html = render(development,lang,true,config => { config.presales[0].reference = "PRESALE-7"; });
+    const projectPath = (lang === "en" ? "/en/cancun-presales" : "/preventas-cancun") + "?project=presale-master";
+    for (const {id,number,display} of contacts) {
+      const tag = html.match(new RegExp('<a [^>]*data-origin="presale-whatsapp"[^>]*data-office="' + id + '"[^>]*>.*?</a>'))?.[0];
+      assert.ok(tag,`${lang}: office ${id}`);
+      const url = new URL(tag.match(/href="([^"]+)"/)[1].replaceAll("&amp;","&"));
+      assert.equal(url.origin,"https://wa.me");
+      assert.equal(url.pathname,"/" + number);
+      const message = url.searchParams.get("text");
+      assert.ok(message.includes(lang === "en" ? development.titleEn : development.titleEs));
+      assert.ok(message.includes("PRESALE-7"));
+      assert.ok(message.includes("https://www.puertocancun.center" + projectPath));
+      assert.ok(tag.includes(`<span data-contact-number>${display}</span>`));
+      assert.doesNotMatch(tag,/data-contact-inquiry|data-business-contact/);
+      assert.match(tag,/target="_blank" rel="noopener noreferrer"/);
+    }
+    assert.match(html,/data-contact-inquiry[^>]*data-intent="buy"[^>]*data-project-id="presale-master"/);
+    assert.doesNotMatch(html,/data-intent="(?:sell|rent|let)"/);
+  }
 });
 
 test("presale listings respect hidden development blocks and unpublished linked developments", () => {

@@ -74,18 +74,30 @@ test("Spanish and English office buttons open WhatsApp directly with a prepared 
 test("property and development inquiries retain the localized title and listing reference", () => {
   for (const lang of ["es", "en"]) {
     for (const publicationSection of ["properties", "developments"]) {
-      const item = { ...property, publicationSection };
+      const item = { ...property, publicationSection, mls: "MLS-42" };
       const html = seo.renderPropertyPage(item, lang).html;
       const links = whatsappLinks(html);
       const title = lang === "en" ? item.titleEn : item.titleEs;
-      assert.equal(links.length, 0);
+      assert.equal(links.length, 2);
+      for (const {number,display} of contacts.contacts) {
+        const link = links.find(({url}) => url.pathname === "/" + number);
+        assert.ok(link,`${lang}: direct WhatsApp ${number}`);
+        assert.equal(link.url.origin,"https://wa.me");
+        const message = link.url.searchParams.get("text");
+        assert.ok(message.includes(title));
+        assert.ok(message.includes("MLS " + item.mls));
+        assert.ok(message.includes(seo.absoluteUrl(seo.propertyPath(item,lang))));
+        assert.equal([...link.url.searchParams].length,1);
+        assert.equal(link.url.hash,"");
+        assert.ok(link.label.includes(`<span data-contact-number>${display}</span>`));
+      }
       const development = publicationSection === "developments";
       assert.ok(html.includes((development ? 'data-development-id="' : 'data-property-id="') + item.id + '"'));
       assert.ok(html.includes((development ? 'data-development="' : 'data-property-title="') + title.replace(/&/g, "&amp;").replace(/"/g, "&quot;") + '"'));
       for (const intent of publicationSection === "developments" ? ["buy","sell"] : ["buy"]) assert.ok(html.includes('data-intent="' + intent + '"'));
       if (publicationSection === "developments") {
         assert.ok(html.includes('data-development-id="' + item.id + '"'));
-        assert.match(html, lang === "en" ? /Ask for options/ : /Pedir opciones/);
+        assert.match(html, lang === "en" ? /Request information/ : /Pedir información/);
       }
       assert.doesNotMatch(html, /data-business-contact=/, "Catalog hydration must not remove contextual messages");
     }

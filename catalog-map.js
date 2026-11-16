@@ -34,6 +34,11 @@
     .pcc-catalog-map-popup li { padding:8px 0;border-bottom:1px solid #cbdedf; }
     .pcc-catalog-map-popup a { display:flex;align-items:center;min-height:44px;padding:4px 0;font-weight:650; }
     .pcc-catalog-map-popup small { display:block; }
+    .pcc-catalog-map-popup-title { display:block;font-weight:700;font-size:14px;line-height:1.4; }
+    .pcc-catalog-map-popup-actions { display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:10px; }
+    .pcc-catalog-map-popup-actions a { justify-content:center;padding:8px;border:1px solid #075562;border-radius:4px;font-size:12px;line-height:1.4;text-align:center;text-decoration:none; }
+    .pcc-catalog-map-popup-actions a:first-child { color:#fff;background:#075562; }
+    .pcc-catalog-map-popup-actions a:only-child { grid-column:1 / -1; }
     .pcc-catalog-map-missing { margin:12px 0;overflow-wrap:anywhere; }
     .pcc-catalog-map-missing summary { cursor:pointer;min-height:44px; }
     .pcc-catalog-map-missing a { display:inline-block;padding:8px 0; }
@@ -94,6 +99,8 @@
       const precision = hidden ? "hidden" : !uncertain && (declared === "exact" && raw.approximate !== true || !declared && raw.approximate === false) ? "exact" : "approximate";
       const kind = ["development", "presale"].includes(raw.kind) ? raw.kind : "property";
       const item = { id, title: String(raw.title || raw.titleEs || raw.title_es || id), url: safeUrl(raw.url || raw.urlEs || "", base), precision, kind };
+      const contactUrl = safeUrl(raw.contactUrl || "", base);
+      if (contactUrl && ["/contacto", "/en/contact"].includes(new URL(contactUrl,base).pathname)) item.contactUrl = contactUrl;
       if (typeof raw.priceText === "string" && raw.priceText.trim()) item.priceText = raw.priceText.trim().slice(0, 300);
       const lat = number(raw.latitude), lng = number(raw.longitude);
       if (hidden) item.reason = "hidden";
@@ -101,6 +108,10 @@
       else {
         item.latitude = precision === "exact" ? lat : Math.round(lat * 100) / 100;
         item.longitude = precision === "exact" ? lng : Math.round(lng * 100) / 100;
+        if (precision === "exact") {
+          if (["building", "complex", "community"].includes(raw.locationScope)) item.locationScope = raw.locationScope;
+          if (typeof raw.evidenceLabel === "string" && raw.evidenceLabel.trim()) item.evidenceLabel = raw.evidenceLabel.trim().slice(0, 200);
+        }
       }
       const old = byId.get(id);
       if (!old) byId.set(id, item);
@@ -281,14 +292,19 @@
         popup.setAttribute("aria-label", label);
         for (const item of group) {
           const row = doc.createElement("li"); popup.append(row);
-          const propertyLink = link(item, row); propertyLink.setAttribute("data-catalog-map-id", item.id);
+          const title = doc.createElement("strong"); title.className = "pcc-catalog-map-popup-title"; title.textContent = item.title; row.append(title);
           if (item.priceText) { const price = doc.createElement("p"); price.className = "pcc-catalog-map-price"; price.textContent = item.priceText; row.append(price); }
+          const actions = doc.createElement("div"); actions.className = "pcc-catalog-map-popup-actions"; row.append(actions);
+          const propertyLink = link(item, actions); propertyLink.textContent = t("Ver ficha", "View listing"); propertyLink.setAttribute("data-catalog-map-id", item.id);
+          if (item.contactUrl) {
+            const contact = doc.createElement("a"); contact.href = item.contactUrl; contact.setAttribute("data-contact-inquiry", ""); contact.textContent = t("Pedir información", "Request information"); actions.append(contact);
+          }
           propertyLink.addEventListener("focus", () => highlight([item.id]));
           propertyLink.addEventListener("mouseenter", () => highlight([item.id]));
           propertyLink.addEventListener("mouseleave", clearHighlight);
           propertyLink.addEventListener("blur", clearHighlight);
-          const kindLabel = item.kind === "presale" ? t("Preventa", "Presale") : item.kind === "development" ? t("Desarrollo", "Development") : t("Propiedad", "Property");
-          const precision = doc.createElement("small"); precision.textContent = kindLabel + " · " + (item.precision === "exact" ? t("Ubicación exacta publicada", "Published exact location") : t("Ubicación aproximada", "Approximate location")); row.append(precision);
+          const kindLabel = item.kind === "presale" ? t("Preventa", "Presale") : item.kind === "development" ? t("Desarrollo", "Community") : t("Propiedad", "Property");
+          const precision = doc.createElement("small"); precision.textContent = kindLabel + " · " + (item.evidenceLabel || (item.precision === "exact" ? t("Ubicación exacta publicada", "Published exact location") : t("Ubicación aproximada", "Approximate location"))); row.append(precision);
         }
         marker.bindPopup(popup, { autoPanPadding: [16, 16], maxWidth: Math.max(120, Math.min(280, canvas.clientWidth - 72)) }).addTo(map);
         const icon = marker.getElement();
@@ -318,7 +334,7 @@
         const absent = Math.max(data.missing.length, total - data.items.length);
         const approximate = data.items.filter((item) => item.precision === "approximate").length;
         const scope = suppliedTotal !== null ? t("resultados", "results") : t("registros recibidos", "received records");
-        summary.textContent = t(`${data.items.length} de ${total} ${scope} de esta página en el mapa. ${absent} sin ubicación pública. ${approximate} aproximados.`, `${data.items.length} of ${total} ${scope} on this page are on the map. ${absent} without a public location. ${approximate} approximate.`);
+        summary.textContent = t(`${data.items.length} de ${total} ${scope} de tu búsqueda en el mapa. ${absent} sin ubicación pública. ${approximate} aproximados.`, `${data.items.length} of ${total} ${scope} from your search are on the map. ${absent} without a public location. ${approximate} approximate.`);
         missingHeading.textContent = t(`${absent} resultados sin ubicación pública`, `${absent} results without a public location`);
         details.hidden = !absent; missingList.replaceChildren();
         for (const item of data.missing) { const row = doc.createElement("li"); missingList.append(row); link(item, row); }
@@ -423,6 +439,10 @@
       const english = (section.lang || doc.documentElement.lang || "").startsWith("en"), t = (es, en) => english ? en : es;
       const touchDevice = win.matchMedia?.("(pointer: coarse)").matches || win.navigator.maxTouchPoints > 0;
       const precision = section.dataset.locationPrecision;
+      const scope = section.dataset.locationScope;
+      const verifiedLabel = scope === "building" ? t("Ubicación verificada del edificio", "Verified building location")
+        : scope === "complex" ? t("Ubicación verificada del conjunto", "Verified complex location")
+          : scope === "community" ? t("Ubicación verificada de la comunidad", "Verified community location") : "";
       let map, viewport, resize, removal, loading, destroyed = false, resolveReady;
       let failedTiles = false;
       const ready = new Promise(resolve => { resolveReady = resolve; });
@@ -471,14 +491,14 @@
             tiles.on("tileerror", () => { failedTiles = true; failure(); });
             tiles.addTo(map);
             if (exact) {
-              L.marker([point.latitude, point.longitude], { icon: L.divIcon({ className: "pcc-location-point", iconSize: [24, 24], iconAnchor: [12, 12] }), title: t("Ubicación exacta publicada", "Published exact location"), keyboard: true }).addTo(map);
+              L.marker([point.latitude, point.longitude], { icon: L.divIcon({ className: "pcc-location-point", iconSize: [24, 24], iconAnchor: [12, 12] }), title: verifiedLabel || t("Ubicación exacta publicada", "Published exact location"), keyboard: true }).addTo(map);
             } else {
               L.circle([point.latitude, point.longitude], { radius: 1400, color: "#075562", weight: 2, dashArray: "6 5", fillColor: "#075562", fillOpacity: .12, interactive: false }).addTo(map);
             }
             const zoomIn = canvas.querySelector(".leaflet-control-zoom-in"), zoomOut = canvas.querySelector(".leaflet-control-zoom-out");
             if (zoomIn) { zoomIn.title = t("Acercar mapa", "Zoom in"); zoomIn.setAttribute("aria-label", zoomIn.title); }
             if (zoomOut) { zoomOut.title = t("Alejar mapa", "Zoom out"); zoomOut.setAttribute("aria-label", zoomOut.title); }
-            const label = exact ? t("Punto exacto publicado.", "Published exact point.") : t("Referencia aproximada de la zona; no indica el punto exacto del inmueble.", "Approximate zone reference; it does not mark the property's exact position.");
+            const label = exact ? verifiedLabel ? verifiedLabel + "." : t("Punto exacto publicado.", "Published exact point.") : t("Referencia aproximada de la zona; no indica el punto exacto del inmueble.", "Approximate zone reference; it does not mark the property's exact position.");
             setStatus(label + " " + (touchDevice ? t("Desliza para seguir por la página. Usa + y − para ampliar el mapa.", "Swipe to scroll the page. Use + and − to zoom the map.") : t("Usa + y − para ampliar el mapa.", "Use + and − to zoom the map.")));
             section.dataset.locationMapState = "ready";
             if (win.ResizeObserver) { resize = new win.ResizeObserver(() => map?.invalidateSize()); resize.observe(canvas); }

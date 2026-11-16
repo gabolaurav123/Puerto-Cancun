@@ -149,6 +149,8 @@ test('mobile navigation closes accessibly and catalog image sizes override fixed
   const api = runtime(['closeMobileNav'], { $: id => id === '#mainNav'
     ? { classList: { remove: () => { open = false; } } }
     : { setAttribute: (key, value) => { attributes[key] = value; } },
+    document: { body: { classList: { remove() {} }, style: { removeProperty() {} } }, documentElement: { style: { removeProperty() {} } } },
+    mobileNavScrollState: null,
   });
   api.closeMobileNav();
   assert.equal(open, false);
@@ -156,7 +158,116 @@ test('mobile navigation closes accessibly and catalog image sizes override fixed
   const styles = fs.readFileSync(require.resolve('../styles.css'), 'utf8');
   assert.match(styles, /\.seo-property-card > \.seo-property-image img\s*\{[^}]*height: auto;/);
   assert.match(styles, /\.category-live-search \.category-search-control:focus-within/);
-  assert.match(source, /event\.key !== "Escape"[^]*?closeMobileNav\(\);[^]*?\$\("#menuToggle"\)\.focus\(\)/);
+  assert.match(source, /event\.key !== "Escape"[^]*?closeMobileNav\(\);[^]*?\$\("#menuToggle"\)\.focus\(\{ preventScroll: true \}\)/);
+});
+
+test('mobile menu preserves a scrolled page, has independent viewport sizing and unlocks on desktop resize', () => {
+  const classes = (initial = []) => {
+    const values = new Set(initial);
+    return { add: value => values.add(value), remove: value => values.delete(value), contains: value => values.has(value) };
+  };
+  const properties = {};
+  const style = { setProperty: (key, value) => { properties[key] = value; }, removeProperty: key => { delete properties[key]; } };
+  const attributes = {};
+  const groups = [{ open: true }];
+  const nodes = {
+    '#mainNav': { classList: classes(), scrollTop: 320, querySelectorAll: () => groups },
+    '#mainHeader': { classList: classes(['is-hidden']) },
+    '#menuToggle': { setAttribute: (key, value) => { attributes[key] = value; } },
+  };
+  const document = { body: { classList: classes(), style }, documentElement: { style } };
+  const restored = [];
+  const window = { innerWidth: 390, innerHeight: 844, scrollX: 0, scrollY: 2450, visualViewport: { height: 720, offsetTop: 0 }, scrollTo: value => restored.push(value) };
+  const api = runtime(['openMobileNav', 'closeMobileNav', 'syncMobileNavViewport'], {
+    $: key => nodes[key], document, window, mobileNavScrollState: null, mobileNavRestoreVersion: 0, lastScrollY: 0,
+  });
+  api.openMobileNav();
+  assert.equal(nodes['#mainNav'].classList.contains('open'), true);
+  assert.equal(nodes['#mainHeader'].classList.contains('is-hidden'), false);
+  assert.equal(document.body.classList.contains('public-nav-open'), true);
+  assert.equal(properties['--public-nav-scroll-offset'], '-2450px');
+  assert.equal(properties['--public-nav-page-width'], '390px');
+  assert.equal(properties['--public-nav-viewport-height'], '720px');
+  assert.equal(nodes['#mainNav'].scrollTop, 0);
+  assert.equal(attributes['aria-expanded'], 'true');
+
+  // A second open call must not replace the original scroll position after locking.
+  window.scrollY = 0;
+  api.openMobileNav();
+  api.closeMobileNav();
+  assert.equal(document.body.classList.contains('public-nav-open'), false);
+  assert.equal(attributes['aria-expanded'], 'false');
+  assert.equal(groups[0].open, false);
+  assert.equal(properties['--public-nav-scroll-offset'], undefined);
+  assert.equal(properties['--public-nav-page-width'], undefined);
+  assert.equal(restored[0].top, 2450);
+  api.closeMobileNav();
+  assert.equal(restored.length, 1);
+
+  window.scrollY = 1600;
+  api.openMobileNav();
+  window.visualViewport.height = 490;
+  window.visualViewport.offsetTop = 20;
+  api.syncMobileNavViewport();
+  assert.equal(properties['--public-nav-viewport-height'], '490px');
+  assert.equal(properties['--public-nav-viewport-top'], '20px');
+  window.innerWidth = 1440;
+  api.syncMobileNavViewport();
+  assert.equal(nodes['#mainNav'].classList.contains('open'), false);
+  assert.equal(document.body.classList.contains('public-nav-open'), false);
+  assert.equal(properties['--public-nav-viewport-height'], undefined);
+  assert.equal(restored[1].top, 1600);
+});
+
+test('mobile header stays available while scrolling down and desktop keeps its existing auto-hide behavior', () => {
+  const headerClasses = new Set(['is-hidden']);
+  const header = { classList: { remove: key => headerClasses.delete(key), toggle: (key, value) => value ? headerClasses.add(key) : headerClasses.delete(key) } };
+  const window = { innerWidth: 390, scrollY: 10450 };
+  const api = runtime(['updateHeaderVisibility'], {
+    $: key => key === '#mainHeader' ? header : key === '#mainNav' ? { classList: { contains: () => false } } : null,
+    document: { body: { classList: { contains: () => false, toggle() {} } } }, window, lastScrollY: 9000,
+  });
+  api.updateHeaderVisibility();
+  assert.equal(headerClasses.has('is-hidden'), false);
+  assert.equal(headerClasses.has('is-sticky'), true);
+  window.innerWidth = 768; window.scrollY = 11000;
+  api.updateHeaderVisibility();
+  assert.equal(headerClasses.has('is-hidden'), false);
+  window.innerWidth = 1440; window.scrollY = 12000;
+  api.updateHeaderVisibility();
+  assert.equal(headerClasses.has('is-hidden'), true);
+  window.scrollY = 11900;
+  api.updateHeaderVisibility();
+  assert.equal(headerClasses.has('is-hidden'), false);
+});
+
+test('mobile menu restores after reflow without overriding a new anchor destination', () => {
+  const frames = [], positions = [], rootClasses = new Set();
+  const nodes = {
+    '#mainNav': { classList: { remove() {}, contains: () => false } },
+    '#menuToggle': { setAttribute() {} },
+  };
+  const style = { removeProperty() {} };
+  const window = { location: { href: 'https://example.test/properties' }, scrollTo: value => positions.push(value.top), requestAnimationFrame: fn => frames.push(fn) };
+  const bindings = { $: key => nodes[key], window,
+    document: { body: { style, offsetHeight: 12000, classList: { remove() {} } }, documentElement: { style, classList: { remove: key => rootClasses.delete(key) } } },
+    mobileNavScrollState: { x: 0, y: 9936 }, mobileNavRestoreVersion: 0, lastScrollY: 0,
+  };
+  rootClasses.add('public-nav-scroll-lock');
+  const api = runtime(['closeMobileNav'], bindings);
+  api.closeMobileNav();
+  assert.deepEqual(positions, [9936]);
+  frames.shift()();
+  assert.deepEqual(positions, [9936, 9936]);
+  frames.shift()();
+  assert.equal(rootClasses.has('public-nav-scroll-lock'), false);
+
+  bindings.mobileNavScrollState = { x: 0, y: 1500 };
+  api.closeMobileNav();
+  window.location.href += '#contact';
+  frames.shift()();
+  frames.shift()();
+  assert.deepEqual(positions, [9936, 9936, 1500]);
 });
 
 test('image fallback repairs early failures, preserves loaded photos and never loops', () => {

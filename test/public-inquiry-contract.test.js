@@ -68,10 +68,23 @@ test("server rejects incompatible presale and rental intent and validates only t
   assert.equal((await h.post(body({ contactChannel: "sms" }))).status, 400);
   assert.equal((await h.post(body({ email: "invalid" }))).status, 400);
   assert.equal((await h.post(body({ consent: false }))).status, 400);
+  assert.equal((await h.post(body({ consent: undefined }))).status, 400);
   assert.equal((await h.post(body({ budget: 100000, currency: "MXN", priceMode: "public-usd" }))).status, 400);
   const phone = await h.post(body({ contactChannel: "whatsapp", phone: "9982166563", email: "invalid inactive field" }));
   assert.equal(phone.status, 201, phone.data.error);
   const stored = [...h.records.values()][0]; assert.equal(stored.phone, "529982166563"); assert.equal(stored.email, ""); assert.equal(stored.payload.country, "MX");
+});
+
+test("editing a USD search budget into MXN preserves original criteria without reinterpreting its lower bound", async t => {
+  const h = await createHarness(); t.after(h.close);
+  const filters = { entity: "properties", operation: "sale", currency: "USD", priceMode: "public-usd", min: 500000, max: 1000000, locations: ["puerto-cancun"] };
+  const response = await h.post(body({ searchFilters: filters, budget: 19000000, currency: "MXN", priceMode: "" }));
+  assert.equal(response.status, 201, response.data.error);
+  const saved = h.records.get(response.data.id).payload;
+  assert.equal(saved.budget, 19000000); assert.equal(saved.currency, "MXN");
+  assert.equal(saved.searchFilters.currency, "MXN"); assert.equal(saved.searchFilters.priceMode, undefined);
+  assert.equal(saved.searchFilters.min, null); assert.equal(saved.searchFilters.max, 19000000);
+  assert.equal(saved.originalSearchFilters.min, 500000); assert.equal(saved.originalSearchFilters.currency, "USD");
 });
 
 test("visits accept an optional date and rental requests never invent the unknown listing period", async t => {

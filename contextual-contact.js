@@ -30,6 +30,30 @@
   function getOptions() {
     return optionsRequest ||= fetch("/api/inquiries/options").then(r => { if (!r.ok) throw Error(); return r.json(); }).catch(error => { optionsRequest=null; throw error; });
   }
+  async function publicConfig() {
+    try { const response = await fetch("/api/config"); return response.ok ? await response.json() : {}; } catch { return {}; }
+  }
+  function directOfficeLinks(context, config) {
+    const name = context.propertyTitle || context.development || context.project;
+    const lines = [name ? tr("Hola, quisiera información sobre ", "Hello, I would like information about ") + name + "." : tr("Hola, quisiera información sobre propiedades en Cancún.", "Hello, I would like information about properties in Cancun.")];
+    if (context.mls) lines.push("MLS: " + context.mls);
+    if (context.reference && context.reference !== context.mls) lines.push(tr("Referencia: ", "Reference: ") + context.reference);
+    if (context.zone) lines.push(tr("Zona: ", "Zone: ") + context.zone);
+    const path = /^\/(?![\\/])/.test(context.sourcePath || "") ? context.sourcePath : location.pathname + location.search;
+    lines.push(new URL(path, config.publicSiteUrl || location.origin).href);
+    const contacts = window.PccContacts;
+    if (!contacts?.contacts?.length) return "";
+    return '<div class="inquiry-direct-offices" aria-label="'+tr("Consultar por WhatsApp", "Request information on WhatsApp")+'">' + contacts.contacts.map(office => '<a class="office-inquiry-button" href="'+escape(contacts.whatsappUrl(office.id, lines.join("\n")))+'" target="_blank" rel="noopener noreferrer"><span>WhatsApp '+tr(office.label,office.labelEn)+'</span><small>'+escape(office.display)+'</small></a>').join("")+'</div>';
+  }
+  function convertedBudget(amount, from, to, snapshot) {
+    const value = Number(amount), rate = window.PccPublicPricing?.usableRate(snapshot);
+    if (!(value > 0 && Number.isFinite(value)) || !rate || ![from,to].every(code => ["USD","MXN"].includes(code))) return null;
+    const converted = from === to ? value : from === "USD" ? value * rate.rate : value / rate.rate;
+    // Round only the visitor's converted budget upward to three significant digits.
+    const step = Math.max(1, 10 ** (Math.floor(Math.log10(converted)) - 2));
+    const amountRounded = from === to ? value : Math.ceil(converted / step - 1e-10) * step;
+    return amountRounded <= 1e13 ? { amount: amountRounded, rate } : null;
+  }
   function countryList({countries,featuredCountry}) {
     const names = new Intl.DisplayNames([lang()],{type:"region"}), label = c => names.of(c.country) + " (" + c.prefix + ")";
     const preferred = [...new Set(["MX","US","CA",featuredCountry])];
@@ -68,12 +92,12 @@
     dialog.querySelector("[data-inquiry-close]").onclick=()=>dialog.close();
     dialog.showModal();
     fitInquiryViewport();
-    let opts, context;
+    let opts, context, config;
     try {
       const params=new URLSearchParams({lang:lang()});
       for (const name of ["propertyId","developmentId","reference","project","development","intent","origin","service"]) if(values[name]) params.set(name,values[name]);
       if(values.searchFilters) params.set("searchFilters",JSON.stringify(values.searchFilters));
-      [opts,context]=await Promise.all([getOptions(),fetch("/api/inquiries/context?"+params).then(async r=>{const result=await r.json();if(!r.ok)throw Error(result.error || tr("No pudimos identificar la publicación.","We could not identify the listing."));return result;})]);
+      [opts,context,config]=await Promise.all([getOptions(),fetch("/api/inquiries/context?"+params).then(async r=>{const result=await r.json();if(!r.ok)throw Error(result.error || tr("No pudimos identificar la publicación.","We could not identify the listing."));return result;}),publicConfig()]);
     } catch(error) {
       if(dialog.open&&generation===openGeneration) {
         const holder=dialog.querySelector(".inquiry-scroll"); holder.innerHTML='<p role="alert">'+escape(error.message || tr("No se pudo cargar el formulario.","The form could not be loaded."))+'</p><button class="primary-button" data-retry>'+tr("Reintentar","Retry")+'</button>';
@@ -96,10 +120,12 @@
     const summary=contextSummary(context, values);
     const owner=["sell","let"].includes(fixed);
     const typeSelect='<select name="propertyType">' + option("",tr("Por definir","Not decided")) + Object.entries(types).map(([es,en])=>option(es,tr(es,en))).join("") + '</select>';
-    const contextFields = !known && !watch || owner
+    // A zone inquiry already carries its scope. Do not guess an apartment type
+    // or ask the visitor to re-enter it; owners still describe their own listing.
+    const contextFields = !known && !watch && (!fixed || !current.zone) || owner
       ? row(tr("Tipo de propiedad","Property type"),"propertyType",typeSelect) + (owner&&context.zone ? "" : row(owner?tr("Zona aproximada","Approximate zone"):tr("Zona o destino (opcional)","Zone or destination (optional)"),"zone"))
       : "";
-    const budget = row(tr("Presupuesto USD (opcional)","Budget USD (optional)"),"budget",'<input name="budget" type="number" min="0.01" max="10000000000000" step="any" inputmode="decimal">');
+    const budget = '<div class="inquiry-budget">'+row(tr("Presupuesto (opcional)","Budget (optional)"),"budget",'<input name="budget" type="number" min="0.01" max="10000000000000" step="any" inputmode="decimal">')+row(tr("Moneda","Currency"),"currency",'<select name="currency">'+option("USD","USD")+option("MXN","MXN")+'</select>')+'</div><p class="inquiry-budget-note" data-budget-conversion role="status"></p>';
     const optional = '<details class="inquiry-optional"><summary>'+tr("Añadir detalles (opcional)","Add details (optional)")+'</summary><div class="inquiry-optional-body">'
       + row(tr("Nombre (opcional)","Name (optional)"),"name",'<input name="name" maxlength="110" autocomplete="given-name">')
       + (!owner && !watch && (!known || context.project) ? budget : "")
@@ -108,6 +134,8 @@
       + row(tr("Comentario (opcional)","Note (optional)"),"preferences",'<textarea name="preferences" rows="2" maxlength="1200"></textarea>')+'</div></details>';
     dialog.querySelector(".inquiry-scroll").innerHTML='<form><section data-inquiry-fields>'
       + (summary.length?'<p class="inquiry-context"><strong>'+escape(summary[0])+'</strong>'+(summary.length>1?'<span>'+summary.slice(1).map(escape).join(" · ")+'</span>':"")+'</p>':"")
+      + directOfficeLinks(current, config)
+      + '<p class="inquiry-reply-label">'+tr("O recibe la información por el medio que prefieras:","Or receive information through your preferred channel:")+'</p>'
       + (values.office?'<p class="inquiry-office">'+tr("Oficina: ","Office: ")+ (values.office==="us"?tr("Estados Unidos","United States"):tr("México","Mexico"))+'</p>':"")
       + (fixed?hidden("intent",fixed):row(tr("Quiero","I want to"),"intent",'<select name="intent" required>'+option("",tr("Elige una opción","Choose an option"))+context.allowedIntents.map(k=>option(k,tr(...intents[k]))).join("")+'</select>'))
       + contactControls()
@@ -115,9 +143,9 @@
       + (visit?row(tr("Fecha y hora preferidas (opcional, hora de Cancún)","Preferred date and time (optional, Cancun time)"),"visitPreferredAt",'<input name="visitPreferredAt" type="datetime-local">')+'<p>'+tr("El equipo coordinará contigo la disponibilidad; aún no es una visita confirmada.","Our team will coordinate availability with you; this is not a confirmed appointment.")+'</p>':"")
       + (watch?'<p>'+tr("Conservaremos los filtros exactos de esta búsqueda.","We will keep the exact filters of this search.")+'</p><p data-alert-status></p><label class="inquiry-consent" data-alert-option hidden><input name="alertConsent" type="checkbox"><span>'+tr("Quiero avisos de nuevas coincidencias por el canal elegido. Podré cancelarlos desde cada aviso.","Send new-match alerts through my chosen channel. I can unsubscribe from each alert.")+'</span></label>':"")
       + optional
-      + '<label class="inquiry-consent"><input name="consent" type="checkbox" required><span>'+tr("Acepto que el equipo me contacte según el","I agree to be contacted under the")+' <a href="'+tr("/aviso-de-privacidad","/en/privacy-notice")+'" target="_blank" rel="noopener">'+tr("aviso de privacidad","privacy notice")+'</a>.</span></label>'
+      + '<p class="inquiry-data-use" id="inquiryDataUse">'+tr("Usaremos tus datos para responder esta solicitud. Al enviarla, solicitas una respuesta por el medio elegido.","We will use your details to respond to this request. By sending it, you request a reply through your chosen channel.")+' <a href="'+tr("/aviso-de-privacidad","/en/privacy-notice")+'" target="_blank" rel="noopener">'+tr("Aviso de privacidad","Privacy notice")+'</a>.</p>'
       + '<label class="form-honeypot" aria-hidden="true"><input name="website" tabindex="-1" autocomplete="off"></label>'
-      + '<button class="primary-button inquiry-submit" type="submit">'+tr("Enviar solicitud","Send inquiry")+'</button></section><section data-inquiry-success hidden tabindex="-1"><h3>'+tr("Solicitud recibida","Inquiry received")+'</h3><p data-success-message></p><a class="primary-button" data-inquiry-whatsapp target="_blank" rel="noopener noreferrer" hidden>'+tr("Abrir WhatsApp (opcional)","Open WhatsApp (optional)")+'</a><button type="button" class="ghost-button" data-inquiry-done>'+tr("Volver a la página","Return to the page")+'</button></section><p class="inquiry-status" role="status" aria-live="polite"></p></form>';
+      + '<button class="primary-button inquiry-submit" type="submit" aria-describedby="inquiryDataUse">'+tr("Enviar solicitud","Send inquiry")+'</button></section><section data-inquiry-success hidden tabindex="-1"><h3>'+tr("Solicitud recibida","Inquiry received")+'</h3><p data-success-message></p><a class="primary-button" data-inquiry-whatsapp target="_blank" rel="noopener noreferrer" hidden>'+tr("Abrir WhatsApp (opcional)","Open WhatsApp (optional)")+'</a><button type="button" class="ghost-button" data-inquiry-done>'+tr("Volver a la página","Return to the page")+'</button></section><p class="inquiry-status" role="status" aria-live="polite"></p></form>';
     const form=dialog.querySelector("form"), notice=form.querySelector(".inquiry-status");
     form.elements.country.innerHTML=countryList(opts);
     for(const [name,value] of Object.entries(replay)) {
@@ -127,6 +155,10 @@
     form.elements.country.value=opts.countries.some(c=>c.country===replay.country)?replay.country:"MX";
     if(!["email","whatsapp"].includes(form.elements.contactChannel.value))form.elements.contactChannel.value="whatsapp";
     if(!fixed&&replay.intent&&context.allowedIntents.includes(replay.intent))form.elements.intent.value=replay.intent;
+    if(form.elements.currency&&!['USD','MXN'].includes(form.elements.currency.value))form.elements.currency.value="USD";
+    if(form.elements.currency&&!previous&&!budgetEdited)form.elements.currency.value="USD";
+    let budgetCurrency=form.elements.currency?.value || "USD";
+    let budgetBase=previous?.budgetBase || { amount:form.elements.budget?.value || "", currency:budgetCurrency };
     const update=()=>{
       updateChannel(form);
       const isOwner=["sell","let"].includes(form.elements.intent.value);
@@ -140,18 +172,34 @@
       }
     };
     const remember=event=>{
-      if(event?.target?.name==="budget")budgetEdited=true;
-      const data=Object.fromEntries(new FormData(form)); data.consent=form.elements.consent.checked;
-      drafts.set(returnKey,{id:requestId,started,values:data,budgetEdited});
+      if(event?.target?.name==="budget") { budgetEdited=true; budgetBase={amount:form.elements.budget.value,currency:budgetCurrency}; }
+      const data=Object.fromEntries(new FormData(form));
+      drafts.set(returnKey,{id:requestId,started,values:data,budgetEdited,budgetBase});
       try { sessionStorage.setItem(key,JSON.stringify(Object.fromEntries(["name","country","phone","email","contactChannel"].map(k=>[k,form.elements[k]?.value || ""])))); } catch {}
     };
-    update(); form.onchange=event=>{update();remember(event);};form.oninput=remember;
+    update(); form.onchange=event=>{
+      if(event.target.name==="currency") {
+        const next=event.target.value, note=form.querySelector('[data-budget-conversion]');
+        if(form.elements.budget.value) {
+          const converted=convertedBudget(budgetBase.amount,budgetBase.currency,next,config.currencyExchange);
+          if(!converted) { event.target.value=budgetCurrency;note.textContent=tr("No hay una cotización vigente disponible. Conservamos el importe y su moneda.","A current exchange rate is unavailable. Your amount and currency are unchanged.");return; }
+          form.elements.budget.value=String(converted.amount);budgetEdited=true;
+          const rateDate=new Date(converted.rate.date+'T12:00:00Z').toLocaleDateString(lang()==='en'?'en-US':'es-MX');
+          note.textContent=tr("Presupuesto aproximado, redondeado hacia arriba. Tipo de cambio: ","Approximate budget, rounded up. Exchange rate: ")+rateDate+" · 1 USD = "+converted.rate.rate+" MXN.";
+        } else { budgetBase={amount:"",currency:next};note.textContent=""; }
+        budgetCurrency=next;
+      }
+      update();remember(event);
+    };form.oninput=remember;
     form.querySelector("[data-inquiry-done]").onclick=()=>dialog.close();
     form.onsubmit=async event=>{
       event.preventDefault();if(!form.reportValidity())return;
       const button=form.querySelector('[type="submit"]');button.disabled=true;notice.textContent=tr("Enviando…","Sending…");
       const entered=Object.fromEntries(new FormData(form));
-      const body={...current,...entered,intent:fixed || entered.intent,lang:lang(),requestId,formStartedAt:started,consent:form.elements.consent.checked,currency:"USD",priceMode:"public-usd"};
+      // Sending this response request is the explicit contact permission described
+      // beside the button. It never reads cookie consent or opts into alerts.
+      const currency=form.elements.currency?.value || "USD";
+      const body={...current,...entered,intent:fixed || entered.intent,lang:lang(),requestId,formStartedAt:started,consent:true,currency,priceMode:currency==="USD"?"public-usd":""};
       delete body.allowedIntents;delete body.fixedIntent;delete body.entity;delete body.address;
       // Known IDs and context cannot be reassigned by editing optional fields.
       if(known&&!owner)for(const name of ["propertyId","propertyTitle","mls","developmentId","development","reference","zone","subzone","propertyType","project","rentPeriod"]) body[name]=context[name] || "";
