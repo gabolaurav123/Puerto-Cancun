@@ -243,6 +243,24 @@ contractTest("text search folds accents, combines terms and includes linked deve
   assert.deepEqual(ids(api.queryInventory([row], { zone: "  PUERTO CANCUN " })), [row.id]);
 });
 
+contractTest("public search tolerates word order, small typos and bilingual features without relaxing filters", (api) => {
+  const row = property({id:"hotel",type:"Departamento",titleEs:"Residencial Jardín",zone:"Zona Hotelera",portalAreaId:"zona-hotelera",amenities:["Alberca","Gimnasio"],descriptionEs:"Departamento con terraza y espacios amplios."});
+  const rows = [row,property({id:"other-zone",type:"Departamento",titleEs:"Residencial Jardín",amenities:["Alberca"]})];
+  for (const q of ["hotelra jardin", "alberca hotelera departamento", "apartment pool hotel zone", "quiero un departamneto en la zona hotelera"]) {
+    assert.deepEqual(ids(api.queryInventory(rows,{q})),[row.id],q);
+  }
+  assert.equal(api.queryInventory(rows,{q:"alberca hotelera",type:"Casa"}).total,0);
+  assert.equal(api.queryInventory(rows,{q:"alberca hotelera",location:"puerto-cancun"}).total,0);
+  for (const bounds of [{max:449999},{min:450001}]) {
+    const result = api.queryInventory(rows,{q:"alberca hotelera",operation:"sale",currency:"USD",...bounds});
+    assert.deepEqual(plain(result.errors),[]);
+    assert.equal(result.total,0);
+  }
+  assert.deepEqual(ids(api.queryInventory(rows,{q:"hotelra pool",operation:"sale",currency:"USD",min:450000,max:450000})),[row.id]);
+  assert.equal(api.queryInventory(rows,{q:"jardin caracteristicainexistente"}).total,0);
+  assert.equal(api.queryInventory([property({mls:"L8556"})],{q:"L8557"}).total,0);
+});
+
 contractTest("exact MLS collisions stay separate and rank before substring/title matches", (api) => {
   const rows = [
     property({ id: "fixture-1707-a", mls: "1707", titleEs: "Penthouse de prueba", zone: "Punta Sam", source: "fixture-A" }),
@@ -258,6 +276,18 @@ contractTest("exact MLS collisions stay separate and rank before substring/title
   const report = api.reconcile(rows.slice(0, 4));
   for (const record of report.records.slice(0, 2)) assert.deepEqual(Array.from(record.duplicateMlsIds).sort(), ["fixture-1707-a", "fixture-1707-b"]);
   assert.deepEqual(plain(report.records[2].duplicateMlsIds), []);
+});
+
+contractTest("four-letter project typos find the published Riva title without weakening other criteria", (api) => {
+  // Public Riva identity from the inventory snapshot; no server or database access.
+  const riva = development({id:"prop-xlsx-6954138fa174d915e2b09278",titleEs:"Riva Puerto Cancún",titleEn:"Riva Puerto Cancún",zone:"Puerto Cancún",portalAreaId:"puerto-cancun"});
+  const other = development({id:"other",titleEs:"Thompson Private Residences",portalAreaId:"puerto-cancun"});
+  assert.deepEqual(ids(api.queryInventory([riva,other],{q:"puerto cancun riba",entity:"developments",sort:"featured"})),[riva.id]);
+  assert.equal(api.queryInventory([riva,other],{q:"riba cancun inexistente",entity:"developments"}).total,0);
+  assert.equal(api.queryInventory([riva],{q:"riba puerto cancun",entity:"developments",location:"zona-hotelera"}).total,0);
+  assert.equal(api.queryInventory([riva],{q:"ribo",entity:"developments"}).total,0);
+  assert.equal(api.queryInventory([property({titleEs:"Vista al mar",mls:"RIBA"})],{q:"riva"}).total,0);
+  assert.equal(api.queryInventory([property({amenities:["Alberca"]})],{q:"pood"}).total,0);
 });
 
 contractTest("budget bounds are inclusive and compare only one currency, operation and price basis", (api) => {

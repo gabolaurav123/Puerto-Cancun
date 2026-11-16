@@ -277,6 +277,8 @@ function renderDevelopmentPropertyLinker() {
 
 const googleMapInstances = new WeakMap();
 let lastScrollY = 0;
+let mobileNavScrollState = null;
+let mobileNavRestoreVersion = 0;
 let adminListingSearchTimer = 0;
 let externalPropertySearchTimer = 0;
 let listingDraftTimer = 0;
@@ -1505,7 +1507,7 @@ function localizedTitle(property) {
 function localizedDescription(property) {
   if (state.lang === "en") {
     return String(property.descriptionEn || "").trim()
-      || "Request the complete English property description and current availability from a Puerto Cancun Center advisor.";
+      || "Request the full English property description and current availability.";
   }
   return property.descriptionEs || property.description || "";
 }
@@ -1693,7 +1695,7 @@ function categoryTitle() {
   if (state.filters.type === "Terreno") return state.lang === "en" ? "Land in Cancun" : "Terrenos en Cancún";
   if (state.filters.type === "Comercial") return state.lang === "en" ? "Commercial properties in Cancun" : "Propiedades comerciales en Cancún";
   if (state.filters.type === "Preventa") return state.lang === "en" ? "Presales in Cancun" : "Preventas en Cancún";
-  if (state.filters.type === "Desarrollo") return state.lang === "en" ? "Developments in Cancun" : "Desarrollos en Cancún";
+  if (state.filters.type === "Desarrollo") return state.lang === "en" ? "Communities in Cancun" : "Desarrollos en Cancún";
   if (state.filters.operation === "rent") return state.lang === "en" ? "Cancun rentals" : "Propiedades en renta en Cancún";
   if (state.filters.operation === "sale") return state.lang === "en" ? "Properties for sale in Cancun" : "Propiedades en venta en Cancun";
   if (state.filters.zone) return state.lang === "en" ? `Properties in ${state.filters.zone}` : `Propiedades en ${state.filters.zone}`;
@@ -1708,12 +1710,12 @@ function categoryIntro() {
   }
   if (state.filters.type === "Preventa") {
     return state.lang === "en"
-      ? "Presale opportunities with curated developments, payment plans, delivery context, and advisor follow-up."
+      ? "Presale communities with payment plans and delivery information."
       : "Consulta los planes de pago y las fechas de entrega de los desarrollos en preventa.";
   }
   if (state.filters.type) {
     return state.lang === "en"
-      ? `Available ${displayType(state.filters.type).toLowerCase()} with current prices, zone details, images, and direct advisor contact.`
+      ? `Available ${displayType(state.filters.type).toLowerCase()} with current prices, zone details, images, and direct contact.`
       : "Consulta el precio, la superficie y las fotos de cada inmueble, o contacta a un asesor.";
   }
   if (state.filters.zone) {
@@ -2901,9 +2903,9 @@ function openSellerFlow(flow) {
   form.elements.zone.required = flow !== "advice";
   form.elements.comments.required = flow === "advice";
   const config = (state.lang === "en" ? {
-    valuation: ["Request a valuation", "Tell us the neighbourhood. An advisor will follow up using the contact details in your account.", "Your estimated price"],
-    price_validation: ["Review my price", "An advisor will compare your estimate with similar listings.", "Your estimated price"],
-    advice: ["Ask an advisor", "Tell us your question and include any property details that will help your advisor.", ""],
+    valuation: ["Request a valuation", "Tell us the neighbourhood. We will reply using the contact details in your account.", "Your estimated price"],
+    price_validation: ["Review my price", "We will compare your estimate with similar listings.", "Your estimated price"],
+    advice: ["Ask a question", "Tell us your question and include any relevant property details.", ""],
   } : {
     valuation: ["Solicitar valoración", "Indica la zona. Un asesor te responderá por el medio de contacto de tu cuenta.", "Tu precio estimado"],
     price_validation: ["Validar precio con asesor", "Revisaremos si tu precio parece bajo, competitivo o alto frente al inventario interno.", "Precio que quieres validar"],
@@ -8614,11 +8616,15 @@ function observePublicHeaderHeight() {
 function updateHeaderVisibility() {
   const header = $("#mainHeader");
   if (!header || document.body.classList.contains("panel-open")) return;
+  if ($("#mainNav").classList.contains("open")) {
+    header.classList.remove("is-hidden");
+    return;
+  }
   const current = window.scrollY || 0;
   const atTop = current < 24;
   const scrollingDown = current > lastScrollY;
   header.classList.toggle("is-sticky", !atTop);
-  header.classList.toggle("is-hidden", !atTop && scrollingDown && current > 220 && !$("#mainNav").classList.contains("open") && !$("#mainNav details[open]"));
+  header.classList.toggle("is-hidden", window.innerWidth > 1180 && !atTop && scrollingDown && current > 220 && !$("#mainNav").classList.contains("open") && !$("#mainNav details[open]"));
   document.body.classList.toggle("at-top", atTop);
   lastScrollY = current;
 }
@@ -11291,10 +11297,60 @@ function openGeneralWhatsApp(event) {
   window.PccInquiry?.open({ origin: "general-contact" }, event?.currentTarget);
 }
 
+function syncMobileNavViewport() {
+  if (!$("#mainNav").classList.contains("open")) return;
+  if (window.innerWidth > 1180) {
+    closeMobileNav();
+    return;
+  }
+  const viewport = window.visualViewport;
+  document.documentElement.style.setProperty("--public-nav-viewport-height", `${viewport?.height || window.innerHeight}px`);
+  document.documentElement.style.setProperty("--public-nav-viewport-top", `${viewport?.offsetTop || 0}px`);
+}
+
+function openMobileNav() {
+  if (window.innerWidth > 1180 || $("#mainNav").classList.contains("open")) return;
+  mobileNavRestoreVersion += 1;
+  mobileNavScrollState = { x: window.scrollX || 0, y: window.scrollY || 0 };
+  document.body.style.setProperty("--public-nav-scroll-offset", `${-mobileNavScrollState.y}px`);
+  document.body.style.setProperty("--public-nav-page-width", `${document.documentElement.clientWidth || window.innerWidth}px`);
+  document.documentElement.classList?.add("public-nav-scroll-lock");
+  document.body.classList.add("public-nav-open");
+  $("#mainHeader").classList.remove("is-hidden");
+  $("#mainNav").classList.add("open");
+  $("#mainNav").scrollTop = 0;
+  $("#menuToggle").setAttribute("aria-expanded", "true");
+  syncMobileNavViewport();
+}
+
 function closeMobileNav() {
   $("#mainNav").classList.remove("open");
   $("#mainNav").querySelectorAll?.(".public-nav-group[open]").forEach((group) => { group.open = false; });
   $("#menuToggle")?.setAttribute("aria-expanded", "false");
+  document.body.classList.remove("public-nav-open");
+  document.body.style.removeProperty("--public-nav-scroll-offset");
+  document.body.style.removeProperty("--public-nav-page-width");
+  document.documentElement.style.removeProperty("--public-nav-viewport-height");
+  document.documentElement.style.removeProperty("--public-nav-viewport-top");
+  if (mobileNavScrollState) {
+    const previous = mobileNavScrollState;
+    mobileNavScrollState = null;
+    lastScrollY = previous.y;
+    const version = ++mobileNavRestoreVersion;
+    const returnHref = window.location?.href;
+    const restore = () => window.scrollTo({ left: previous.x, top: previous.y, behavior: "instant" });
+    const unlock = () => { if (version === mobileNavRestoreVersion) document.documentElement.classList?.remove("public-nav-scroll-lock"); };
+    // Reflow the unlocked body before restoring, then settle one frame later.
+    // A link navigation or a newly opened menu must retain its own destination.
+    void document.body.offsetHeight;
+    restore();
+    if (window.requestAnimationFrame) window.requestAnimationFrame(() => {
+      if (version !== mobileNavRestoreVersion || $("#mainNav").classList.contains("open")) return;
+      if (window.location?.href === returnHref) restore();
+      window.requestAnimationFrame(unlock);
+    });
+    else unlock();
+  }
 }
 
 async function handleSellEntry(event) {
@@ -11517,11 +11573,17 @@ function bindEvents() {
   $("#panelLanguageToggle")?.addEventListener("click", toggleLanguage);
 
   $("#menuToggle").addEventListener("click", () => {
-    const open = $("#mainNav").classList.toggle("open");
-    $("#menuToggle").setAttribute("aria-expanded", String(open));
-    if (!open) closeMobileNav();
+    if ($("#mainNav").classList.contains("open")) closeMobileNav();
+    else openMobileNav();
     updateHeaderVisibility();
   });
+  $("#mainHeader").addEventListener("click", (event) => {
+    if (event.target.closest?.("a[href]") && $("#mainNav").classList.contains("open")) closeMobileNav();
+  });
+  window.addEventListener("resize", syncMobileNavViewport, { passive: true });
+  window.visualViewport?.addEventListener("resize", syncMobileNavViewport, { passive: true });
+  window.visualViewport?.addEventListener("scroll", syncMobileNavViewport, { passive: true });
+  window.addEventListener("pagehide", closeMobileNav);
   const collapseNavGroups = () => $$("#mainNav details[open]").forEach((group) => { group.open = false; });
   for (const action of ["pointerdown", "focusin"]) {
     document.addEventListener(action, (event) => {
@@ -11529,6 +11591,17 @@ function bindEvents() {
     });
   }
   $("#mainHeader")?.addEventListener("keydown", (event) => {
+    if (event.key === "Tab" && document.body.classList.contains("public-nav-open")) {
+      const controls = [...$("#mainHeader").querySelectorAll("a[href], button:not([disabled]), summary")]
+        .filter((element) => element.getClientRects().length > 0);
+      const first = controls[0];
+      const last = controls[controls.length - 1];
+      if (event.shiftKey && document.activeElement === first || !event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        (event.shiftKey ? last : first)?.focus({ preventScroll: true });
+      }
+      return;
+    }
     if (event.key !== "Escape") return;
     const group = $("#mainNav details[open]");
     if (group) {
@@ -11538,7 +11611,7 @@ function bindEvents() {
     }
     if (!$("#mainNav").classList.contains("open")) return;
     closeMobileNav();
-    $("#menuToggle").focus();
+    $("#menuToggle").focus({ preventScroll: true });
   });
   $("#propertyGrid")?.addEventListener("click", (event) => {
     if (event.target.closest("[data-retry-inventory]")) void retryPublicInventory();

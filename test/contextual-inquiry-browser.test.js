@@ -39,12 +39,18 @@ test("one-step inquiries preserve channel, context, focus and retry identity in 
     await page.locator("#openInquiry").click(); await field("contactChannel").waitFor();
     assert.equal(await field("contactChannel").inputValue(), "email"); assert.equal(await field("email").inputValue(), `buyer-${lang}-${width}@example.test`);
     assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
-    await field("consent").check();
+    assert.equal(await field("consent").count(), 0);
+    assert.equal(await dialog.locator('.inquiry-direct-offices a').count(), 2);
+    for (const href of await dialog.locator('.inquiry-direct-offices a').evaluateAll(nodes => nodes.map(node => node.href))) {
+      const url = new URL(href); assert.equal(url.hostname, 'wa.me');
+      assert.match(url.searchParams.get('text'), /QA100/); assert.match(url.searchParams.get('text'), /portal\.example\.test/);
+    }
     await page.waitForTimeout(1100);
     const responsePromise = page.waitForResponse(response => response.url().endsWith("/api/inquiries") && response.request().method() === "POST");
     await dialog.locator('[type="submit"]').click();
     const response = await responsePromise; assert.equal(response.status(), 201);
     const submitted = response.request().postDataJSON(); assert.equal(submitted.contactChannel, "email"); assert.equal(submitted.phone, undefined); assert.equal(submitted.country, undefined);
+    assert.equal(submitted.consent, true); assert.equal(submitted.alertConsent, undefined);
     await dialog.locator("[data-inquiry-success]").waitFor({ state: "visible" });
     assert.equal(await dialog.locator("[data-inquiry-success]").evaluate(node => document.activeElement === node), true);
     await dialog.locator("[data-inquiry-done]").click(); assert.equal(page.url(), origin);
@@ -66,9 +72,15 @@ test("one-step inquiries preserve channel, context, focus and retry identity in 
 
   const visit = await open({ propertyId: "fixture-sale", intent: "buy", service: "visit" });
   assert.equal(await visit.locator('[name="visitPreferredAt"]').evaluate(node => node.required), false);
-  await visit.locator('[name="contactChannel"]').selectOption("email"); await visit.locator('[name="email"]').fill("visit@example.test"); await visit.locator('[name="consent"]').check();
+  await visit.locator('[name="contactChannel"]').selectOption("email"); await visit.locator('[name="email"]').fill("visit@example.test");
   await page.waitForTimeout(1100); await visit.locator('[type="submit"]').click(); await visit.locator("[data-inquiry-success]").waitFor({ state: "visible" });
   assert.equal(h.tours.at(-1).preferredDate, null); assert.equal(h.tours.at(-1).preferredTime, null);
+
+  const zoneInquiry = await open({ intent: "buy", zone: "Zona Hotelera", origin: "zone-help" });
+  assert.equal(await zoneInquiry.locator('[name="propertyType"]').count(), 0);
+  assert.equal(await zoneInquiry.locator('[name="zone"]').count(), 0);
+  assert.match(await zoneInquiry.locator('.inquiry-context').innerText(), /Zona Hotelera/);
+  await zoneInquiry.locator('[data-inquiry-close]').click();
 
   const watch = await open({ intent: "buy", service: "search-watch", searchFilters: JSON.stringify({ entity: "properties", operation: "sale", currency: "MXN", max: 20000000 }) });
   await watch.locator('[name="contactChannel"]').selectOption("whatsapp");
@@ -92,7 +104,7 @@ test("one-step inquiries preserve channel, context, focus and retry identity in 
     }
     await legacy.locator('[name="contactChannel"]').selectOption("email");
     await legacy.locator('[name="email"]').fill(edited ? "legacy-edited@example.test" : "legacy-kept@example.test");
-    await legacy.locator('[name="consent"]').check(); await page.waitForTimeout(1100);
+    await page.waitForTimeout(1100);
     const request = page.waitForResponse(r => r.url().endsWith("/api/inquiries") && r.request().method() === "POST");
     await legacy.locator('[type="submit"]').click(); const result = await request; assert.equal(result.status(), 201);
     const body = result.request().postDataJSON(), stored = h.records.get((await result.json()).id).payload;
@@ -114,7 +126,7 @@ test("one-step inquiries preserve channel, context, focus and retry identity in 
   assert.match(await owner.locator(".inquiry-context").innerText(), /Puerto Cancún/);
   await owner.locator('[name="propertyType"]').selectOption("Departamento");
   await owner.locator('[name="contactChannel"]').selectOption("email");
-  await owner.locator('[name="email"]').fill("owner@example.test"); await owner.locator('[name="consent"]').check();
+  await owner.locator('[name="email"]').fill("owner@example.test");
   await page.waitForTimeout(1100); await owner.locator('[type="submit"]').click();
   await owner.locator("[data-inquiry-success]").waitFor({ state: "visible" });
   assert.equal([...h.records.values()].find(row => row.email === "owner@example.test").payload.zone, "Puerto Cancún");
@@ -142,7 +154,7 @@ test("one-step inquiries preserve channel, context, focus and retry identity in 
 
   const retryDialog = await open({ propertyId: "fixture-sale", intent: "buy" });
   await retryDialog.locator('[name="contactChannel"]').selectOption("email");
-  await retryDialog.locator('[name="email"]').fill("lost-response@example.test"); await retryDialog.locator('[name="consent"]').check();
+  await retryDialog.locator('[name="email"]').fill("lost-response@example.test");
   let committed;
   await page.route("**/api/inquiries", async route => {
     const response = await route.fetch(); assert.equal(response.status(), 201); committed = await response.json(); await route.abort("failed");

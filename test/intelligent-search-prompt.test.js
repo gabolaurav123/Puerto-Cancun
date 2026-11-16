@@ -8,7 +8,7 @@ const css = fs.readFileSync(require.resolve('../styles.css'), 'utf8');
 
 test('the home search offers examples of locations, listings and transactions in both languages', () => {
   assert.equal(copy.es.searchPlaceholder, 'Zona, desarrollo, departamento, casa, terreno, renta o preventa');
-  assert.equal(copy.en.searchPlaceholder, 'Zone, development, apartment, house, land, rental or presale');
+  assert.equal(copy.en.searchPlaceholder, 'Zone, community, condo, house, land, rental or presale');
   const input = html.match(/id="searchInput"[^>]*>/)[0];
   assert.ok(input.includes(`aria-label="${copy.es.searchPlaceholder}"`));
   assert.ok(input.includes(`placeholder="${copy.es.searchPlaceholder}"`));

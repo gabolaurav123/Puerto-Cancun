@@ -29,6 +29,21 @@ body[data-page="seo"] .property-page-heading {
 .public-location-section .public-location-canvas { border: 1px solid var(--line); border-radius: 6px; overflow: hidden; }
 .property-page-information :is(h2,h3) { margin-top: 0; }
 .property-page-information p { max-width: 78ch; line-height: 1.7; }
+.property-page-information,
+.property-page-information .property-description-section,
+.property-page-information .property-long-description,
+.property-page-information .property-long-description p { width: 100%; max-width: none; }
+.property-page-information .property-description-section { margin-top: 0; padding-top: 0; }
+.listing-direct-contact { margin: 14px 0; }
+.listing-direct-contact > p { margin: 0 0 8px; font-size: .8rem; line-height: 1.5; }
+.listing-direct-contact .office-inquiry-buttons { width: 100%; }
+.listing-direct-contact .office-inquiry-button { min-width: 0; padding: 10px 8px; }
+.listing-direct-contact [data-contact-number] { font-size: .7rem; overflow-wrap: normal; }
+.development-purpose-actions { margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--line); }
+.development-purpose-actions > p { margin: 0 0 10px; font-size: .85rem; font-weight: 600; }
+.development-purpose-actions > div { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 8px; }
+.development-purpose-actions a { margin: 0; min-width: 0; min-height: 44px; display: flex; align-items: center; justify-content: center; text-align: center; line-height: 1.4; font-size: .78rem; }
+.development-purpose-actions .text-link { padding: 8px 2px; font-weight: 600; }
 .property-lead { margin-top: 28px; padding-block: 24px; border-block: 1px solid var(--line); }
 .property-lead > .property-contact-cta { display: inline-flex; min-height: 48px; white-space: normal; }
 .owner-publishing-options { margin-top: 20px; }

@@ -16261,12 +16261,12 @@ body[data-page="home"] .contact-strip[aria-labelledby="homeContactTitle"] {
   padding: 16px 0;
   border: 0;
   border-radius: 0;
-  background: transparent;
+  background: var(--blue-900);
 }
 body[data-page="home"] .contact-strip #homeContactTitle {
   margin: 0;
   padding: 0;
-  color: var(--blue-900);
+  color: var(--gold-light);
   font-size: 1.2rem;
   line-height: 1.3;
   text-align: left;
@@ -16311,4 +16311,68 @@ body:has(#cookieBanner:not([hidden])) #whatsappButton { display: none !important
   body[data-page="home"] .office-inquiry-buttons { width: 100%; }
   body[data-page="home"] :is(.zones-band, .type-section) { padding-block: 24px; }
   body[data-page="home"] :is(.zones-band, .type-section) .section-heading { gap: 10px; margin-bottom: 14px; }
+}
+
+/* Keep the established office colors with the compact contact layout. */
+body:is([data-page="home"], [data-page="seo"]) .office-inquiry-button {
+  border-color: #28765b;
+  background: #105d45;
+  color: #fff;
+}
+body:is([data-page="home"], [data-page="seo"]) .office-inquiry-button:is(:hover, :focus-visible) {
+  background: #0b4936;
+  color: #fff;
+}
+body:is([data-page="home"], [data-page="seo"]) .office-inquiry-button :is(.office-method, [data-contact-number]) { color: #fff; }
+
+/* An open mobile menu stays in the viewport, independently of page scroll. */
+.menu-close-icon { display: none; }
+html.public-nav-scroll-lock { overflow-anchor: none; scroll-behavior: auto !important; }
+@media (max-width: 1180px) {
+  html:has(body:is([data-page="home"], [data-page="seo"]):not(.panel-open)) { scrollbar-gutter: stable; }
+  body:is([data-page="home"], [data-page="seo"]):not(.panel-open) #mainHeader {
+    transform: none;
+    transition: background 220ms ease, box-shadow 220ms ease;
+  }
+  body.public-nav-open {
+    position: fixed;
+    top: var(--public-nav-scroll-offset, 0px);
+    left: 0;
+    right: auto;
+    width: var(--public-nav-page-width, 100%);
+    overflow: hidden;
+  }
+  body.public-nav-open #mainHeader {
+    position: fixed;
+    top: var(--public-nav-viewport-top, 0px);
+    right: 0;
+    left: 0;
+    z-index: 70;
+    transform: none;
+    filter: none;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    transition: none;
+    background: #032f3a;
+  }
+  body.public-nav-open #mainNav.open {
+    position: fixed;
+    top: calc(var(--public-nav-viewport-top, 0px) + var(--public-header-height, 115px));
+    right: 0;
+    bottom: auto;
+    left: 0;
+    height: calc(var(--public-nav-viewport-height, 100dvh) - var(--public-header-height, 115px));
+    max-height: calc(var(--public-nav-viewport-height, 100dvh) - var(--public-header-height, 115px));
+    min-height: 0;
+    margin: 0;
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+    touch-action: pan-y;
+    padding-bottom: max(24px, env(safe-area-inset-bottom));
+    scroll-padding-block: 12px;
+  }
+  #menuToggle[aria-expanded="true"] > :is(svg, i) { display: none; }
+  #menuToggle[aria-expanded="true"] .menu-close-icon { display: block; font-size: 28px; line-height: 1; }
 }

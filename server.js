@@ -126,6 +126,8 @@ const publicStaticFiles = new Set([
   "/public-pricing.js",
   "/presale-policy.js",
   "/public-listing-details.js",
+  "/verified-development-locations.js",
+  "/verified-development-location-data.js",
   "/contact-config.js",
   "/contextual-contact.js",
   "/contextual-contact.css",
@@ -12337,7 +12339,7 @@ function decoratePublicHtml({ page, seo, pageContent = "", bodyPage = "seo", noi
   html = html.replace(/(contextual-contact\.(?:js|css))\?v=[^"']+/g, `$1?v=${assetVersion}`);
   html = html.replace(/(advisor-widget\.(?:js|css))\?v=[^"']+/g, `$1?v=${assetVersion}`);
   html = html.replace(/(public-pricing\.js|presale-policy\.js)\?v=[^"']+/g, `$1?v=${assetVersion}`);
-  html = html.replace(/public-listing-details\.js\?v=[^"']+/g, `public-listing-details.js?v=${assetVersion}`);
+  html = html.replace(/(public-listing-details\.js|verified-development-locations\.js|verified-development-location-data\.js)\?v=[^"']+/g, `$1?v=${assetVersion}`);
   html = html.replace(/styles\.css\?v=[^"']+/g, `styles.css?v=${assetVersion}`);
   html = html.replace(/site-language\.js\?v=[^"']+/g, `site-language.js?v=${assetVersion}`);
   html = html.replace(/app\.js\?v=[^"']+/g, `app.js?v=${assetVersion}`);

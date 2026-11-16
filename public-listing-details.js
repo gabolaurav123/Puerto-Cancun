@@ -1,8 +1,10 @@
 (function (root, factory) {
-  const api = factory(typeof module === "object" && module.exports ? require("./inventory-contract") : root.PccInventory);
+  const node = typeof module === "object" && module.exports;
+  const api = factory(node ? require("./inventory-contract") : root.PccInventory,
+    node ? require("./verified-development-locations") : root.PccVerifiedDevelopmentLocations);
   if (typeof module === "object" && module.exports) module.exports = api;
   else root.PccPublicListingDetails = api;
-})(typeof globalThis !== "undefined" ? globalThis : this, function (inventory) {
+})(typeof globalThis !== "undefined" ? globalThis : this, function (inventory, verifiedDevelopmentLocations) {
 "use strict";
 
 function safePublicImages(property) {
@@ -127,17 +129,33 @@ function linkedPublicDevelopment(property, properties) {
   }) || null;
 }
 
-/** Resolve a display-only public location. This never changes inventory or supplies missing coordinates. */
+/** Resolve a display-only public location. Verified community references never change inventory or unit precision. */
 function resolvePublicLocation(property = {}, { lang = "es", directory = {}, properties = [] } = {}) {
   const english = lang === "en", t = (es, en) => english ? en : es;
   const entity = inventory.entityOf(property);
-  const heading = entity === "developments" ? t("Ubicación del desarrollo", "Development location") : t("Ubicación de la propiedad", "Property location");
+  const heading = entity === "developments" ? t("Ubicación del desarrollo", "Community location") : t("Ubicación de la propiedad", "Property location");
   const declaredPrecision = locationPrecisionOf(property);
   const names = locationNames(property, directory, lang);
-  const result = { entity, heading, compact: names.compact, declaredPrecision, precision: "unavailable", address: "", latitude: null, longitude: null, geocodeQuery: "", coordinateSource: "none", sourceId: "", sourceName: "", notice: "", evidenceLabel: "" };
+  const result = { entity, heading, compact: names.compact, declaredPrecision, precision: "unavailable", address: "", latitude: null, longitude: null, geocodeQuery: "", coordinateSource: "none", sourceId: "", sourceName: "", sourceUrl: "", locationScope: "", notice: "", evidenceLabel: "" };
   if (declaredPrecision === "hidden") return { ...result, precision: "hidden", notice: t("Consulta la ubicación con nuestro equipo.", "Ask our team about the location."), evidenceLabel: t("Ubicación reservada", "Location withheld") };
   let point = publicCoordinatePair(property), source = property;
-  if (!point) {
+  if (entity === "developments" && !(point && declaredPrecision === "exact")) {
+    const verified = verifiedDevelopmentLocations?.find(property);
+    if (verified) {
+      const scope = verified.kind;
+      return { ...result, precision: "exact", address: verified.address, latitude: verified.latitude, longitude: verified.longitude,
+        coordinateSource: "verified-development", sourceId: verified.id, sourceName: verified.title, sourceUrl: verified.sourceUrl, locationScope: scope,
+        heading: scope === "community" ? t("Ubicación de la comunidad", "Community location") : heading,
+        evidenceLabel: scope === "building" ? t("Ubicación verificada del edificio", "Verified building location")
+          : scope === "community" ? t("Ubicación verificada de la comunidad", "Verified community location") : t("Ubicación verificada del conjunto", "Verified complex location"),
+        notice: scope === "building" ? t("El mapa identifica el edificio, no una unidad específica.", "The map identifies the building, not an individual unit.")
+          : scope === "community" ? t("El mapa identifica la comunidad, no un edificio o una unidad específica.", "The map identifies the community, not a particular building or unit.")
+            : t("El mapa identifica el conjunto, no una unidad específica.", "The map identifies the complex, not an individual unit.") };
+    }
+    // An approximate stored point or a geocoded zone center is not evidence of a community's location.
+    point = null;
+  }
+  if (!point && entity !== "developments") {
     const parent = linkedPublicDevelopment(property, properties);
     if (parent && publicCoordinatePair(parent)) { source = parent; point = publicCoordinatePair(parent); }
   }
@@ -150,23 +168,27 @@ function resolvePublicLocation(property = {}, { lang = "es", directory = {}, pro
     result.sourceId = source.id || "";
     if (source !== property) {
       result.sourceName = locationText(source[english ? "titleEn" : "titleEs"] || source.titleEs || source.titleEn);
-      result.notice = t("Referencia del desarrollo vinculado", "Linked development reference") + (result.sourceName ? `: ${result.sourceName}.` : ".");
+      result.notice = t("Referencia del desarrollo vinculado", "Linked community reference") + (result.sourceName ? `: ${result.sourceName}.` : ".");
       if (!result.compact) result.compact = locationNames(source, directory, lang).compact;
     }
     if (exact) result.address = locationText(source.address);
-  } else if (names.geocodeQuery) {
+  } else if (names.geocodeQuery && entity !== "developments") {
     result.precision = "approximate";
     result.coordinateSource = "zone";
     result.geocodeQuery = names.geocodeQuery;
   }
   if (result.precision === "exact") {
-    result.evidenceLabel = result.coordinateSource === "development" ? t("Ubicación exacta del desarrollo vinculado", "Exact location of the linked development") : t("Ubicación exacta publicada", "Published exact location");
+    result.evidenceLabel = entity === "developments" ? t("Ubicación publicada del desarrollo", "Published community location")
+      : result.coordinateSource === "development" ? t("Ubicación exacta del desarrollo vinculado", "Exact location of the linked community") : t("Ubicación exacta publicada", "Published exact location");
+    if (entity === "developments") result.notice = t("El punto corresponde al desarrollo; no identifica una unidad específica.", "The point identifies the community, not an individual unit.");
   } else if (result.precision === "approximate") {
     result.evidenceLabel = t("Ubicación aproximada de la zona", "Approximate zone location");
     result.notice = [result.notice, t("El mapa muestra una referencia de la zona, no el punto exacto del inmueble.", "The map shows the surrounding zone, not the property's exact position.")].filter(Boolean).join(" ");
   } else {
     result.evidenceLabel = t("Ubicación por confirmar", "Location to be confirmed");
-    result.notice = t("No hay un punto verificado para mostrar. Consulta la ubicación con nuestro equipo.", "There is no verified point to display. Ask our team about the location.");
+    result.notice = entity === "developments"
+      ? t("La ubicación de este desarrollo está pendiente de confirmar. Puedes pedir información para conocerla.", "This community's location is awaiting confirmation. Request information to learn more.")
+      : t("No hay un punto verificado para mostrar. Consulta la ubicación con nuestro equipo.", "There is no verified point to display. Ask our team about the location.");
   }
   return result;
 }
@@ -176,6 +198,7 @@ function renderPublicLocationSection(property, options = {}) {
   const e = escapeLocation;
   const mapAvailable = model.precision === "exact" || model.precision === "approximate";
   const attrs = [`data-location-precision="${e(model.precision)}"`, `data-location-source="${e(model.coordinateSource)}"`];
+  if (model.locationScope) attrs.push(`data-location-scope="${e(model.locationScope)}"`);
   if (model.latitude !== null && model.longitude !== null) attrs.push(`data-location-latitude="${model.latitude}"`, `data-location-longitude="${model.longitude}"`);
   if (model.geocodeQuery) attrs.push(`data-location-query="${e(model.geocodeQuery)}"`);
   const contactHref = typeof options.contactHref === "string" && /^(#[a-z][\w-]*|\/(?!\/)[^<>"\s]*)$/i.test(options.contactHref) ? options.contactHref : "";
