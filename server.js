@@ -12411,7 +12411,7 @@ async function renderPublicHtml(requestPath, noindex = false, params = {}) {
     }),
     showOffices ? readContactRouting({ query }).catch(() => null) : null,
   ]);
-  const offices = routing ? ["mx", "us"].filter(id => routing[id]).map(id => ({ id, display: businessPhoneLabel(routing[id]) })) : undefined;
+  const offices = routing ? ["mx", "us"].filter(id => routing[id]).map(id => ({ id, number: routing[id], display: businessPhoneLabel(routing[id]) })) : undefined;
   const directory = publicPropertyCache.directory || portalDirectoryModel.publicDirectory(null, properties);
   const page = require("./catalog-view").catalogPresentation({ ...basePage, catalogAreas: directory.areas, portalDirectory: directory, currencyExchange: exchangeRateService.getSnapshot() }, params);
   const seo = renderSeoHead(page, siteUrl);

@@ -7,9 +7,10 @@
     { id: "mx", label: "México", labelEn: "Mexico", number: "5219982166563", display: "+52 1 998 216 6563" },
     { id: "us", label: "USA", labelEn: "USA", number: "19562518956", display: "+1 956 251 8956" },
   ];
-  function whatsappUrl(id = "mx", message = "") {
+  function whatsappUrl(id = "mx", message = "", officeNumber = "") {
     const contact = contacts.find((item) => item.id === id) || contacts[0];
-    return `https://wa.me/${contact.number}${message ? `?text=${encodeURIComponent(message)}` : ""}`;
+    const number = String(officeNumber || contact.number).replace(/\D/g, "");
+    return `https://wa.me/${number}${message ? `?text=${encodeURIComponent(message)}` : ""}`;
   }
   return { contacts, whatsappUrl };
 });

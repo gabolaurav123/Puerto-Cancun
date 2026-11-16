@@ -42,11 +42,13 @@ function businessWhatsAppLinks(message, lang, className = "seo-whatsapp-button",
 
 function officeInquiryButtons(lang, origin, offices = businessContacts.contacts) {
   const en = lang === "en";
-  const path = en ? "/en/contact" : "/contacto";
   const labels = { mx: en ? "Mexico" : "México", us: en ? "United States" : "Estados Unidos" };
-  const buttons = offices.map(({ id, display }) => {
-    const href = path + "?" + new URLSearchParams({ inquiry: "1", office: id, origin });
-    return `<a class="office-inquiry-button" href="${escapeHtml(href)}" data-contact-inquiry data-origin="${escapeHtml(origin)}" data-office="${escapeHtml(id)}"><span>${en ? "Contact office" : "Contactar oficina"}: ${labels[id]}</span>${origin === "contact-page" ? `<span data-contact-number>${escapeHtml(display)}</span>` : ""}</a>`;
+  const message = en
+    ? "Hello, I would like information about properties in Cancún. I am contacting you through Puerto Cancún Center."
+    : "Hola, me gustaría recibir información sobre propiedades en Cancún. Los contacto desde Puerto Cancún Center.";
+  const buttons = offices.map(({ id, display, number }) => {
+    const href = businessContacts.whatsappUrl(id, message, number || display);
+    return `<a class="office-inquiry-button" href="${escapeHtml(href)}" target="_blank" rel="noopener noreferrer" data-origin="${escapeHtml(origin)}" data-office="${escapeHtml(id)}"><span>WhatsApp ${labels[id]}</span>${origin === "contact-page" ? `<span data-contact-number>${escapeHtml(display)}</span>` : ""}</a>`;
   });
   return `<div class="office-inquiry-buttons">${buttons.join("")}</div>`;
 }
@@ -1485,7 +1487,7 @@ function renderSeoPage(pathname, { directory, properties = [], offices } = {}) {
   if (["/nosotros", "/en/about"].includes(page.path)) return renderAboutPage(page);
   if (["/contacto", "/en/contact"].includes(page.path)) {
     const english = page.lang === "en";
-    return pageShell({ ...page, whatsappMessage: "", hideHeroCta:true }, `<section class="quick-answer" id="contact-offices"><p>${english ? "Choose an office and leave your preferred reply channel. Our team will follow up on your inquiry." : "Elige una oficina y deja tu medio de respuesta preferido. El equipo dará seguimiento a tu consulta."}</p>${officeInquiryButtons(page.lang, "contact-page", offices)}</section>`);
+    return pageShell({ ...page, whatsappMessage: "", hideHeroCta:true }, `<section class="quick-answer" id="contact-offices"><p>${english ? "Contact our Mexico or United States office directly on WhatsApp." : "Escríbenos directamente por WhatsApp a nuestra oficina de México o Estados Unidos."}</p>${officeInquiryButtons(page.lang, "contact-page", offices)}</section>`);
   }
   return pageShell(page, `<section class="quick-answer"><h2>${page.lang === "en" ? "Local real estate guidance" : "Asesoria inmobiliaria local"}</h2><p>${escapeHtml(page.intro)}</p><a class="primary-button" href="${escapeHtml(page.ctaHref)}">${escapeHtml(page.cta)}</a></section>`);
 }
