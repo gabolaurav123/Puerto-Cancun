@@ -85,7 +85,7 @@ test("outside Cancun shows the real locality and never invents a Cancun-center q
 test("location markup is permanent, localized, accessible, escaped and reserves space before map load", () => {
   for (const lang of ["es", "en"]) {
     const html = renderPublicLocationSection(development({ titleEs: "<script>" }), { lang, contactHref: "#contact-form" });
-    assert.match(html, lang === "es" ? /Ubicación del desarrollo/ : /Community location/);
+    assert.match(html, lang === "es" ? /Ubicación del desarrollo/ : /Development location/);
     assert.match(html, /data-public-location/); assert.match(html, /min-height:240px/);
     assert.match(html, /role="status"/); assert.match(html, /href="#contact-form"/);
     assert.doesNotMatch(html, /<details|<summary|<button|data-show-area-map|<iframe/);

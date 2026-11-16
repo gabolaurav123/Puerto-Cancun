@@ -37,7 +37,7 @@ test("verified community display has a scoped pin without changing inventory or 
   assert.match(model.notice, /edificio, no una unidad/);
   assert.equal(model.geocodeQuery, ""); assert.equal(JSON.stringify(source), before);
   const english = renderPublicLocationSection(source, { lang: "en" });
-  assert.match(english, /Community location/); assert.match(english, /Verified building location/);
+  assert.match(english, /Development location/); assert.match(english, /Verified building location/);
   assert.match(english, /data-location-scope="building"/); assert.match(english, /not an individual unit/);
   const unit = { ...source, id: "unit", titleEs: "Apartment in " + entry.title, publicationSection: "properties", type: "Departamento", developmentId: entry.id };
   const unitModel = resolvePublicLocation(unit, { properties: [source] });

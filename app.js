@@ -1695,7 +1695,7 @@ function categoryTitle() {
   if (state.filters.type === "Terreno") return state.lang === "en" ? "Land in Cancun" : "Terrenos en Cancún";
   if (state.filters.type === "Comercial") return state.lang === "en" ? "Commercial properties in Cancun" : "Propiedades comerciales en Cancún";
   if (state.filters.type === "Preventa") return state.lang === "en" ? "Presales in Cancun" : "Preventas en Cancún";
-  if (state.filters.type === "Desarrollo") return state.lang === "en" ? "Communities in Cancun" : "Desarrollos en Cancún";
+  if (state.filters.type === "Desarrollo") return state.lang === "en" ? "Real Estate Developments" : "Desarrollos en Cancún";
   if (state.filters.operation === "rent") return state.lang === "en" ? "Cancun rentals" : "Propiedades en renta en Cancún";
   if (state.filters.operation === "sale") return state.lang === "en" ? "Properties for sale in Cancun" : "Propiedades en venta en Cancun";
   if (state.filters.zone) return state.lang === "en" ? `Properties in ${state.filters.zone}` : `Propiedades en ${state.filters.zone}`;
@@ -1710,7 +1710,7 @@ function categoryIntro() {
   }
   if (state.filters.type === "Preventa") {
     return state.lang === "en"
-      ? "Presale communities with payment plans and delivery information."
+      ? "Presale developments with payment plans and delivery information."
       : "Consulta los planes de pago y las fechas de entrega de los desarrollos en preventa.";
   }
   if (state.filters.type) {
