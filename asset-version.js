@@ -13,6 +13,7 @@ const RUNTIME_FILES = Object.freeze([
   "catalog-view.js", "catalog.css", "comparison-ui.js", "comparison.css",
   "completion-utils.js", "contact-config.js", "csv-utils.js", "daily-blog.js", "demand-analysis.js",
   "contact-inquiries.js", "contextual-contact.js", "contextual-contact.css",
+  "public-journey.css",
   "inquiry-context.js", "public-pricing.js", "presale-policy.js", "data/presale-review-20261115.json",
   "commercial-workflow.js", "commercial-panel.js", "commercial-panel.css", "search-watch-unsubscribe.js",
   "real-estate-advisor.js", "advisor-widget.js", "advisor-widget.css",

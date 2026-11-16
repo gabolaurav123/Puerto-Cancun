@@ -163,4 +163,7 @@ test('map pages use exactly the listed IDs and withhold hidden coordinates; proj
   assert.match(results,/href="\/en\/cancun-presales\?project=confirmed"/); assert.doesNotMatch(results,/project=draft|data-category-property="record-/);
   const detail = renderCategoryPage(page,rows,{project:'confirmed'});
   assert.match(detail,/data-project="Coral Project"/); assert.match(detail,/data-reference="P-42"/); assert.match(detail,/data-zone="Puerto Cancun"/);
+  assert.match(detail,/<h1>Coral Project<\/h1>/);
+  assert.match(detail,/Back to presales/);
+  assert.doesNotMatch(detail,/data-catalog-root|id="catalogFilters"|id="categoryInventoryCount"|data-catalog-view=/);
 });

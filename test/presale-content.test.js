@@ -20,19 +20,23 @@ function render(master, lang, detail, edit = () => {}) {
   return renderCategoryPage(page, portal.enrichProperties([master], directory), detail ? {project: "presale-master"} : {});
 }
 
-test("a linked presale shows the same public description, cover and location on its card and detail in each language", () => {
+test("a linked presale keeps its public description and cover, with compact card location and full detail location in each language", () => {
   for (const lang of ["es", "en"]) {
     const en = lang === "en";
     for (const detail of [false, true]) {
       const html = render(development, lang, detail);
       assert.ok(html.includes(en ? development.descriptionEn : development.descriptionEs));
-      assert.ok(html.includes(development.address));
+      assert.match(html, /Puerto Canc(?:u|ú)n/);
       assert.match(html, /src="\/media\/properties\/master\/0\?w=(640|960)"/);
       if (detail) {
+        assert.ok(html.includes(development.address));
+        assert.match(html, /data-public-location[^>]*data-location-precision="exact"/);
         assert.ok(html.includes(en ? "Swimming pool" : "Alberca"));
         assert.ok(html.includes(`href="${en ? development.urlEn : development.urlEs}"`));
         assert.match(html, /data-origin="presale-project"/);
         assert.match(html, /data-reference="master"/);
+      } else {
+        assert.ok(!html.includes(development.address), "the street belongs in the detail location section");
       }
     }
   }

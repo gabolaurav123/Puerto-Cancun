@@ -17,7 +17,13 @@ test("cada revisión de precio conserva idioma, campos comerciales y moneda", ()
     const factors = fullPage.match(/<details class="valuation-options"><summary>[^<]+<\/summary><div class="valuation-factors">([\s\S]*?)<\/details>/)[1];
     assert.equal((factors.match(/<h3>[^<]+<\/h3><p>[^<]+<\/p>/g) || []).length, 10);
     assert.ok(fullPage.indexOf('id="valuation-form"') < fullPage.indexOf(factors));
-    for (const html of [fullPage, renderSeoPage(sell)]) {
+    const sellPage = renderSeoPage(sell);
+    const valuationLink = sellPage.match(/href="([^"]+#valuation-form)"/);
+    assert.ok(valuationLink, "Vender conserva un acceso a la valoración completa");
+    assert.equal(valuationLink[1], valuation + "#valuation-form");
+    assert.doesNotMatch(sellPage, /name="leadType" value="valuacion-inmobiliaria"/, "La valoración no se duplica dentro de Vender");
+    const linkedValuation = renderSeoPage(valuationLink[1].split("#")[0]);
+    for (const html of [fullPage, linkedValuation]) {
       const valuationForm = html.match(/<form [^>]*data-lead-form>\s*<input [^>]*value="valuacion-inmobiliaria"[\s\S]*?<\/form>/)[0];
       const optional = valuationForm.match(/<details class="valuation-options">[\s\S]*?<\/details>/)[0];
       assert.doesNotMatch(optional, /\brequired\b/);

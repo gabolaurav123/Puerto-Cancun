@@ -129,6 +129,7 @@ const publicStaticFiles = new Set([
   "/contact-config.js",
   "/contextual-contact.js",
   "/contextual-contact.css",
+  "/public-journey.css",
   "/advisor-widget.js",
   "/advisor-widget.css",
   "/commercial-panel.js",

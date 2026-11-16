@@ -12,6 +12,20 @@
   const hidden = (name,value) => '<input type="hidden" name="' + name + '" value="' + escape(value) + '">';
   let optionsRequest, dialog, opener, openGeneration=0;
   const drafts = new Map();
+  const normalizedContext = value => String(value || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+  function contextSummary(context, values) {
+    const parts = [context.propertyTitle || context.development || values.project || ""];
+    for (const value of [context.zone || values.zone, context.subzone || values.subzone, context.mls ? "MLS " + context.mls : ""]) {
+      const normalized = normalizedContext(value);
+      if (normalized && !parts.some(part => normalizedContext(part).includes(normalized))) parts.push(value);
+    }
+    return parts.filter(Boolean);
+  }
+  function fitInquiryViewport() {
+    if (!dialog || !window.visualViewport) return;
+    dialog.style.setProperty("--inquiry-viewport-height", window.visualViewport.height + "px");
+    dialog.style.setProperty("--inquiry-viewport-top", window.visualViewport.offsetTop + "px");
+  }
   function identity() { try { return JSON.parse(sessionStorage.getItem(key) || "{}") || {}; } catch { return {}; } }
   function getOptions() {
     return optionsRequest ||= fetch("/api/inquiries/options").then(r => { if (!r.ok) throw Error(); return r.json(); }).catch(error => { optionsRequest=null; throw error; });
@@ -44,6 +58,8 @@
       dialog=document.createElement("dialog"); dialog.className="contextual-inquiry"; dialog.setAttribute("aria-labelledby","inquiryTitle");
       document.body.append(dialog);
       dialog.addEventListener("close",()=>opener?.focus?.({preventScroll:true}));
+      window.visualViewport?.addEventListener("resize", fitInquiryViewport);
+      window.visualViewport?.addEventListener("scroll", fitInquiryViewport);
     }
     const returnKey=JSON.stringify(fields.map(k=>values[k] || ""));
     const previous=drafts.get(returnKey), requestId=previous?.id || crypto.randomUUID(), started=previous?.started || Date.now();
@@ -51,6 +67,7 @@
     dialog.innerHTML='<header><h2 id="inquiryTitle">' + tr("Pedir información","Request information") + '</h2><button type="button" data-inquiry-close aria-label="' + tr("Cerrar","Close") + '">×</button></header><div class="inquiry-scroll"><p role="status">' + tr("Preparando tu consulta…","Preparing your inquiry…") + '</p></div>';
     dialog.querySelector("[data-inquiry-close]").onclick=()=>dialog.close();
     dialog.showModal();
+    fitInquiryViewport();
     let opts, context;
     try {
       const params=new URLSearchParams({lang:lang()});
@@ -74,9 +91,9 @@
     else if(!previous&&current.currency&&current.currency!=="USD") replay.budget="";
     const known=context.entity!=="general", watch=values.service==="search-watch", visit=values.service==="visit";
     const fixed=context.fixedIntent || (context.allowedIntents.includes(values.intent) ? values.intent : "");
-    const title=visit ? tr("Solicitar visita","Request a visit") : watch ? tr("Guardar esta búsqueda","Save this search") : context.project ? tr("Pedir información de preventa","Request presale information") : tr("Pedir información","Request information");
+    const title=visit ? tr("Solicitar visita","Request a visit") : watch ? tr("Guardar esta búsqueda","Save this search") : fixed === "sell" ? tr("Vender mi propiedad","Sell my property") : fixed === "let" ? tr("Poner mi propiedad en renta","List my property for rent") : context.project ? tr("Información de preventa","Presale information") : tr("Pedir información","Request information");
     dialog.querySelector("#inquiryTitle").textContent=title;
-    const summary=[context.propertyTitle,context.development || values.project,context.mls?"MLS "+context.mls:"",context.zone || values.zone,context.subzone || values.subzone].filter((v,i,a)=>v&&a.indexOf(v)===i);
+    const summary=contextSummary(context, values);
     const owner=["sell","let"].includes(fixed);
     const typeSelect='<select name="propertyType">' + option("",tr("Por definir","Not decided")) + Object.entries(types).map(([es,en])=>option(es,tr(es,en))).join("") + '</select>';
     const contextFields = !known && !watch || owner
@@ -90,17 +107,17 @@
       + (fixed==="rent"?row(tr("Mudanza estimada (opcional)","Estimated move date (optional)"),"moveDate",'<input name="moveDate" type="date">'):"")
       + row(tr("Comentario (opcional)","Note (optional)"),"preferences",'<textarea name="preferences" rows="2" maxlength="1200"></textarea>')+'</div></details>';
     dialog.querySelector(".inquiry-scroll").innerHTML='<form><section data-inquiry-fields>'
-      + (summary.length?'<p class="inquiry-context">'+summary.map(escape).join(" · ")+'</p>':"")
+      + (summary.length?'<p class="inquiry-context"><strong>'+escape(summary[0])+'</strong>'+(summary.length>1?'<span>'+summary.slice(1).map(escape).join(" · ")+'</span>':"")+'</p>':"")
       + (values.office?'<p class="inquiry-office">'+tr("Oficina: ","Office: ")+ (values.office==="us"?tr("Estados Unidos","United States"):tr("México","Mexico"))+'</p>':"")
-      + (fixed?hidden("intent",fixed)+'<p class="inquiry-intent">'+escape(tr(...intents[fixed]))+'</p>':row(tr("Quiero","I want to"),"intent",'<select name="intent" required>'+option("",tr("Elige una opción","Choose an option"))+context.allowedIntents.map(k=>option(k,tr(...intents[k]))).join("")+'</select>'))
-      + (owner?contextFields:contextFields?'<details class="inquiry-optional"><summary>'+tr("Zona y tipo (opcional)","Zone and type (optional)")+'</summary>'+contextFields+'</details>':"")
+      + (fixed?hidden("intent",fixed):row(tr("Quiero","I want to"),"intent",'<select name="intent" required>'+option("",tr("Elige una opción","Choose an option"))+context.allowedIntents.map(k=>option(k,tr(...intents[k]))).join("")+'</select>'))
       + contactControls()
+      + (owner?contextFields:contextFields?'<details class="inquiry-optional"><summary>'+tr("Zona y tipo (opcional)","Zone and type (optional)")+'</summary>'+contextFields+'</details>':"")
       + (visit?row(tr("Fecha y hora preferidas (opcional, hora de Cancún)","Preferred date and time (optional, Cancun time)"),"visitPreferredAt",'<input name="visitPreferredAt" type="datetime-local">')+'<p>'+tr("El equipo coordinará contigo la disponibilidad; aún no es una visita confirmada.","Our team will coordinate availability with you; this is not a confirmed appointment.")+'</p>':"")
       + (watch?'<p>'+tr("Conservaremos los filtros exactos de esta búsqueda.","We will keep the exact filters of this search.")+'</p><p data-alert-status></p><label class="inquiry-consent" data-alert-option hidden><input name="alertConsent" type="checkbox"><span>'+tr("Quiero avisos de nuevas coincidencias por el canal elegido. Podré cancelarlos desde cada aviso.","Send new-match alerts through my chosen channel. I can unsubscribe from each alert.")+'</span></label>':"")
       + optional
       + '<label class="inquiry-consent"><input name="consent" type="checkbox" required><span>'+tr("Acepto que el equipo me contacte según el","I agree to be contacted under the")+' <a href="'+tr("/aviso-de-privacidad","/en/privacy-notice")+'" target="_blank" rel="noopener">'+tr("aviso de privacidad","privacy notice")+'</a>.</span></label>'
       + '<label class="form-honeypot" aria-hidden="true"><input name="website" tabindex="-1" autocomplete="off"></label>'
-      + '<button class="primary-button" type="submit">'+tr("Enviar solicitud","Send inquiry")+'</button></section><section data-inquiry-success hidden tabindex="-1"><h3>'+tr("Solicitud recibida","Inquiry received")+'</h3><p data-success-message></p><a class="primary-button" data-inquiry-whatsapp target="_blank" rel="noopener noreferrer" hidden>'+tr("Abrir WhatsApp (opcional)","Open WhatsApp (optional)")+'</a><button type="button" class="ghost-button" data-inquiry-done>'+tr("Volver a la página","Return to the page")+'</button></section><p class="inquiry-status" role="status" aria-live="polite"></p></form>';
+      + '<button class="primary-button inquiry-submit" type="submit">'+tr("Enviar solicitud","Send inquiry")+'</button></section><section data-inquiry-success hidden tabindex="-1"><h3>'+tr("Solicitud recibida","Inquiry received")+'</h3><p data-success-message></p><a class="primary-button" data-inquiry-whatsapp target="_blank" rel="noopener noreferrer" hidden>'+tr("Abrir WhatsApp (opcional)","Open WhatsApp (optional)")+'</a><button type="button" class="ghost-button" data-inquiry-done>'+tr("Volver a la página","Return to the page")+'</button></section><p class="inquiry-status" role="status" aria-live="polite"></p></form>';
     const form=dialog.querySelector("form"), notice=form.querySelector(".inquiry-status");
     form.elements.country.innerHTML=countryList(opts);
     for(const [name,value] of Object.entries(replay)) {
@@ -183,6 +200,12 @@
   });
   for(const country of document.querySelectorAll("[data-inquiry-country]"))if(!country.closest("#guestSaleModal[hidden]"))void populatePhone(country.form);
   window.PccInquiry={open,populatePhone,offerAction,updateChannel};
+  const officeBlock = document.querySelector('.contact-strip[aria-labelledby="homeContactTitle"], #contact-offices');
+  if (officeBlock && "IntersectionObserver" in window) {
+    new IntersectionObserver(entries => {
+      document.body.classList.toggle("public-office-contact-visible", entries.some(entry => entry.isIntersecting));
+    }, { threshold: 0 }).observe(officeBlock);
+  }
   document.addEventListener("click",event=>{
     const trigger=event.target.closest("[data-contact-inquiry]");if(!trigger||event.metaKey||event.ctrlKey||event.shiftKey||event.altKey)return;
     event.preventDefault();event.stopPropagation();void open(readValues(trigger),trigger);

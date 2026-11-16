@@ -108,21 +108,20 @@ function projectDetail(row, areas, lang, sourcePath) {
     return url && url.startsWith("/") && !url.startsWith("//") ? `<a class="text-link" href="${escape(url)}">${escape(label || (en ? property.titleEn : property.titleEs) || property.titleEs)}</a>` : "";
   };
   const unitLinks = row.publicUnits.map(unit => link(unit)).filter(Boolean);
-  const developmentLink = linked && link(linked, en ? "View full development listing" : "Ver ficha completa del desarrollo");
+  const developmentLink = linked && link(linked, en ? "View development listing" : "Ver ficha del desarrollo");
   const context = { intent: "buy", zone, subzone, developmentId:linked?.id || "", propertyId:row.linkedProperty?.id || "", projectId:project.id,
     development: linked && ((en ? linked.titleEn : linked.titleEs) || linked.titleEs), project: title, reference: project.reference || project.id, origin: "presale-project", sourcePath };
   const photo = row.images[0] && optimizedPublicImage(row.images[0], 960);
   const reference = project.reference && ![linked?.id, project.id].includes(project.reference) ? project.reference : "";
   const coverLabel = presalePolicy.imagePresentation(row,0,lang).label;
   const location = row.locationSource ? resolvePublicLocation(row.locationSource,{lang,directory:row.directory,properties:row.sourceRecords}) : null;
-  const contactHref = (en ? "/en/contact" : "/contacto") + "?" + new URLSearchParams(Object.entries(context).filter(([,value])=>value != null && value !== ""));
-  const locationSection = row.locationSource ? renderPublicLocationSection(row.locationSource,{lang,directory:row.directory,properties:row.sourceRecords,contactHref}) : "";
-  return `<article class="catalog-project-detail"><a class="text-link" href="${presalePath(lang)}">${en ? "All presales" : "Todas las preventas"}</a>
-    <div class="catalog-project-intro">${photo ? `<figure class="catalog-project-cover"><img data-presale-cover src="${escape(photo)}" width="960" height="640" decoding="async" alt="${escape(title)}${coverLabel ? ` — ${escape(coverLabel)}` : ""}" />${coverLabel ? `<figcaption>${escape(coverLabel)}</figcaption>` : ""}</figure>` : ""}
-      <div><h2>${escape(title)}</h2><p>${escape([zone, subzone].filter(Boolean).join(" · "))}</p>
-      ${location?.compact || row.projectLocation ? `<p><strong>${en ? "Location" : "Ubicación"}</strong><br>${escape(location?.compact || row.projectLocation)}</p>` : ""}
-      ${reference ? `<p>${en ? "Project reference" : "Referencia del proyecto"}: ${escape(reference)}</p>` : ""}
-      <div class="catalog-project-actions">${contactLink(lang, en ? "Ask about this project" : "Pedir información de este proyecto", context)}${developmentLink || ""}</div></div>
+  const locationSection = row.locationSource ? renderPublicLocationSection(row.locationSource,{lang,directory:row.directory,properties:row.sourceRecords}) : "";
+  const compactLocation = location?.compact || [zone, subzone].filter(Boolean).join(" · ");
+  return `<article class="catalog-project-detail"><a class="text-link catalog-project-back" href="${presalePath(lang)}">← ${en ? "Back to presales" : "Volver a preventas"}</a>
+    <div class="catalog-project-intro"><header class="catalog-project-heading"><span class="seo-eyebrow">${en ? "Presale" : "Preventa"}</span><h1>${escape(title)}</h1>${compactLocation ? `<p class="catalog-project-location">${escape(compactLocation)}</p>` : ""}</header>
+      ${photo ? `<figure class="catalog-project-cover"><img data-presale-cover src="${escape(photo)}" width="960" height="640" decoding="async" alt="${escape(title)}${coverLabel ? ` — ${escape(coverLabel)}` : ""}" />${coverLabel ? `<figcaption>${escape(coverLabel)}</figcaption>` : ""}</figure>` : ""}
+      <div class="catalog-project-contact"><div class="catalog-project-actions">${contactLink(lang, en ? "Request information" : "Pedir información", context)}${developmentLink || ""}</div>
+      ${reference ? `<p class="catalog-project-reference">${en ? "Project reference" : "Referencia del proyecto"}: ${escape(reference)}</p>` : ""}</div>
     </div>
     ${locationSection}
     ${description ? `<section><h3>${en ? "About the project" : "Sobre el proyecto"}</h3><p>${escape(description)}</p></section>` : ""}

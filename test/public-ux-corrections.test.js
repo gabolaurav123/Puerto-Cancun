@@ -71,7 +71,7 @@ test("las publicaciones usan carrusel y no muestran fecha de modificación", () 
   assert.match(spanish, /Descripción completa de la propiedad\./);
   assert.match(spanish, /class="property-location-map public-location-section"/);
   assert.match(spanish, /data-contact-inquiry data-intent="buy"/);
-  assert.ok(spanish.indexOf("property-page-gallery") < spanish.indexOf("property-page-summary"));
+  assert.ok(spanish.indexOf("property-page-summary") < spanish.indexOf("property-page-gallery"), "Contact is available before the gallery on mobile");
   assert.ok(spanish.indexOf("property-contact-cta") < spanish.indexOf("property-long-description"));
   assert.ok(spanish.indexOf("property-long-description") < spanish.indexOf("property-amenities"));
   assert.ok(spanish.indexOf("property-page-summary") < spanish.indexOf("property-location-map"));

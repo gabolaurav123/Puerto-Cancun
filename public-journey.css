@@ -1,0 +1,70 @@
+/* Public listing composition. All contact/data behavior remains in the existing modules. */
+body[data-page="seo"] .property-page-heading {
+  padding-top: calc(var(--public-header-height, 100px) + 24px);
+}
+.property-page-heading h1 { max-width: 32ch; font-size: clamp(1.65rem, 3.2vw, 2.75rem); line-height: 1.18; }
+.property-heading-location { margin: 10px 0 0; font-size: .95rem; line-height: 1.55; color: var(--muted); }
+.property-page-heading > a { display: inline-flex; align-items: center; min-height: 36px; text-decoration: none; gap: 5px; }
+.property-page-overview { grid-template-areas: "gallery summary"; grid-template-columns: minmax(0, 1.45fr) minmax(0, 1fr); gap: 28px; }
+.property-gallery-column { grid-area: gallery; min-width: 0; }
+.property-page-overview .property-page-summary { grid-area: summary; padding: 24px; border: 1px solid var(--line); border-top: 3px solid var(--gold); border-radius: 8px; box-shadow: none; }
+.property-page-overview:not(:has(.property-gallery-column)) { grid-template-areas: "summary"; grid-template-columns: minmax(0, 1fr); }
+.property-page-summary .property-page-price { font-size: clamp(1.65rem, 2.5vw, 2.1rem); line-height: 1.25; color: var(--blue-900); }
+.public-price-amount { display: block; }
+.seo-property-price-note { display: block; margin-top: 6px; font: 400 .75rem/1.55 "Montserrat", sans-serif; color: var(--muted); }
+.property-summary-label { font-size: 1.05rem; font-weight: 650; margin: 0; }
+.property-summary-actions { display: grid; gap: 10px; margin: 20px 0; }
+.property-summary-actions > a { display: flex; align-self: stretch; align-items: center; justify-content: center; min-height: 48px; width: 100%; margin: 0; padding: 11px 16px; line-height: 1.4; white-space: normal; text-align: center; text-decoration: none; }
+.property-summary-actions .property-visit-cta { color: var(--blue-900); background: transparent; border: 1px solid #a6c1c4; box-shadow: none; }
+.property-summary-actions .property-visit-cta:hover { background: #edf4f3; }
+.property-page-overview .property-facts { gap: 8px; margin: 16px 0 0; }
+.property-page-overview .property-facts span { font-size: .78rem; padding: 7px 9px; background: #f1f6f4; line-height: 1.35; }
+.property-video-link { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; margin-top: 8px; font-weight: 600; font-size: .9rem; }
+.property-page-layout { gap: 32px; }
+.property-page-layout .public-location-section { margin-top: 0; padding-top: 24px; }
+.public-location-section h2 { margin: 0 0 10px; font-size: clamp(1.35rem, 2.2vw, 1.75rem); }
+.public-location-section :is(.public-location-summary, .public-location-address) { margin: 0 0 6px; line-height: 1.55; }
+.public-location-section .public-location-precision { margin: 12px 0 4px; font-size: .8rem; font-weight: 650; }
+.public-location-section .public-location-notice { max-width: 72ch; margin: 0 0 14px; color: var(--muted); font-size: .85rem; line-height: 1.55; }
+.public-location-section .public-location-canvas { border: 1px solid var(--line); border-radius: 6px; overflow: hidden; }
+.property-page-information :is(h2,h3) { margin-top: 0; }
+.property-page-information p { max-width: 78ch; line-height: 1.7; }
+.property-lead { margin-top: 28px; padding-block: 24px; border-block: 1px solid var(--line); }
+.property-lead > .property-contact-cta { display: inline-flex; min-height: 48px; white-space: normal; }
+.owner-publishing-options { margin-top: 20px; }
+.owner-publishing-options > summary { min-height: 44px; padding-block: 10px; cursor: pointer; font-weight: 600; }
+body[data-page="seo"] .seo-page:has(.commercial-guide, #contact-offices) .seo-page-hero { min-height: 0; padding-top: 24px; padding-bottom: 24px; }
+.seo-page:has(.commercial-guide, #contact-offices) .seo-page-hero :is(.seo-eyebrow,.breadcrumbs) { display: none; }
+.seo-page:has(.commercial-guide, #contact-offices) .seo-page-hero h1 { margin: 0 0 12px; font-size: clamp(1.8rem, 3vw, 2.6rem); line-height: 1.2; }
+.seo-page:has(.commercial-guide, #contact-offices) .seo-page-hero p { max-width: 64ch; margin: 0; font-size: 1rem; line-height: 1.6; }
+.seo-page:has(.commercial-guide, #contact-offices) .seo-page-content { padding-top: 24px; }
+.commercial-guide { max-width: 800px; padding: 24px; background: #fff; border: 1px solid var(--line); border-radius: 8px; }
+.commercial-guide h2 { margin: 0 0 20px; font-size: clamp(1.3rem, 2.3vw, 1.7rem); line-height: 1.3; }
+.commercial-primary-actions { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 12px; }
+.commercial-primary-actions > a { display: flex; justify-content: center; align-items: center; min-height: 48px; margin: 0; padding: 12px 16px; white-space: normal; text-align: center; line-height: 1.45; text-decoration: none; }
+.commercial-primary-actions > .outline-dark-button { color: var(--blue-900); border: 1px solid #8faeb2; background: transparent; box-shadow: none; }
+.owner-next-steps { display: flex; flex-wrap: wrap; gap: 8px 24px; padding: 18px 0 0; margin-top: 18px; border-top: 1px solid var(--line); }
+.owner-next-steps > .text-link { display: inline-flex; align-items: center; padding: 8px 0; min-height: 44px; border: 0; background: none; font: 600 .85rem/1.5 "Montserrat",sans-serif; color: var(--blue-900); text-align: left; box-shadow: none; }
+#contact-offices { padding: 0; border: 0; background: none; }
+#contact-offices > p { max-width: 60ch; margin: 0 0 20px; font-size: 1rem; }
+#contact-offices .office-inquiry-buttons { width: min(100%, 38rem); }
+@media (max-width: 900px) {
+  .property-page-overview { grid-template-areas: "summary" "gallery"; grid-template-columns: minmax(0,1fr); gap: 20px; }
+  .property-page-overview .property-page-summary { padding: 18px; }
+  .property-summary-actions { grid-template-columns: repeat(2,minmax(0,1fr)); margin: 16px 0; }
+  .property-summary-actions > a:only-child { grid-column: 1 / -1; }
+  .property-page-overview .property-gallery-slide img { aspect-ratio: 4/3; max-height: 55vh; }
+  .property-page-overview .property-facts { margin-top: 12px; }
+}
+@media (max-width: 540px) {
+  body[data-page="seo"] .property-page-heading { padding-top: calc(var(--public-header-height, 115px) + 14px); }
+  .property-heading-location { font-size: .85rem; margin-top: 8px; }
+  .property-page-heading + .seo-page-content { padding-top: 16px; }
+  .property-summary-actions { gap: 8px; }
+  .property-summary-actions > a { padding: 10px 8px; font-size: .8rem; }
+  .property-page-overview .property-facts span { font-size: .72rem; padding: 6px 8px; }
+  .property-page-layout { gap: 24px; }
+  .commercial-guide { padding: 18px; }
+  .commercial-primary-actions { grid-template-columns: minmax(0,1fr); gap: 10px; }
+  .owner-next-steps { display: grid; gap: 4px; }
+}
