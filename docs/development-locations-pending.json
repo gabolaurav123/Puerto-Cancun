@@ -7,72 +7,45 @@
     "mapped": 67
   },
   "publicDevelopments": 174,
-  "mapped": 160,
+  "mapped": 167,
   "registryAudit": {
-    "records": 144,
-    "presentInSnapshot": 144,
-    "titleGuardMatches": 144,
+    "records": 151,
+    "presentInSnapshot": 151,
+    "titleGuardMatches": 151,
     "missingIds": [],
     "titleMismatches": []
   },
   "pending": [
     {
-      "id": "prop-xlsx-09f97f9746f21ef765802cc6",
-      "title": "Pez Volador",
-      "zone": "Zona Hotelera",
-      "reason": "El resultado nombrado es la calle Pez Volador, no un desarrollo delimitado. La ficha describe un sector y su foto referencia Condominio Delfines; no hay identidad inequívoca para asignar coordenadas exactas de un desarrollo.",
-      "sourcesTried": [
-        "https://maps.google.com/maps?q=Pez%20Volador%20Canc%C3%BAn%20Quintana%20Roo&output=embed&hl=en",
-        "https://tamarrealty.com/desarrollo/pez-volador"
-      ]
-    },
-    {
-      "id": "prop-xlsx-89066528ccb62e0bf9b0b08f",
-      "title": "Villas Nissa",
-      "zone": "Zona Hotelera",
-      "reason": "No devuelve POI nombrado; la ficha Tamar aporta superficie pero no dirección o mapa verificable. No se usa ninguna residencia particular de registros ajenos como sustituto. El inventario federal confirma el nombre Condominios Villas Nissa Penc, pero no publica un punto geográfico identificable. Búsquedas alternativas Nissa/Nisa/Niza no produjeron POI del conjunto.",
-      "sourcesTried": [
-        "https://maps.google.com/maps?q=Villas%20Nissa%20Canc%C3%BAn%20Quintana%20Roo&output=embed&hl=en",
-        "https://maps.google.com/maps?q=Villas%20Nissa%20Cancun&output=embed&hl=en",
-        "https://tamarrealty.com/desarrollo/villas-nissa",
-        "https://dsiappsdev.semarnat.gob.mx/inai/XLV/2025/1T/inventario_oc/DIRECCION_GENERAL_DE_ZONA_FEDERAL_MARITIMO_TERRESTRE_Y_AMBIENTES_COSTEROS.pdf"
-      ]
-    },
-    {
-      "id": "prop-xlsx-b784237341b0370154721242",
-      "title": "Residencial Campestre",
-      "zone": "Corredor Colosio",
-      "reason": "El listado del INE y la vía OSM identifican el entorno y un acceso privado, pero no aportan un punto oficial o una geometría inequívoca del Residencial Campestre completo. No se publica ese acceso sin confirmar su identidad y alcance.",
-      "sourcesTried": [
-        "https://portal.ine.mx/wp-content/uploads/2024/06/PEC24_QROO_Listado_de_ubicacion_e_Integracion_de_casillas.pdf",
-        "https://www.openstreetmap.org/way/908394673"
-      ]
-    },
-    {
       "id": "prop-xlsx-ba51aaf2f2680ac051744f15",
       "title": "W Residences Costa Mujeres",
       "zone": "Costa Mujeres / Punta Sam",
-      "reason": "AB Living confirma el proyecto en Isla Mujeres/Costa Mujeres, pero no publica un punto geográfico inequívoco. El resultado nombrado St. Regis pertenece a otro complejo y se rechaza.",
+      "reason": "Segunda búsqueda: AB Living y el anuncio primario de Marriott identifican W Costa Mujeres y su conexión con JW mediante The Village, pero no aportan calle, lote, coordenadas o un plano georreferenciado. Se revisaron también las imágenes y enlaces públicos del desarrollador y el directorio LPR; no contienen un pin del proyecto. Los puntos de St. Regis, SHA y el centro de Costa Mujeres no identifican W y no se sustituyen por su ubicación.",
       "sourcesTried": [
-        "https://abliving.com/es/locations/w-marriot-costa-mujeres/"
+        "https://abliving.com/es/locations/w-marriot-costa-mujeres/",
+        "https://news.marriott.com/news/2022/11/30/marriott-international-expands-luxury-portfolio-in-mexico-with-multi-brand-all-inclusive-signing-agreements-with-international-developer-ab-living-group",
+        "https://guide.lprluxury.com/projects/w-costa-mujeres",
+        "https://www.hospitalitynet.org/news/4121055/ab-living-group-announces-ambitious-american-expansion-plans-with-30-years-experience-in-the-industry"
       ]
     },
     {
       "id": "prop-xlsx-541171db73aaf17faec21235",
       "title": "JW Marriott Residences Costa Mujeres",
       "zone": "Costa Mujeres / Punta Sam",
-      "reason": "AB Living confirma el proyecto en Isla Mujeres/Costa Mujeres, pero no publica un punto geográfico inequívoco. El JW Marriott de Zona Hotelera no es este proyecto y su punto se rechaza.",
+      "reason": "Segunda búsqueda: el desarrollador y Marriott confirman JW Marriott Costa Mujeres con 283 habitaciones y 53 residencias, unido al W por The Village. Las páginas, imágenes y anuncios primarios consultados no publican un punto inequívoco ni una parcela georreferenciada. El JW Marriott de Boulevard Kukulcán es otro hotel y no sirve de referencia para este desarrollo.",
       "sourcesTried": [
-        "https://abliving.com/es/locations/jw-marriot/"
+        "https://abliving.com/es/locations/jw-marriot/",
+        "https://news.marriott.com/news/2022/11/30/marriott-international-expands-luxury-portfolio-in-mexico-with-multi-brand-all-inclusive-signing-agreements-with-international-developer-ab-living-group",
+        "https://www.hospitalitynet.org/news/4121055/ab-living-group-announces-ambitious-american-expansion-plans-with-30-years-experience-in-the-industry"
       ]
     },
     {
       "id": "prop-xlsx-0c49d1af748ca6ba283e29ff",
       "title": "Álamos II",
       "zone": "Corredor Colosio",
-      "reason": "El PDU y los documentos electorales corroboran referencias al barrio Álamos II, pero las referencias a SM313 y SM523 son contradictorias para asignar un punto único. Falta identificar inequívocamente el desarrollo del inventario; no se elige un centro de barrio como sustituto.",
+      "reason": "La segunda revisión confirma la referencia de Álamos II en Calle Nogal, SM313, y su acceso desde Huayacán. El documento oficial de A1 Padel y las referencias electorales corroboran el barrio. El POI nominal encontrado corresponde a una vivienda privada y se descartó. No se incorporó un pin nominal del acceso; los puntos calculados manualmente permanecen fuera del registro verificado.",
       "sourcesTried": [
-        "https://implancancun.gob.mx/uploads/pdu/2014/PDUCP2014.pdf",
+        "https://www.a1padelglobal.com/documentos/Tournament%20Data%20Canc%C3%BAn%20Open.pdf",
         "https://www.ieqroo.org.mx/descargas/2025/encarte/2A_PUB_ESTATAL.pdf"
       ]
     },
@@ -80,98 +53,53 @@
       "id": "prop-xlsx-f8d4bf2f191ee97c640f2fd2",
       "title": "Álamos I",
       "zone": "Corredor Colosio",
-      "reason": "El PDU y los documentos electorales corroboran el barrio Álamos I, pero no aportan un punto único ni una geometría inequívoca del desarrollo del inventario. No se asigna como ubicación exacta el centro del barrio o una vivienda individual.",
+      "reason": "La segunda revisión identifica Residencial Álamos I en SM311 y el entorno de Avenida Álamos desde Colosio. Las fuentes oficiales corroboran el barrio; no se incorporó un pin nominal del acceso. Los puntos calculados manualmente permanecen fuera del registro verificado. No se utiliza una vivienda ni un centro genérico como sustituto.",
       "sourcesTried": [
-        "https://implancancun.gob.mx/uploads/pdu/2014/PDUCP2014.pdf",
-        "https://www.ieqroo.org.mx/descargas/2025/encarte/2A_PUB_ESTATAL.pdf"
-      ]
-    },
-    {
-      "id": "prop-xlsx-0678dfd31a7da18ab0bfcb10",
-      "title": "Náutica Isla Dorada",
-      "zone": "Zona Hotelera",
-      "reason": "No devuelve POI inequívoco del subconjunto Náutica. No se usa el centro del complejo Isla Dorada como sustituto. Cancun.estate publica marcador 21.112212,-86.768943 en ficha específica de Isla Náutica (16 unidades y dos torres), pero falta corroborar precisión del punto con el desarrollador/huella nominal. Google devuelve Nautica Residences by Nauma fuera de Isla Dorada; se rechazó como homónimo.",
-      "sourcesTried": [
-        "https://maps.google.com/maps?q=N%C3%A1utica%20Isla%20Dorada%20Canc%C3%BAn%20Quintana%20Roo&output=embed&hl=en",
-        "https://cancun.estate/isla-nautica-hotel-zone-cancun-quintana-roo",
-        "https://www.revistaequipar.com/mexico/contenido-editorial/nautica-isla-dorada",
-        "https://lemmusrealestate.com/cancun/departamento-de-355-m2-en-venta-en-nautica-isla-dorada-5613/",
-        "https://s3.amazonaws.com/assets.moveglobally.com/property_files/1020160/56488/NAUTICA_RESIDENCES_101.pdf"
+        "https://www.gob.mx/cms/uploads/attachment/file/805579/directorio_uvies_21_de_febrero_de__2023.pdf",
+        "https://seq.qroo.gob.mx/wp-content/uploads/2026/02/PADRON-DE-ESCUELAS-PARTICULARES-2025-2026_ACTUALIZADO-AL-18-DE-FEBRERO-DE-2026.pdf",
+        "https://implancancun.gob.mx/uploads/pdu/2014/PDUCP2014.pdf"
       ]
     },
     {
       "id": "prop-xlsx-b397916d61c7581a8613fa56",
       "title": "Belorizonte",
       "zone": "Puerto Cancún",
-      "reason": "Bunik identifica Belorizonte como 116 unidades en Cancún; las páginas oficiales de próximos desarrollos y ubicaciones no publican un punto o dirección específica del proyecto. No se sustituye por el centro de Cancún ni por un homónimo de otra ciudad.",
+      "reason": "Segunda búsqueda: Bunik confirma las 116 unidades y muestra dos renders de tres torres junto a un canal, pero sus páginas de proyectos y ubicaciones no enlazan un plano, dirección específica o coordenadas. Se contrastó la identidad con referencias históricas a VBC Consulting; no permiten identificar la parcela actual. No se ha supuesto una equivalencia con un proyecto renombrado ni se ha usado un homónimo de Colombia o Ecuador.",
       "sourcesTried": [
         "https://www.bunik.mx/desarrollos-proximos/",
-        "https://www.bunik.mx/ubicaciones/"
+        "https://www.bunik.mx/ubicaciones/",
+        "https://www.bunik.mx/wp-content/uploads/2022/11/BELORIIZONTE_1.jpg",
+        "https://www.bunik.mx/wp-content/uploads/2022/11/BELORIIZONTE_2.jpg",
+        "https://www.eleconomista.com.mx/estados/Puerto-Cancun-reactiva-mercado-entre-dos-crisis-20120610-0025.html"
       ]
     },
     {
       "id": "prop-xlsx-2e42e57dec365e924717b330",
       "title": "Bardenna",
       "zone": "Huayacán",
-      "reason": "Se identifica dentro de Zienna, pero las fuentes consultadas no publican un punto individual inequívoco. El resultado de mapa devuelve Cancún centro (21.161908,-86.8515279), que se rechaza; tampoco se sustituye por el acceso de Zienna. El masterplan oficial vincula el logo Bardenna con el lote L284. El SVG usa coordenadas de dibujo, sin georreferenciación; no permite publicar latitud/longitud exactas sin confirmar el lote sobre cartografía geográfica.",
+      "reason": "El mapa oficial de Onix asocia explícitamente Bardenna al lote L284 de Zienna. La geometría SVG permite identificar su rectángulo exacto dentro del plano maestro: debe aplicarse también la transformación exterior 0.75, además de la matriz del lote. Se reconoció el predio completo y su abanico de vialidades en imagen satelital georreferenciada Esri. Sin embargo, el plano no aporta coordenadas ni controles topográficos y la correspondencia manual de tres esquinas exteriores presenta aproximadamente 20 m de discrepancia al comprobar la glorieta interior. Esa diferencia es material para el lote estrecho, de modo que no se publica una coordenada derivada de este ajuste. Se requiere el pin de L284/Bardenna o un plano catastral georreferenciado; el centro o acceso general de Zienna no sustituye el desarrollo.",
       "sourcesTried": [
-        "https://onixliving.mx/",
-        "https://www.tresor.mx/onix-living",
-        "https://plalla.com/propiedad/bardenna-residences-cancun/",
-        "https://www.playarealtors.com.mx/d/70416-Canc%C3%BAn---BARDENNA---Confort-y-Privacidad-en-Canc%C3%BAn",
-        "https://maps.google.com/maps?q=Bardenna%20Canc%C3%BAn%20Quintana%20Roo&output=embed&hl=en",
         "https://onixliving.mx/proyecto-zienna/",
-        "https://onix-living.s3.us-east-2.amazonaws.com/ZIENNA/mapa-disponibilidad/zienna.json"
-      ]
-    },
-    {
-      "id": "prop-xlsx-004e74976d46e830b686b450",
-      "title": "SLS Marina Beach",
-      "zone": "Puerto Cancún",
-      "reason": "Conflicto entre puntos publicados y plano oficial. Inmobilia publica 21.167297,-86.8038; Repex 21.1672286,-86.8038465; Century21 21.167327399567,-86.803878224792. Los tres están junto al SLS Cancún Hotel (21.1669201,-86.8041045), al este del conjunto. El plano oficial del folleto de Bahía identifica Marina en el lado noroeste de Novo y separa explícitamente Marina del hotel. Accor publica 21.161907,-86.851524, centro urbano claramente impropio para estas torres; ProspeRE enlaza solo Avenida Puerto Cancún. No aceptado hasta identificar la huella/POI de Marina sin confundir hotel. La coincidencia numérica de intermediarios no resuelve la discrepancia del plano.",
-      "sourcesTried": [
-        "https://www.inmobilia.mx/en/project/sls-marina-beach",
-        "https://www.repexinternational.com/projects/sls-marina-beach",
-        "https://century21evo.com/propiedad/635186",
-        "https://accor-residences.com/property/sls-marina-beach-residences-cancun-mexico/",
-        "https://prospereinternational.com/sls-marina-beach/",
-        "https://relatedgroup.com/wp-content/uploads/2019/10/SLS_Marina_Beach_Brochure.pdf",
-        "https://assets.easybroker.com/property_files/2735304/252861/Bah%C3%ADa_Beach_Residences.pdf"
+        "https://onix-living.s3.us-east-2.amazonaws.com/ZIENNA/mapa-disponibilidad/zienna.json",
+        "https://onix-living.s3.us-east-2.amazonaws.com/ZIENNA/mapa-disponibilidad/assets/stop_01.svg",
+        "https://onix-living.s3.us-east-2.amazonaws.com/ZIENNA/mapa-disponibilidad/assets/stop_01.webp",
+        "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/export?bbox=-86.893,21.076,-86.874,21.092&bboxSR=4326&imageSR=4326&size=1600,1400&format=jpg&f=json"
       ]
     },
     {
       "id": "prop-xlsx-0c51891075f5d4bf7d07e41d",
       "title": "La Punta",
       "zone": "Puerto Cancún",
-      "reason": "Arhea confirma el conjunto de 16 casas Legorreta + Legorreta en los canales de Puerto Cancún, pero no publica dirección, pin, coordenadas ni plano georreferenciable. Su enlace 'Sitio web' del modal de La Punta dirige a nuevomolino.mx, que corresponde a otro desarrollo, por lo que no se emplea. Las búsquedas con Legorreta y muelle llevan a Mistral Costa Mujeres o al antiguo Camino Real Punta Cancún, ambos otros proyectos. No hay evidencia suficiente para elegir una calle o lote exacto.",
+      "reason": "La fuente oficial Arhea confirma 16 casas de Legorreta + Legorreta frente a los canales y acceso al Club de Playa Norte, pero solo publica Puerto Cancún como ubicación. Sus tres imágenes oficiales son renders: muestran dos hileras de villas y la caseta sin plano georreferenciado, número de lote o calle identificable. El enlace Sitio web de ese modal está mal dirigido a otro proyecto (Nuevo Molino, Toluca); el dominio histórico lapunta.mx no resultó accesible. La cartografía OSM de Puerto Cancún no tiene una vía, acceso ni huella etiquetada La Punta. El único resultado nominal de directorio apunta a la oficina comercial en Ciudad de México, y las referencias La Punta de Isla Dorada corresponden a un conjunto distinto de departamentos. No hay evidencia suficiente para asignar un punto exacto sin adivinar la parcela. Se necesita ubicación del predio, pin o plano llave de Arhea/propietario.",
       "sourcesTried": [
         "https://arhea.mx/proyectos/",
         "https://arhea.mx/en/projects/",
-        "https://arhea.helloediteam.com/proyectos/"
-      ]
-    },
-    {
-      "id": "prop-xlsx-d43f3dcfc1b157f357d3f5ac",
-      "title": "Lagunas 2",
-      "zone": "Puerto Cancún",
-      "reason": "La ficha de Hernández Gómez del lote 73 contiene plano llave que identifica claramente el sector La Laguna II junto a Laguna Morales, con acceso desde Boulevard Puerto Cancún, y no es La Laguna I. No contiene coordenadas del acceso o polígono georreferenciado. Preferred publica 21.163349909754,-86.804775595665 para un terreno individual; otros anuncios son lotes 69/73 u hogares, no ubicación del conjunto completo. La documentación de Punta del Mar confirma estar dentro de Laguna II, pero su edificio no se sustituye por el acceso del residencial. Sin pin nominal ni geometría oficial no se inventa un centro de zona o punto de entrada.",
-      "sourcesTried": [
-        "https://www.hernandezgomezinmobiliaria.com/lote73",
-        "https://www.hernandezgomezinmobiliaria.com/_files/ugd/c787cc_0370ee8eeb8944ceabb535ddfcdbfcc3.pdf",
-        "https://www.preferredrealestate.com.mx/propiedad/terreno-la-laguna-ii-puerto-cancun-2/",
-        "https://www.puertorealty.com/puerto-cancun-la-laguna.php",
-        "https://carpentergroup.com.mx/propiedades/terreno-en-laguna-ii-en-puerto-cancun/",
-        "https://www.yumpu.com/es/document/view/59581018/punta-del-mar-brochure"
-      ]
-    },
-    {
-      "id": "prop-xlsx-f5b3819d157964dc902bae61",
-      "title": "HAVEN Resort Lifestyle",
-      "zone": "Corredor Colosio",
-      "reason": "La web oficial de HAVEN identifica lote 1-15, SM295, pero no publica coordenadas. El folleto presenta un mapa ilustrado sin georreferenciación. Se descartaron un enlace de BrokerCenter que dirige a Le Parc y un iframe de plantilla de Luna Especialistas; ninguno prueba el punto de HAVEN.",
-      "sourcesTried": [
-        "https://havencancun.com/",
-        "https://sucasacancun.com/wp-content/uploads/2024/07/Haven-Resort-Lifestyle-Departamentos-en-Cancun-mapa.pdf"
+        "https://arhea.mx/wp-content/themes/wordpress-template-master/assets/img/modal-caribe/punta_1.webp",
+        "https://arhea.mx/wp-content/themes/wordpress-template-master/assets/img/modal-caribe/punta_2.webp",
+        "https://arhea.mx/wp-content/themes/wordpress-template-master/assets/img/modal-caribe/punta_3.webp",
+        "https://lapunta.mx/",
+        "https://www.allbiz.mx/la-punta-residencial-n%C3%A1utica-55-2167-9575",
+        "https://www.openstreetmap.org/"
       ]
     }
   ]

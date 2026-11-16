@@ -2069,5 +2069,126 @@
     "evidence": "Repex publica en el registro del proyecto df7823c5-9ac8-4e03-8845-d2bdbc8a6e78 una ubicación con nombre 'SLS Bahia Beach', dirección formateada homónima y latitud 21.1662601 / longitud -86.8075047. Es la coordenada publicada, no el centro del mapa. Preferred Luxury publica independientemente 21.166289726576,-86.807481031684 (aprox. 4 m de diferencia). El mapa de Quantia está fijado en 21°09'58.3 N,86°48'26.5 W, en el mismo edificio (aprox. 17 m), y el plano oficial de SLS, página PDF 7 del folleto Bahía Beach Residences, distingue la torre Bahía al oeste/suroeste del conjunto Novo de Marina, Harbour y el hotel. No se usa el domicilio oficial de Av. Bonampak porque está rotulado Showroom. No se usa el 21.167,-86.8 redondeado de Inmobilia. La coordenada representa el edificio, no un departamento ni el showroom.",
     "coordinateMethod": "corroborated-published-pin",
     "verifiedOn": "2026-11-16"
+  },
+  {
+    "id": "prop-xlsx-d43f3dcfc1b157f357d3f5ac",
+    "title": "Lagunas 2",
+    "latitude": 21.1631693,
+    "longitude": -86.80509,
+    "kind": "community",
+    "address": "Acceso de La Laguna II desde Boulevard Puerto Cancún, Cancún, Quintana Roo, México",
+    "sourceUrl": "https://www.openstreetmap.org/node/8206866327",
+    "evidence": "La cartografía OSM identifica el nodo 8206866327 como barrier=lift_gate, access=private. Pertenece a la vía 882478598, que expresa explícitamente destination=La Laguna II, oneway=yes y conecta desde Boulevard Puerto Cancún por la vía 681911304. El punto es la caseta de ingreso del conjunto; el carril paralelo de salida expresa destination=Boulevard Puerto Cancún. El plano llave de Hernández Gómez rotula La Laguna II junto a Laguna Morales con esta disposición de acceso y vialidad. No se tomó un lote privado, el edificio Punta del Mar ni un centro de zona.",
+    "coordinateMethod": "mapped-named-entrance",
+    "corroborationUrl": "https://www.openstreetmap.org/way/882478598",
+    "planSourceUrl": "https://www.hernandezgomezinmobiliaria.com/_files/ugd/c787cc_0370ee8eeb8944ceabb535ddfcdbfcc3.pdf",
+    "verifiedOn": "2026-11-16"
+  },
+  {
+    "id": "prop-xlsx-004e74976d46e830b686b450",
+    "title": "SLS Marina Beach",
+    "latitude": 21.1674954,
+    "longitude": -86.8060268,
+    "kind": "building",
+    "address": "SLS Marina Beach, frente al canal norte de Novo Cancún, Puerto Cancún, Cancún, Quintana Roo, México",
+    "sourceUrl": "https://www.beckgroup.com/projects/sls-marina-beach-tower-3/",
+    "evidence": "La constructora Beck identifica su proyecto SLS Marina Beach Tower 3 y publica la fotografía aérea BECK-SLSMB-30, donde se ve la torre quebrada frente al canal norte, con muelles en su fachada y el campo de golf y torres del lado opuesto. El plano comercial oficial SLS_MB_FOLDOUT rotula SLS MARINA BEACH sobre esta misma huella, al oeste de las villas de Novo y al noroeste de las otras torres. La geometría y posición coinciden inequívocamente con el edificio cartografiado OSM 1374894779. Se calculó el centroide de esa huella, dentro del edificio; no se usaron los pins de Inmobilia y varios comercializadores que caen en SLS Hotel, unos 230 metros al este.",
+    "coordinateMethod": "official-plan-and-constructor-photo-matched-building-footprint",
+    "corroborationUrl": "https://www.openstreetmap.org/way/1374894779",
+    "planSourceUrl": "https://assets.easybroker.com/property_files/4690606/313318/SLS_MB_FOLDOUT.pdf",
+    "photoSourceUrl": "https://www.beckgroup.com/wp-content/uploads/2023/09/BECK-SLSMB-30-scaled.jpg",
+    "verifiedOn": "2026-11-16"
+  },
+  {
+    "id": "prop-xlsx-b784237341b0370154721242",
+    "title": "Residencial Campestre",
+    "latitude": 21.1015401,
+    "longitude": -86.8418315,
+    "kind": "community",
+    "address": "Acceso a Paseo del Sol desde Boulevard Luis Donaldo Colosio, Residencial Campestre, Cancún, Quintana Roo, México",
+    "sourceUrl": "https://www.openstreetmap.org/node/1789370436",
+    "evidence": "Punto cartografiado de la vía de ingreso privada 167542118: el orden de sus nodos y oneway=yes conducen desde la glorieta de Colosio hacia Calle Paseo del Sol (vía 167542060). El nodo 1789370436 está en ese ingreso, antes del cruce con Paseo del Sol; no es una vivienda ni el centro calculado del barrio. El INE identifica expresamente Residencial Campestre en Boulevard Colosio/Paseo del Sol; el padrón oficial de escuelas confirma Paseo del Sol 18 como Residencial Campestre. Se descartó el anterior candidato 908394673 porque termina en un turning_circle, y no conecta con Colosio. Se descartó también utilizar el centro de GeoNames como acceso exacto.",
+    "coordinateMethod": "mapped-community-access",
+    "corroborationUrl": "https://portal.ine.mx/wp-content/uploads/2024/06/PEC24_QROO_Listado_de_ubicacion_e_Integracion_de_casillas.pdf",
+    "additionalSources": [
+      "https://www.openstreetmap.org/way/167542118",
+      "https://www.openstreetmap.org/way/167542060",
+      "https://seq.qroo.gob.mx/wp-content/uploads/2024/09/PADRON-DE-ESCUELAS-PARTICULARES-2024-2025_ACTUALIZADO-A-23-DE-SEPTIEMBRE-DE-2024.pdf"
+    ],
+    "sourceSnapshot": "followup-campestre-osm.xml",
+    "verifiedOn": "2026-11-16"
+  },
+  {
+    "id": "prop-xlsx-f5b3819d157964dc902bae61",
+    "title": "HAVEN Resort Lifestyle",
+    "latitude": 21.109693,
+    "longitude": -86.836587,
+    "kind": "complex",
+    "address": "Boulevard Luis Donaldo Colosio, Lote 1-15, Supermanzana 295, Cancún, Quintana Roo, México",
+    "sourceUrl": "https://www.nautilusrealestate.mx/cancun/haven-en",
+    "evidence": "La ficha específica HAVEN del comercializador Nautilus publica explícitamente 21.109693, -86.836587 y un mapa del proyecto. Su identidad coincide con INZIGNA/HASTA Capital y el sitio oficial havencancun.com, que da Lote 1-15 SM295. El plano aéreo LUXED del proyecto separa la franja de HAVEN del lote de Le Parc: HAVEN se extiende desde Colosio por el lado sur de Le Parc. Se contrastó ese entorno con imagen georreferenciada Esri World Imagery: el punto publicado cae en la franja al suroeste del punto Le Parc, al este de Colosio y antes del predio vecino del sur. No se estimaron coordenadas a partir del dibujo. Se descarta el pin Icon Group 21.10097553595,-86.840266662461, situado aproximadamente 1 km al sur, y el enlace de otro comercializador que apunta a Le Parc.",
+    "coordinateMethod": "published-project-marker-corroborated-site-plan",
+    "corroborationUrl": "https://havencancun.com/",
+    "additionalSources": [
+      "https://sucasacancun.com/wp-content/uploads/2024/07/Haven-Resort-Lifestyle-Departamentos-en-Cancun-mapa.pdf",
+      "https://www.pincali.com/es/inmueble/departamentos-en-venta-en-haven-resort-lifestyle",
+      "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/export?bbox=-86.8400,21.1066,-86.8320,21.1122&bboxSR=4326&imageSR=4326&size=1200,1000&format=jpg&f=json"
+    ],
+    "sourceSnapshots": [
+      "round2-haven-map.png",
+      "round2-haven-satellite.jpg",
+      "round2-haven-satellite-georef.json"
+    ],
+    "verifiedOn": "2026-11-16"
+  },
+  {
+    "id": "prop-xlsx-09f97f9746f21ef765802cc6",
+    "title": "Pez Volador",
+    "latitude": 21.1445001,
+    "longitude": -86.7767701,
+    "kind": "community",
+    "address": "Calle Pez Volador, Zona Hotelera, Cancún, Quintana Roo, 77500, México",
+    "sourceUrl": "https://tamarrealty.com/desarrollo/pez-volador",
+    "corroborationUrl": "https://maps.google.com/maps?q=Pez%20Volador%20Canc%C3%BAn%20Quintana%20Roo&output=embed&hl=en",
+    "evidence": "El inventario describe expresamente un enclave de calle residencial de baja densidad, no un edificio. Tamar identifica Pez Volador como una vía residencial cercana a Playa Langosta. La cartografía pública guardada en hotel-map-prop-xlsx-09f97f9746f21ef765802cc6.html resuelve la entidad nominal 'Pez Volador, Kukulcan Boulevard, Zona Hotelera, 77500 Cancún, Q.R., Mexico', place ID hexadecimal 0x8f4c28dbcf62847b:0xc52150197741dfa3, en 21.1445001,-86.7767701. Se utiliza el punto nominal de esa calle como community; no se presenta como edificio, casa individual, playa ni centro de toda la Zona Hotelera.",
+    "coordinateMethod": "named-residential-street-point",
+    "verifiedOn": "2026-11-16"
+  },
+  {
+    "id": "prop-xlsx-89066528ccb62e0bf9b0b08f",
+    "title": "Villas Nissa",
+    "latitude": 21.146097,
+    "longitude": -86.793022,
+    "kind": "complex",
+    "address": "Condominio Villas Nissia, calle del Galeón, Zona Hotelera, Cancún, Quintana Roo, 77500, México",
+    "sourceUrl": "https://tamarrealty.com/desarrollo/villas-nissa",
+    "corroborationUrl": "https://www.bizarchivo.mx/villas-nissia",
+    "additionalSources": [
+      "https://tamarrealty.com/dashboard/uploads/mapasSlideEdificio/Villas%20Nissa.jpg",
+      "https://tamarrealty.com/dashboard/uploads/mapasSlideEdificio/Villas%20Nissa%203.jpg",
+      "https://amp.mexicoo.mx/villas-nissia-3628176",
+      "https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer"
+    ],
+    "evidence": "La fotografía de acceso que Tamar publica bajo Villas Nissa muestra el rótulo VILLAS NISSIA: esta variante de grafía permite resolver la identidad sin cambiar el título guardado. Bizarchivo identifica el condominio en calle del Galeón 2 y publica 21.14595,-86.79262; Mexicoo documenta la administración del condominio y publica 21.14616148,-86.79259669, 23 m al norte. Esos puntos quedan junto al frente del conjunto y se usan solamente para corroborar la calle, no como coordenada final. Las fotos comerciales de fachada y vista desde la marina se compararon visualmente con imagen aérea georreferenciada Esri: coinciden las villas blancas alrededor del jardín, la alberca rectangular y cancha contiguas al canal, los muelles, el vecino de cubiertas blancas en U al noroeste y las casas de techos rojos al sureste. El punto final está dentro del conjunto blanco identificado, en su área interior común, no en una vivienda individual ni oficina externa. Derivado del píxel (640,470) de round2-nissia-satellite-west.png mediante teselas Web Mercator z18, origen x67870/y115311 y escala de 512 píxeles por tesela en la composición: 21.146097232140992,-86.79302215576172. Es ubicación del complejo verificado por huella, no un levantamiento catastral ni centro de zona. No se utilizaron domicilios particulares de expedientes judiciales.",
+    "coordinateMethod": "published-facade-and-georeferenced-footprint",
+    "verifiedOn": "2026-11-16"
+  },
+  {
+    "id": "prop-xlsx-0678dfd31a7da18ab0bfcb10",
+    "title": "Náutica Isla Dorada",
+    "latitude": 21.111436,
+    "longitude": -86.769081,
+    "kind": "complex",
+    "address": "Náutica Residences, Isla Dorada, Zona Hotelera, Cancún, Quintana Roo, México",
+    "sourceUrl": "https://s3.amazonaws.com/assets.moveglobally.com/property_files/1020160/56488/NAUTICA_RESIDENCES_101.pdf",
+    "corroborationUrl": "https://www.revistaequipar.com/mexico/contenido-editorial/nautica-isla-dorada",
+    "additionalSources": [
+      "https://lemmusrealestate.com/cancun/departamento-de-355-m2-en-venta-en-nautica-isla-dorada-5613/",
+      "https://cancun.estate/isla-nautica-hotel-zone-cancun-quintana-roo",
+      "https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer"
+    ],
+    "evidence": "Brochure primario de LEMMUS Inver México / Nautica Residences (página 8, guardado en round2-nautica.pdf y round2-nautica-aerial.png) muestra las dos torres blancas escalonadas, la alberca de contorno doble al este/sureste, cuatro muelles al sur, una piscina circular del vecino al oeste y un conjunto de techos rojos al este. La comparación visual con imagen aérea georreferenciada Esri identifica de forma inequívoca esas dos huellas en el extremo suroeste de la península de Isla Dorada. El punto final se sitúa en el área común entre las torres, derivado del píxel (350,500) de round2-nautica-satellite-tiled.png: teselas Web Mercator z18, origen x67888/y115338 y escala de 512 píxeles por tesela en la composición; coordenada 21.11143603114856,-86.76908075809479. La identidad del proyecto de 16 residencias y dos torres está corroborada por el desarrollador y Revista Equipar. Se DESCARTA el 21.112212,-86.768943 de cancun.estate porque cae unos 87 m al norte, en otra parte de Isla Dorada; también se descarta el mapa de la ficha de LEMMUS (21.113174,-86.763976), que señala otro punto del fraccionamiento. No se confunde con Nautica Residences by Nauma, otro proyecto. Es ubicación del complejo verificado por huella, no centro genérico de Isla Dorada ni domicilio de un propietario.",
+    "coordinateMethod": "developer-aerial-and-georeferenced-footprint",
+    "verifiedOn": "2026-11-16"
   }
 ];});
