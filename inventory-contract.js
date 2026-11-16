@@ -306,7 +306,7 @@
     return { query, errors: [...new Set(errors)] };
   }
 
-  function matches(p, query, { includePrivate = false, areas = LOCATIONS, exchangeRate, now } = {}) {
+  function matches(p, query, { includePrivate = false, areas = LOCATIONS, exchangeRate, now, publicLocationFor } = {}) {
     if (query && (owns(query, "query") || owns(query, "errors"))) {
       const parsed = parseQuery(query, {}, { areas });
       if (parsed.errors.length) return false;
@@ -317,8 +317,12 @@
     if (query.entity === "all" ? !query.featured || entity === "typologies" : entity !== query.entity) return false;
     if (query.locations.length && !query.locations.includes(resolveLocation(p, areas).id)) return false;
     if (query.bounds) {
-      if (p.locationPrecision === "hidden" || p.portalHiddenBlocks?.includes("location")) return false;
-      const latitude = optionalNumber(p.latitude), longitude = optionalNumber(p.longitude);
+      if ([p.locationPrecision, p.location_precision].includes("hidden") || p.portalHiddenBlocks?.includes("location")) return false;
+      // Public map searches must use the same verified display point as the map,
+      // including developments whose stored coordinates have not been edited.
+      const point = typeof publicLocationFor === "function" ? publicLocationFor(p) : p;
+      if (!point || [point.precision, point.locationPrecision].some(value => value === "hidden" || value === "unavailable")) return false;
+      const latitude = optionalNumber(point.latitude), longitude = optionalNumber(point.longitude);
       if (latitude === null || longitude === null || !Number.isFinite(latitude) || !Number.isFinite(longitude) || Math.abs(latitude) > 90 || Math.abs(longitude) > 180) return false;
       const [west, south, east, north] = query.bounds;
       if (longitude < west || longitude > east || latitude < south || latitude > north) return false;

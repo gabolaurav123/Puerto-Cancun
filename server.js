@@ -104,6 +104,7 @@ const databasePoolMax = Math.max(1, Math.min(20, Number(process.env.DATABASE_POO
 const visitorAnalyticsRetentionDays = Math.max(30, Math.min(1095, Number(process.env.VISITOR_ANALYTICS_RETENTION_DAYS || 365)));
 const indexPath = path.join(__dirname, "index.html");
 const inventoryContract = require("./inventory-contract");
+const { queryPublicInventory, createPublicLocationResolver } = require("./public-inventory-query");
 const portalDirectoryModel = require("./portal-directory");
 const portalDirectoryStore = require("./portal-directory-store");
 const { interpretCatalogSearch, localizeCatalogError } = require("./catalog-search");
@@ -4801,7 +4802,7 @@ app.post("/api/search/intelligent", async (req, res, next) => {
     const interpretation = interpretCatalogSearch(queryText, req.body?.filters || {}, { properties, language, areas: publicPropertyCache.directory?.areas });
     const result = interpretation.clarificationRequired
       ? { items: [], total: null, errors: [], query: interpretation.filters }
-      : inventoryContract.queryInventory(properties, interpretation.filters, {areas: publicPropertyCache.directory?.areas, lang: language, publicPricing: true, exchangeRate: exchangeRateService.getSnapshot()});
+      : queryPublicInventory(properties, interpretation.filters, {directory:publicPropertyCache.directory, areas: publicPropertyCache.directory?.areas, lang: language, publicPricing: true, exchangeRate: exchangeRateService.getSnapshot()});
     result.errors = result.errors.map(error => localizeCatalogError(error, language));
     const needsChoice = interpretation.clarificationRequired || result.errors.length > 0;
     const params = inventoryContract.toSearchParams(interpretation.filters);
@@ -4816,7 +4817,7 @@ app.post("/api/search/intelligent", async (req, res, next) => {
 
 app.get("/api/catalog", async (req, res, next) => {
   try {
-    const result = inventoryContract.queryInventory(await getPublicProperties(), req.query, {areas: publicPropertyCache.directory?.areas, lang: req.query.lang, publicPricing: true, exchangeRate: exchangeRateService.getSnapshot()});
+    const result = queryPublicInventory(await getPublicProperties(), req.query, {directory:publicPropertyCache.directory, areas: publicPropertyCache.directory?.areas, lang: req.query.lang, publicPricing: true, exchangeRate: exchangeRateService.getSnapshot()});
     res.status(result.errors.length ? 400 : 200).json({ ...result, all: undefined, contractVersion: inventoryContract.VERSION });
   } catch (error) { next(error); }
 });
@@ -5551,7 +5552,7 @@ async function evaluateSavedSearch(row, { createAlerts = false } = {}) {
   const publicProperties = await getPublicProperties();
   const filters = savedCatalogQuery(row.filters || {}, { queryText: row.query_text || "", properties: publicProperties, areas: publicPropertyCache.directory?.areas });
   if (filters.errors.length) throw Object.assign(new Error(filters.errors.join(" ")), { status: 400 });
-  const matches = inventoryContract.queryInventory(publicProperties, filters, { pageSize: 100, areas: publicPropertyCache.directory?.areas, publicPricing: true, exchangeRate: exchangeRateService.getSnapshot() }).all;
+  const matches = queryPublicInventory(publicProperties, filters, { pageSize: 100, directory:publicPropertyCache.directory, areas: publicPropertyCache.directory?.areas, publicPricing: true, exchangeRate: exchangeRateService.getSnapshot() }).all;
   const alertResults = [];
   if (createAlerts && row.alerts_enabled) {
     for (const property of matches) {
@@ -5571,10 +5572,11 @@ async function createSavedSearchAlertsForProperty(property) {
   if (!visibleProperty) return 0;
   void commercialWorkflow.evaluateWatches().catch(error => console.warn("Commercial search alerts:", error.message));
   const searches = await query("SELECT * FROM saved_searches WHERE alerts_enabled = TRUE");
+  const publicLocationFor = createPublicLocationResolver(publicProperties, {directory:publicPropertyCache.directory});
   let created = 0;
   for (const search of searches.rows) {
     const filters = savedCatalogQuery(search.filters || {}, { queryText: search.query_text || "", properties: publicProperties, areas: publicPropertyCache.directory?.areas });
-    if (filters.errors.length || !inventoryContract.matches(visibleProperty, filters)) continue;
+    if (filters.errors.length || !inventoryContract.matches(visibleProperty, filters, {areas:publicPropertyCache.directory?.areas,publicLocationFor})) continue;
     if (await createSavedSearchMatch(search, visibleProperty)) created += 1;
   }
   return created;

@@ -42,6 +42,9 @@
     .pcc-catalog-map-missing { margin:12px 0;overflow-wrap:anywhere; }
     .pcc-catalog-map-missing summary { cursor:pointer;min-height:44px; }
     .pcc-catalog-map-missing a { display:inline-block;padding:8px 0; }
+    .pcc-catalog-map-missing > ul { max-height:320px;overflow-y:auto;padding-left:20px; }
+    .pcc-catalog-map-missing li + li { margin-top:10px; }
+    .pcc-catalog-map-missing .pcc-catalog-map-popup-actions a { display:flex; }
     .pcc-catalog-map-mounted .map-highlight { outline:3px solid #ae8c42; }
     .public-location-canvas { width:100%;max-width:100%;background:#eaf2f2;border:1px solid #cbdedf;border-radius:6px;overflow:hidden; }
     .public-location-canvas.is-page-scroll { touch-action:pan-y pinch-zoom; }
@@ -104,6 +107,7 @@
       if (typeof raw.priceText === "string" && raw.priceText.trim()) item.priceText = raw.priceText.trim().slice(0, 300);
       const lat = number(raw.latitude), lng = number(raw.longitude);
       if (hidden) item.reason = "hidden";
+      else if (kind === "development" && precision !== "exact") item.reason = "unverified";
       else if (lat === null || lng === null || Math.abs(lat) > 90 || Math.abs(lng) > 180) item.reason = "missing";
       else {
         item.latitude = precision === "exact" ? lat : Math.round(lat * 100) / 100;
@@ -275,6 +279,18 @@
       parent.append(element);
       return element;
     }
+    function itemActions(item, parent) {
+      const actions = doc.createElement("div"); actions.className = "pcc-catalog-map-popup-actions"; parent.append(actions);
+      const propertyLink = link(item, actions);
+      propertyLink.textContent = item.kind === "development" ? t("Ver desarrollo", "View development")
+        : item.kind === "presale" ? t("Ver proyecto", "View project") : t("Ver propiedad", "View property");
+      propertyLink.setAttribute("data-catalog-map-id", item.id);
+      if (item.contactUrl) {
+        const contact = doc.createElement("a"); contact.href = item.contactUrl;
+        contact.setAttribute("data-contact-inquiry", ""); contact.textContent = t("Pedir información", "Request information"); actions.append(contact);
+      }
+      return propertyLink;
+    }
     function updateArea() {
       search.disabled = !map || !form || typeof form.requestSubmit !== "function" || !serializeBounds(map.getBounds());
     }
@@ -294,11 +310,7 @@
           const row = doc.createElement("li"); popup.append(row);
           const title = doc.createElement("strong"); title.className = "pcc-catalog-map-popup-title"; title.textContent = item.title; row.append(title);
           if (item.priceText) { const price = doc.createElement("p"); price.className = "pcc-catalog-map-price"; price.textContent = item.priceText; row.append(price); }
-          const actions = doc.createElement("div"); actions.className = "pcc-catalog-map-popup-actions"; row.append(actions);
-          const propertyLink = link(item, actions); propertyLink.textContent = t("Ver ficha", "View listing"); propertyLink.setAttribute("data-catalog-map-id", item.id);
-          if (item.contactUrl) {
-            const contact = doc.createElement("a"); contact.href = item.contactUrl; contact.setAttribute("data-contact-inquiry", ""); contact.textContent = t("Pedir información", "Request information"); actions.append(contact);
-          }
+          const propertyLink = itemActions(item, row);
           propertyLink.addEventListener("focus", () => highlight([item.id]));
           propertyLink.addEventListener("mouseenter", () => highlight([item.id]));
           propertyLink.addEventListener("mouseleave", clearHighlight);
@@ -337,7 +349,11 @@
         summary.textContent = t(`${data.items.length} de ${total} ${scope} de tu búsqueda en el mapa. ${absent} sin ubicación pública. ${approximate} aproximados.`, `${data.items.length} of ${total} ${scope} from your search are on the map. ${absent} without a public location. ${approximate} approximate.`);
         missingHeading.textContent = t(`${absent} resultados sin ubicación pública`, `${absent} results without a public location`);
         details.hidden = !absent; missingList.replaceChildren();
-        for (const item of data.missing) { const row = doc.createElement("li"); missingList.append(row); link(item, row); }
+        for (const item of data.missing) {
+          const row = doc.createElement("li"); missingList.append(row);
+          const title = doc.createElement("strong"); title.textContent = item.title; row.append(title);
+          itemActions(item, row);
+        }
         const existingBounds = serializeBounds(form?.querySelector('[name="bounds"]')?.value || "");
         if (!data.items.length && !existingBounds) {
           canvas.hidden = true; status.textContent = t("Sin ubicaciones públicas para mostrar. Los resultados están en la lista.", "No public locations to display. Results remain in the list.");

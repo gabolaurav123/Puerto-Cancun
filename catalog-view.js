@@ -1,6 +1,6 @@
 const inventory = require("./inventory-contract");
 const { localizeCatalogError, describeCatalogFilters } = require("./catalog-search");
-const { resolvePublicLocation } = require("./public-listing-details");
+const { createPublicLocationResolver } = require("./public-inventory-query");
 const { escape, areasFor, areaName, areaFor, subareaName, contactLink, presalePath, projectRecords, projectDetail } = require("./catalog-directory");
 
 function categoryDefaults(filter = {}, areas = inventory.LOCATIONS) {
@@ -171,7 +171,7 @@ function suggestionLinks(ctx, rows) {
     // budget, property type, operation, or another restriction in suggested links.
     if (alternate && ["type","operation","modality","currency","rentPeriod","development","zone","subarea"].some(key => query[key])) continue;
     if (alternate && ["min","max","beds","baths","parking","minBuilt","maxBuilt","minLot","maxLot"].some(key => query[key] != null)) continue;
-    const matches = rows.filter(row => inventory.entityOf(row) === entity && inventory.matches(row, { ...query, entity }, {areas}));
+    const matches = rows.filter(row => inventory.entityOf(row) === entity && inventory.matches(row, { ...query, entity }, {areas, publicLocationFor:ctx.publicLocationFor}));
     const links = matches.slice(0,4).flatMap(row => {
       const href = lang === "en" ? row.urlEn : row.urlEs;
       return href && href.startsWith("/") && !href.startsWith("//") ? [`<a href="${escape(href)}">${escape(lang === "en" ? row.titleEn || row.titleEs : row.titleEs)}</a>`] : [];
@@ -248,6 +248,7 @@ function renderCatalog(page, properties, params = {}, renderCards) {
   const t = (es,en) => lang === "en" ? en : es;
   const publicRows = properties.filter(inventory.isPublic);
   const directory = page.portalDirectory || require("./portal-directory").publicDirectory(null, publicRows);
+  const publicLocationFor = createPublicLocationResolver(publicRows, { directory, areas, lang });
   let records = presales ? projectRecords(directory, publicRows, lang) : publicRows;
   if (presales && params.project) records = records.filter(row => row.id === params.project);
   const parsed = inventory.parseQuery(input, defaults, {areas}).query;
@@ -275,7 +276,7 @@ function renderCatalog(page, properties, params = {}, renderCards) {
   const ranks = new Map(placements.map((item,index) => [mixed && ["area","presale"].includes(item.kind) ? item.kind + ":" + item.targetId : item.targetId,index]));
   if (page.portalDirectory || ctx.featuredPage) records = records.map(row => ({...row,featured:ranks.has(row.id)}));
   const grouped = projects && !ctx.featuredPage && selectedLocations.length !== 1;
-  const result = inventory.queryInventory(records, input, { defaults, areas, lang, featureRanks:ranks, groupByArea:grouped, publicPricing:true, exchangeRate:page.currencyExchange });
+  const result = inventory.queryInventory(records, input, { defaults, areas, lang, featureRanks:ranks, groupByArea:grouped, publicPricing:true, exchangeRate:page.currencyExchange, publicLocationFor });
   result.errors = result.errors.map(error => localizeCatalogError(error,lang));
   if (ctx.unsupportedProjectFilters.length) {
     result.errors.push(t("Estos criterios corresponden a unidades: cambia a Propiedades o quita los filtros indicados. No se han ignorado tus requisitos.","These criteria apply to units: switch to Properties or remove the selected filters. Your requirements have not been ignored."));
@@ -283,9 +284,12 @@ function renderCatalog(page, properties, params = {}, renderCards) {
   }
   const { query, total } = result;
   const view = params.view === "map" ? "map" : "list";
-  Object.assign(ctx,{areas,t,query,result,view,directory,landRoute:page.category?.type === "Terreno",exchangeRate:page.currencyExchange});
+  Object.assign(ctx,{areas,t,query,result,view,directory,publicLocationFor,landRoute:page.category?.type === "Terreno",exchangeRate:page.currencyExchange});
   const sourceParams = new URLSearchParams(params);
   const sourcePath = (page.path || path) + (sourceParams.size ? "?" + sourceParams : "");
+  const mapSourceParams = new URLSearchParams(sourceParams);
+  mapSourceParams.set("view", "map");
+  const mapSourcePath = (page.path || path) + "?" + mapSourceParams;
   const singular = total === 1;
   const label = mixed ? t(singular ? "resultado destacado":"resultados destacados",singular ? "featured result":"featured results") : presales ? t(singular ? "preventa":"preventas",singular ? "presale":"presales") : projects ? t(singular ? "desarrollo":"desarrollos",singular ? "development":"developments") : t(singular ? "propiedad":"propiedades",singular ? "listing":"listings");
   const cardContext = { ...ctx, sourcePath, records:publicRows };
@@ -323,7 +327,7 @@ function renderCatalog(page, properties, params = {}, renderCards) {
     if (links.length) areaIndex = `<nav class="catalog-area-index" aria-label="${t("Explorar por zona","Explore by zone")}">${links.join("")}</nav>`;
   }
   const mapItems = result.all.map(row => {
-    const resolved = resolvePublicLocation(row.locationSource || row, {properties:publicRows,directory,lang});
+    const resolved = publicLocationFor(row);
     const precision = row.portalHiddenBlocks?.includes("location") || row.locationPrecision === "hidden" ? "hidden" : resolved.precision;
     const project = Boolean(row.presaleProject), development = project || inventory.entityOf(row) === "developments";
     const title = lang === "en" ? row.titleEn || row.titleEs : row.titleEs;
@@ -336,8 +340,8 @@ function renderCatalog(page, properties, params = {}, renderCards) {
       propertyId:development ? row.linkedProperty?.id || "" : row.id,
       developmentId:development ? row.linkedDevelopment?.id || (!project ? row.id : "") : parent?.id || "",
       propertyTitle:development ? "" : title,propertyType:development ? "" : row.type,mls:row.mls || "",
-      project:project ? title : "",reference:project ? row.reference || row.id : "",
-      searchFilters:JSON.stringify(query),origin:project ? "presale-map" : development ? "development-map" : "property-map",sourcePath,
+      project:project ? title : "",reference:project ? row.presaleProject.reference || row.reference || row.id : "",
+      searchFilters:JSON.stringify(query),origin:project ? "presale-map" : development ? "development-map" : "property-map",sourcePath:mapSourcePath,
     };
     const contactParams = new URLSearchParams(Object.entries(context).filter(([,value]) => value != null && value !== ""));
     return { id:row.id,title:lang === "en" ? row.titleEn || row.titleEs : row.titleEs,url:lang === "en" ? row.urlEn : row.urlEs,kind:row.featuredArea ? "zone" : row.presaleProject ? "presale" : inventory.entityOf(row) === "developments" ? "development" : "property",

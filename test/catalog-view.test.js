@@ -160,7 +160,7 @@ test('the map includes all filtered pages and withholds hidden coordinates; proj
   assert.equal(map.length,30); assert.ok(map.every(p=>p.locationPrecision === 'hidden' && !('latitude' in p)));
   const contact = new URL(map[0].contactUrl,'https://www.puertocancun.center');
   assert.equal(contact.pathname,'/contacto'); assert.equal(contact.searchParams.get('propertyId'),map[0].id);
-  assert.equal(contact.searchParams.get('sourcePath'),'/propiedades?page=2');
+  assert.equal(contact.searchParams.get('sourcePath'),'/propiedades?page=2&view=map');
   const project = {id:'confirmed',nameEs:'Proyecto Coral',nameEn:'Coral Project',areaId:'puerto-cancun',propertyIds:['record-1'],reference:'P-42',status:'confirmed'};
   const page = {...getPageByPath('/en/cancun-presales'),catalogAreas:areas,portalDirectory:{areas,presales:[project,{...project,id:'draft',status:'draft'}],featured:[]}};
   const results = renderCategoryPage(page,rows,{});
@@ -183,6 +183,36 @@ test('map scope intersects entity, zone and property type before pagination', ()
     assert.equal([...html.matchAll(/data-category-property=/g)].length,3);
     assert.ok(points.every(point=>new URL(point.contactUrl,'https://example.test').searchParams.get('zone')==='Puerto Cancún'));
   }
+});
+
+test('searching the map area uses verified development points, preserves filters and never mutates stored locations', () => {
+  const {getPageByPath,renderCategoryPage} = require('../seo-pages');
+  const source = require('../verified-development-location-data').find(row => row.title === 'Riva Puerto Cancún');
+  const row = {id:source.id,titleEs:source.title,titleEn:source.title,type:'Desarrollo',publicationSection:'developments',
+    status:'active',isPublic:true,zone:'Puerto Cancún',latitude:null,longitude:null,locationPrecision:'approximate',
+    urlEs:'/propiedades/riva',urlEn:'/en/properties/riva'};
+  const rows = [row,{...row,id:'unverified'},{...row,id:'private',isPublic:false}];
+  const before = JSON.stringify(rows);
+  const bounds = [source.longitude-.001,source.latitude-.001,source.longitude+.001,source.latitude+.001].join(',');
+  for (const [path,lang] of [['/propiedades/desarrollos-cancun','es'],['/en/properties/developments-cancun','en']]) {
+    const page = getPageByPath(path);
+    const render = (data,query={}) => renderCategoryPage(page,data,{location:'puerto-cancun',bounds,view:'map',...query});
+    const points = html => JSON.parse(html.match(/data-catalog-map-data>([^<]*)<\/script>/)[1]);
+    const mapped = points(render(rows));
+    assert.deepEqual(mapped.map(point=>point.id),[row.id]);
+    assert.equal(mapped[0].latitude,source.latitude);
+    assert.equal(mapped[0].longitude,source.longitude);
+    const contact = new URL(mapped[0].contactUrl,'https://example.test');
+    assert.equal(contact.searchParams.get('developmentId'),row.id);
+    assert.equal(contact.pathname,lang === 'en' ? '/en/contact' : '/contacto');
+    assert.match(contact.searchParams.get('sourcePath'),/view=map/);
+    assert.equal(points(render(rows,{location:'zona-hotelera'})).length,0);
+    assert.equal(points(render(rows,{bounds:'-88,20,-87,21'})).length,0);
+    for (const patch of [{locationPrecision:'hidden'},{location_precision:'hidden'},{portalHiddenBlocks:['location']}]) {
+      assert.equal(points(render([{...row,...patch}])).length,0);
+    }
+  }
+  assert.equal(JSON.stringify(rows),before);
 });
 
 test('Hotel Zone retains the property type filter even for uniform inventory', () => {
