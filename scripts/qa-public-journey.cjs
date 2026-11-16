@@ -63,6 +63,20 @@ const server=http.createServer(app);
         await page.goto(base+route);await page.waitForFunction(()=>Boolean(window.PccInquiry));
         assert.equal(await page.locator('.advisor-launcher,.advisor-dialog').count(),0,"AI removed");
         assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+2),`${route} ${width}: page fits`);
+        const officeLinks=page.locator('.office-inquiry-button');
+        if(await officeLinks.count()) {
+          assert.equal(await officeLinks.count(),2,"both offices available");
+          for(const office of await officeLinks.all()) {
+            const href=new URL(await office.getAttribute("href"));
+            assert.equal(href.origin,"https://wa.me","office opens WhatsApp directly");
+            assert.ok(href.searchParams.get("text"),"message is prepared");
+            assert.equal(await office.getAttribute("data-contact-inquiry"),null,"no intervening form");
+          }
+        }
+        if(["/contacto","/en/contact"].includes(route)) {
+          report.checks.push({lang,width,route,contact:"both offices: direct WhatsApp with prepared message"});
+          continue;
+        }
         const primary=page.locator('.seo-page [data-contact-inquiry]:visible, main [data-contact-inquiry]:visible').first();
         assert.ok(await primary.count(),`${route}: human contact present`);
         await primary.click();await page.locator('.contextual-inquiry [name="contactChannel"]').waitFor();
