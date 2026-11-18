@@ -11,10 +11,10 @@ test("the phone country's ISO code stays separate from its dialing code and the 
   assert.throws(() => contactPhone("+34 612 345 678","MX","en"), /country/);
   assert.throws(() => contactPhone("123abc","MX","es"), /teléfono/);
   assert.throws(() => contactPhone("123","MX","en"), /phone/);
-  assert.equal(destination(contactRouting(), "CA"), "19562518956");
+  assert.equal(destination(contactRouting(), "CA"), "19568037838");
   assert.equal(destination(contactRouting({ us: "" }), "US"), "5219982166563");
-  assert.equal(destination(contactRouting({ rule: "us" }), "ES"), "19562518956");
-  assert.equal(destination(contactRouting(), "MX", "us"), "19562518956");
+  assert.equal(destination(contactRouting({ rule: "us" }), "ES"), "19568037838");
+  assert.equal(destination(contactRouting(), "MX", "us"), "19568037838");
   assert.equal(destination(contactRouting({ mx: "529982166566", rule: "us" }), "CA", "mx"), "529982166566");
   assert.equal(destination(contactRouting({ us: "" }), "MX", "us"), "");
   assert.throws(() => contactRouting({ us: "", mx: "" }, true), /respaldo/);

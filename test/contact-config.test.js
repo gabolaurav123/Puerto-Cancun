@@ -22,7 +22,7 @@ function whatsappLinks(html) {
 test("CommonJS and browser contacts preserve actual MX/USA numbers and encode context once", () => {
   const browser = {};
   vm.runInNewContext(read("contact-config.js"), browser);
-  assert.deepEqual(contacts.contacts.map(({ id, number }) => [id, number]), [["mx", "5219982166563"], ["us", "19562518956"]]);
+  assert.deepEqual(contacts.contacts.map(({ id, number }) => [id, number]), [["mx", "5219982166563"], ["us", "19568037838"]]);
   const before = JSON.stringify(contacts.contacts);
   const message = 'Casa \u00e1 & "Sol" + 50% #1\nhttps://example.invalid/p?q=a&lang=en';
   for (const contact of contacts.contacts) {
@@ -68,7 +68,7 @@ test("Spanish and English office buttons open WhatsApp directly with a prepared 
     assert.doesNotMatch(custom, /data-office="mx"/);
   }
   assert.equal(seo.business.telephone, contacts.contacts.find(({ id }) => id === "mx").display);
-  assert.doesNotMatch(read("seo-pages.js"), /wa\.me\/\d+|5219982166563|19562518956/);
+  assert.doesNotMatch(read("seo-pages.js"), /wa\.me\/\d+|5219982166563|19568037838/);
 });
 
 test("property and development inquiries retain the localized title and listing reference", () => {

@@ -5,7 +5,7 @@
 })(typeof globalThis !== "undefined" ? globalThis : this, function () {
   const contacts = [
     { id: "mx", label: "México", labelEn: "Mexico", number: "5219982166563", display: "+52 1 998 216 6563" },
-    { id: "us", label: "USA", labelEn: "USA", number: "19562518956", display: "+1 956 251 8956" },
+    { id: "us", label: "USA", labelEn: "USA", number: "19568037838", display: "+1 956 803 7838" },
   ];
   function whatsappUrl(id = "mx", message = "", officeNumber = "") {
     const contact = contacts.find((item) => item.id === id) || contacts[0];
