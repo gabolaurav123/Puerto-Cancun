@@ -26,6 +26,7 @@ function contactRouting(input, validate = false, oldMx = "") {
   settings.featuredCountry = String(settings.featuredCountry || "").trim().toUpperCase();
   for (const key of ["mx", "us"]) {
     settings[key] = String(settings[key] ?? "").replace(/[\s()+.-]/g, "");
+    if (key === "us" && settings[key] === "19562518956") settings[key] = routingDefaults.us;
     if (settings[key] && !/^[1-9]\d{6,14}$/.test(settings[key])) {
       if (validate) fail("Revisa el número comercial y su prefijo internacional.", "", "es");
       settings[key] = routingDefaults[key];

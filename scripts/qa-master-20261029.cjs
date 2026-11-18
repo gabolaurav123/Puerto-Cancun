@@ -18,7 +18,7 @@ async function run(name, fn) { try { await fn(); report.checks.push({ name, pass
     await run('Home has four Locations and four types', async () => {
       assert.equal(await page.locator('.zone-grid .zone-card').count(), 4);
       assert.equal(await page.locator('.type-grid .type-tile').count(), 4);
-      assert.equal(await page.locator('[data-business-contact="us"]').getAttribute('href'), 'https://wa.me/19562518956');
+      assert.equal(await page.locator('[data-business-contact="us"]').getAttribute('href'), 'https://wa.me/19568037838');
     });
     await run('Desktop hero supporting copy occupies two readable lines', async () => {
       const text = await page.locator('.hero-subtitle').evaluate(element => {

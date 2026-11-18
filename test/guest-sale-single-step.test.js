@@ -32,7 +32,7 @@ function fixture() {
   vm.runInNewContext(handlerSource, {
     app: { post(url, fn) { assert.equal(url, "/api/guest-sale-requests"); route = fn; } }, pool: { connect: async () => client },
     sanitizePropertyImageBody: async body => body, parseUploadedImages: body => body.images || [], contactIdentity,
-    GUEST_SALE_REQUEST_SUMMARY_COLUMNS: "g.*", serviceChannel: async (_client, country) => ({ country, destination: country === "US" || country === "CA" ? "19562518956" : "5219982166563", whatsappRef: "test" }),
+    GUEST_SALE_REQUEST_SUMMARY_COLUMNS: "g.*", serviceChannel: async (_client, country) => ({ country, destination: country === "US" || country === "CA" ? "19568037838" : "5219982166563", whatsappRef: "test" }),
     upsertContact: async (_client, value) => { contacts.push(value); return { id: "contact-" + contacts.length }; },
     inquirySourcePath: sourcePath, inquiryAction: (id, data) => ({ id, destination: data.destination }), siteUrl: "http://localhost", sessionSecret: "local-only", uuid: prefix => prefix + "-" + (++nextId),
   });
