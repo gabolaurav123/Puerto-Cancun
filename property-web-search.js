@@ -1,10 +1,13 @@
 "use strict";
 
 const { createRateLimiter } = require("./platform-utils");
+const { randomUUID } = require("node:crypto");
 const SEARCH_PATH = "/api/admin/property-search";
 const MAX_QUERY = 2500;
 const MAX_RESULTS = 8;
-const SEARCH_TIMEOUT = 65000;
+const SEARCH_TIMEOUT = 120000;
+const JOB_TTL = 5 * 60 * 1000;
+const MAX_JOBS = 50;
 const clean = (value, limit = 500) => typeof value === "string" ? value.trim().slice(0, limit) : "";
 const error = (message, code, status = 502) => Object.assign(new Error(message), { code, status });
 
@@ -142,23 +145,51 @@ async function searchProperties(criteria, { apiKey, model = "gpt-5-mini", fetchI
   }
 }
 
-function registerPropertySearchRoutes(app, { requireRole, apiKey, model, fetchImpl, timeoutMs } = {}) {
+function registerPropertySearchRoutes(app, { requireRole, apiKey, model, fetchImpl, timeoutMs, now = Date.now } = {}) {
   const authorized = requireRole("admin");
   const limits = createRateLimiter({ windowMs: 10 * 60 * 1000, max: 8, keyGenerator: req => req.session.user.id,
     message: "Se alcanzó el límite de búsquedas inmobiliarias. Espera unos minutos antes de continuar." });
   const running = new Set();
+  const jobs = new Map();
+  function pruneJobs() {
+    for (const [id, job] of jobs) if (job.expiresAt <= now()) jobs.delete(id);
+  }
+  const cleanup = setInterval(pruneJobs, 60000);
+  cleanup.unref();
+  const jobView = job => ({ jobId: job.id, status: job.status,
+    ...(job.status === "complete" ? { result: job.result } : {}),
+    ...(job.status === "failed" ? { error: job.error, code: job.code } : {}) });
   app.get(SEARCH_PATH, authorized, (req, res) => res.json({ configured: Boolean(apiKey), maxLength: MAX_QUERY,
     canSearch: req.session.user.id === "admin-prueba" || ["super_admin", "admin", "advisor"].includes(req.session.user.internalRole) }));
-  app.post(SEARCH_PATH, authorized, limits, async (req, res) => {
+  app.get(SEARCH_PATH + "/jobs/:id", authorized, (req, res) => {
+    pruneJobs();
+    res.set("Cache-Control", "private, no-store");
+    const job = jobs.get(req.params.id);
+    if (!job || job.owner !== req.session.user.id) return res.status(404).json({ error: "La búsqueda expiró o ya no está disponible. Inicia una nueva.", code: "SEARCH_JOB_NOT_FOUND" });
+    res.json(jobView(job));
+  });
+  app.post(SEARCH_PATH, authorized, limits, (req, res) => {
+    let criteria;
+    try { criteria = validateCriteria(req.body?.criteria); }
+    catch (failure) { return res.status(failure.status).json({ error: failure.message, code: failure.code }); }
+    if (!apiKey) return res.status(503).json({ error: "La búsqueda web aún no está conectada. Configura OpenAI en las integraciones del servicio.", code: "SEARCH_NOT_CONFIGURED" });
+    pruneJobs();
     const key = req.session.user.id;
-    if (running.has(key) || running.size >= 2) {
+    if (running.has(key) || running.size >= 2 || jobs.size >= MAX_JOBS) {
       res.set("Retry-After", "30");
-      return res.status(429).json({ error: "Ya hay una búsqueda en curso. Espera a que termine antes de iniciar otra.", code: "SEARCH_BUSY" });
+      return res.status(429).json({ error: "La búsqueda está ocupada. Espera unos instantes antes de iniciar otra.", code: "SEARCH_BUSY" });
     }
+    const job = { id: randomUUID(), owner: key, status: "pending", expiresAt: now() + JOB_TTL };
+    jobs.set(job.id, job);
     running.add(key);
-    try { res.json(await searchProperties(req.body?.criteria, { apiKey, model, fetchImpl, timeoutMs })); }
-    catch (failure) { res.status(failure.status || 502).json({ error: failure.message, code: failure.code || "SEARCH_FAILED" }); }
-    finally { running.delete(key); }
+    res.set("Cache-Control", "private, no-store");
+    res.status(202).json(jobView(job));
+    // The provider runs independently of the short HTTP request, avoiding proxy timeouts.
+    void searchProperties(criteria, { apiKey, model, fetchImpl, timeoutMs }).then(result => {
+      job.result = result; job.status = "complete";
+    }, failure => {
+      job.error = failure.message; job.code = failure.code || "SEARCH_FAILED"; job.status = "failed";
+    }).finally(() => running.delete(key));
   });
 }
 
