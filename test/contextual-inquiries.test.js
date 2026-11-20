@@ -27,7 +27,7 @@ test("the bilingual message describes the specific intent and omits missing deta
     const texts = ["buy","rent","sell","let"].map(intent => messageFor({ intent, lang, propertyType: "Terreno", project: "Proyecto QA", reference: "REF-QA", whatsappRef: "7df7aac712283fef", preferences: "Acceso", area: "520 m²" }, "https://example.invalid/terrenos"));
     assert.equal(new Set(texts.map(t => t.split("\n")[0])).size,4);
     for (const text of texts) {
-      assert.match(text, /REF-QA/); assert.match(text, /520 m²/); assert.match(text, /Acceso/);
+      assert.doesNotMatch(text, /REF-QA|PCC-|7df7aac712283fef|Referencia del proyecto|Project reference/); assert.match(text, /Proyecto QA/); assert.match(text, /520 m²/); assert.match(text, /Acceso/);
       assert.doesNotMatch(text, /undefined|null|Budget|Presupuesto/);
       assert.match(text, lang === "en" ? /land\./ : /un terreno\./);
     }

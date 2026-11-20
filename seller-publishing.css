@@ -1,0 +1,20 @@
+.seller-quick-tools { display:flex; flex-wrap:wrap; align-items:stretch; gap:10px; margin:0 0 18px; }
+.seller-quick-tools > * { display:inline-flex; align-items:center; justify-content:center; gap:8px; min-height:46px; text-align:center; text-decoration:none; }
+.seller-guide-steps { margin:10px 0 0; padding-left:22px; font-size:.9rem; line-height:1.5; }
+.seller-guide-steps li + li { margin-top:5px; }
+.seller-options-modal .seller-option-grid { align-items:stretch; }
+.seller-options-modal .seller-option-card { min-width:0; text-align:left; }
+.seller-options-modal .seller-option-card strong { line-height:1.35; }
+.guest-sale-modal .guest-whatsapp-hint { padding:12px; background:var(--blue-50,#edf5f5); border-radius:6px; font-size:.9rem; line-height:1.5; }
+.guest-sale-modal .guest-privacy-note { margin:20px 0 14px; font-size:.82rem; line-height:1.5; color:var(--muted,#526c74); }
+.guest-register-prompt { width:min(560px,calc(100vw - 24px)); max-height:calc(100dvh - 24px); overflow-y:auto; }
+.guest-register-prompt h2 { padding-right:28px; line-height:1.25; }
+.guest-register-prompt p { line-height:1.55; }
+.guest-register-actions { display:grid; grid-template-columns:1fr 1fr; align-items:stretch; gap:12px; margin:24px 0 16px; }
+.guest-register-actions button { display:flex; gap:8px; justify-content:center; align-items:center; min-height:48px; white-space:normal; line-height:1.35; }
+.guest-register-actions svg { flex-shrink:0; }
+@media(max-width:600px) {
+  .seller-quick-tools { display:grid; grid-template-columns:1fr; }
+  .guest-register-actions { grid-template-columns:1fr; }
+  .guest-sale-modal { max-height:calc(100dvh - 24px); overflow-y:auto; }
+}

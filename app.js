@@ -1695,7 +1695,7 @@ function categoryTitle() {
   if (state.filters.type === "Terreno") return state.lang === "en" ? "Land in Cancun" : "Terrenos en Cancún";
   if (state.filters.type === "Comercial") return state.lang === "en" ? "Commercial properties in Cancun" : "Propiedades comerciales en Cancún";
   if (state.filters.type === "Preventa") return state.lang === "en" ? "Presales in Cancun" : "Preventas en Cancún";
-  if (state.filters.type === "Desarrollo") return state.lang === "en" ? "Real Estate Developments" : "Desarrollos en Cancún";
+  if (state.filters.type === "Desarrollo") return state.lang === "en" ? "Gated communities" : "Desarrollos en Cancún";
   if (state.filters.operation === "rent") return state.lang === "en" ? "Cancun rentals" : "Propiedades en renta en Cancún";
   if (state.filters.operation === "sale") return state.lang === "en" ? "Properties for sale in Cancun" : "Propiedades en venta en Cancun";
   if (state.filters.zone) return state.lang === "en" ? `Properties in ${state.filters.zone}` : `Propiedades en ${state.filters.zone}`;
@@ -1815,7 +1815,7 @@ function bindHomeSuggestions() {
       href: base + "?location=" + encodeURIComponent(area.id), words: [area.nameEs,area.nameEn],
     }));
     const items = state.properties.filter(contract.isPublic).map(item => ({
-      label: localizedTitle(item), kind: contract.entityOf(item) === "developments" ? (en ? "Development" : "Desarrollo") : (en ? "Property" : "Propiedad"),
+      label: localizedTitle(item), kind: contract.entityOf(item) === "developments" ? (en ? "Gated community" : "Desarrollo") : (en ? "Property" : "Propiedad"),
       href: base + "/" + encodeURIComponent(item.slug || item.id), words: [item.titleEs,item.titleEn,item.mls],
     }));
     const byKind = new Map();
@@ -2676,6 +2676,7 @@ function sellerPanelUrl(user = state.session) {
 
 async function openSellerAccess(tab = "register") {
   rememberSellerContext(true);
+  closeSellerOptions();
   if (!state.session) { openAuth(tab); return; }
   await showPanel();
   if (state.session?.role === "seller") setSellerSection("sale");
@@ -2706,10 +2707,13 @@ function applySellerContext(form) {
 function openSellerOptions(event) {
   event?.preventDefault?.();
   rememberSellerContext(true);
+  closeMobileNav();
+  if (state.session?.role === "seller") { void showPanel().then(() => setSellerSection("sale")); return; }
   const modal = $("#sellerOptionsModal");
   if (!modal) return;
   modal.hidden = false;
   document.body.classList.add("modal-open");
+  modal.querySelector('[data-open-detailed-sale]')?.focus({ preventScroll: true });
   refreshIcons();
 }
 
@@ -2728,8 +2732,9 @@ function resetGuestSaleForm() {
   delete form.dataset.idempotencyKey;
   delete form.dataset.submitting;
   delete form.dataset.submitted;
+  delete form.dataset.whatsappUrl;
   const submit = form.querySelector('[type="submit"]');
-  if (submit) { submit.disabled = false; submit.innerHTML = `<i data-lucide="send"></i><span>${state.lang === "en" ? "Send request" : "Enviar solicitud"}</span>`; }
+  if (submit) { submit.disabled = false; submit.innerHTML = `<i data-lucide="arrow-right"></i><span>${state.lang === "en" ? "Continue" : "Continuar"}</span>`; }
   form.querySelectorAll("details").forEach(details => { details.open = false; });
   const picker = form.querySelector("[data-map-picker]");
   if (picker) {
@@ -2750,13 +2755,13 @@ function openGuestSale(trigger = document.activeElement) {
   closeSellerOptions();
   resetGuestSaleForm();
   $("#guestSaleModal").hidden = false;
-  void Promise.resolve(window.PccInquiry?.populatePhone($("#guestSaleForm"))).then(updateGuestContactFields);
   document.body.classList.add("modal-open");
-  $("#guestSaleForm [name=type]")?.focus({ preventScroll: true });
+  $("#guestSaleForm [name=operation]")?.focus({ preventScroll: true });
   refreshIcons();
 }
 
 function closeGuestSale() {
+  closeGuestRegistrationPrompt(false);
   $("#guestSaleModal").hidden = true;
   if ($$(".modal-backdrop:not([hidden])").length === 0) document.body.classList.remove("modal-open");
   if (guestSaleReturnFocus?.isConnected && !guestSaleReturnFocus.closest("[hidden]")) guestSaleReturnFocus.focus({ preventScroll: true });
@@ -2769,20 +2774,68 @@ function updateGuestContactFields() {
   const emailField = form.querySelector('[data-guest-contact-field="email"]');
   const whatsappField = form.querySelector('[data-guest-contact-field="whatsapp"]');
   emailField.hidden = method !== "email";
-  whatsappField.hidden = method !== "whatsapp";
-  for (const name of ["email", "phone", "country"]) {
-    const field = formField(form, name);
-    const active = name === "email" ? method === "email" : method === "whatsapp";
-    field.required = active;
-    field.disabled = !active;
-  }
+  if (whatsappField) whatsappField.hidden = method !== "whatsapp";
+  const email = formField(form, "email");
+  email.required = method === "email";
+  email.disabled = method !== "email";
 }
 
-async function guestSaleSubmit(event) {
+function guestSaleSubmit(event) {
   event.preventDefault();
   const form = event.currentTarget;
   if (form.dataset.submitting === "true" || form.dataset.submitted === "true" || !form.reportValidity()) return;
   if (!formImagesReady(form, $("#guestSaleMessage"))) return;
+  const prompt = $("#guestRegisterPromptModal");
+  prompt.hidden = false;
+  $("#guestSaleModal").hidden = true;
+  prompt.querySelector('[data-guest-register]')?.focus({ preventScroll: true });
+  refreshIcons();
+}
+
+function closeGuestRegistrationPrompt(returnToForm = true) {
+  const prompt = $("#guestRegisterPromptModal");
+  if (prompt) prompt.hidden = true;
+  if (returnToForm) {
+    $("#guestSaleModal").hidden = false;
+    $("#guestSaleForm [type=submit]")?.focus({ preventScroll: true });
+  }
+}
+
+async function registerGuestProperty() {
+  const form = $("#guestSaleForm");
+  const fields = Object.fromEntries(new FormData(form).entries());
+  delete fields.imageFile; delete fields.website; delete fields.formStartedAt; delete fields.consent;
+  const draft = { fields, images: safeParseImages(form.dataset.images), savedAt: new Date().toISOString() };
+  await writePersistentDraft("pcc.guest-publishing-draft.v1", draft);
+  closeGuestSale();
+  await openSellerAccess("register");
+  if (fields.email && $("#registerForm") && !$("#registerForm").email.value) $("#registerForm").email.value = fields.email;
+}
+
+async function restoreGuestPropertyDraft(form) {
+  const userId = state.session?.id;
+  const draft = await readPersistentDraft("pcc.guest-publishing-draft.v1");
+  if (!userId || state.session?.id !== userId || state.session?.role !== "seller" || !draft?.fields || !Number.isFinite(Date.parse(draft.savedAt)) || Date.now() - Date.parse(draft.savedAt) > 86400000 || form.dataset.dirty === "true") return;
+  const fields = { ...draft.fields, title: draft.fields.title || `${draft.fields.type} · ${draft.fields.location}`, zone: draft.fields.zone || draft.fields.location, address: draft.fields.address || draft.fields.location };
+  for (const [name, value] of Object.entries(fields)) {
+    const field = formField(form, name);
+    if (field && name !== "preferredContact" && value !== "" && value != null) field.value = value;
+  }
+  if (Array.isArray(draft.images) && draft.images.length) {
+    form.dataset.currentImages = JSON.stringify(draft.images);
+    form.dataset.mediaDirty = "true";
+    updateSellerImagePreview(draft.images.map(image => image.imageDataUrl || image));
+  }
+  saveSellerDraft();
+  await deletePersistentDraft("pcc.guest-publishing-draft.v1");
+  setFormMessage($("#sellerFormMessage"), state.lang === "en" ? "Your property details and photos are ready. Complete the remaining details to request publication." : "Recuperamos los datos y fotos de tu propiedad. Completa lo que falta para solicitar la publicación.");
+}
+
+async function submitGuestProperty() {
+  const form = $("#guestSaleForm");
+  if (form.dataset.submitting === "true" || form.dataset.submitted === "true" || !form.reportValidity()) return;
+  if (!formImagesReady(form, $("#guestSaleMessage"))) return;
+  closeGuestRegistrationPrompt();
   const button = form.querySelector('[type="submit"]');
   const message = $("#guestSaleMessage");
   const method = form.querySelector('[name="preferredContact"]:checked')?.value || "whatsapp";
@@ -2797,7 +2850,8 @@ async function guestSaleSubmit(event) {
     body.preferredContact = method;
     body.lang = state.lang;
     body.sourcePath = location.pathname + location.search;
-    body.consent = formField(form, "consent").checked;
+    body.consent = true;
+    delete body.imageFile;
     const data = await api("/api/guest-sale-requests", {
       method: "POST",
       headers: { "Idempotency-Key": submissionKey },
@@ -2807,18 +2861,29 @@ async function guestSaleSubmit(event) {
     if (form.dataset.idempotencyKey !== submissionKey) return;
     if (!data.request?.id) throw new Error(state.lang === "en" ? "We could not confirm your request. Please try again." : "No pudimos confirmar tu solicitud. Intenta nuevamente.");
     form.dataset.submitted = "true";
-    setFormMessage(message, data.message || (state.lang === "en" ? "Request received." : "Solicitud recibida."));
-    showToast(state.lang === "en" ? "Your property was sent for review." : "Tu propiedad fue enviada para revisión.");
-    if (data.action) window.PccInquiry?.offerAction(message, data.action);
+    setFormMessage(message, state.lang === "en" ? "Your property details were saved. Continue in WhatsApp to send your message." : "Guardamos los datos de tu propiedad. Continúa en WhatsApp para enviar tu mensaje.");
+    const destination = new URL(data.action?.whatsappUrl || "");
+    if (destination.protocol !== "https:" || destination.hostname !== "wa.me") throw new Error(state.lang === "en" ? "Your request was saved, but WhatsApp could not be opened. Contact our office to continue." : "Tu solicitud se guardó, pero no se pudo abrir WhatsApp. Contacta a nuestra oficina para continuar.");
+    form.dataset.whatsappUrl = destination.href;
+    const link = document.createElement("a");
+    link.href = destination.href;
+    link.className = "primary-button inquiry-saved-link";
+    link.textContent = state.lang === "en" ? "Continue in WhatsApp" : "Continuar en WhatsApp";
+    message.append(document.createElement("br"), link);
+    openGuestWhatsApp(destination.href);
   } catch (error) {
     if (form.dataset.idempotencyKey === submissionKey) setFormMessage(message, error.message, true);
   } finally {
     if (form.dataset.idempotencyKey === submissionKey) {
       setButtonLoading(button, false);
       delete form.dataset.submitting;
-      if (form.dataset.submitted === "true") { button.disabled = true; button.textContent = state.lang === "en" ? "Request sent" : "Solicitud enviada"; }
+      if (form.dataset.submitted === "true") { button.disabled = true; button.textContent = state.lang === "en" ? "Details saved" : "Datos guardados"; }
     }
   }
+}
+
+function openGuestWhatsApp(url) {
+  window.location.assign(url);
 }
 
 async function openDetailedSale() {
@@ -2836,28 +2901,11 @@ async function openDetailedSale() {
   openAuth("register");
 }
 
-async function tourRequestSubmit(event) {
+function tourRequestSubmit(event) {
   event.preventDefault();
-  const form = event.currentTarget;
-  const button = form.querySelector('[type="submit"]');
-  const message = $("#tourRequestMessage");
-  setButtonLoading(button, true, "Enviando…");
-  setFormMessage(message, "");
-  try {
-    const values = Object.fromEntries(new FormData(form).entries());
-    const data = await api("/api/tour-requests", { method: "POST", body: { ...values, consent: form.consent.checked } });
-    setFormMessage(message, data.message || "Solicitud enviada.");
-    showToast("Visita solicitada. Un asesor confirmará la disponibilidad.");
-    if (state.session?.role === "seller") {
-      state.tours = [{ ...values, id: data.id, status: data.status, property_title: $("#tourPropertyTitle").textContent }, ...state.tours];
-      renderSellerTours();
-    }
-    window.setTimeout(closeTourRequest, 900);
-  } catch (error) {
-    setFormMessage(message, error.message, true);
-  } finally {
-    setButtonLoading(button, false);
-  }
+  const propertyId = event.currentTarget.elements.propertyId.value;
+  closeTourRequest();
+  openTourRequest(propertyId);
 }
 
 function setSellerSection(section = "sale") {
@@ -7942,6 +7990,7 @@ async function prepareSellerForm() {
   if (!form.preferredContact.value) form.preferredContact.value = state.session.preferredContact || "email";
   const userId = state.session.id;
   await restoreSellerDraft();
+  if (state.session?.id === userId && state.session?.role === "seller") await restoreGuestPropertyDraft(form);
   if (state.session?.id === userId && state.session?.role === "seller") applySellerContext(form);
 }
 
@@ -9207,6 +9256,27 @@ async function leadFormSubmit(event) {
   const payload = Object.fromEntries(new FormData(form).entries());
   if (payload.contactChannel === "email") { delete payload.phone; delete payload.whatsapp; delete payload.country; }
   else if (payload.contactChannel === "whatsapp") delete payload.email;
+  if (form.hasAttribute?.("data-whatsapp-inquiry")) {
+    if (payload.website) return;
+    const service = payload.leadType === "validar-precio" ? "price-review" : "valuation";
+    const url = window.PccInquiry?.whatsappUrl({ ...payload, service, lang: state.lang,
+      sourcePath: `${window.location.pathname}${window.location.search}${window.location.hash || ""}` });
+    if (!url) {
+      if (message) setFormMessage(message, state.lang === "en" ? "WhatsApp is not ready. Please try again." : "No se pudo preparar WhatsApp. Vuelve a intentarlo.", true);
+      return;
+    }
+    window.open(url, "_blank", "noopener,noreferrer");
+    if (message) {
+      setFormMessage(message, state.lang === "en" ? "Send the prepared message in WhatsApp to complete your inquiry." : "Envía el mensaje preparado en WhatsApp para completar tu consulta.");
+      const link = document.createElement("a");
+      link.href = url; link.target = "_blank"; link.rel = "noopener noreferrer";
+      link.className = "primary-button inquiry-saved-link";
+      link.textContent = state.lang === "en" ? "Open WhatsApp" : "Abrir WhatsApp";
+      message.append(document.createElement("br"), link);
+      message.focus?.({ preventScroll: true });
+    }
+    return;
+  }
   try {
     form.dataset.saving = "true";
     setButtonLoading(button, true, state.lang === "en" ? "Sending..." : "Enviando...");
@@ -9242,11 +9312,12 @@ function preparePersonalDataForms() {
     const syncFields = () => {
       if (form.elements.contactChannel) {
         const email = form.elements.contactChannel.value === "email";
-        form.querySelector("[data-phone-fields]").hidden = email;
-        form.querySelector("[data-email-field]").hidden = !email;
-        for (const name of ["phone", "country"]) { form.elements[name].disabled = email; form.elements[name].required = !email; }
-        form.elements.email.disabled = !email;
-        form.elements.email.required = email;
+        const phoneFields = form.querySelector("[data-phone-fields]");
+        const emailField = form.querySelector("[data-email-field]");
+        if (phoneFields) phoneFields.hidden = email;
+        if (emailField) emailField.hidden = !email;
+        for (const name of ["phone", "country"]) if (form.elements[name]) { form.elements[name].disabled = email; form.elements[name].required = !email; }
+        if (form.elements.email) { form.elements.email.disabled = !email; form.elements.email.required = email; }
       }
       const land = form.elements.propertyType?.value === "Terreno";
       for (const group of form.querySelectorAll("[data-valuation-building]")) {
@@ -9277,6 +9348,7 @@ function preparePersonalDataForms() {
   });
   $$("[data-lead-form], #registerForm, #sellerRequestForm, #sellerServiceForm").forEach((form) => {
     if (!form) return;
+    if (form.hasAttribute("data-whatsapp-inquiry")) return;
     let consent = form.querySelector("[data-privacy-consent]");
     const checked = Boolean(consent?.querySelector('input[name="consent"]')?.checked);
     if (!consent) {
@@ -11844,8 +11916,25 @@ function bindEvents() {
   });
   $("#guestSaleForm [data-guest-optional-map]")?.addEventListener("toggle", event => { if (event.currentTarget.open) bindMapPickers(); });
   $("#guestSaleForm")?.addEventListener("submit", guestSaleSubmit);
+  $$('[data-guest-register]').forEach(button => button.addEventListener("click", () => void registerGuestProperty()));
+  $$('[data-guest-skip-register]').forEach(button => button.addEventListener("click", () => void submitGuestProperty()));
+  $$('[data-close-guest-register]').forEach(button => button.addEventListener("click", () => closeGuestRegistrationPrompt()));
+  $("#guestRegisterPromptModal")?.addEventListener("click", event => { if (event.target.id === "guestRegisterPromptModal") closeGuestRegistrationPrompt(); });
+  for (const id of ["sellerOptionsModal", "guestRegisterPromptModal"]) $("#" + id)?.addEventListener("keydown", event => {
+    if (event.key === "Escape") { event.preventDefault(); id === "sellerOptionsModal" ? closeSellerOptions() : closeGuestRegistrationPrompt(); return; }
+    if (event.key !== "Tab") return;
+    const controls = [...event.currentTarget.querySelectorAll('button:not([disabled]), a[href]')].filter(element => element.getClientRects().length && !element.closest('[hidden]'));
+    const first = controls[0], last = controls.at(-1);
+    if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus(); }
+    else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); }
+  });
   $("#guestSaleForm")?.querySelectorAll('[name="preferredContact"]').forEach((input) => input.addEventListener("change", updateGuestContactFields));
   formField($("#guestSaleForm"), "imageFile")?.addEventListener("change", async (event) => {
+    if (event.currentTarget.files.length > 3) {
+      event.currentTarget.value = "";
+      setFormMessage($("#guestSaleMessage"), state.lang === "en" ? "Choose up to 3 photos to get started. Register to add a larger gallery." : "Elige hasta 3 fotos para empezar. Regístrate para añadir una galería más completa.", true);
+      return;
+    }
     await processFormImages(event.currentTarget, (payload, form) => {
       form.dataset.images = JSON.stringify(payload.images);
       renderImagePreview($("#guestSaleImagePreview"), payload.images.map((image) => image.imageDataUrl));

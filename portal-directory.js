@@ -238,7 +238,7 @@
   function publicDirectory(stored, inputRecords = []) {
     const records = inputRecords.filter(r => inventory.isPublic(r) && inventory.entityOf(r) !== "typologies");
     const config = materialize(stored, records);
-    const areas = config.areas.filter(a => a.active).map(a => ({ ...a, subareas:config.subareas.filter(s => s.active && s.areaId === a.id) }));
+    const areas = config.areas.filter(a => a.active).map(a => ({ ...a, subareas:config.subareas.filter(s => s.active && s.areaId === a.id && !/bonfil/i.test([s.id,s.nameEs,s.nameEn].join(" "))) }));
     const activeAreas = new Set(areas.map(a => a.id));
     const byId = new Map(records.map(r => [r.id,r])), assignments = buildAssignments(config, records);
     const presales = config.presales.filter(p => p.status === "confirmed" && (!p.developmentId || (byId.has(p.developmentId) && isDev(byId.get(p.developmentId)) && (!presalePolicy || presalePolicy.isPresale(byId.get(p.developmentId), {directory:config,records}))))).map(p => {

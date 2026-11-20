@@ -12,6 +12,8 @@ test("cada revisión de precio conserva idioma, campos comerciales y moneda", ()
     assert.match(form, /name="ownerEstimate"[^>]*required/);
     assert.match(form, /name="currency" value="USD"/);
     assert.match(form, /name="priceMode" value="public-usd"/);
+    assert.match(form, /<form[^>]*data-lead-form[^>]*data-whatsapp-inquiry/);
+    assert.doesNotMatch(form, /name="(?:phone|country|consent)"/);
     assert.doesNotMatch(form, /ChatGPT|name="aiResponse"|name="aiMessage"/i);
     const fullPage = renderSeoPage(valuation);
     const factors = fullPage.match(/<details class="valuation-options"><summary>[^<]+<\/summary><div class="valuation-factors">([\s\S]*?)<\/details>/)[1];
@@ -24,18 +26,21 @@ test("cada revisión de precio conserva idioma, campos comerciales y moneda", ()
     assert.doesNotMatch(sellPage, /name="leadType" value="valuacion-inmobiliaria"/, "La valoración no se duplica dentro de Vender");
     const linkedValuation = renderSeoPage(valuationLink[1].split("#")[0]);
     for (const html of [fullPage, linkedValuation]) {
-      const valuationForm = html.match(/<form [^>]*data-lead-form>\s*<input [^>]*value="valuacion-inmobiliaria"[\s\S]*?<\/form>/)[0];
+      const valuationForm = html.match(/<form [^>]*data-lead-form[^>]*>\s*<input [^>]*value="valuacion-inmobiliaria"[\s\S]*?<\/form>/)[0];
+      assert.match(valuationForm, /data-whatsapp-inquiry/);
       const optional = valuationForm.match(/<details class="valuation-options">[\s\S]*?<\/details>/)[0];
       assert.doesNotMatch(optional, /\brequired\b/);
       assert.match(optional, /name="propertyType"/);
       assert.match(optional, /name="ownerEstimate"/);
       const main = valuationForm.replace(optional, "");
-      assert.deepEqual([...main.matchAll(/name="([^"]+)"[^>]*?\brequired\b/g)].map(m => m[1]), ["zone", "contactChannel", "country", "phone", "consent"]);
+      assert.deepEqual([...main.matchAll(/name="([^"]+)"[^>]*?\brequired\b/g)].map(m => m[1]), ["zone", "contactChannel"]);
       assert.match(main, /name="email"[^>]*disabled/);
       assert.match(main, /data-email-field hidden/);
-      assert.match(main, /value="US"/);
-      assert.match(main, /value="CA"/);
-      assert.match(main, /value="MX"/);
+      assert.doesNotMatch(valuationForm, /name="(?:phone|country|consent)"/);
+      assert.match(main, /value="whatsapp"/);
+      assert.match(main, /value="email"/);
+      assert.match(main, /<button class="primary-button" type="submit">/);
+      assert.match(main, review.startsWith("/en") ? /WhatsApp will open with your message/ : /Se abrirá WhatsApp con tu mensaje/);
     }
     assert.match(fullPage, /name="leadType" value="valuacion-inmobiliaria"/);
     assert.match(form, review.startsWith("/en") ? /Which references/ : /Qué referencias/);

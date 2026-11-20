@@ -117,6 +117,7 @@ const { businessPhoneLabel, contactRouting, contactPhone, contactIdentity, readC
 const { resolveInquiryContext } = require("./inquiry-context");
 const { registerCommercialRoutes } = require("./commercial-workflow");
 const { registerAdvisorRoutes } = require("./real-estate-advisor");
+const { registerPropertySearchRoutes } = require("./property-web-search");
 const publicAdvisorEnabled = process.env.PUBLIC_PROPERTY_ADVISOR_ENABLED === "true";
 const staticAssetVersion = require("./asset-version").computeAssetVersion(__dirname);
 const publicStaticFiles = new Set([
@@ -133,10 +134,15 @@ const publicStaticFiles = new Set([
   "/contextual-contact.js",
   "/contextual-contact.css",
   "/public-journey.css",
+  "/public-journey.js",
+  "/seller-publishing.css",
+  "/whatsapp-message.js",
   "/advisor-widget.js",
   "/advisor-widget.css",
   "/commercial-panel.js",
   "/commercial-panel.css",
+  "/admin-property-search.js",
+  "/admin-property-search.css",
   "/search-watch-unsubscribe.js",
   "/exchange-rate-view.js",
   "/csv-utils.js",
@@ -1531,7 +1537,6 @@ function propertyWhatsappSheetText(property, shareUrl, { neutral = false, exchan
       : `\u{1F3E1} Puerto Cancún Center te presenta esta propiedad ${property.operation === "rent" ? "en renta" : "en venta"}`,
     `*${property.titleEs}*`,
     location ? `\u{1F4CD} ${location}` : "",
-    property.mls ? `\u{1F516} MLS# ${property.mls}` : "",
     `\u{1F4B0} ${price}`,
     property.beds ? `\u{1F6CF}\uFE0F ${property.beds} recámara${Number(property.beds) === 1 ? "" : "s"}` : "",
     property.baths ? `\u{1F6BF} ${property.baths} baño${Number(property.baths) === 1 ? "" : "s"}` : "",
@@ -5126,8 +5131,12 @@ app.post("/api/guest-sale-requests", async (req, res, next) => {
     const googleMapsUrl = validCoordinates ? `https://www.google.com/maps/search/?api=1&query=${latitude},${longitude}` : "";
     const description = String(body.description || "").trim().slice(0, 4000);
     const preferredContact = body.preferredContact || "whatsapp";
+    const operation = body.operation || "sale";
+    if (!["sale", "rent"].includes(operation)) return res.status(400).json({ error: lang === "en" ? "Choose sale or rent." : "Elige venta o renta." });
     let phoneInfo;
-    try { phoneInfo = contactIdentity({ ...body, contactChannel: preferredContact }, lang); } catch (error) { return res.status(400).json({ error: error.message }); }
+    try { phoneInfo = preferredContact === "whatsapp" && !String(body.phone || "").trim()
+      ? { phone: "", email: null, country: "MX", prefix: "+52" }
+      : contactIdentity({ ...body, contactChannel: preferredContact }, lang); } catch (error) { return res.status(400).json({ error: error.message }); }
     const { phone, email, prefix: countryCode } = phoneInfo;
     const images = parseUploadedImages(body, []);
     if (!["Casa", "Departamento", "Terreno", "Comercial", "Preventa"].includes(type) || !location) {
@@ -5140,12 +5149,16 @@ app.post("/api/guest-sale-requests", async (req, res, next) => {
     }
     await client.query("BEGIN");
     inTransaction = true;
-    await client.query("SELECT pg_advisory_xact_lock(hashtext($1))", ["pcc-inquiry:" + (phone || email)]);
+    if (phone || email) await client.query("SELECT pg_advisory_xact_lock(hashtext($1))", ["pcc-inquiry:" + (phone || email)]);
     if (idempotencyKey) {
       await client.query("SELECT pg_advisory_xact_lock(hashtext($1))", ["pcc-guest:" + idempotencyKey]);
       const existing = await client.query("SELECT g.id, g.preferred_contact, g.phone, g.email, a.new_value AS inquiry_context FROM guest_sale_requests g LEFT JOIN activity_logs a ON a.id='guest-inquiry:' || g.id WHERE g.idempotency_key=$1", [idempotencyKey]);
       if (existing.rows[0]) {
         const row = existing.rows[0];
+        if ((row.inquiry_context?.intent === "let" ? "rent" : "sale") !== operation) {
+          await client.query("ROLLBACK"); inTransaction = false;
+          return res.status(409).json({ error: lang === "en" ? "This form was already submitted for a different operation. Open a new request." : "Este formulario ya se envió para otra operación. Abre una solicitud nueva." });
+        }
         if (row.preferred_contact !== preferredContact || (preferredContact === "email" ? String(row.email || "").toLowerCase() !== email : row.phone !== phone)) {
           await client.query("ROLLBACK"); inTransaction = false;
           return res.status(409).json({ error: lang === "en" ? "This form was already submitted with a different contact. Open a new request." : "Este formulario ya se envió con otro contacto. Abre una solicitud nueva." });
@@ -5154,24 +5167,25 @@ app.post("/api/guest-sale-requests", async (req, res, next) => {
         return res.json({ request: { id: row.id }, action: inquiryAction(row.id, row.inquiry_context, siteUrl, row.inquiry_context?.sourcePath, sessionSecret), idempotent: true });
       }
     }
-    const duplicate = await client.query(
+    const duplicate = phone || email ? await client.query(
       `SELECT ${GUEST_SALE_REQUEST_SUMMARY_COLUMNS}
        FROM guest_sale_requests g
        WHERE lower(g.title) = lower($1)
          AND g.preferred_contact = $5 AND (($5='whatsapp' AND g.phone=$2) OR ($5='email' AND lower(g.email)=$6))
          AND lower(g.location) = lower($3) AND lower(g.type) = lower($4)
+         AND COALESCE((SELECT a.new_value->>'intent' FROM activity_logs a WHERE a.id='guest-inquiry:' || g.id), 'sell') = $7
          AND g.created_at > NOW() - INTERVAL '90 seconds'
        ORDER BY g.created_at DESC LIMIT 1`,
-      [title, phone, location, type, preferredContact, email]
-    );
+      [title, phone, location, type, preferredContact, email, operation === "rent" ? "let" : "sell"]
+    ) : { rows: [] };
     if (duplicate.rows[0]) {
       const row = duplicate.rows[0];
       await client.query("COMMIT"); inTransaction = false;
       res.json({ request: { id: row.id }, action: inquiryAction(row.id, row.inquiry_context, siteUrl, row.inquiry_context?.sourcePath, sessionSecret), duplicate: true });
       return;
     }
-    const inquiry = { ...await serviceChannel(client, phoneInfo.country || "MX"), lang, intent: "sell", country: phoneInfo.country, prefix: countryCode, contactChannel: preferredContact, consentContact: true, propertyTitle: title, propertyType: type, zone: zone || location, preferences: description, sourcePath: inquirySourcePath(body.sourcePath), origin: "guest-sale" };
-    const contact = await upsertContact(client, {
+    const inquiry = { ...await serviceChannel(client, phoneInfo.country || "MX"), lang, intent: operation === "rent" ? "let" : "sell", service: "guest-listing", email: email || "", country: phoneInfo.country, prefix: countryCode, contactChannel: preferredContact, consentContact: true, propertyTitle: title, propertyType: type, zone: zone || location, preferences: description, photoCount: images.length, sourcePath: inquirySourcePath(body.sourcePath), origin: "guest-sale" };
+    const contact = phone || email ? await upsertContact(client, {
       name: name || `${lang === "en" ? "Owner" : "Propietario"} · ${title}`,
       email, phone,
       consentContact: true,
@@ -5179,7 +5193,7 @@ app.post("/api/guest-sale-requests", async (req, res, next) => {
       source: "guest_sale_request",
       propertyType: type,
       leadScore: images.length >= 5 ? "hot" : "warm",
-    });
+    }) : null;
     const id = uuid("guest-sale");
     const result = await client.query(
       `INSERT INTO guest_sale_requests
@@ -5201,8 +5215,8 @@ app.post("/api/guest-sale-requests", async (req, res, next) => {
     await client.query("INSERT INTO activity_logs (id,action,entity_type,entity_id,new_value) VALUES ('guest-inquiry:' || $1,'guest_inquiry_saved','guest_sale_request',$1,$2::jsonb)", [id, JSON.stringify(inquiry)]);
     await client.query(
       `INSERT INTO notifications (id, type, title, message, related_entity_type, related_entity_id)
-       VALUES ($1, 'guest_sale_request_created', 'Nueva venta sin registro', $2, 'guest_sale_request', $3)`,
-      [uuid("notif"), `${title} · ${preferredContact === "email" ? email : phone}`, id]
+       VALUES ($1, 'guest_sale_request_created', 'Nuevo anuncio sin registro', $2, 'guest_sale_request', $3)`,
+      [uuid("notif"), `${operation === "rent" ? "Renta" : "Venta"} · ${title} · ${preferredContact === "email" ? email : phone || "Continúa por WhatsApp"}`, id]
     );
     await client.query("COMMIT");
     inTransaction = false;
@@ -5219,6 +5233,7 @@ const inquiryChannels = () => ({ email: transactionalEmailConfigured(), whatsapp
 registerInquiries(app, { pool, query, uuid, siteUrl, secret: sessionSecret, upsertContact, leadScoreFromData, getPublicProperties, getAreas: () => publicPropertyCache.directory?.areas, getExchangeRate: () => exchangeRateService.getSnapshot(), channels: inquiryChannels });
 const commercialWorkflow = registerCommercialRoutes(app, { pool, query, uuid, siteUrl, secret: sessionSecret, requireRole, getPublicProperties, getAreas: () => publicPropertyCache.directory?.areas, getExchangeRate: () => exchangeRateService.getSnapshot(), channels: inquiryChannels, sendEmail: sendTransactionalEmail, sendWhatsapp: (phone, message) => whatsappService.sendMessage(`${phone}@s.whatsapp.net`, message) });
 if (publicAdvisorEnabled) registerAdvisorRoutes(app, { getPublicProperties, getAreas: () => publicPropertyCache.directory?.areas, apiKey: process.env.OPENAI_API_KEY, model: process.env.OPENAI_MODEL || "gpt-5-mini" });
+registerPropertySearchRoutes(app, { requireRole, apiKey: process.env.OPENAI_API_KEY, model: process.env.PROPERTY_SEARCH_MODEL || process.env.OPENAI_MODEL || "gpt-5-mini" });
 
 app.post("/api/leads", async (req, res, next) => {
   const client = await pool.connect();
@@ -6103,7 +6118,7 @@ app.post("/api/seller/requests", requireRole("seller"), async (req, res, next) =
       locations: [...new Set(String(body.contextLocations || "").split(","))].filter(id => inventoryContract.LOCATIONS.some(location => location.id === id)),
       type: inventoryContract.TYPES.includes(body.contextType) ? body.contextType : "",
       zone: String(body.contextZone || "").trim().slice(0, 160),
-      intent: "sell",
+      intent: body.operation === "rent" ? "let" : "sell",
     };
     const request = {
       title: String(body.title || "").trim(),
@@ -8471,7 +8486,7 @@ app.post("/api/admin/requests/:id/approve", requireRole("admin"), async (req, re
         `INSERT INTO properties
           (id, title_es, title_en, type, state, city, zone, neighborhood, address, latitude, longitude, map_place, operation, price_usd, price_mxn, beds, baths, area, lot, mls, image, images, featured, status, is_public, badges, description_es, description_en, source_request_id)
          VALUES
-          ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, 'sale', $13, $14, $15, $16, $17, 0, $18, $19, $20::jsonb, false, $21, $22, $23::jsonb, $24, $25, $26)
+          ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $27, $13, $14, $15, $16, $17, 0, $18, $19, $20::jsonb, false, $21, $22, $23::jsonb, $24, $25, $26)
          RETURNING *`,
         [
           uuid("prop"),
@@ -8500,6 +8515,7 @@ app.post("/api/admin/requests/:id/approve", requireRole("admin"), async (req, re
           request.description,
           request.description,
           request.id,
+          request.commercial_context?.intent === "let" ? "rent" : "sale",
         ]
       );
       property = propertyResult.rows[0];
@@ -8741,6 +8757,8 @@ app.post("/api/admin/guest-sale-requests/:id/approve", requireRole("admin"), asy
     }
     let propertyResult = await client.query("SELECT * FROM properties WHERE source_request_id = $1", [request.id]);
     if (!propertyResult.rows[0]) {
+      const savedContext = await client.query("SELECT new_value FROM activity_logs WHERE id=$1", ["guest-inquiry:" + request.id]);
+      const operation = savedContext.rows[0]?.new_value?.intent === "let" ? "rent" : "sale";
       const images = mergeLegacyImages(request.images, request.image);
       const propertyId = uuid("prop");
       propertyResult = await client.query(
@@ -8750,7 +8768,7 @@ app.post("/api/admin/guest-sale-requests/:id/approve", requireRole("admin"), asy
            status, is_public, featured, badges, description_es, description_en, source_request_id, slug)
          VALUES
           ($1, $2, $2, $3, 'properties', $4, $5, $6, $7, $8,
-           $9, $10, $11, $12, $13, 'sale', $14, $15::jsonb,
+           $9, $10, $11, $12, $13, $19, $14, $15::jsonb,
            'draft', FALSE, FALSE, '["new"]'::jsonb, $16, $16, $17, $18)
          RETURNING *`,
         [
@@ -8772,6 +8790,7 @@ app.post("/api/admin/guest-sale-requests/:id/approve", requireRole("admin"), asy
           request.description || "Solicitud de venta sin registro; requiere revisión administrativa.",
           request.id,
           propertySlug({ titleEs: request.title, zone: request.zone || request.location, id: propertyId }),
+          operation,
         ]
       );
     }
@@ -12347,6 +12366,7 @@ function decoratePublicHtml({ page, seo, pageContent = "", bodyPage = "seo", noi
   html = html.replace(/app\.js\?v=[^"']+/g, `app.js?v=${assetVersion}`);
   html = html.replace(/exchange-rate-view\.js\?v=[^"']+/g, `exchange-rate-view.js?v=${assetVersion}`);
   html = html.replace(/(catalog\.css|public-journey\.css|catalog-ui\.js|catalog-map\.js|catalog-assistant\.js|admin-inventory-ui\.js|admin-inventory\.css|comparison-ui\.js|comparison\.css|inventory-contract\.js|contact-config\.js|csv-utils\.js)\?v=[^"']+/g, `$1?v=${assetVersion}`);
+  html = html.replace(/(whatsapp-message\.js|public-journey\.js|seller-publishing\.css|admin-property-search\.(?:js|css))\?v=[^"']+/g, `$1?v=${assetVersion}`);
   const alternateUrl = absoluteUrl(seo.alternate || "/", siteUrl);
   const spanishUrl = seo.lang === "en" ? alternateUrl : seo.canonical;
   const englishUrl = seo.lang === "en" ? seo.canonical : alternateUrl;

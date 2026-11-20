@@ -9,6 +9,7 @@ const inventoryContract = require("./inventory-contract");
 const { savedCatalogQuery } = require("./saved-catalog-search");
 const { describeCatalogFilters } = require("./catalog-search");
 const { resolveInquiryContext } = require("./inquiry-context");
+const whatsappMessages = require("./whatsapp-message");
 
 const countries = getCountries().map(country => ({ country, prefix: "+" + getCountryCallingCode(country) }));
 const intentTypes = { buy: "comprador-compra", rent: "comprador-busca-renta", sell: "vendedor-venta", let: "vendedor-ofrece-renta" };
@@ -87,6 +88,7 @@ function readInquiry(body) {
   if (!(elapsed >= 1000 && elapsed <= 7200000)) fail("Vuelve a abrir el formulario e intenta nuevamente.", "Reopen the form and try again.", lang);
   const identity = contactIdentity(body, lang);
   const data = { lang, intent: body.intent, contactChannel: identity.contactChannel, country: identity.country, prefix: identity.prefix, consentContact: true };
+  if (identity.email) data.replyEmail = identity.email;
   if (body.office) {
     if (!["mx", "us"].includes(body.office)) fail("Elige una oficina disponible.", "Choose an available office.", lang);
     data.office = body.office;
@@ -168,33 +170,8 @@ function prepareSearchContext(body, data, properties, areas = inventoryContract.
 }
 
 function messageFor(data, url) {
-  const en = data.lang === "en";
-  const propertyTypes = en ? { Casa: "a house", Departamento: "an apartment", Terreno: "land", Comercial: "commercial property", Oficina: "an office", Bodega: "a warehouse" }
-    : { Casa: "una casa", Departamento: "un departamento", Terreno: "un terreno", Comercial: "un local comercial", Oficina: "una oficina", Bodega: "una bodega" };
-  const what = propertyTypes[data.propertyType] || data.propertyType || (en ? "a property" : "una propiedad");
-  let introduction = intentPhrases[data.lang][data.intent] + " " + what + ".";
-  if (data.service === "valuation") introduction = en ? "I would like a property valuation." : "Quiero solicitar una valoración inmobiliaria.";
-  if (data.service === "price-review") introduction = en ? "I would like an advisor to review my estimated price." : "Quiero revisar mi precio estimado con un asesor.";
-  if (data.service === "visit") introduction = en ? "I would like to request a visit (pending team confirmation)." : "Quiero solicitar una visita (pendiente de confirmación del equipo).";
-  if (data.service === "search-watch") introduction = en ? "I saved my property search." : "Guardé mi búsqueda de propiedad.";
-  const text = [(en ? "Hello. " : "Hola. ") + introduction];
-  for (const [value, es, english] of [
-    [data.propertyTitle, "Propiedad", "Listing"], [data.mls, "MLS", "MLS"], [data.project, "Preventa", "Presale"],
-    [data.reference, "Referencia del proyecto", "Project reference"], [data.development, "Desarrollo", "Development"],
-    [data.zone, "Zona", "Zone"], [data.subzone, "Subzona", "Subzone"], [data.area, "Superficie aproximada", "Approximate area"],
-    [data.features, "Características", "Features"], [data.preferences, "Preferencias", "Preferences"],
-    [data.summary, "Resumen de la consulta", "Inquiry summary"],
-  ]) if (value) text.push((en ? english : es) + ": " + value);
-  if (data.budget) text.push((en ? "Budget: " : "Presupuesto: ") + new Intl.NumberFormat(en ? "en-US" : "es-MX").format(data.budget) + " " + data.currency);
-  if (data.askingPrice) text.push((en ? "Asking price: " : "Precio solicitado: ") + data.askingPrice + " " + data.currency);
-  if (data.rentPeriod) text.push((en ? "Rental period: " : "Periodo de renta: ") + ({ day: en ? "daily" : "día", month: en ? "monthly" : "mes", year: en ? "yearly" : "año" }[data.rentPeriod] || data.rentPeriod));
-  if (data.visitPreferredAt) text.push((en ? "Preferred date/time (Cancun): " : "Fecha/hora preferida (Cancún): ") + data.visitPreferredAt.replace("T", " "));
-  if (data.searchWatch || data.searchFilters) text.push((en ? "Search criteria: " : "Criterios de búsqueda: ") + describeCatalogFilters(data.searchWatch?.filters || data.searchFilters, data.lang).join(" · "));
-  if (data.searchContextReview?.length) text.push((en ? "To confirm: " : "Por confirmar: ") + data.searchContextReview.join(" "));
-  if (data.ownerEstimate) text.push((en ? "My estimate: " : "Mi estimación: ") + String(data.ownerEstimate) + (data.currency ? " " + data.currency : ""));
-  text.push((en ? "I saw this on Puerto Cancún Center: " : "Lo vi en Puerto Cancún Center: ") + url);
-  text.push("Ref. PCC-" + data.whatsappRef);
-  return text.join("\n");
+  const filters = data.searchWatch?.filters || data.searchFilters;
+  return whatsappMessages.messageFor({ ...data, searchDescription: filters ? describeCatalogFilters(filters, data.lang).join(" · ") : data.searchDescription }, url);
 }
 
 function destination(routing, country, office) {
@@ -223,7 +200,11 @@ async function serviceChannel(db, country) {
 function registerInquiries(app, { pool, query, uuid, siteUrl, secret, upsertContact, leadScoreFromData, getPublicProperties = async () => [], getAreas = () => undefined, getExchangeRate = () => null, channels = () => ({}) }) {
   const clickToken = id => crypto.createHmac("sha256", secret).update("inquiry-click:" + id).digest("hex");
   app.get("/api/inquiries/options", async (_req, res, next) => {
-    try { res.json({ countries, channels: channels(), featuredCountry: (await readContactRouting({ query })).featuredCountry }); } catch (err) { next(err); }
+    try {
+      const routing = await readContactRouting({ query });
+      const offices = ["mx", "us"].filter(id => routing[id]).map(id => ({ id, number: routing[id], display: businessPhoneLabel(routing[id]) }));
+      res.json({ countries, channels: channels(), featuredCountry: routing.featuredCountry, offices, defaultOffice: routing.us && destination(routing, "MX") === routing.us ? "us" : "mx" });
+    } catch (err) { next(err); }
   });
   app.get("/api/inquiries/context", async (req, res, next) => {
     try { res.json(resolveInquiryContext(req.query || {}, await getPublicProperties())); }

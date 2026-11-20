@@ -26,6 +26,31 @@ test("Public directory groups only proven geography and never manufactures a dev
   assert.deepEqual(d.presales.map(p=>[p.nameEs,p.developmentId,p.propertyIds]),[["Al Mare Puerto Cancún",dev.id,[]]]);
   assert.ok(!JSON.stringify(d).includes("ALMAR-REVISION"));
 });
+test("Bonfil is hidden from public zone choices without altering stored catalog, assignments or published inventory", () => {
+  const local = {...land,id:"bonfil-lot",zone:"Alfredo V. Bonfil",city:"Cancún"};
+  const rows = [local,land,dev];
+  const config = directory.materialize(null,rows);
+  config.assignments[local.id] = assignment("cancun-city","alfredo-v-bonfil");
+  config.subareas.push({id:"saved-locality",areaId:"cancun-city",nameEs:"Bonfil",nameEn:"Bonfil",active:true,image:"",descriptionEs:"",descriptionEn:""});
+  const originalRows = structuredClone(rows), originalConfig = structuredClone(config);
+  const beforeAssignments = directory.adminAssignments(config,rows);
+  for (const stored of [null,config]) {
+    const visible = directory.publicDirectory(stored,rows);
+    assert.ok(visible.areas.some(area => area.id === "cancun-city"));
+    assert.ok(visible.areas.flatMap(area => area.subareas).some(subarea => subarea.id === "huayacan-colosio"));
+    assert.ok(visible.areas.every(area => area.subareas.every(subarea => !/bonfil/i.test([subarea.id,subarea.nameEs,subarea.nameEn].join(" ")))));
+    assert.equal(visible.assignments[local.id].subareaId,"alfredo-v-bonfil");
+    const publicRecords = directory.enrichProperties(rows,visible);
+    assert.deepEqual(publicRecords.map(row=>row.id),rows.map(row=>row.id));
+    assert.equal(publicRecords[0].zone,"Alfredo V. Bonfil");
+    assert.equal(publicRecords[0].isPublic,true);
+    assert.equal(publicRecords[0].portalSubareaId,"alfredo-v-bonfil");
+  }
+  assert.deepEqual(config,originalConfig);
+  assert.deepEqual(rows,originalRows);
+  assert.deepEqual(directory.adminAssignments(config,rows),beforeAssignments);
+  assert.ok(directory.materialize(config,rows).subareas.some(subarea=>subarea.id === "alfredo-v-bonfil" && subarea.active));
+});
 test("Moving a development moves its linked units and presale without changing the physical property fields", () => {
   const rows=[dev,unit,land], cfg=directory.materialize(null,rows);
   cfg.assignments.master=assignment("cancun-city","huayacan-colosio",{hiddenBlocks:["units","location"]});

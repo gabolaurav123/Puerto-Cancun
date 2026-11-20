@@ -37,7 +37,7 @@ function renderAreaGuideContent(directory, properties, lang) {
     const developments = matches.filter(p => inventory.entityOf(p) === "developments");
     const units = matches.filter(p => inventory.entityOf(p) === "properties");
     const subareas = area.subareas || [];
-    return `<article class="exploration-area"><h2>${esc(nameOf(area, lang))}</h2><p>${esc(descriptionOf(area, lang))}</p>${subareas.length ? `<p class="area-subareas">${subareas.map(s => `<a href="${esc(areaLink(area.id, lang, "properties", s.id))}">${esc(nameOf(s, lang))}</a>`).join(" · ")}</p>` : ""}<div class="exploration-area-actions"><a class="primary-button" href="${esc(areaLink(area.id, lang, "developments"))}">${en ? "View all developments" : "Ver todos los desarrollos"} (${developments.length})</a><a class="ghost-button" href="${esc(areaLink(area.id, lang))}">${en ? "Properties" : "Propiedades"} (${units.length})</a></div></article>`;
+    return `<article class="exploration-area"><h2>${esc(nameOf(area, lang))}</h2><p>${esc(descriptionOf(area, lang))}</p>${subareas.length ? `<p class="area-subareas">${subareas.map(s => `<a href="${esc(areaLink(area.id, lang, "properties", s.id))}">${esc(nameOf(s, lang))}</a>`).join(" · ")}</p>` : ""}<div class="exploration-area-actions"><a class="primary-button" href="${esc(areaLink(area.id, lang, "developments"))}">${en ? "View gated communities" : "Ver todos los desarrollos"} (${developments.length})</a><a class="ghost-button" href="${esc(areaLink(area.id, lang))}">${en ? "Properties" : "Propiedades"} (${units.length})</a></div></article>`;
   }).join("");
   return `<section id="area-guide" class="exploration-area-grid">${cards}</section>`;
 }
@@ -59,7 +59,7 @@ function featuredSection(directory, properties, lang, placement, contextId = "")
     } else {
       const item = properties.find(p => p.id === slot.targetId && inventory.isPublic(p));
       if (!item) continue;
-      label = slot.kind === "development" ? (en ? "Development" : "Desarrollo") : (en ? "Property" : "Propiedad");
+      label = slot.kind === "development" ? (en ? "Gated community" : "Desarrollo") : (en ? "Property" : "Propiedad");
       name = en ? item.titleEn || item.titleEs : item.titleEs; href = propertyLink(item, lang);
       image = (item.images || []).find(s => /^\/media\/properties\//.test(s));
       if (image) image += "?w=480";

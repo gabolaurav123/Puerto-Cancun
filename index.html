@@ -42,10 +42,12 @@
     <link rel="stylesheet" href="/contextual-contact.css?v=1" />
     <link rel="stylesheet" href="/advisor-widget.css?v=1" />
     <link rel="stylesheet" href="/commercial-panel.css?v=1" />
+    <link rel="stylesheet" href="/admin-property-search.css?v=1" />
     <link rel="stylesheet" href="/catalog.css?v=20261029.1" />
     <link rel="stylesheet" href="/admin-inventory.css?v=20261029.1" />
     <link rel="stylesheet" href="/comparison.css?v=20261029.1" />
     <link rel="stylesheet" href="/public-journey.css?v=1" />
+    <link rel="stylesheet" href="/seller-publishing.css?v=1" />
     <!-- SEO_JSON_LD -->
   </head>
   <body data-page="home">
@@ -56,7 +58,7 @@
     <div class="site-shell" id="siteShell">
       <header class="main-header" id="mainHeader">
         <div class="brand-row">
-          <a class="brand" href="/" aria-label="Puerto Cancún Center">
+          <a class="brand" href="/" data-gold-logo aria-label="Puerto Cancún Center">
             <span class="brand-mark" aria-hidden="true">
               <img src="/assets/puerto-cancun-logo-160.webp" width="640" height="640" alt="" />
             </span>
@@ -121,7 +123,7 @@
               <div class="public-nav-popover public-nav-communities"></div>
             </details>
             <a href="/propiedades/desarrollos-cancun" id="developmentsNavLink" data-i18n="navDevelopments">Desarrollos</a>
-            <a href="/vender-casa-cancun" id="sellNavLink" data-contact-inquiry data-intent="sell" data-origin="header" data-i18n="navSell">Vender</a>
+            <a href="/vender-casa-cancun" id="sellNavLink" data-i18n="navSell" data-open-seller-options>Vender</a>
           </div>
           <div class="public-nav-services">
             <details class="public-nav-group" name="site-navigation">
@@ -389,19 +391,13 @@
               <button class="primary-button" type="button" id="openCompare">Comparar</button>
               <button class="ghost-button" type="button" id="clearCompare">Limpiar</button>
             </aside>
-            <form class="property-alert-form" id="propertyAlertForm" data-lead-form>
+            <aside class="property-alert-form" id="propertyAlertForm">
               <div>
-                <span class="eyebrow" data-i18n="alertKicker">ALERTA DE PROPIEDADES</span>
-                <h3 data-i18n="alertTitle">Recibe opciones compatibles</h3>
-                <p data-i18n="alertCopy">Registraremos tu zona, tipo y presupuesto para que un asesor pueda avisarte.</p>
+                <h3 data-es="Te ayudamos a conseguir tu propiedad ideal" data-en="We help you find your ideal property">Te ayudamos a conseguir tu propiedad ideal</h3>
+                <p data-es="Cuéntanos la zona, tu presupuesto y lo que necesitas." data-en="Tell us the zone, your budget and what you need.">Cuéntanos la zona, tu presupuesto y lo que necesitas.</p>
               </div>
-              <label><span data-i18n="fieldName">Nombre</span><input name="name" required /></label>
-              <label><span>WhatsApp</span><input name="phone" required /></label>
-              <label><span data-i18n="fieldEmail">Correo</span><input name="email" type="email" /></label>
-              <button class="primary-button" type="submit" data-i18n="alertCreate">Crear alerta</button>
-              <input type="hidden" name="leadType" value="alerta-busqueda-comprador" />
-              <p class="form-message" data-lead-message></p>
-            </form>
+              <a class="primary-button" href="/contacto?service=property-search&amp;origin=catalog-assistance" data-contact-inquiry data-service="property-search" data-origin="catalog-assistance" data-es="Clic aquí" data-en="Click here">Clic aquí</a>
+            </aside>
           </div>
         </section>
 
@@ -474,7 +470,7 @@
               <article>
                 <i data-lucide="messages-square" aria-hidden="true"></i>
                 <h3 data-i18n="trustTrackingTitle">Atención identificable</h3>
-                <p data-i18n="trustTrackingCopy">Cada solicitud queda registrada para que el equipo pueda dar seguimiento por el canal elegido.</p>
+                <p data-i18n="trustTrackingCopy">Elige si prefieres una respuesta por WhatsApp o correo y envía tu consulta al equipo.</p>
               </article>
             </div>
           </div>
@@ -582,8 +578,13 @@
       </section>
 
       <section class="dashboard" id="sellerPanel" hidden>
+        <div class="seller-quick-tools" aria-label="Herramientas para propietarios">
+          <button class="primary-button" type="button" data-seller-flow="sale"><i data-lucide="house-plus"></i><span data-i18n="sellerPublish">Anunciar propiedad</span></button>
+          <button class="outline-dark-button" type="button" data-seller-flow="valuation"><i data-lucide="badge-dollar-sign"></i><span data-i18n="valuationSaleName">Solicitar valoración</span></button>
+          <a class="outline-dark-button" href="/calculadora-hipotecaria"><i data-lucide="calculator"></i><span data-i18n="sellerMortgage">Calculadora hipotecaria</span></a>
+        </div>
         <nav class="seller-panel-nav" aria-label="Secciones de mi cuenta">
-          <button class="active" type="button" data-seller-section="sale"><i data-lucide="badge-dollar-sign"></i><span>Vender propiedad</span></button>
+          <button class="active" type="button" data-seller-section="sale"><i data-lucide="badge-dollar-sign"></i><span data-i18n="sellerPublish">Anunciar propiedad</span></button>
           <button type="button" data-seller-section="requests"><i data-lucide="messages-square"></i><span>Mis solicitudes</span></button>
           <button type="button" data-seller-section="favorites"><i data-lucide="heart"></i><span>Favoritos</span></button>
           <button type="button" data-seller-section="searches"><i data-lucide="bell-ring"></i><span>Búsquedas</span></button>
@@ -741,19 +742,21 @@
         </article>
         <div class="dashboard-grid" id="sellerSaleWorkspace">
           <article class="panel-card" data-seller-panel-section="sale">
-            <h2 data-i18n="sellerRequestTitle">Enviar solicitud de venta</h2>
+            <h2 data-i18n="sellerRequestTitle">Solicitar publicación de una propiedad</h2>
             <div class="seller-guide">
-              <h3 data-i18n="sellerGuideTitle">Guia rapida para vender</h3>
-              <p data-i18n="sellerGuideCopy">
-                Completa los datos principales, agrega una imagen clara y deja un mensaje para que el equipo pueda
-                pedirte mas informacion antes de publicar.
-              </p>
+              <h3 data-i18n="sellerGuideTitle">Guía para preparar tu anuncio</h3>
+              <ol class="seller-guide-steps">
+                <li data-i18n="sellerGuideStep1">Elige venta o renta e indica la ubicación y los datos principales.</li>
+                <li data-i18n="sellerGuideStep2">Agrega fotografías y revisa la información antes de enviarla.</li>
+                <li data-i18n="sellerGuideStep3">Consulta el avance y los mensajes del equipo en Mis solicitudes.</li>
+              </ol>
             </div>
             <form id="sellerRequestForm" class="stacked-form">
               <input type="hidden" name="contextLocations" />
               <input type="hidden" name="contextType" />
               <input type="hidden" name="contextZone" />
               <p id="sellerContextSummary" class="form-message" role="status" hidden></p>
+              <label><span data-i18n="sellerOperation">¿Qué quieres anunciar?</span><select name="operation" required><option value="sale" data-i18n="sellerOperationSale">Una propiedad en venta</option><option value="rent" data-i18n="sellerOperationRent">Una propiedad en renta</option></select></label>
               <fieldset class="form-section">
                 <legend data-i18n="sellerContactTitle">Datos de contacto para esta solicitud</legend>
                 <div class="form-row">
@@ -956,6 +959,9 @@
                 <span>Copilot</span>
               </button>
               <p class="admin-nav-label" data-i18n="navClients">Atención a clientes</p>
+              <button type="button" data-admin-section="property-search">
+                <i data-lucide="search-check"></i><span>Búsqueda inmobiliaria</span>
+              </button>
               <button type="button" data-admin-section="leads">
                 <i data-lucide="inbox"></i>
                 <span data-i18n="adminJumpLeads">Asesorías</span>
@@ -1548,6 +1554,19 @@
             <span>Se calcula con fotos, ubicación, precio, descripción y avance de la solicitud.</span>
           </div>
           <div class="wide-data-list" id="adminSellers"></div>
+        </article>
+        <article class="panel-card property-web-search" data-admin-section-panel="property-search" data-property-web-search hidden>
+          <h2>Búsqueda inmobiliaria</h2>
+          <p>Describe lo que necesita tu cliente. Buscaremos opciones en distintos portales y te mostraremos sus fuentes, las coincidencias y los detalles que necesitan confirmación.</p>
+          <form>
+            <label for="propertySearchCriteria">¿Qué inmueble necesitas encontrar?
+              <textarea id="propertySearchCriteria" name="criteria" minlength="12" maxlength="2500" rows="4" required placeholder="Departamento en venta en Puerto Cancún, hasta 600,000 USD, 2 recámaras, 2 baños y acceso controlado." aria-describedby="propertySearchHelp"></textarea>
+            </label>
+            <small id="propertySearchHelp">Incluye zona, venta o renta, presupuesto y características importantes. Describe el inmueble sin datos personales del cliente.</small>
+            <div class="property-search-actions"><button class="primary-button" type="submit">Buscar en portales</button><button class="ghost-button" type="button" data-property-search-clear>Limpiar</button></div>
+          </form>
+          <p role="status" aria-live="polite" data-property-search-status></p>
+          <div data-property-search-results hidden></div>
         </article>
         <article class="panel-card portal-admin" data-admin-section-panel="portal-areas" data-portal-module="portal-areas" hidden></article>
         <article class="panel-card portal-admin" data-admin-section-panel="portal-featured" data-portal-module="portal-featured" hidden></article>
@@ -2891,15 +2910,15 @@
       <section class="modal-card seller-options-modal" role="dialog" aria-modal="true" aria-labelledby="sellerOptionsTitle">
         <button class="modal-close" type="button" data-close-seller-options aria-label="Cerrar"><i data-lucide="x"></i></button>
         <span class="eyebrow" data-i18n="sellerOptionsEyebrow">ELIGE CÓMO EMPEZAR</span>
-        <h2 id="sellerOptionsTitle" data-i18n="sellerOptionsTitle">¿Cómo quieres vender tu propiedad?</h2>
+        <h2 id="sellerOptionsTitle" data-i18n="sellerOptionsTitle">¿Cómo quieres anunciar tu propiedad?</h2>
         <p data-i18n="sellerOptionsCopy">Elige una solicitud breve sin cuenta o regístrate para publicar más información, guardar avances y dar seguimiento desde tu panel de vendedor.</p>
         <div class="seller-option-grid">
-          <button class="seller-option-card featured" type="button" data-open-guest-sale>
-            <i data-lucide="send"></i><strong data-i18n="guestSaleName">Venta sin registro</strong>
-            <span data-i18n="guestSaleSummary">Título, tipo, ubicación y fotos. No necesitas crear una cuenta.</span>
+          <button class="seller-option-card" type="button" data-open-guest-sale>
+            <i data-lucide="send"></i><strong data-i18n="guestSaleName">Anunciar sin registrarme</strong>
+            <span data-i18n="guestSaleSummary">Comparte tipo, zona y hasta 3 fotos. Continúa por WhatsApp sin crear una cuenta.</span>
           </button>
-          <button class="seller-option-card" type="button" data-open-detailed-sale>
-            <i data-lucide="clipboard-check"></i><strong data-i18n="guidedSaleName">Venta con registro</strong>
+          <button class="seller-option-card featured" type="button" data-open-detailed-sale>
+            <i data-lucide="clipboard-check"></i><strong data-i18n="guidedSaleName">Registrarme y anunciar</strong>
             <span data-i18n="guidedSaleSummary">La opción más completa para presentar y seguir tu propiedad.</span>
             <span class="seller-option-benefits">
               <span data-i18n="guidedSaleBenefitDetails">Agrega información detallada y más fotografías.</span>
@@ -2907,10 +2926,7 @@
               <span data-i18n="guidedSaleBenefitPanel">Consulta solicitudes y seguimiento en tu panel de vendedor.</span>
             </span>
           </button>
-          <a class="seller-option-card" href="/valuacion-inmobiliaria-cancun#valuation-form" data-valuation-option>
-            <i data-lucide="badge-dollar-sign"></i><strong data-i18n="valuationSaleName">Solicitar valoración</strong>
-            <span data-i18n="valuationSaleSummary">Valida el precio antes de preparar la publicación.</span>
-          </a>
+          <button class="seller-option-card" type="button" data-seller-access="login"><i data-lucide="log-in"></i><strong data-i18n="sellerExistingAccount">Ya tengo cuenta</strong><span data-i18n="sellerExistingAccountCopy">Entra para continuar tu anuncio y revisar sus actualizaciones.</span></button>
         </div>
       </section>
     </div>
@@ -2920,11 +2936,12 @@
         <button class="modal-close" type="button" data-close-guest-sale aria-label="Cerrar"><i data-lucide="x"></i></button>
         <form id="guestSaleForm" class="stacked-form">
           <section>
-            <span class="eyebrow" data-i18n="guestSaleEyebrow">VENTA SIN REGISTRO</span>
+            <span class="eyebrow" data-i18n="guestSaleEyebrow">ANUNCIO SIN REGISTRO</span>
             <h2 id="guestSaleTitle" data-i18n="guestSaleTitle">Envíanos los datos esenciales</h2>
-            <p data-i18n="guestSaleIntro">No necesitas una cuenta. Un asesor revisará la información antes de solicitarte cualquier dato adicional.</p>
+            <p data-i18n="guestSaleIntro">1. Elige venta o renta y la zona. 2. Añade fotos si las tienes. 3. Continúa por WhatsApp para anunciar.</p>
             <input class="honeypot-field" name="website" tabindex="-1" autocomplete="off" aria-hidden="true" />
             <input name="formStartedAt" type="hidden" />
+            <label><span data-i18n="sellerOperation">¿Qué quieres anunciar?</span><select name="operation" required><option value="sale" data-i18n="sellerOperationSale">Una propiedad en venta</option><option value="rent" data-i18n="sellerOperationRent">Una propiedad en renta</option></select></label>
             <label><span data-i18n="propertyType">Tipo de propiedad</span><select name="type" required><option>Casa</option><option>Departamento</option><option>Terreno</option><option>Comercial</option><option>Preventa</option></select></label>
             <label><span data-i18n="guestLocation">Zona o localidad aproximada</span><input name="location" maxlength="260" data-i18n-placeholder="guestLocationPlaceholder" placeholder="Zona, colonia o localidad" required /></label>
             <input name="state" type="hidden" />
@@ -2938,13 +2955,13 @@
               <label><input type="radio" name="preferredContact" value="email" /><span><i data-lucide="mail"></i><b data-i18n="contactEmail">Correo</b></span></label>
             </div>
             <label data-guest-contact-field="email" hidden><span data-i18n="email">Dirección de correo</span><input name="email" type="email" autocomplete="email" disabled /></label>
-            <fieldset data-guest-contact-field="whatsapp"><legend data-i18n="contactPhone">Teléfono</legend><div class="phone-registration-grid"><label><span data-i18n="inquiryPhoneCountry">País del teléfono</span><select name="country" required data-inquiry-country><option value="MX">México (+52)</option><option value="US">Estados Unidos (+1)</option><option value="CA">Canadá (+1)</option></select></label><label><span data-i18n="contactPhone">Teléfono</span><input name="phone" type="tel" inputmode="tel" autocomplete="tel" maxlength="40" required></label></div></fieldset>
+            <p class="guest-whatsapp-hint" data-guest-contact-field="whatsapp" data-i18n="guestWhatsAppHint">No necesitamos tu número: al continuar abrirás WhatsApp con los datos de tu propiedad.</p>
             <details data-guest-optional-details>
               <summary data-i18n="guestOptionalDetails">Añadir información o fotos (opcional)</summary>
               <label><span data-i18n="guestOptionalTitle">Título de la propiedad (opcional)</span><input name="title" maxlength="180" /></label>
               <label><span data-i18n="guestOptionalName">Tu nombre (opcional)</span><input name="name" maxlength="110" autocomplete="name" /></label>
               <label><span data-i18n="optionalDescription">Descripción opcional</span><textarea name="description" rows="3" maxlength="4000" data-i18n-placeholder="guestDescriptionPlaceholder" placeholder="Agrega solo la información que ya tengas disponible"></textarea></label>
-              <label class="file-field"><span data-i18n="guestImages">Imágenes de la propiedad (opcionales)</span><input name="imageFile" type="file" accept="image/jpeg,image/jpg,image/png,image/webp" multiple /><small data-i18n="guestImagesHelp">Puedes enviarla sin fotos y agregarlas después con ayuda de un asesor.</small></label>
+              <label class="file-field"><span data-i18n="guestImages">Imágenes de la propiedad (opcionales)</span><input name="imageFile" type="file" accept="image/jpeg,image/jpg,image/png,image/webp" multiple /><small data-i18n="guestImagesHelp">Hasta 3 fotos para empezar. Con una cuenta puedes preparar una galería más completa.</small></label>
               <div class="image-preview" id="guestSaleImagePreview" hidden><div class="image-preview-header"><span data-i18n="selectedImage">Imágenes seleccionadas</span><button class="text-button danger" type="button" id="clearGuestSaleImages" data-i18n="removeImage">Quitar imágenes</button></div><div class="image-preview-grid"></div></div>
               <details data-guest-optional-map>
                 <summary data-i18n="guestOptionalMap">Precisar ubicación en el mapa (opcional)</summary>
@@ -2966,11 +2983,25 @@
             </div>
               </details>
             </details>
-            <label class="check-field guest-consent-field"><input name="consent" type="checkbox" required /><span data-i18n="guestConsent">Acepto el aviso de privacidad y que un asesor me contacte sobre esta solicitud.</span></label>
-            <div class="form-actions"><button class="primary-button" type="submit"><i data-lucide="send"></i><span data-i18n="guestSubmitRequest">Enviar solicitud</span></button><button class="ghost-button" type="button" data-close-guest-sale data-i18n="cancel">Cancelar</button></div>
+            <p class="guest-privacy-note" data-i18n="guestPrivacyNotice">Usaremos estos datos para revisar tu anuncio. Al continuar solicitas que te respondamos por el medio elegido.</p>
+            <div class="form-actions"><button class="primary-button" type="submit"><i data-lucide="send"></i><span data-i18n="guestSubmitRequest">Continuar</span></button><button class="ghost-button" type="button" data-close-guest-sale data-i18n="cancel">Cancelar</button></div>
             <p class="form-message" id="guestSaleMessage" aria-live="polite"></p>
           </section>
         </form>
+      </section>
+    </div>
+
+    <div class="modal-backdrop" id="guestRegisterPromptModal" hidden>
+      <section class="modal-card guest-register-prompt" role="dialog" aria-modal="true" aria-labelledby="guestRegisterPromptTitle">
+        <button class="modal-close" type="button" data-close-guest-register aria-label="Cerrar"><i data-lucide="x"></i></button>
+        <span class="eyebrow" data-i18n="guestRegisterEyebrow">DA SEGUIMIENTO A TU ANUNCIO</span>
+        <h2 id="guestRegisterPromptTitle" data-i18n="guestRegisterTitle">¿Quieres recibir actualizaciones?</h2>
+        <p data-i18n="guestRegisterCopy">Te recomendamos registrarte para recibir notificaciones, guardar avances y añadir más información y fotografías. También puedes continuar sin una cuenta.</p>
+        <div class="guest-register-actions">
+          <button class="primary-button" type="button" data-guest-register><i data-lucide="user-plus"></i><span data-i18n="guestRegisterAction">Registrarme</span></button>
+          <button class="outline-dark-button" type="button" data-guest-skip-register><i data-lucide="message-circle"></i><span data-i18n="guestSkipRegister">Omitir y anunciar</span></button>
+        </div>
+        <button class="text-button" type="button" data-close-guest-register data-i18n="guestBackToDetails">Volver a mis datos</button>
       </section>
     </div>
 
@@ -3179,12 +3210,8 @@
         <p id="tourPropertyTitle"></p>
         <form id="tourRequestForm" class="stacked-form">
           <input name="propertyId" type="hidden" />
-          <div class="form-row"><label><span>Nombre</span><input name="name" required /></label><label><span>Teléfono</span><input name="phone" required /></label></div>
-          <label><span>Correo</span><input name="email" type="email" /></label>
-          <div class="form-row"><label><span>Fecha preferida</span><input name="preferredDate" type="date" /></label><label><span>Horario</span><select name="preferredTime"><option value="">Por confirmar</option><option>Mañana</option><option>Mediodía</option><option>Tarde</option></select></label></div>
-          <label><span>Comentarios</span><textarea name="comments" rows="3"></textarea></label>
-          <label class="check-field"><input name="consent" type="checkbox" required /><span>Acepto el aviso de privacidad y que un asesor me contacte para coordinar la visita.</span></label>
-          <button class="primary-button" type="submit"><i data-lucide="calendar-check"></i><span>Enviar solicitud</span></button>
+          <p data-es="Elige cómo prefieres recibir la respuesta y prepara tu consulta por WhatsApp." data-en="Choose how you would like us to reply and prepare your WhatsApp inquiry.">Elige cómo prefieres recibir la respuesta y prepara tu consulta por WhatsApp.</p>
+          <button class="primary-button" type="submit"><i data-lucide="calendar-check"></i><span data-es="Continuar" data-en="Continue">Continuar</span></button>
           <p class="form-message" id="tourRequestMessage"></p>
         </form>
       </section>
@@ -3217,13 +3244,13 @@
     </div>
 
     <a
-      class="whatsapp-float"
-      id="whatsappButton"
-      href="/contacto?inquiry=1"
-      data-contact-inquiry data-origin="floating-contact"
-      aria-label="Contactar al equipo" data-i18n-aria-label="teamCta"
+      class="owner-contact-float"
+      id="ownerContactButton"
+      href="/vender-casa-cancun"
+      data-open-seller-options
+      aria-label="¿Quieres vender o rentar? Clic aquí"
     >
-      <span data-i18n="floatingContactLabel">Contactar</span>
+      <span><strong data-i18n="floatingContactLabel">¿Quieres vender o rentar?</strong><small data-owner-float-action>Clic aquí</small></span>
       <i data-lucide="message-circle" aria-hidden="true"></i>
     </a>
 
@@ -3260,9 +3287,12 @@
     <script src="/catalog-assistant.js?v=20261029.1"></script>
     <script src="/site-language.js?v=1"></script>
     <script src="/app.js?v=20260905.1"></script>
+    <script src="/whatsapp-message.js?v=1"></script>
     <script src="/contextual-contact.js?v=1"></script>
+    <script src="/public-journey.js?v=1"></script>
     <script src="/advisor-widget.js?v=1"></script>
     <script src="/commercial-panel.js?v=1"></script>
+    <script src="/admin-property-search.js?v=1"></script>
     <script src="/catalog-ui.js?v=20261029.1"></script>
   </body>
 </html>
