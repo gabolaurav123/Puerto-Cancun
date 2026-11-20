@@ -21,6 +21,8 @@
 .contextual-inquiry .inquiry-optional[open] { padding-bottom: 14px; }
 .contextual-inquiry details label + label { margin-top: 10px; }
 .contextual-inquiry .inquiry-budget { display: grid; grid-template-columns: minmax(0,2fr) minmax(90px,1fr); gap: 8px; align-items: end; }
+.contextual-inquiry .inquiry-search-basics, .contextual-inquiry .inquiry-room-counts { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 10px; align-items: end; }
+.contextual-inquiry .inquiry-room-counts label + label { margin-top: 0; }
 .contextual-inquiry .inquiry-consent { display: flex; align-items: flex-start; gap: 10px; min-height: 44px; padding-block: 4px; font-size: 13px; line-height: 1.5; font-weight: 400; }
 .contextual-inquiry .inquiry-consent input { width: 20px; height: 20px; flex-shrink: 0; }
 .contextual-inquiry .inquiry-buttons { display: flex; flex-wrap: wrap; gap: 8px; }
@@ -81,6 +83,7 @@
   .contextual-inquiry header { padding: 8px 16px; }
   .contextual-inquiry .inquiry-scroll { padding: 14px 16px max(18px, env(safe-area-inset-bottom)); }
   .contextual-inquiry [data-phone-fields] { grid-template-columns: minmax(0, 1fr); }
+  .contextual-inquiry .inquiry-search-basics { grid-template-columns: minmax(0, 1fr); }
   .office-inquiry-buttons { gap: 8px; }
   .office-inquiry-button { padding: 8px; font-size: .8rem; }
   .office-inquiry-button [data-contact-number] { font-size: .7rem; }

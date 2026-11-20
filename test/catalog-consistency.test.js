@@ -115,7 +115,8 @@ test("inquiry links preserve rental criteria as structured context instead of a 
 test("gated properties and switched land filters are not silently relaxed", () => {
   const rows = [property({portalGated:true}),property({id:"open",portalGated:false})];
   const html = renderCatalog({lang:"es",category:{}},rows,{gated:"1"},items=>items.map(row=>row.id).join(","));
-  assert.match(html,/name="gated" value="1" checked/);
+  assert.match(html,/<input type="hidden" name="gated" value="1">/);
+  assert.doesNotMatch(html,/type="checkbox"|<select|catalog-filter-panel/);
   assert.match(html,/data-catalog-list>monthly</);
   const land = renderCatalog({lang:"es",category:{}},rows,{type:"Terreno",beds:2},()=>"");
   assert.match(land,/name="beds"[^>]*value="2"/);

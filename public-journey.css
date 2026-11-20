@@ -1,4 +1,42 @@
-/* Public listing composition. All contact/data behavior remains in the existing modules. */
+/* Public listing composition. Contact behavior lives in the contact modules. */
+[data-gold-logo] { position:relative; isolation:isolate; overflow:hidden; border-radius:6px; }
+[data-gold-logo].is-gold-shining { animation:pcc-logo-gold 950ms ease-out; }
+[data-gold-logo].is-gold-shining::after { content:""; position:absolute; inset:-30% -45%; pointer-events:none; background:linear-gradient(110deg,transparent 35%,#f4ce6577 45%,#fff4aecc 50%,#ddaa3d66 55%,transparent 65%); mix-blend-mode:screen; animation:pcc-logo-sweep 850ms ease-out both; }
+@keyframes pcc-logo-gold { 0%,100% { filter:none; } 35%,65% { filter:brightness(1.4) saturate(1.65) drop-shadow(0 0 7px #e9bc46aa); } }
+@keyframes pcc-logo-sweep { from { transform:translateX(-70%); } to { transform:translateX(70%); } }
+@media(prefers-reduced-motion:reduce) { [data-gold-logo].is-gold-shining { animation:none; filter:brightness(1.25) saturate(1.5); } [data-gold-logo].is-gold-shining::after { display:none; } }
+.catalog-assistance { display:flex; align-items:center; justify-content:space-between; gap:16px; padding:16px 18px; margin:12px 0; border:1px solid #c2d8d3; border-left:3px solid var(--gold); border-radius:6px; background:#fff; }
+.catalog-assistance strong { font-size:.98rem; color:var(--blue-900); }
+.catalog-assistance p { margin:5px 0 0; font-size:.85rem; line-height:1.5; }
+.public-catalog-toolbar .catalog-controls { grid-template-columns:minmax(0,1fr) auto; }
+.public-catalog-toolbar .catalog-search-row { grid-column:1; grid-row:1; }
+.public-catalog-toolbar .catalog-controls > .catalog-conversation > summary { grid-column:2; grid-row:1; }
+.public-catalog-toolbar .catalog-controls > .catalog-conversation > form { grid-column:1 / -1; grid-row:3; }
+.public-catalog-toolbar .catalog-assistance { grid-column:1 / -1; grid-row:2; min-width:0; margin:4px 0; }
+@media(max-width:700px) {
+  .public-catalog-toolbar .catalog-search-row { grid-column:1 / -1; }
+  .public-catalog-toolbar .catalog-controls > .catalog-conversation > summary { grid-column:1 / -1; grid-row:2; }
+  .public-catalog-toolbar .catalog-assistance { grid-row:3; }
+  .public-catalog-toolbar .catalog-controls > .catalog-conversation > form { grid-row:4; }
+}
+.catalog-assistance-button { display:inline-flex; align-items:center; justify-content:center; gap:9px; flex-shrink:0; min-height:46px; padding:10px 18px; border-radius:5px; background:#126044; color:#fff; font-weight:700; font-size:.85rem; text-decoration:none; }
+.catalog-assistance-button:hover { background:#0c4b35; }
+.catalog-assistance-button:focus-visible, #ownerContactButton:focus-visible { outline:3px solid var(--gold); outline-offset:4px; }
+.featured-selection-intro { padding:18px 20px; margin:14px 0; border-left:3px solid var(--gold); background:#fff; }
+.featured-selection-intro p { margin:8px 0 0; line-height:1.6; max-width:85ch; }
+.seller-entry-options { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:18px; margin:20px 0; }
+.seller-entry-options article { display:flex; flex-direction:column; padding:22px; gap:14px; border:1px solid var(--line); border-radius:8px; background:white; }
+.seller-entry-options :is(h3,p) { margin:0; }
+.seller-entry-options p { line-height:1.6; }
+.seller-entry-options button { margin-top:auto; min-height:48px; white-space:normal; }
+.seller-entry-options .seller-entry-recommended { border-top:3px solid var(--gold); }
+body:is([data-page="home"],[data-page="seo"]):not(.panel-open) #ownerContactButton { position:fixed; display:flex; align-items:center; gap:12px; right:max(14px,env(safe-area-inset-right)); bottom:max(14px,env(safe-area-inset-bottom)); z-index:950; width:auto; height:auto; max-width:min(300px,calc(100vw - 100px)); min-height:54px; padding:12px 16px; border:1px solid #d2ae54; border-radius:12px; background:#07515d; color:white; box-shadow:0 4px 20px #00333b30; text-decoration:none; }
+#ownerContactButton span { display:flex !important; flex-direction:column; gap:4px; position:static; margin:0; padding:0; background:none; color:inherit; font:inherit; }
+#ownerContactButton strong { font-size:.78rem; line-height:1.3; }
+#ownerContactButton small { color:#f6d77b; font-size:.74rem; font-weight:700; }
+#ownerContactButton :is(svg,i) { width:24px; height:24px; flex:0 0 24px; }
+body.panel-open #ownerContactButton, body.modal-open #ownerContactButton, body:has(dialog[open]) #ownerContactButton, body:has(#mainNav.open) #ownerContactButton, body.owner-contact-cookie-visible #ownerContactButton { display:none !important; }
+@media(max-width:700px) { .catalog-assistance { align-items:stretch; flex-direction:column; gap:12px; padding:14px; } .catalog-assistance-button { align-self:flex-start; } .seller-entry-options { grid-template-columns:1fr; } #ownerContactButton strong { font-size:.72rem; } }
 body[data-page="seo"] .property-page-heading {
   padding-top: calc(var(--public-header-height, 100px) + 24px);
 }

@@ -2,8 +2,19 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const { renderCatalog } = require('../catalog-view');
 const page = { lang: 'es', category: {} };
+const decode = value => value.replaceAll('&quot;', '"').replaceAll('&#39;', "'").replaceAll('&lt;', '<').replaceAll('&gt;', '>').replaceAll('&amp;', '&');
+function submittedSearch(html) {
+  const form = html.match(/<form id="catalogFilters"[^>]*>([\s\S]*?)<\/form>/)?.[1];
+  assert.ok(form, 'the search keeps its nonvisual query form');
+  const params = new URLSearchParams();
+  for (const [, name, value] of form.matchAll(/<input type="hidden" name="([^"]+)" value="([^"]*)">/g)) params.append(decode(name), decode(value));
+  const text = html.match(/name="q" form="catalogFilters" value="([^"]*)"/);
+  if (text) params.set('q', decode(text[1]));
+  return Object.fromEntries(params);
+}
+const mapIds = html => JSON.parse(html.match(/data-catalog-map-data>([^<]+)</)[1]).map(row => row.id);
 
-test('the main Featured link shows the two properties and three developments once, including on its map and after filtering', () => {
+test('Featured shows only curated public listings and ignores URL filters while retaining entity and map choices', () => {
   const {getPageByPath, renderCategoryPage} = require('../seo-pages');
   const directory = require('../portal-directory');
   const rows = ['Casa','Desarrollo','Departamento','Desarrollo','Desarrollo','Casa'].map((type,index) => ({
@@ -22,8 +33,15 @@ test('the main Featured link shows the two properties and three developments onc
     assert.deepEqual(JSON.parse(html.match(/data-catalog-map-data>([^<]+)</)[1]).map(row=>row.id),ids(html));
     assert.deepEqual(ids(renderCategoryPage(page,rows,{entity:'developments'})),['item-1','item-3','item-4']);
     assert.deepEqual(ids(renderCategoryPage(page,rows,{entity:'properties'})),['item-0','item-2']);
-    assert.deepEqual(ids(renderCategoryPage(page,rows,{location:'puerto-cancun',q:'Listing 2'})),['item-2']);
-    assert.ok(html.includes('action="'+path+'"'));
+    const altered = renderCategoryPage(page,rows,{location:'zona-hotelera',q:'Listing 2',type:'Terreno',max:'1',featured:'0',view:'map'});
+    assert.deepEqual(ids(altered), rows.slice(0,5).map(row => row.id));
+    assert.deepEqual(mapIds(altered), ids(altered));
+    assert.ok(altered.includes('href="'+path+'?entity=properties&amp;view=map"'));
+    assert.match(altered,/data-catalog-view="map"/);
+    assert.doesNotMatch(altered,/id="catalogFilters"|name="q"|data-catalog-assistant|catalog-filter-panel|catalog-active-filters/);
+    const selected = renderCategoryPage(page,rows,{entity:'properties',type:'Terreno',q:'missing',location:'zona-hotelera'});
+    assert.deepEqual(ids(selected),['item-0','item-2']);
+    assert.deepEqual(mapIds(selected),ids(selected));
   }
 });
 
@@ -45,17 +63,24 @@ test('Featured includes public curated zones and presales in editorial order and
   assert.match(html,/href="\/en\/properties\?location=puerto-cancun&amp;entity=properties"/);
 });
 
-test('unmatched subarea and development remain selected instead of widening the search', () => {
-  const html = renderCatalog(page, [], { zone: 'Merida', development: 'retired-development' }, () => '');
-  assert.match(html, /<option value="Merida" selected>Merida \(sin coincidencias actuales\)<\/option>/);
-  assert.match(html, /<option value="retired-development" selected>/);
+test('unmatched zone, subarea and development survive search submission without widening results', () => {
+  const rows = [{id:'other',type:'Casa',zone:'Puerto Cancún',titleEs:'Marina'}];
+  const html = renderCatalog(page, rows, { zone: 'Merida', subarea: 'retired-subarea', development: 'retired-development' }, () => '');
+  const submitted = submittedSearch(html);
+  assert.equal(submitted.zone, 'Merida');
+  assert.equal(submitted.subarea, 'retired-subarea');
+  assert.equal(submitted.development, 'retired-development');
   assert.match(html, /id="categoryInventoryCount" role="status">0 propiedades</);
+  const next = renderCatalog(page, rows, {...submitted,q:'Marina'}, () => 'must-not-render');
+  assert.doesNotMatch(next,/must-not-render/);
+  assert.deepEqual(mapIds(next),[]);
 });
 
 test('retained options are escaped and the catalog omits legacy comparison controls', () => {
   const html = renderCatalog(page, [], { zone: '<script>', compare: 'a,b', beds: '3' }, () => '');
   assert.ok(!html.includes('<script>'));
-  assert.match(html, /value="&lt;script&gt;" selected/);
+  assert.equal(submittedSearch(html).zone,'<script>');
+  assert.equal(submittedSearch(html).beds,'3');
   assert.doesNotMatch(html, /name="compare"|data-start-comparison|data-compare-id/);
   const links = [...html.matchAll(/class="catalog-chip"/g)];
   assert.equal(links.length, 2);
@@ -63,10 +88,12 @@ test('retained options are escaped and the catalog omits legacy comparison contr
   assert.ok(chipLinks.every(([, href]) => !href.includes('compare=')));
 });
 
-test('selected monetary context opens advanced controls even without a budget', () => {
+test('selected monetary context survives a new search without displaying manual filter controls', () => {
   const html = renderCatalog(page, [], { currency: 'USD', priceBasis: 'sqm' }, () => '');
-  assert.match(html, /class="catalog-advanced" open/);
-  assert.match(html, /name="priceBasis">[\s\S]*?<option value="sqm" selected/);
+  assert.equal(submittedSearch(html).currency,'USD');
+  assert.equal(submittedSearch(html).priceBasis,'sqm');
+  assert.doesNotMatch(html,/<select|catalog-advanced|catalog-filter-panel/);
+  assert.match(html,/data-catalog-assistant/);
 });
 
 test('effective category criteria are exposed to conversational search without URL query parameters', () => {
@@ -83,14 +110,19 @@ test('legacy Playa Mujeres category keeps its corridor instead of widening to th
   assert.deepEqual(require('../inventory-contract').queryInventory(rows,{}, {defaults}).all.map(row=>row.id),['coast']);
 });
 
-test('compact search submits the complete filter form and presents localized locations', () => {
-  for (const [lang, label, city] of [['es', 'Zonas', 'Ciudad de Cancún'], ['en', 'Zones', 'Cancun City']]) {
-    const html = renderCatalog({ lang, category: { location: 'cancun-city' } }, [], { q: 'Marina' }, () => '');
+test('compact search preserves category location, query and map view with localized context and guided search', () => {
+  for (const [lang, city] of [['es', 'Ciudad de Cancún'], ['en', 'Cancun City']]) {
+    const html = renderCatalog({ lang, category: { location: 'cancun-city' } }, [], { q: 'Marina',view:'map',page:'2' }, () => '');
     assert.match(html, /name="q" form="catalogFilters" value="Marina"/);
     assert.match(html, /type="submit" form="catalogFilters"/);
-    assert.match(html, /<details class="catalog-filter-panel"><summary>/);
-    assert.ok(html.includes('<legend>' + label + '</legend>'));
-    assert.ok(html.includes('value="cancun-city" checked /><span>' + city + '</span>'));
+    const submitted = submittedSearch(html);
+    assert.equal(submitted.location,'cancun-city');
+    assert.equal(submitted.q,'Marina');
+    assert.equal(submitted.view,'map');
+    assert.equal(submitted.page,undefined,'new searches start at the first page');
+    assert.ok(html.includes(city));
+    assert.doesNotMatch(html,/catalog-filter-panel|<select|type="checkbox"/);
+    assert.match(html,/data-catalog-assistant/);
   }
 });
 
@@ -114,7 +146,7 @@ test('large catalogs retain adjacent pages and endpoints without printing every 
   }
 });
 
-test('a new area scopes both entities, dependent selectors and counts; land has an independent path', () => {
+test('a new area scopes entity links, map, hidden query and counts; land has an independent path', () => {
   const { renderCategoryPage, getPageByPath } = require('../seo-pages');
   const areas = [
     { id:'coral',nameEs:'Costa Coral',nameEn:'Coral Coast',subareas:[{id:'north',nameEs:'Corredor norte',nameEn:'North corridor'}] },
@@ -131,11 +163,13 @@ test('a new area scopes both entities, dependent selectors and counts; land has 
   ];
   const page = {...getPageByPath('/en/properties'),catalogAreas:areas};
   const html = renderCategoryPage(page,rows,{location:'coral'});
-  assert.match(html,/Properties \(3\)/); assert.match(html,/Developments \(1\)/);
-  assert.match(html,/option value="project-a"/); assert.doesNotMatch(html,/option value="project-b"/);
+  assert.match(html,/Properties \(3\)/); assert.match(html,/Gated communities \(1\)/);
+  assert.equal(submittedSearch(html).location,'coral');
+  assert.deepEqual(mapIds(html),['independent-land','large-land','small-unit']);
+  assert.match(html,/href="\/en\/properties\?entity=developments&amp;location=coral"/);
   const dev = renderCategoryPage(page,rows,{entity:'developments',location:'coral',gated:'1'});
   assert.match(dev,/data-category-property="project-a"/); assert.doesNotMatch(dev,/data-category-property="project-b"|name="beds"|name="min"|name="currency"|data-compare-id/);
-  assert.match(dev,/Gated community/); assert.match(dev,/View development/);
+  assert.match(dev,/Gated community/); assert.match(dev,/View community/);
   const land = renderCategoryPage({...getPageByPath('/en/properties/land-cancun'),catalogAreas:areas},rows,{type:'Casa',entity:'developments',sort:'lot-desc'});
   const ids = [...land.matchAll(/data-category-property="([^"]+)"/g)].map(match => match[1]);
   assert.deepEqual(ids,['large-land','independent-land']); assert.match(land,/I want to buy land/); assert.match(land,/I want to sell land/);
@@ -145,7 +179,7 @@ test('a new area scopes both entities, dependent selectors and counts; land has 
   const grouped = renderCategoryPage(page,rows,{entity:'developments'});
   assert.ok(grouped.indexOf('>Coral Coast</a></h2>') < grouped.indexOf('>Beach</a></h2>'));
   const suggestions = renderCategoryPage(page,rows,{q:'project'});
-  assert.match(suggestions,/<strong>Development<\/strong>/); assert.match(suggestions,/href="\/en\/properties\/project-a"/);
+  assert.match(suggestions,/<strong>Gated community<\/strong>/); assert.match(suggestions,/href="\/en\/properties\/project-a"/);
 });
 
 test('the map includes all filtered pages and withholds hidden coordinates; project CTA preserves confirmed context', () => {
@@ -215,12 +249,21 @@ test('searching the map area uses verified development points, preserves filters
   assert.equal(JSON.stringify(rows),before);
 });
 
-test('Hotel Zone retains the property type filter even for uniform inventory', () => {
+test('Hotel Zone keeps explicit property type criteria without showing manual filters', () => {
   const rows = [{id:'a',type:'Departamento',zone:'Zona Hotelera',titleEs:'A'}];
-  const render = (items,query={}) => renderCatalog(page,items,{location:'zona-hotelera',...query},()=> 'cards');
-  assert.match(render(rows),/<select name="type"/);
-  assert.match(render([...rows,{id:'b',type:'Casa',zone:'Zona Hotelera',titleEs:'B'}]),/<select name="type"/);
-  assert.match(render(rows,{type:'Casa'}),/<select name="type"/);
+  const render = (items,query={}) => renderCatalog(page,items,{location:'zona-hotelera',...query},items => items.map(row => row.id).join(','));
+  const mixed = [...rows,{id:'b',type:'Casa',zone:'Zona Hotelera',titleEs:'B'}];
+  for (const items of [rows,mixed]) {
+    const html = render(items);
+    assert.doesNotMatch(html,/<select name="type"/);
+    assert.deepEqual(mapIds(html),items.map(row=>row.id));
+    assert.match(html,/data-catalog-assistant/);
+  }
+  const houses = render(mixed,{type:'Casa'});
+  assert.equal(submittedSearch(houses).type,'Casa');
+  assert.deepEqual(mapIds(houses),['b']);
+  assert.deepEqual(mapIds(render(mixed,submittedSearch(houses))),['b']);
+  assert.deepEqual(mapIds(render(rows,{type:'Casa'})),[]);
 });
 
 test('an empty community inventory offers contextual help while presales remain buy-only', () => {

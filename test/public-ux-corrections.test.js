@@ -129,10 +129,14 @@ test("la navegación explica cómo vender y presenta un Nosotros completo", () =
   const adviceSection = indexSource.match(/<section class="team-section home-only">[\s\S]*?<\/section>/)[0];
   assert.match(adviceSection, /¿Cuál es tu precio estimado\?[\s\S]*href="\/revisar-precio-propiedad"/);
   assert.doesNotMatch(indexSource, /class="audience-section home-only"/);
-  assert.match(sellingPage, /data-contact-inquiry data-origin="owner-guide" data-intent="sell"/);
-  assert.match(sellingPage, /data-intent="let"/);
-  assert.match(sellingPage, /data-seller-access="register"/);
-  assert.match(sellingPage, /data-seller-access="login"/);
+  const sellerOptions = sellingPage.match(/<div class="seller-entry-options">[\s\S]*?<\/section>/)?.[0] || "";
+  assert.match(sellerOptions, /data-open-guest-sale>Anunciar sin registro/);
+  assert.match(sellerOptions, /data-seller-access="register">Registrarme y anunciar/);
+  assert.match(sellerOptions, /data-seller-access="login">Ingresar a mi panel/);
+  assert.match(sellingPage, /anunciar tu propiedad en venta o renta/);
+  assert.match(sellerOptions, /guarda avances y recibe novedades en tu panel personal/);
+  assert.match(indexSource, /id="sellNavLink"[^>]*data-open-seller-options/);
+  assert.match(indexSource.match(/<form id="guestSaleForm"[\s\S]*?<\/form>/)?.[0] || "", /name="operation"[\s\S]*value="sale"[\s\S]*value="rent"/);
   assert.match(aboutPage, /about-story/);
   assert.match(aboutPage, /about-values-grid/);
   assert.match(aboutPage, /about-process/);

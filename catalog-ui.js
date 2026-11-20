@@ -81,7 +81,7 @@
       window.lucide?.createIcons();
     } catch (error) {
       if (error.name === "AbortError" || id !== sequence) return;
-      status.textContent = t("No se pudieron actualizar los resultados. Tus filtros se conservan; vuelve a pulsar Aplicar filtros.", "Results could not be updated. Your filters are retained; select Apply filters to retry.");
+      status.textContent = t("No se pudieron actualizar los resultados. Tu búsqueda se conserva; vuelve a pulsar Buscar.", "Results could not be updated. Your search is retained; select Search to retry.");
     } finally {
       if (id === sequence) root()?.removeAttribute("aria-busy");
     }
@@ -168,7 +168,9 @@
   // Links and contacts use ordinary anchors and remain functional without the catalog enhancement.
   for (const contact of window.PccContacts?.contacts || []) {
     document.querySelectorAll(`[data-business-contact="${contact.id}"]`).forEach((link) => {
-      link.href = window.PccContacts.whatsappUrl(contact.id);
+      const currentMessage = new URL(link.getAttribute("href") || location.href, location.href).searchParams.get("text");
+      const message = currentMessage || (english ? "Hello, I would like information about properties in Cancún. I am contacting you through Puerto Cancún Center." : "Hola, me gustaría recibir información sobre propiedades en Cancún. Los contacto desde Puerto Cancún Center.");
+      link.href = window.PccContacts.whatsappUrl(contact.id, message);
       const label = `${english ? contact.labelEn : contact.label} · WhatsApp`;
       const labelNode = link.querySelector('[data-contact-label]');
       const numberNode = link.querySelector('[data-contact-number]');

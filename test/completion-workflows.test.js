@@ -67,9 +67,11 @@ test("el frontend conecta los flujos completos y no deja botones decorativos", (
   for (const id of ["savedSearchForm", "sellerFavorites", "sellerTours", "tourRequestForm", "developmentBrochureImporter", "analyzeListingImages", "copilotActionForm"]) {
     assert.match(html, new RegExp(`id="${id}"`));
   }
-  for (const route of ["/api/seller/favorites/", "/api/seller/saved-searches", "/api/tour-requests", "/api/admin/developments/brochures/analyze", "/analyze-images", "/api/admin/copilot/feedback", "/api/admin/copilot/actions/preview"]) {
+  for (const route of ["/api/seller/favorites/", "/api/seller/saved-searches", "/api/admin/developments/brochures/analyze", "/analyze-images", "/api/admin/copilot/feedback", "/api/admin/copilot/actions/preview"]) {
     assert.ok(app.includes(route), `Falta conexión frontend para ${route}`);
   }
+  assert.match(app, /PccInquiry\?\.open\(\{ service:"visit"/);
+  assert.doesNotMatch(html.match(/<form id="tourRequestForm"[\s\S]*?<\/form>/)?.[0] || "", /name="phone"|name="consent"/);
 });
 
 test("Copilot sigue aislado del vendedor y exige confirmación para acciones", () => {

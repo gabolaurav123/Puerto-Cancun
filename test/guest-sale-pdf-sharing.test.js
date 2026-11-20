@@ -7,11 +7,11 @@ const root = path.join(__dirname, "..");
 const source = (file) => fs.readFileSync(path.join(root, file), "utf8");
 const { renderSeoPage } = require("../seo-pages");
 
-test("la venta sin registro solicita datos esenciales y un canal en un solo paso", () => {
+test("el anuncio sin registro pide lo esencial y ofrece registro antes de continuar a WhatsApp", () => {
   const html = source("index.html");
   const app = source("app.js");
   const styles = source("styles.css");
-  for (const value of ["sellerOptionsModal", "guestSaleModal", "guestSaleForm", "preferredContact", "data-inquiry-country"]) {
+  for (const value of ["sellerOptionsModal", "guestSaleModal", "guestSaleForm", "preferredContact", "guestRegisterPromptModal"]) {
     assert.ok(html.includes(value), `Falta ${value}`);
   }
   assert.match(html, /name="description"[^>]*maxlength="4000"/);
@@ -20,21 +20,21 @@ test("la venta sin registro solicita datos esenciales y un canal en un solo paso
   assert.match(app, /function updateGuestContactFields/);
   assert.doesNotMatch(html.match(/<form id="guestSaleForm"[\s\S]+?<\/form>/)?.[0] || "", /data-guest-sale-step|continueGuestSale|backGuestSale/);
   assert.match(html, /data-guest-optional-map/);
-  assert.match(html, /Venta con registro/);
+  assert.match(html, /Registrarme y anunciar/);
   assert.doesNotMatch(html, /Publicaci[oó]n acompañada/);
   assert.match(html, /seller-option-benefits/);
   assert.match(styles, /\.guest-consent-field\s*\{[\s\S]*grid-template-columns:\s*20px minmax\(0, 1fr\)/);
   const sellPage = renderSeoPage("/vender-casa-cancun");
-  assert.match(sellPage, /<button[^>]*data-open-guest-sale>Enviar una ficha para publicar<\/button>/);
-  assert.match(sellPage, /data-intent="sell"/);
-  assert.match(sellPage, /data-intent="let"/);
-  assert.match(sellPage, /href="\/valuacion-inmobiliaria-cancun#valuation-form"[^>]*>Solicitar valoración<\/a>/);
+  assert.match(sellPage, /<button[^>]*data-open-guest-sale>Anunciar sin registro<\/button>/);
+  assert.match(sellPage, /venta o renta/);
+  assert.match(sellPage, /href="\/valuacion-inmobiliaria-cancun#valuation-form"[^>]*>Solicitar una valoración inmobiliaria<\/a>/);
   assert.match(renderSeoPage("/valuacion-inmobiliaria-cancun"), /id="valuation-form"[\s\S]*value="valuacion-inmobiliaria"/);
   assert.doesNotMatch(sellPage, /value="valuacion-inmobiliaria"/);
-  const accountOptions = sellPage.match(/<details class="owner-publishing-options">[\s\S]*?<\/details>/)?.[0] || "";
+  const accountOptions = sellPage.match(/<div class="seller-entry-options">[\s\S]*?<\/section>/)?.[0] || "";
   assert.match(accountOptions, /data-seller-access="register"/);
   assert.match(accountOptions, /data-seller-access="login"/);
-  assert.ok(sellPage.indexOf("data-open-guest-sale") < sellPage.indexOf(accountOptions));
+  assert.match(accountOptions, /data-open-guest-sale/);
+  assert.doesNotMatch(html.match(/<form id="guestSaleForm"[\s\S]+?<\/form>/)?.[0] || "", /name="phone"/);
 });
 
 test("las solicitudes sin cuenta se conservan en una tabla aditiva y tienen panel propio", () => {
@@ -63,6 +63,14 @@ test("el vendedor registrado ve primero un panel de navegación simple", () => {
   }
   assert.match(app, /function setSellerSection/);
   assert.match(app, /setSellerSection\(state\.sellerSection \|\| "sale"\)/);
+  const workspace = html.match(/id="sellerSaleWorkspace"[\s\S]*?<form id="sellerRequestForm"/)?.[0] || "";
+  assert.match(workspace, /class="seller-guide"/);
+  assert.match(workspace, /<ol class="seller-guide-steps">/);
+  for (const step of ["sellerGuideStep1", "sellerGuideStep2", "sellerGuideStep3"]) assert.match(workspace, new RegExp(`data-i18n="${step}"`));
+  const quickTools = html.match(/class="seller-quick-tools"[\s\S]*?<\/div>/)?.[0] || "";
+  assert.match(quickTools, /data-seller-flow="sale"/);
+  assert.match(quickTools, /data-seller-flow="valuation"/);
+  assert.match(quickTools, /href="\/calculadora-hipotecaria"/);
 });
 
 test("las fichas se comparten desde un modal común por tres canales", () => {

@@ -71,7 +71,7 @@ test("Spanish and English office buttons open WhatsApp directly with a prepared 
   assert.doesNotMatch(read("seo-pages.js"), /wa\.me\/\d+|5219982166563|19568037838/);
 });
 
-test("property and development inquiries retain the localized title and listing reference", () => {
+test("property and development inquiries keep localized title and public URL without reference codes", () => {
   for (const lang of ["es", "en"]) {
     for (const publicationSection of ["properties", "developments"]) {
       const item = { ...property, publicationSection, mls: "MLS-42" };
@@ -85,7 +85,7 @@ test("property and development inquiries retain the localized title and listing 
         assert.equal(link.url.origin,"https://wa.me");
         const message = link.url.searchParams.get("text");
         assert.ok(message.includes(title));
-        assert.ok(message.includes("MLS " + item.mls));
+        assert.doesNotMatch(message, /MLS[ #:]+|(?:Referencia|Reference):|PCC-/i);
         assert.ok(message.includes(seo.absoluteUrl(seo.propertyPath(item,lang))));
         assert.equal([...link.url.searchParams].length,1);
         assert.equal(link.url.hash,"");

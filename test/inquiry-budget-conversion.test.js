@@ -5,6 +5,7 @@ const fs = require("node:fs");
 const vm = require("node:vm");
 const pricing = require("../public-pricing");
 const contacts = require("../contact-config");
+const messages = require("../whatsapp-message");
 const source = fs.readFileSync(require.resolve("../contextual-contact"), "utf8");
 const functionSource = (start, end) => source.slice(source.indexOf("  function " + start), source.indexOf("  function " + end));
 const convert = vm.runInNewContext(functionSource("convertedBudget", "countryList") + "\nconvertedBudget", { window: { PccPublicPricing: pricing } });
@@ -25,8 +26,8 @@ test("only converted inquiry budgets round upward while using a dated, valid Ban
 
 test("direct office links contain the current listing and origin without submitting a lead", () => {
   for (const english of [false, true]) {
-    const links = vm.runInNewContext(functionSource("directOfficeLinks", "convertedBudget") + "\ndirectOfficeLinks", {
-      window: { PccContacts: contacts }, location: { origin: "https://preview.invalid", pathname: "/propiedades/riva", search: "" }, URL,
+    const links = vm.runInNewContext(functionSource("directOfficeLinks", "convertedBudget") + functionSource("whatsappUrl", "contactControls") + "\ndirectOfficeLinks", {
+      window: { PccContacts: contacts, PccWhatsAppMessage: messages }, handoffOptions:{}, location: { origin: "https://preview.invalid", pathname: "/propiedades/riva", search: "" }, URL, lang:()=>english?'en':'es',
       tr: (es,en) => english ? en : es, escape: value => String(value).replace(/&/g, "&amp;").replace(/"/g, "&quot;"),
     });
     const html = links({ propertyTitle: "RIVA Puerto Cancún", mls: "M7612", zone: "Puerto Cancún", sourcePath: "/propiedades/riva?view=map" }, { publicSiteUrl: "https://www.puertocancun.center" });
@@ -34,7 +35,7 @@ test("direct office links contain the current listing and origin without submitt
     assert.deepEqual(urls.map(url => url.pathname.slice(1)), contacts.contacts.map(contact => contact.number));
     for (const url of urls) {
       assert.equal(url.hostname, "wa.me"); assert.match(url.searchParams.get("text"), /RIVA Puerto Cancún/);
-      assert.match(url.searchParams.get("text"), /MLS: M7612/);
+      assert.doesNotMatch(url.searchParams.get("text"), /MLS|M7612|PCC-/);
       assert.match(url.searchParams.get("text"), /https:\/\/www\.puertocancun\.center\/propiedades\/riva\?view=map/);
     }
     assert.doesNotMatch(html, /data-contact-inquiry/);

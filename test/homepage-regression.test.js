@@ -28,7 +28,11 @@ test("la portada restaura su jerarquia sin el bloque de destacadas y conserva su
   assert.ok(index.indexOf('class="presale-feature"') > index.indexOf('class="type-grid"'));
   assert.ok(index.indexOf('class="presale-feature"') < index.indexOf('id="categoryPage"'));
   assert.match(index, /<a class="login-link" href="\/\?auth=login" id="loginOpen"/);
-  assert.match(index, /id="whatsappButton"\s+href="\/contacto\?inquiry=1"\s+data-contact-inquiry/);
+  const ownerFloat = index.match(/<a\s+class="owner-contact-float"[\s\S]*?<\/a>/)?.[0] || "";
+  assert.match(ownerFloat, /id="ownerContactButton"\s+href="\/vender-casa-cancun"\s+data-open-seller-options/);
+  assert.match(ownerFloat, /¿Quieres vender o rentar\?/);
+  assert.match(ownerFloat, /data-lucide="message-circle"/);
+  assert.doesNotMatch(ownerFloat, /data-contact-inquiry/);
   assert.match(styles, /body\[data-page="home"\] \.hero h1[\s\S]*font-size: 4\.25rem/);
 });
 
