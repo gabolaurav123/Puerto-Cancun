@@ -30,7 +30,8 @@
 .seller-entry-options p { line-height:1.6; }
 .seller-entry-options button { margin-top:auto; min-height:48px; white-space:normal; }
 .seller-entry-options .seller-entry-recommended { border-top:3px solid var(--gold); }
-body:is([data-page="home"],[data-page="seo"]):not(.panel-open) #ownerContactButton { position:fixed; display:flex; align-items:center; gap:12px; right:max(14px,env(safe-area-inset-right)); bottom:max(14px,env(safe-area-inset-bottom)); z-index:950; width:auto; height:auto; max-width:min(300px,calc(100vw - 100px)); min-height:54px; padding:12px 16px; border:1px solid #d2ae54; border-radius:12px; background:#07515d; color:white; box-shadow:0 4px 20px #00333b30; text-decoration:none; }
+#ownerContactButton { display:none; }
+body.owner-contact-eligible:is([data-page="home"],[data-page="seo"]):not(.panel-open) #ownerContactButton:not([hidden]) { position:fixed; display:flex; align-items:center; gap:12px; right:max(14px,env(safe-area-inset-right)); bottom:max(14px,env(safe-area-inset-bottom)); z-index:950; width:auto; height:auto; max-width:min(300px,calc(100vw - 100px)); min-height:54px; padding:12px 16px; border:1px solid #d2ae54; border-radius:12px; background:#07515d; color:white; box-shadow:0 4px 20px #00333b30; text-decoration:none; }
 #ownerContactButton span { display:flex !important; flex-direction:column; gap:4px; position:static; margin:0; padding:0; background:none; color:inherit; font:inherit; }
 #ownerContactButton strong { font-size:.78rem; line-height:1.3; }
 #ownerContactButton small { color:#f6d77b; font-size:.74rem; font-weight:700; }

@@ -34,7 +34,7 @@ test("pic.estate queda reservado para fichas y los mensajes de WhatsApp conserva
     city: "Cancún",
     mls: "1944",
     lot: 700,
-  }, "https://pic.estate/f/AbCdEf123", { exchangeRate:{status:"available",base:"USD",quote:"MXN",rate:20,date:new Date().toISOString().slice(0,10),checkedAt:new Date().toISOString(),source:{provider:"BANXICO"}} });
+  }, "https://pic.estate/f/AbCdEf123", { exchangeRate:{status:"available",base:"USD",quote:"MXN",rate:20,date:new Intl.DateTimeFormat("en-CA",{timeZone:"America/Cancun",year:"numeric",month:"2-digit",day:"2-digit"}).format(new Date()),checkedAt:new Date().toISOString(),source:{provider:"BANXICO"}} });
   assert.match(message, /^🏡/u);
   assert.match(message, /https:\/\/pic\.estate\/f\/AbCdEf123/);
   assert.match(message, /USD \$210 \/ m²/);

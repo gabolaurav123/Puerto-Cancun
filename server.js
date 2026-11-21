@@ -11062,7 +11062,7 @@ async function createOpenAIResponseError(response, operation = "Solicitud") {
   const providerCode = String(payload?.error?.code || payload?.error?.type || "").toLowerCase();
   let code = `OPENAI_HTTP_${response.status}`;
   if (response.status === 401 || providerCode.includes("api_key")) code = "OPENAI_INVALID_KEY";
-  else if (providerCode.includes("insufficient_quota")) code = "OPENAI_INSUFFICIENT_QUOTA";
+  else if (/insufficient_quota|credit_balance_exhausted|(?:project|organization)_(?:spend|usage)_limit_exceeded/.test(providerCode)) code = "OPENAI_INSUFFICIENT_QUOTA";
   else if (response.status === 429) code = "OPENAI_RATE_LIMIT";
   else if (providerCode.includes("model") || response.status === 404) code = "OPENAI_MODEL_UNAVAILABLE";
   else if (response.status >= 500) code = "OPENAI_TEMPORARY_ERROR";
