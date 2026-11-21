@@ -46,9 +46,9 @@ const translations = {
     navSell: "Vender",
     navLogin: "Iniciar sesión",
     heroKicker: "Propiedades de lujo en Cancún",
-    heroTitle: "Compra o vende tu propiedad en Cancún",
+    heroTitle: "Compra o vende tu propiedad",
     heroSubtitle:
-      "Te ayudamos a validar precios, preparar tu propiedad, encontrar compradores reales y tomar mejores decisiones inmobiliarias en Cancún.",
+      "Te ayudamos a validar precios, preparar tu propiedad y encontrar compradores en Cancún.",
     heroSellCta: "Quiero vender mi propiedad",
     sellerExistingAccount: "Ya tengo cuenta",
     sellerExistingAccountCopy: "Entra para continuar tu anuncio y revisar sus actualizaciones.",
@@ -684,9 +684,9 @@ const translations = {
     navSell: "Sell",
     navLogin: "Log in",
     heroKicker: "Luxury properties in Cancun",
-    heroTitle: "Buy or sell your Cancun property",
+    heroTitle: "Buy or sell your property",
     heroSubtitle:
-      "We help you validate pricing, prepare your property, find real buyers, and make better real estate decisions in Cancun.",
+      "We help you validate pricing, prepare your property and find buyers in Cancun.",
     heroSellCta: "I want to sell my property",
     sellerExistingAccount: "I already have an account",
     sellerExistingAccountCopy: "Sign in to continue your listing and review updates.",

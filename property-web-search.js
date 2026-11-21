@@ -133,7 +133,14 @@ async function searchProperties(criteria, { apiKey, model = "gpt-5-mini", fetchI
       body: JSON.stringify(searchPayload(query, model)), signal: AbortSignal.timeout(Math.min(SEARCH_TIMEOUT, timeoutMs)),
     });
     if (!response.ok) {
-      if (response.status === 429) throw error("El proveedor está ocupado o alcanzó su límite. Intenta nuevamente en unos minutos.", "SEARCH_PROVIDER_LIMIT", 503);
+      if (response.status === 429) {
+        const payload = typeof response.json === "function" ? await response.json().catch(() => ({})) : {};
+        const code = String(payload?.error?.code || payload?.error?.type || "").toLowerCase();
+        if (/insufficient_quota|credit_balance_exhausted|(?:project|organization)_(?:spend|usage)_limit_exceeded/.test(code)) {
+          throw error("OpenAI agotó el saldo o el límite de uso del proyecto. Revisa la facturación y los límites en OpenAI; reiniciar Seenode no restablece esa cuota.", "SEARCH_PROVIDER_QUOTA", 503);
+        }
+        throw error("OpenAI alcanzó temporalmente su límite de solicitudes. Espera unos minutos y vuelve a intentar.", "SEARCH_PROVIDER_LIMIT", 503);
+      }
       if ([401, 403].includes(response.status)) throw error("La conexión de búsqueda necesita revisión en Integraciones.", "SEARCH_PROVIDER_AUTH", 503);
       throw error("El proveedor no pudo completar la búsqueda web. Revisa la conexión y vuelve a intentar.", "SEARCH_PROVIDER_ERROR");
     }

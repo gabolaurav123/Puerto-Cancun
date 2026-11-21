@@ -84,6 +84,17 @@ test("provider setup, timeouts and upstream errors surface actionable errors wit
   }
 });
 
+test("quota exhaustion is distinguished from transient rate limits without leaking provider details", async () => {
+  for (const providerCode of ["insufficient_quota", "credit_balance_exhausted", "project_spend_limit_exceeded", "organization_spend_limit_exceeded", "organization_usage_limit_exceeded"]) {
+    await assert.rejects(searchProperties(criteria, { apiKey: "private-key", fetchImpl: async () => ({
+      ok: false, status: 429, json: async () => ({ error: { code: providerCode, message: "private account data" } }),
+    }) }), failure => failure.code === "SEARCH_PROVIDER_QUOTA" && /OpenAI/.test(failure.message) && !failure.message.includes("private"));
+  }
+  for (const json of [async () => ({ error: { code: "rate_limit_exceeded" } }), async () => { throw Error("proxy HTML"); }]) {
+    await assert.rejects(searchProperties(criteria, { apiKey: "key", fetchImpl: async () => ({ ok: false, status: 429, json }) }), failure => failure.code === "SEARCH_PROVIDER_LIMIT");
+  }
+});
+
 async function harness(t, options = {}) {
   const app = express(); app.use(express.json());
   app.use((req, _res, next) => { const role = req.get("X-Test-Role"); req.session = { user: role ? { id: req.get("X-Test-User") || "user-" + role, role: role === "seller" ? "seller" : "admin", internalRole: role, permissions: [] } : null }; next(); });

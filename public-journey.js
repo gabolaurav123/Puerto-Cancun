@@ -28,6 +28,19 @@
   const en = document.documentElement.lang.startsWith("en");
   const owner = document.querySelector("#ownerContactButton");
   if (owner) {
+    const updateOwnerVisibility = () => {
+      const path = location.pathname.replace(/\/+$/, "") || "/";
+      const params = new URLSearchParams(location.search);
+      const home = path === "/" || path === "/en";
+      const allProperties = ["/propiedades", "/en/properties"].includes(path)
+        && (!params.has("entity") || params.get("entity") === "properties")
+        && !["1", "true"].includes(params.get("featured"));
+      owner.hidden = !(home || allProperties);
+      document.body.classList.toggle("owner-contact-eligible", !owner.hidden);
+    };
+    updateOwnerVisibility();
+    document.addEventListener("pcc:catalog:navigated", updateOwnerVisibility);
+    window.addEventListener("popstate", updateOwnerVisibility);
     const cookies = document.querySelector("#cookieBanner");
     const updateCookieVisibility = () => document.body.classList.toggle("owner-contact-cookie-visible", Boolean(cookies && !cookies.hidden && cookies.getBoundingClientRect().height > 0 && getComputedStyle(cookies).visibility !== "hidden"));
     if (cookies) {

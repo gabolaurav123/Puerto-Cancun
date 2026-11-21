@@ -62,6 +62,7 @@
       const alternate = parsed.body.dataset.alternateUrl;
       if (alternate) document.body.dataset.alternateUrl = alternate;
       if (push) history.pushState({ catalog: true }, "", url);
+      document.dispatchEvent(new Event("pcc:catalog:navigated"));
       if (mapOpen) window.PccCatalogMap?.open(replacement);
       if (notice) replacement.querySelector(".catalog-request-status").textContent = notice;
       if (focused) {
