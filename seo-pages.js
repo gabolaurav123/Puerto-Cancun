@@ -2,6 +2,7 @@ const LAST_UPDATED = "2026-07-10";
 const inventoryContract = require("./inventory-contract");
 const { safePublicImages, optimizedPublicImage, localizedAmenity, resolvePublicLocation, renderPublicLocationSection } = require("./public-listing-details");
 const businessContacts = require("./contact-config");
+const { shareButton } = require("./public-sharing");
 const { renderCatalog, categoryDefaults } = require("./catalog-view");
 const DEFAULT_SITE_URL = "https://www.puertocancun.center";
 
@@ -1088,7 +1089,7 @@ function renderInventoryCards(properties, lang = "es", context = {}) {
     const photo = image ? `<img${project ? " data-presale-cover" : ""} src="${escapeHtml(image)}" width="640" height="420" loading="lazy" decoding="async" alt="${escapeHtml(localizedImageDescription(property,0,lang) || title)}" />` :
       `<span class="catalog-no-photo">${en ? "Photo not published" : "Sin foto publicada"}</span>`;
     return `<article class="seo-property-card" data-category-property="${escapeHtml(property.id)}" data-category-search="${escapeHtml(searchText)}">
-      <a class="seo-property-image" href="${escapeHtml(url)}" aria-label="${escapeHtml(title)}">${photo}</a>
+      <a class="seo-property-image" href="${escapeHtml(url)}" aria-label="${escapeHtml(title)}">${photo}</a>${shareButton(property, lang)}
       <div><h2><a href="${escapeHtml(url)}">${escapeHtml(title)}</a></h2>${development ? "" : listingPriceMarkup(property.linkedDevelopment || property.linkedProperty || property, lang, context.exchangeRate, "seo-property-price")}
       ${meta.length ? `<p class="seo-property-location">${escapeHtml(meta.join(" · "))}</p>` : ""}
       ${measurements.length ? `<p class="seo-property-facts">${escapeHtml(measurements.join(" · "))}</p>` : ""}
@@ -1236,7 +1237,7 @@ function renderPropertyPage(property, lang = "es", similar = [], directory = {},
   const inventoryPath = developmentMode ? (english ? "/en/properties/developments-cancun" : "/propiedades/desarrollos-cancun")
     : (english ? "/en/properties" : "/propiedades");
   const inventoryLabel = developmentMode ? (english ? "Gated communities" : "Desarrollos") : (english ? "Properties" : "Propiedades");
-  const heading = `<header class="property-page-heading content-wrap"><a href="${inventoryPath}" data-return-catalog><span aria-hidden="true">←</span> ${inventoryLabel}</a><h1>${escapeHtml(title)}</h1>${location ? `<p class="property-heading-location">${escapeHtml(location)}</p>` : ""}</header>`;
+  const heading = `<header class="property-page-heading content-wrap"><div class="property-page-navigation"><a href="${inventoryPath}" data-return-catalog><span aria-hidden="true">←</span> ${inventoryLabel}</a>${shareButton(property, lang)}</div><h1>${escapeHtml(title)}</h1>${location ? `<p class="property-heading-location">${escapeHtml(location)}</p>` : ""}</header>`;
   const summary = `<section class="property-page-summary" aria-label="${english ? "At a glance" : "Resumen de la ficha"}">
     ${developmentMode ? `<p class="property-summary-label">${english ? "Explore your options" : "Conoce tus opciones"}</p>` : listingPriceMarkup(property, lang, exchangeRate, "property-page-price")}
     <div class="property-summary-actions">${primaryContact}${visitContact}</div>${directOffices}${ownerContact}
@@ -1579,6 +1580,7 @@ module.exports = {
   propertyPath,
   propertyMatchesCategory,
   localizedListingPrice,
+  renderInventoryCards,
   renderCategoryPage,
   renderPropertyPage,
   renderPropertyHead,
