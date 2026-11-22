@@ -12641,6 +12641,16 @@ app.get(["/blog/:slug", "/en/blog/:slug"], async (req, res, next) => {
   }
 });
 
+app.get(["/s/:token", "/en/s/:token"], async (req, res, next) => {
+  try {
+    const properties = await getPublicProperties();
+    const target = require("./public-sharing").resolveSharePath(req.params.token, properties, publicPropertyCache.directory, req.path.startsWith("/en/") ? "en" : "es");
+    res.set("Cache-Control", "no-store");
+    if (!target) return res.status(404).send(await renderNotFoundHtml(req.path));
+    res.redirect(302, target);
+  } catch (error) { next(error); }
+});
+
 app.get(["/propiedades/:slug", "/en/properties/:slug"], async (req, res, next) => {
   try {
     const staticPage = getPageByPath(req.path);

@@ -8,10 +8,8 @@
 "use strict";
 
 function safePublicImages(property) {
-  const images = [
-    ...(Array.isArray(property.images) ? property.images : []),
-    ...(Array.isArray(property.developmentImages) ? property.developmentImages : []),
-  ];
+  // A linked development keeps its own gallery; it is not part of a unit's photos.
+  const images = Array.isArray(property.images) ? property.images : [];
   return [...new Set(images)].filter((image) => /^https?:\/\//i.test(image) || /^\/media\//.test(image) || /^\/assets\//.test(image));
 }
 
