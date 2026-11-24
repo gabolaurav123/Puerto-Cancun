@@ -22,7 +22,7 @@ function runtime(names, extra = {}) {
     IMAGE_TYPES: new Set(["image/png", "image/jpeg", "image/webp"]), Buffer, sharp, ...extra,
   });
 }
-const normalizer = runtime(["normalizePropertyInput", "parseOptionalPrice", "parseOptionalCoordinate", "parseNonNegativeInteger", "parseNonNegativeNumber", "parseUploadedImages", "normalizeImageMetadata", "normalizeKeywords", "normalizeStatus", "safeJsonArray"], { KEYWORD_MAX_COUNT: 40 });
+const normalizer = runtime(["normalizePropertyInput", "parseOptionalPrice", "parseOptionalCoordinate", "parseNonNegativeInteger", "parseNonNegativeNumber", "parseUploadedImages", "decodeDataImage", "validateImagePayload", "normalizeImageMetadata", "normalizeKeywords", "normalizeStatus", "safeJsonArray"], { KEYWORD_MAX_COUNT: 40 });
 const existing = {
   id: "unit", title_es: "Departamento muestra", title_en: "Show apartment", type: "Departamento", publication_section: "properties",
   state: "Quintana Roo", city: "Cancún", zone: "Zona Hotelera", neighborhood: "Grand Island", address: "Boulevard Kukulcán",
@@ -63,6 +63,48 @@ test("explicit unlink is supported without changing the gallery or location", ()
   assert.equal(result.developmentId, null);
   assert.equal(result.zone, existing.zone);
   assert.deepEqual(copy(result.images), ["stored-photo"]);
+});
+
+test("new listings can be public without optional location fields, without inventing a city", () => {
+  const input = { title: "Casa nueva", type: "Casa", price: 150000, currency: "USD", status: "active", isPublic: true,
+    images: ["data:image/png;base64,iVBORw0KGgo="] };
+  for (const developmentId of ["", "legacy-mondrian"]) {
+    const result = normalizer.normalizePropertyInput({ ...input, developmentId }, "new-unit");
+    assert.equal(result.isPublic, true);
+    assert.equal(result.status, "active");
+    for (const key of ["state", "city", "zone", "address"]) assert.equal(result[key], "");
+    assert.equal(result.latitude, null);
+    assert.equal(result.price, input.price);
+  }
+  assert.throws(() => normalizer.normalizePropertyInput({ ...input, title: "" }, "new-unit"), /título/);
+  assert.throws(() => normalizer.normalizePropertyInput({ ...input, images: [] }, "new-unit"), /imagen/);
+  assert.throws(() => normalizer.normalizePropertyInput({ ...input, price: null }, "new-unit"), /precio/);
+});
+
+test("saving a linked unit fills missing location from its validated parent without changing its own contents", async () => {
+  const { validateParentDevelopment } = runtime(["validateParentDevelopment"], { require: name => {
+    assert.equal(name, "./listing-development-location"); return require("../listing-development-location");
+  } });
+  const unit = { id: "new-unit", developmentId: "legacy-master", titleEs: "Mi departamento", images: ["unit-photo"], price: 200000,
+    state: "", city: "", zone: "", latitude: null, longitude: null, locationPrecision: "approximate", catalogData: { salesModality: "resale" } };
+  const master = { ...existing, id: "master", type: "Desarrollo", publication_section: "developments", location_precision: "exact" };
+  await validateParentDevelopment(unit, { query: async (sql, args) => {
+    assert.deepEqual(copy(args), ["legacy-master"]);
+    assert.match(sql, /p\.publication_section = 'developments'/);
+    return { rows: [master] };
+  } });
+  assert.equal(unit.city, master.city);
+  assert.equal(unit.zone, master.zone);
+  assert.equal(unit.address, master.address);
+  assert.equal(unit.latitude, 21.05);
+  assert.equal(unit.longitude, -86.78);
+  assert.equal(unit.locationPrecision, "exact");
+  assert.equal(unit.catalogData.locationId, "zona-hotelera");
+  assert.equal(unit.catalogData.salesModality, "resale");
+  assert.equal(unit.titleEs, "Mi departamento");
+  assert.equal(unit.price, 200000);
+  assert.deepEqual(unit.images, ["unit-photo"]);
+  await assert.rejects(validateParentDevelopment(unit, { query: async () => ({ rows: [] }) }), /ya no existe/);
 });
 
 test("editing development media leaves unit links untouched unless the linker was edited", async () => {
