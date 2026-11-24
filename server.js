@@ -128,6 +128,7 @@ const publicStaticFiles = new Set([
   "/public-pricing.js",
   "/presale-policy.js",
   "/public-listing-details.js",
+  "/listing-development-location.js",
   "/verified-development-locations.js",
   "/verified-development-location-data.js",
   "/contact-config.js",
@@ -12055,8 +12056,8 @@ function normalizePropertyInput(body, id, existingImages = [], existingProperty 
   const publicationSection = body.publicationSection === "developments" ? "developments" : "properties";
   const catalogData = normalizeCatalogData(body.catalogData || {});
   const developmentMode = publicationSection === "developments";
-  const state = String(body.state || "Quintana Roo").trim();
-  const city = String(body.city || "Cancun").trim();
+  const state = String(body.state || "").trim();
+  const city = String(body.city || "").trim();
   const zone = String(body.zone || "").trim();
   const neighborhood = String(body.neighborhood || "").trim();
   const address = String(body.address || "").trim();
@@ -12107,8 +12108,8 @@ function normalizePropertyInput(body, id, existingImages = [], existingProperty 
   const status = normalizeStatus(body.status, PROPERTY_STATUSES, "active");
   const isPublic = body.isPublic === undefined ? status === "active" : body.isPublic !== false && body.isPublic !== "false";
 
-  if (!title || !type || !state || !city || !zone) {
-    const error = new Error("Completa titulo, tipo de propiedad, estado, ciudad y zona antes de guardar.");
+  if (!title || !type) {
+    const error = new Error("Completa el título y el tipo de propiedad antes de guardar.");
     error.status = 400;
     throw error;
   }
@@ -12298,14 +12299,19 @@ async function syncDevelopmentLinks(property, client = pool) {
 async function validateParentDevelopment(property, client = pool) {
   if (!property.developmentId) return;
   const result = await client.query(
-    `SELECT d.id
+    `SELECT p.id, p.title_es, p.type, p.publication_section, p.state, p.city, p.zone,
+            p.neighborhood, p.address, p.latitude, p.longitude, p.map_place,
+            p.location_precision, p.google_maps_url, p.catalog_data
      FROM developments d
      JOIN properties p ON p.id = d.property_id
      WHERE d.id = $1 AND p.publication_section = 'developments'
      LIMIT 1`,
     [property.developmentId]
   );
-  if (result.rows[0]) return;
+  if (result.rows[0]) {
+    require("./listing-development-location").inheritMissing(property, result.rows[0]);
+    return;
+  }
   const error = new Error("El desarrollo seleccionado ya no existe. Actualiza la lista y vuelve a elegirlo.");
   error.status = 400;
   throw error;

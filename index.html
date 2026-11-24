@@ -2427,20 +2427,29 @@
                 <input name="titleEn" />
                 <small data-i18n="bilingualFieldHelp">Este texto se muestra cuando el visitante navega en inglés.</small>
               </label>
+              <label data-property-development-link>
+                <span data-i18n="listingDevelopment">Desarrollo al que pertenece</span>
+                <select name="developmentId" id="listingDevelopmentSelect">
+                  <option value="">Propiedad independiente / sin desarrollo</option>
+                </select>
+                <small data-i18n="listingDevelopmentHelp">Selecciona el desarrollo para completar su ubicación. Puedes ajustar los datos de la unidad; sus fotografías se mantienen separadas.</small>
+                <small id="listingDevelopmentLocationStatus" role="status" aria-live="polite"></small>
+              </label>
+              <p class="form-note" data-i18n="listingOptionalLocation">La ubicación es opcional y no impide publicar. Si vinculas un desarrollo, se completan los datos disponibles.</p>
               <div class="form-row">
                 <label>
                   <span data-i18n="stateField">Estado</span>
-                  <input name="state" data-location-select="state" autocomplete="address-level1" required />
+                  <input name="state" data-location-select="state" autocomplete="address-level1" />
                 </label>
                 <label>
                   <span data-i18n="cityField">Ciudad / municipio</span>
-                  <input name="city" data-location-select="city" autocomplete="address-level2" required />
+                  <input name="city" data-location-select="city" autocomplete="address-level2" />
                 </label>
               </div>
               <div class="form-row">
                 <label>
                   <span data-i18n="zone">Zona</span>
-                  <input name="zone" data-location-select="zone" autocomplete="address-level3" required />
+                  <input name="zone" data-location-select="zone" autocomplete="address-level3" />
                 </label>
                 <label>
                   <span data-i18n="neighborhoodField">Colonia / desarrollo</span>
@@ -2500,13 +2509,6 @@
                   <label><span>Ubicación en la web pública</span><select name="publicLocationPrecision"><option value="approximate">Aproximada</option><option value="exact">Dirección y pin exactos</option><option value="hidden">No mostrar ubicación exacta ni pin</option></select></label>
                 </div>
               </details>
-              <label data-property-development-link>
-                <span>Desarrollo al que pertenece</span>
-                <select name="developmentId" id="listingDevelopmentSelect">
-                  <option value="">Propiedad independiente / sin desarrollo</option>
-                </select>
-                <small>Las áreas comunes y fotografías generales se tomarán de la ficha del desarrollo. Aquí solo debes subir las fotos de esta unidad.</small>
-              </label>
               <section class="development-property-linker" data-development-property-linker hidden>
                 <div class="admin-module-heading">
                   <div>
@@ -3274,6 +3276,7 @@
     <script src="/verified-development-location-data.js?v=1"></script>
     <script src="/verified-development-locations.js?v=1"></script>
     <script src="/public-listing-details.js?v=1"></script>
+    <script src="/listing-development-location.js?v=1"></script>
     <script src="/csv-utils.js?v=20261029.1"></script>
     <script src="/contact-config.js?v=20261029.1"></script>
     <script src="/exchange-rate-view.js?v=20261103.1"></script>

@@ -231,6 +231,40 @@ function developmentRecordId(property) {
   return property?.developmentData?.id || (property?.publicationSection === "developments" ? `dev-${property.id}` : "");
 }
 
+function applyListingDevelopmentLocation(form = $("#listingForm"), { onlyMissing = false } = {}) {
+  if (!form || listingFormIsDevelopment(form)) return;
+  const selected = formField(form, "developmentId")?.value;
+  const development = state.properties.find(item => item.publicationSection === "developments" && developmentRecordId(item) === selected);
+  const status = $("#listingDevelopmentLocationStatus");
+  if (!development) { if (status) { status.textContent = ""; delete status.dataset.i18n; } return; }
+  const location = window.PccListingDevelopmentLocation.fromDevelopment(development);
+  let previous = {};
+  try { previous = JSON.parse(form.dataset.inheritedDevelopmentLocation || "{}"); } catch { /* Fresh form. */ }
+  const inherited = {};
+  const same = (value, source) => String(value ?? "") === String(source ?? "");
+  for (const name of ["state", "city", "zone", "neighborhood", "address", "mapPlace", "commercialLocationId"]) {
+    const control = formField(form, name);
+    if (!control) continue;
+    const replace = !control.value.trim() || (!onlyMissing && (same(control.value, previous[name]) || ["state", "city", "zone", "commercialLocationId"].includes(name)));
+    if (replace) { control.value = location[name] || ""; inherited[name] = control.value; }
+  }
+  const lat = formField(form, "latitude"), lng = formField(form, "longitude");
+  const blankPoint = !lat?.value && !lng?.value;
+  const inheritedPoint = !onlyMissing && same(lat?.value, previous.latitude) && same(lng?.value, previous.longitude);
+  if (lat && lng && (blankPoint || inheritedPoint)) {
+    lat.value = location.latitude ?? "";
+    lng.value = location.longitude ?? "";
+    inherited.latitude = lat.value;
+    inherited.longitude = lng.value;
+    const precision = formField(form, "publicLocationPrecision");
+    if (precision && precision.value !== "hidden") precision.value = location.locationPrecision;
+  }
+  form.dataset.inheritedDevelopmentLocation = JSON.stringify(inherited);
+  for (const name of LOCATION_FIELD_ORDER) fillLocationSelect(formField(form, name));
+  updateMapPickerForForm(form);
+  if (status) { status.dataset.i18n = "listingDevelopmentLocationFilled"; status.textContent = t("listingDevelopmentLocationFilled"); }
+}
+
 function renderDevelopmentPropertyLinker() {
   const form = $("#listingForm");
   const results = $("#developmentPropertyResults");
@@ -8161,7 +8195,7 @@ function configureListingFormMode(section = state.adminSection) {
   if (intro) {
     intro.innerHTML = developmentMode
       ? `<span class="eyebrow">DESARROLLO INMOBILIARIO</span><h3>${heading}</h3><p>Registra nombre, ubicación, galería y descripción en español e inglés. Las propiedades disponibles se vinculan por separado.</p>`
-      : `<span class="eyebrow">PROPIEDAD INDIVIDUAL</span><h3>${heading}</h3><p>Registra los datos y fotografías de la unidad. Si pertenece a un desarrollo, vincúlala para reutilizar sus amenidades e imágenes generales.</p>`;
+      : `<span class="eyebrow">PROPIEDAD INDIVIDUAL</span><h3>${heading}</h3><p>Registra los datos y fotografías de la unidad. Si pertenece a un desarrollo, selecciónalo para completar su ubicación y vincular sus áreas comunes. Las galerías se mantienen separadas.</p>`;
   }
   const imageLabel = formField(form, "imageFile")?.closest("label")?.querySelector("span");
   if (imageLabel) imageLabel.textContent = developmentMode ? "Imágenes generales del desarrollo" : "Imágenes propias de la unidad";
@@ -10119,6 +10153,9 @@ function resetListingForm(clearDraft = true) {
   delete form.dataset.cloudGalleryRevision;
   delete form.dataset.missingDraftMedia;
   delete form.dataset.unavailableDraftGallery;
+  delete form.dataset.inheritedDevelopmentLocation;
+  const developmentLocationStatus = $("#listingDevelopmentLocationStatus");
+  if (developmentLocationStatus) { developmentLocationStatus.textContent = ""; delete developmentLocationStatus.dataset.i18n; }
   if ($("#listingConflict")) $("#listingConflict").hidden = true;
   if ($("#listingConflictContent")) $("#listingConflictContent").replaceChildren();
   listingAiProposal = null;
@@ -10900,8 +10937,9 @@ function editListing(id) {
   field("latitude").value = property.latitude ?? "";
   field("longitude").value = property.longitude ?? "";
   field("mapPlace").value = property.mapPlace || "";
+  applyListingDevelopmentLocation(form, { onlyMissing: true });
   updateMapPickerForForm(form);
-  if ((property.latitude === null || property.longitude === null) && property.address) {
+  if (!field("latitude").value && !field("longitude").value && property.address) {
     const picker = form.querySelector("[data-map-picker]");
     if (picker) void geocodeMapAddress(picker);
   }
@@ -12595,6 +12633,7 @@ function bindEvents() {
   $("#developmentPropertySearch")?.addEventListener("input", renderDevelopmentPropertyLinker);
   formField($("#listingForm"), "developmentId")?.addEventListener("change", () => {
     $("#listingForm").dataset.developmentLinkDirty = "true";
+    applyListingDevelopmentLocation();
     saveListingDraft();
   });
   $("#developmentPropertyResults")?.addEventListener("change", (event) => {
