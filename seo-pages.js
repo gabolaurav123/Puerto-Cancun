@@ -1127,7 +1127,7 @@ function propertySchema(property, baseUrl = DEFAULT_SITE_URL, lang = "es", excha
     numberOfBedrooms: property.beds || undefined,
     numberOfBathroomsTotal: property.baths || undefined,
     numberOfParkingSpaces: property.parking || undefined,
-    amenityFeature: Array.isArray(property.amenities) ? property.amenities.map((name) => ({ "@type": "LocationFeatureSpecification", name: localizedAmenity(name, lang), value: true })) : undefined,
+    amenityFeature: !property.developmentData?.amenitiesPlanned && !property.portalHiddenBlocks?.includes("amenities") && Array.isArray(property.amenities) ? property.amenities.map((name) => ({ "@type": "LocationFeatureSpecification", name: localizedAmenity(name, lang), value: true })) : undefined,
     floorSize: property.area ? { "@type": "QuantitativeValue", value: property.area, unitCode: "MTK" } : undefined,
     address: Object.keys(address).length ? { "@type": "PostalAddress", ...address } : undefined,
   };

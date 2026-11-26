@@ -7783,6 +7783,7 @@ function mountPublicComparison(publicProperties, requested = false) {
   if (!hasLink && !requested) return;
   window.pccComparison = window.PccComparison.mount({
     properties: publicProperties,
+    getExchangeRate: () => state.config?.currencyExchange,
     ...(!hasLink ? { ids: state.compare } : {}),
     getFavoriteIds: () => state.favorites,
     onFavorite: (id) => toggleFavorite(id),
