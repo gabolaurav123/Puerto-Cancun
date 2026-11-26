@@ -24,7 +24,7 @@ const RUNTIME_FILES = Object.freeze([
   "photo-analysis.js", "platform-utils.js", "saved-catalog-search.js",
   "seo-pages.js", "public-listing-details.js", "verified-development-locations.js", "verified-development-location-data.js", "server.js", "site.webmanifest", "site-language.js", "exploration-view.js", "styles.css",
   "visitor-analytics.js", "whatsapp-service.js", "package.json", "package-lock.json",
-  "db/migrations.js", "db/schema.sql",
+  "db/migrations.js", "db/schema.sql", "db/listing-mls.sql", "db/catalog-details.js", "db/development-amenities.json",
 ]);
 
 function computeAssetVersion(root = __dirname, readFile = fs.readFileSync) {

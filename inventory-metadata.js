@@ -49,10 +49,10 @@ function publicProperty(property) {
   delete clean.sourceRequestId;
   delete clean.idempotencyKey;
   clean.catalogData = Object.fromEntries(["locationId", "salesModality", "rentPeriod", "priceOnRequest", "homeOrder"].filter(key => Object.hasOwn(clean.catalogData || {}, key)).map(key => [key, clean.catalogData[key]]));
-  if (clean.developmentData) clean.developmentData = Object.fromEntries(["id", "nameEs", "nameEn", "developer", "stage", "deliveryDate", "units", "availableUnits", "paymentPlan", "paymentPlanEn", "amenities", "constructionProgress", "progressUpdatedAt", "investmentHighlights", "investmentHighlightsEn"].filter(key => Object.hasOwn(clean.developmentData, key)).map(key => [key, clean.developmentData[key]]));
+  if (clean.developmentData) clean.developmentData = Object.fromEntries(["id", "nameEs", "nameEn", "developer", "stage", "deliveryDate", "units", "availableUnits", "paymentPlan", "paymentPlanEn", "amenities", "amenitiesPlanned", "constructionProgress", "progressUpdatedAt", "investmentHighlights", "investmentHighlightsEn"].filter(key => Object.hasOwn(clean.developmentData, key)).map(key => [key, clean.developmentData[key]]));
   if (clean.parentDevelopment) {
     const parent = clean.parentDevelopment;
-    const publicFields = ["id", "propertyId", "updatedAt", "nameEs", "nameEn", "developer", "stage", "deliveryDate", "units", "availableUnits", "paymentPlan", "paymentPlanEn", "amenities", "imageCount"];
+    const publicFields = ["id", "propertyId", "updatedAt", "nameEs", "nameEn", "developer", "stage", "deliveryDate", "units", "availableUnits", "paymentPlan", "paymentPlanEn", "amenities", "amenitiesPlanned", "imageCount"];
     clean.parentDevelopment = Object.fromEntries(publicFields.filter(key => Object.hasOwn(parent, key)).map(key => [key, parent[key]]));
     const linkedId = clean.portalDevelopmentId || clean.developmentId;
     const linked = Boolean(linkedId) && [parent.id, parent.propertyId].includes(linkedId);

@@ -46,12 +46,12 @@ test("only recent, dated BANXICO USD/MXN observations can convert a public amoun
     const converted = inventory.publicPriceOf(rows[1], rate, { now });
     assert.equal(converted.amount, null, JSON.stringify(rate));
     assert.equal(converted.status, "rate_unavailable");
-    assert.match(pricing.format(converted, "es"), /USD por confirmar/);
+    assert.equal(pricing.format(converted, "es"), "MXN $18,000,000");
     assert.match(pricing.format(converted, "en"), /USD price to be confirmed/);
   }
   const stale = inventory.publicPriceOf(rows[1], { ...snapshot, status: "stale" }, { now });
   assert.equal(stale.amount, 900000);
-  assert.match(pricing.rateNote(stale, "es"), /Última cotización disponible/);
+  assert.equal(pricing.rateNote(stale, "es"), "");
   assert.match(pricing.rateNote(stale, "en"), /Last available rate/);
 });
 
@@ -65,12 +65,16 @@ test("missing, on-request, contradictory legacy and unknown-base prices never be
   assert.equal(pricing.convert(Number.MAX_VALUE, "MXN", { ...snapshot, rate: .01 }, { now }).amount, null);
 });
 
-test("cards, detail and map callers receive identical dated text in both languages", () => {
+test("cards, details and maps agree on the currency and date appropriate to each language", () => {
   for (const lang of ["es", "en"]) {
     const descriptor = inventory.publicPriceOf(rows[1], snapshot, { now });
     const central = pricing.format(descriptor, lang);
     const listing = inventory.publicPriceText(rows[1], snapshot, lang, { now });
     assert.equal(listing, central);
+    if (lang === "es") {
+      assert.equal(central, "MXN $18,000,000");
+      continue;
+    }
     assert.match(central, /≈ USD \$900,000/);
     assert.match(central, /2026/);
     assert.match(central, /13/);
@@ -135,7 +139,7 @@ test("total, square-metre and rental-period amounts remain distinct, including M
   const monthly = row("monthly", 40000, "MXN", { operation: "rent", catalogData: { rentPeriod: "month" } });
   // Verified read-only public listing on 2026-11-15: USD 7,200; no rental period.
   const unknown = row("prop-14132f12-1ce6-4ef3-b47a-e25d6169db61", 7200, "USD", { mls: "1877", operation: "rent", catalogData: {} });
-  assert.match(inventory.publicPriceText(land, snapshot, "es", { now }), /USD \$1,000 \/ m²/);
+  assert.match(inventory.publicPriceText(land, snapshot, "es", { now }), /MXN \$20,000 \/ m²/);
   assert.match(inventory.publicPriceText(monthly, snapshot, "en", { now }), /USD \$2,000 \/ month/);
   assert.match(inventory.publicPriceText(unknown, snapshot, "es", { now }), /periodo por confirmar/);
   assert.match(inventory.publicPriceText(unknown, snapshot, "en", { now }), /rental period unconfirmed/);

@@ -19,6 +19,16 @@ function optimizedPublicImage(image, width) {
   return `${image}${separator}w=${width}`;
 }
 
+function publicAmenities(property = {}, records = []) {
+  if (!property || property.portalHiddenBlocks?.includes("amenities")) return [];
+  const parent = property.parentDevelopment;
+  const catalogParent = parent && records.find(row => row.id === parent.propertyId || row.developmentData?.id === parent.id);
+  const inherited = parent?.amenitiesPlanned || catalogParent?.developmentData?.amenitiesPlanned || catalogParent?.portalHiddenBlocks?.includes("amenities") || parent?.portalHiddenBlocks?.includes("amenities")
+    ? [] : parent?.amenities || [];
+  return [...new Set([...(property.amenities || []), ...(property.developmentData?.amenities || []), ...inherited]
+    .filter(value => typeof value === "string" && value.trim()).map(value => value.trim()))];
+}
+
 function localizedAmenity(amenity, lang = "es") {
   if (lang !== "en") return amenity;
   const key = String(amenity || "")
@@ -27,6 +37,37 @@ function localizedAmenity(amenity, lang = "es") {
     .trim()
     .toLowerCase();
   return {
+    "acceso controlado": "Controlled access",
+    "area de mascotas": "Pet area",
+    "areas infantiles": "Children’s play areas",
+    "club infantil": "Kids’ club",
+    "asadores": "Barbecue areas",
+    "canchas de tenis": "Tennis courts",
+    "canchas de padel": "Padel courts",
+    "carril de nado": "Lap lane",
+    "casa club": "Clubhouse",
+    "jardines": "Gardens",
+    "restaurante": "Restaurant",
+    "estacionamiento": "Parking",
+    "areas sociales": "Social spaces",
+    "areas verdes": "Green spaces",
+    "vigilancia": "Security",
+    "terraza panoramica": "Panoramic terrace",
+    "parque infantil": "Playground",
+    "marina seca": "Dry marina",
+    "salon de eventos": "Event room",
+    "parque central": "Central park",
+    "cine": "Cinema",
+    "ludoteca": "Playroom",
+    "club social": "Social club",
+    "sala de juegos": "Games room",
+    "palapas": "Palapas",
+    "bar": "Bar",
+    "coworking": "Coworking",
+    "lobby": "Lobby",
+    "sauna": "Sauna",
+    "snack bar": "Snack bar",
+    "yoga": "Yoga",
     "acceso a playa": "Beach access",
     "acceso a playa privada": "Private beach access",
     alberca: "Swimming pool",
@@ -61,6 +102,20 @@ function localizedAmenity(amenity, lang = "es") {
 const locationText = (value) => typeof value === "string" ? value.trim().replace(/\s+/g, " ") : "";
 const escapeLocation = (value) => String(value ?? "").replace(/[&<>"']/g, (character) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[character]);
 const distinctLocationParts = (parts) => [...new Map(parts.map(locationText).filter(Boolean).map(value => [inventory.fold(value), value])).values()];
+
+function parsePlacePin(value) {
+  const text = String(value || "").trim();
+  let coordinates = text;
+  if (/^https?:\/\//i.test(text)) {
+    let url;
+    try { url = new URL(text); } catch { return null; }
+    if (!/^(?:www\.|maps\.)?google\.(?:com|com\.mx|ca|co\.uk)$/i.test(url.hostname)) return null;
+    const point = url.pathname.match(/!3d(-?[\d.]+)!4d(-?[\d.]+)/);
+    coordinates = point ? point[1] + "," + point[2] : url.searchParams.get("query") || url.searchParams.get("q") || "";
+  }
+  const pair = coordinates.match(/^\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)\s*$/);
+  return pair ? publicCoordinatePair({ latitude:pair[1], longitude:pair[2] }) : null;
+}
 
 function publicCoordinatePair(property = {}) {
   const parse = (value, limit) => {
@@ -137,8 +192,9 @@ function resolvePublicLocation(property = {}, { lang = "es", directory = {}, pro
   const result = { entity, heading, compact: names.compact, declaredPrecision, precision: "unavailable", address: "", latitude: null, longitude: null, geocodeQuery: "", coordinateSource: "none", sourceId: "", sourceName: "", sourceUrl: "", locationScope: "", notice: "", evidenceLabel: "" };
   if (declaredPrecision === "hidden") return { ...result, precision: "hidden", notice: t("Consulta la ubicación con nuestro equipo.", "Ask our team about the location."), evidenceLabel: t("Ubicación reservada", "Location withheld") };
   let point = publicCoordinatePair(property), source = property;
-  if (entity === "developments" && !(point && declaredPrecision === "exact")) {
-    const verified = verifiedDevelopmentLocations?.find(property);
+  const verified = entity === "developments" && verifiedDevelopmentLocations?.find(property);
+  const matchesReference = verified && point && Math.abs(point.latitude - verified.latitude) < 0.000001 && Math.abs(point.longitude - verified.longitude) < 0.000001;
+  if (entity === "developments" && (!(point && declaredPrecision === "exact") || matchesReference)) {
     if (verified) {
       const scope = verified.kind;
       return { ...result, precision: "exact", address: verified.address, latitude: verified.latitude, longitude: verified.longitude,
@@ -153,9 +209,18 @@ function resolvePublicLocation(property = {}, { lang = "es", directory = {}, pro
     // An approximate stored point or a geocoded zone center is not evidence of a community's location.
     point = null;
   }
-  if (!point && entity !== "developments") {
+  if (entity !== "developments") {
     const parent = linkedPublicDevelopment(property, properties);
-    if (parent && publicCoordinatePair(parent)) { source = parent; point = publicCoordinatePair(parent); }
+    const parentPoint = parent && (publicCoordinatePair(parent) || verifiedDevelopmentLocations?.find(parent));
+    const copied = point && parentPoint && Math.abs(point.latitude - parentPoint.latitude) < 0.000006 && Math.abs(point.longitude - parentPoint.longitude) < 0.000006;
+    if (parent && (!point || copied) && declaredPrecision === "exact") {
+      const parentLocation = resolvePublicLocation(parent, { lang, directory });
+      if (parentLocation.precision === "exact") return { ...parentLocation, entity, heading, declaredPrecision,
+        compact: names.compact || parentLocation.compact, coordinateSource: "development", sourceId: parent.id,
+        sourceName: parentLocation.sourceName || parent.titleEs || "", locationScope: parentLocation.locationScope || "",
+        evidenceLabel: t("Ubicación del desarrollo vinculado", "Linked development location"), notice: parent.titleEs || parent.titleEn || "" };
+    }
+    if (!point && parent && publicCoordinatePair(parent)) { source = parent; point = publicCoordinatePair(parent); }
   }
   if (point) {
     const exact = declaredPrecision === "exact" && locationPrecisionOf(source) === "exact";
@@ -194,22 +259,21 @@ function resolvePublicLocation(property = {}, { lang = "es", directory = {}, pro
 function renderPublicLocationSection(property, options = {}) {
   const model = resolvePublicLocation(property, options), english = options.lang === "en";
   const e = escapeLocation;
-  const mapAvailable = model.precision === "exact" || model.precision === "approximate";
+  const mapAvailable = model.precision === "exact";
   const attrs = [`data-location-precision="${e(model.precision)}"`, `data-location-source="${e(model.coordinateSource)}"`];
   if (model.locationScope) attrs.push(`data-location-scope="${e(model.locationScope)}"`);
   if (model.latitude !== null && model.longitude !== null) attrs.push(`data-location-latitude="${model.latitude}"`, `data-location-longitude="${model.longitude}"`);
-  if (model.geocodeQuery) attrs.push(`data-location-query="${e(model.geocodeQuery)}"`);
+
   const contactHref = typeof options.contactHref === "string" && /^(#[a-z][\w-]*|\/(?!\/)[^<>"\s]*)$/i.test(options.contactHref) ? options.contactHref : "";
   return `<section class="property-location-map public-location-section" data-public-location lang="${english ? "en" : "es"}" ${attrs.join(" ")}>
     <h2>${e(model.heading)}</h2>
     ${model.compact ? `<p class="public-location-summary">${e(model.compact)}</p>` : ""}
     ${model.address ? `<p class="public-location-address">${e(model.address)}</p>` : ""}
     <p class="public-location-precision">${e(model.evidenceLabel)}</p>
-    ${model.notice ? `<p class="public-location-notice">${e(model.notice)}</p>` : ""}
-    ${mapAvailable ? `<div class="public-location-canvas" data-location-canvas style="height:clamp(240px,42vh,360px);min-height:240px;position:relative;z-index:0;" role="region" aria-label="${e(model.heading)}"></div><p class="public-location-status" data-location-status role="status" aria-live="polite">${english ? "The map loads as you reach this section." : "El mapa se carga al acercarte a esta sección."}</p>` : ""}
+    ${mapAvailable ? `<div class="public-location-canvas" data-location-canvas style="height:clamp(240px,42vh,360px);min-height:240px;position:relative;z-index:0;" role="region" aria-label="${e(model.heading)}"></div><p class="public-location-status" data-location-status role="status" aria-live="polite"></p>` : ""}
     ${contactHref ? `<a class="public-location-contact"${/^\/(?:contacto|en\/contact)\?/.test(contactHref) ? " data-contact-inquiry" : ""} href="${e(contactHref)}">${english ? "Ask about this location" : "Consultar esta ubicación"}</a>` : ""}
   </section>`;
 }
 
-return { safePublicImages, optimizedPublicImage, localizedAmenity, publicCoordinatePair, locationPrecisionOf, resolvePublicLocation, renderPublicLocationSection };
+return { publicAmenities, safePublicImages, optimizedPublicImage, localizedAmenity, parsePlacePin, publicCoordinatePair, locationPrecisionOf, resolvePublicLocation, renderPublicLocationSection };
 });

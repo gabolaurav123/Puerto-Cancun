@@ -59,15 +59,15 @@ test("legacy public PDF is regenerated from the current listing while its stored
   original.updated_at="two";await render(stored);assert.equal(calls,2);
 });
 
-test("external public shares use USD and retain contact visibility rules",()=>{
+test("Spanish external shares preserve the original currency and retain contact visibility rules",()=>{
   const source=fs.readFileSync(path.join(__dirname,"../external-property-utils.js"),"utf8");
   const realNow=Date.now;Date.now=()=>now;
   try{
     const row={titleEs:"Casa externa",price:20000000,currency:"MXN",priceUnit:"total",operation:"sale",images:[],features:[],amenities:[],externalContact:{name:"Persona privada",email:"private@example.com"}};
     const html=renderExternalPropertyShareHtml(row,{shareUrl:"https://example.com/ext/one",exchangeRate:rate});
-    assert.match(html,/USD \$1,000,000/);assert.match(html,/TC /);assert.doesNotMatch(html,/MXN \$20|Persona privada|private@example.com/);
-    assert.match(externalPropertyWhatsappText(row,"https://example.com/ext/one",{exchangeRate:rate}),/USD \$1,000,000/);
-    assert.match(renderExternalPropertyShareHtml(row,{shareUrl:"https://example.com/ext/one"}),/Precio en USD por confirmar/);
+    assert.match(html,/MXN \$20,000,000/);assert.doesNotMatch(html,/TC |Persona privada|private@example.com/);
+    assert.match(externalPropertyWhatsappText(row,"https://example.com/ext/one",{exchangeRate:rate}),/MXN \$20,000,000/);
+    assert.match(renderExternalPropertyShareHtml(row,{shareUrl:"https://example.com/ext/one"}),/MXN \$20,000,000/);
   }finally{Date.now=realNow;}
   assert.ok(source.includes("includeContact"));
 });

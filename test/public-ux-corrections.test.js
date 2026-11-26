@@ -11,7 +11,7 @@ const {
 
 const root = path.join(__dirname, "..");
 
-test("la publicación presenta USD en ambos idiomas sin alterar su moneda original", () => {
+test("la publicación presenta MXN en español y USD en inglés sin alterar su moneda original", () => {
   const indexSource = fs.readFileSync(path.join(root, "index.html"), "utf8");
   const appSource = fs.readFileSync(path.join(root, "app.js"), "utf8");
   const property = { currency: "MXN", price: 18500000, priceUsd: null, priceMxn: 18500000 };
@@ -19,9 +19,10 @@ test("la publicación presenta USD en ambos idiomas sin alterar su moneda origin
   const snapshot = publicExchangeFixture();
 
   assert.doesNotMatch(indexSource, /id="currencySelect"|class="currency-control"/);
-  assert.deepEqual(localizedListingPrice(property, snapshot), { amount: 925000, currency: "USD" });
-  for (const lang of ["es", "en"]) assert.match(renderPropertyPage(property, lang, [], {}, [], snapshot).html, /≈ USD \$925,000/);
-  assert.equal(localizedListingPrice(property), null, "No conversion without a current rate");
+  assert.deepEqual(localizedListingPrice(property, snapshot, "en"), { amount: 925000, currency: "USD" });
+  assert.match(renderPropertyPage(property, "es", [], {}, [], snapshot).html, /MXN \$18,500,000/);
+  assert.match(renderPropertyPage(property, "en", [], {}, [], snapshot).html, /≈ USD \$925,000/);
+  assert.equal(localizedListingPrice(property, null, "en"), null, "No conversion without a current rate");
   assert.equal(JSON.stringify(property), original);
   assert.doesNotMatch(appSource, /state\.currency = state\.lang === "en" \? "USD" : "MXN"/);
 });
@@ -101,7 +102,7 @@ test("el mapa de la ficha respeta la visibilidad y no dirige a Google Maps en ES
     assert.match(withCoordinates, /data-location-latitude="21\.16" data-location-longitude="-86\.81"/);
     const withoutCoordinates = renderPropertyPage({ ...property, latitude: null, longitude: null }, lang).html;
     assert.match(withoutCoordinates, /data-location-precision="approximate"/);
-    assert.match(withoutCoordinates, /data-location-query="(?:Puerto Cancún|Puerto Cancun)/);
+    assert.doesNotMatch(withoutCoordinates, /data-location-canvas|data-location-query=/);
     assert.doesNotMatch(withoutCoordinates, /data-show-area-map|<iframe/);
     assert.doesNotMatch(withoutCoordinates, /www\.openstreetmap\.org\/export\/embed/);
     const hidden = renderPropertyPage({ ...property, locationPrecision: "hidden" }, lang).html;

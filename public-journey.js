@@ -101,9 +101,24 @@
       const allProperties = ["/propiedades", "/en/properties"].includes(path)
         && (!params.has("entity") || params.get("entity") === "properties")
         && !["1", "true"].includes(params.get("featured"));
-      owner.hidden = !(home || allProperties);
+      const detail = document.querySelector(".property-page-layout, .catalog-project-detail");
+      owner.hidden = !(home || allProperties || detail);
       document.body.classList.toggle("owner-contact-eligible", !owner.hidden);
     };
+    const smallScreen = window.matchMedia("(max-width: 700px)");
+    const collapse = () => { owner.classList.remove("is-expanded"); };
+    owner.addEventListener("click", event => {
+      if (!smallScreen.matches || event.detail === 0 || owner.classList.contains("is-expanded")) {
+        collapse();
+        return;
+      }
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      owner.classList.add("is-expanded");
+    }, true);
+    document.addEventListener("pointerdown", event => { if (!owner.contains(event.target)) collapse(); });
+    owner.addEventListener("blur", collapse);
+    document.addEventListener("keydown", event => { if (event.key === "Escape") collapse(); });
     updateOwnerVisibility();
     document.addEventListener("pcc:catalog:navigated", updateOwnerVisibility);
     window.addEventListener("popstate", updateOwnerVisibility);

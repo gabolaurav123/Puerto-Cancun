@@ -115,7 +115,7 @@
                 <a href="/propiedades/puerto-cancun/departamentos" data-i18n="typeCondos">Departamentos</a>
                 <a href="/propiedades?location=puerto-cancun&amp;operation=rent" data-i18n="typeRentals">Rentas</a>
                 <a href="/propiedades?location=puerto-cancun&amp;type=Terreno" data-i18n="typeLand">Terrenos</a>
-                <a href="/propiedades?location=puerto-cancun&amp;operation=sale&amp;modality=presale" data-i18n="typePresales">Preventas</a>
+                <a href="/preventas-cancun?location=puerto-cancun" data-i18n="typePresales">Preventas</a>
               </div>
             </details>
             <details class="public-nav-group" name="site-navigation">
@@ -790,7 +790,7 @@
                     <option>Terreno</option>
                     <option>Comercial</option>
                     <option hidden>Preventa</option>
-                    <option hidden>Desarrollo</option>
+                    <option value="Desarrollo" data-i18n="ownerDevelopmentType">Desarrollo</option>
                   </select>
                 </label>
               </div>
@@ -2557,6 +2557,8 @@
                   data-map-frame
                 ></iframe>
                 <div class="interactive-map-canvas" data-map-canvas hidden aria-label="Selector interactivo de ubicación"></div>
+                <label><span>Coordenadas o enlace de Google Maps</span><input data-map-pin-input autocomplete="off" placeholder="21.160899, -86.805907" /></label>
+                <button class="ghost-button" type="button" data-apply-map-pin>Aplicar pin</button>
                 <div class="form-row coordinate-row">
                   <label>
                     <span data-i18n="latitudeField">Latitud</span>
@@ -2642,14 +2644,17 @@
                   <span>M2 terreno</span>
                   <input name="lot" type="number" min="0" step="0.01" />
                 </label>
-                <label>
-                  <span>MLS</span>
-                  <input name="mls" maxlength="40" />
-                </label>
               </div>
-              <label data-property-only>
+              <label>
+                <span>MLS</span>
+                <input name="mls" maxlength="40" placeholder="Automático al guardar" />
+              </label>
+              <label>
                 <span>Amenidades</span>
                 <input name="amenities" placeholder="Alberca, marina, gimnasio, seguridad" />
+              </label>
+              <label class="checkbox-label" data-amenities-planned hidden>
+                <input name="amenitiesPlanned" type="checkbox" /><span>Amenidades previstas</span>
               </label>
               <div class="keyword-editor" data-keyword-editor>
                 <label for="listingKeywords">Keywords / palabras clave</label>
@@ -2943,8 +2948,8 @@
             <input class="honeypot-field" name="website" tabindex="-1" autocomplete="off" aria-hidden="true" />
             <input name="formStartedAt" type="hidden" />
             <label><span data-i18n="sellerOperation">¿Qué quieres anunciar?</span><select name="operation" required><option value="sale" data-i18n="sellerOperationSale">Una propiedad en venta</option><option value="rent" data-i18n="sellerOperationRent">Una propiedad en renta</option></select></label>
-            <label><span data-i18n="propertyType">Tipo de propiedad</span><select name="type" required><option>Casa</option><option>Departamento</option><option>Terreno</option><option>Comercial</option><option>Preventa</option></select></label>
-            <label><span data-i18n="guestLocation">Zona o localidad aproximada</span><input name="location" maxlength="260" data-i18n-placeholder="guestLocationPlaceholder" placeholder="Zona, colonia o localidad" required /></label>
+            <label><span data-i18n="propertyType">Tipo de propiedad</span><select name="type" required><option>Casa</option><option>Departamento</option><option>Terreno</option><option>Comercial</option><option>Preventa</option><option value="Desarrollo" data-i18n="ownerDevelopmentType">Desarrollo</option></select></label>
+            <label><span data-i18n="guestLocation">Zona o localidad</span><input name="location" maxlength="260" data-i18n-placeholder="guestLocationPlaceholder" placeholder="Zona, colonia o localidad" required /></label>
             <input name="state" type="hidden" />
             <input name="city" type="hidden" />
             <input name="zone" type="hidden" />

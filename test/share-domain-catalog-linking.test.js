@@ -39,7 +39,8 @@ test("pic.estate queda reservado para fichas y los mensajes de WhatsApp conserva
   assert.match(message, /https:\/\/pic\.estate\/f\/AbCdEf123/);
   assert.match(message, /USD \$210 \/ m²/);
   assert.match(message, /TC /);
-  assert.doesNotMatch(message, /MLS|1944|Referencia|PCC-|prop-/);
+  assert.equal(message.match(/MLS 1944/g)?.length, 1);
+  assert.doesNotMatch(message, /Referencia|prop-/);
   assert.doesNotMatch(message, /�/u);
 });
 

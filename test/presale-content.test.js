@@ -53,7 +53,7 @@ test("editorial descriptions and images take precedence per language, and approx
   assert.ok(es.includes("/assets/presale-approved.webp"));
   assert.ok(es.includes("Marina")); assert.ok(es.includes("Puerto Cancún")); assert.ok(!es.includes(development.address));
   assert.match(es, /data-public-location[\s\S]*data-location-precision="unavailable"/);
-  assert.match(es, /pendiente de confirmar/);
+  assert.match(es, /Ubicación por confirmar/);
   assert.doesNotMatch(es, /data-location-query|data-location-canvas/);
   assert.ok(render(master, "en", true, edit).includes(development.descriptionEn));
 });
@@ -73,7 +73,7 @@ test("presale project office buttons open each WhatsApp number directly with its
       assert.ok(message.includes(lang === "en" ? development.titleEn : development.titleEs));
       assert.ok(message.includes("PRESALE-7"));
       assert.ok(message.includes("https://www.puertocancun.center" + projectPath));
-      assert.ok(tag.includes(`<span data-contact-number>${display}</span>`));
+      assert.ok(!tag.includes(display));
       assert.doesNotMatch(tag,/data-contact-inquiry|data-business-contact/);
       assert.match(tag,/target="_blank" rel="noopener noreferrer"/);
     }

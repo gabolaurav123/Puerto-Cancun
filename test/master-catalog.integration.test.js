@@ -31,6 +31,7 @@ test('master catalog contracts with real isolated PostgreSQL', { skip: !base }, 
   assert.ok(['127.0.0.1', 'localhost'].includes(new URL(base).hostname), 'Local QA only');
   const admin = client(), buyer = client(), ids = [];
   const stamp = Date.now();
+  const manualMls = `QA-${stamp}`;
   await admin('/api/session');
   await admin('/api/auth/login', 'POST', { username: 'qa-admin', password: 'qa-admin-password-only-local' });
   const sharp = require('sharp');
@@ -38,10 +39,11 @@ test('master catalog contracts with real isolated PostgreSQL', { skip: !base }, 
   const common = { title: `QACatalog ${stamp}`, publicationSection: 'properties', type: 'Terreno', state: 'Quintana Roo', city: 'Cancun', zone: 'Puerto Cancun', status: 'active', isPublic: true, currency: 'USD', price: 100000, images: [image], description: 'Registro de prueba aislada, sin datos comerciales reales.' };
   let unit;
   try {
-    unit = (await admin('/api/admin/properties', 'POST', { ...common, mls: 'QA-1707', latitude: 21.123456, longitude: -86.123456, address: 'QA direccion privada', locationPrecision: 'hidden', catalogData: { salesModality: 'resale', locationId: 'puerto-cancun', homeOrder: 3 } }, 201)).property;
+    unit = (await admin('/api/admin/properties', 'POST', { ...common, mls: manualMls, latitude: 21.123456, longitude: -86.123456, address: 'QA direccion privada', locationPrecision: 'hidden', catalogData: { salesModality: 'resale', locationId: 'puerto-cancun', homeOrder: 3 } }, 201)).property;
     ids.push(unit.id);
-    const duplicate = (await admin('/api/admin/properties', 'POST', { ...common, title: common.title + ' B', mls: 'QA-1707', priceUnit: 'sqm', price: 4200, catalogData: { locationId: 'cancun-city', salesModality: 'direct' } }, 201)).property;
-    ids.push(duplicate.id);
+    await admin('/api/admin/properties', 'POST', { ...common, mls: manualMls }, 409);
+    const other = (await admin('/api/admin/properties', 'POST', { ...common, title: common.title + ' B', priceUnit: 'sqm', price: 4200, catalogData: { locationId: 'cancun-city', salesModality: 'direct' } }, 201)).property;
+    ids.push(other.id);
     const draft = (await admin('/api/admin/properties', 'POST', { ...common, title: common.title + ' privado', status: 'draft', isPublic: false }, 201)).property;
     ids.push(draft.id);
     await t.test('public catalog and smart search exclude drafts and private location', async () => {
@@ -52,16 +54,16 @@ test('master catalog contracts with real isolated PostgreSQL', { skip: !base }, 
       assert.equal(found.verifiedBy, undefined); assert.equal(found.completeness, undefined);
       assert.ok(!response.properties.some(row => row.id === draft.id));
       await buyer('/api/session');
-      const search = await buyer('/api/search/intelligent', 'POST', { query: 'QA-1707' });
-      assert.deepEqual(search.properties.filter(row => ids.includes(row.id)).map(row => row.id).sort(), [unit.id, duplicate.id].sort());
+      const search = await buyer('/api/search/intelligent', 'POST', { query: manualMls });
+      assert.deepEqual(search.properties.filter(row => ids.includes(row.id)).map(row => row.id).sort(), [unit.id]);
       assert.ok(!search.properties.some(row => row.id === draft.id));
     });
     await t.test('Location intersects price base without changing physical geography', async () => {
       const total = await buyer('/api/catalog?location=puerto-cancun&operation=sale&currency=USD&priceBasis=total&max=150000');
       assert.ok(total.items.some(row => row.id === unit.id));
-      assert.ok(!total.items.some(row => row.id === duplicate.id));
+      assert.ok(!total.items.some(row => row.id === other.id));
       const sqm = await buyer('/api/catalog?location=cancun-city&priceBasis=sqm&operation=sale&currency=USD&max=5000');
-      const found = sqm.items.find(row => row.id === duplicate.id);
+      const found = sqm.items.find(row => row.id === other.id);
       assert.ok(found); assert.equal(found.zone, common.zone); assert.equal(found.city, common.city);
       const box = await buyer('/api/catalog?bounds=-86.2,21.1,-86.1,21.2');
       assert.ok(!box.items.some(row => row.id === unit.id), 'Hidden coordinates cannot be inferred with bounds');

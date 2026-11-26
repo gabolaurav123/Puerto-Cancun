@@ -3,6 +3,17 @@
  */
 (function(root,factory){const data=factory();if(typeof module === "object" && module.exports)module.exports=data;else root.PccVerifiedDevelopmentLocationData=data;})(typeof globalThis!=="undefined"?globalThis:this,function(){return [
   {
+    "id": "prop-6c9ccecb-ba9f-4895-bc22-07a2a1c2812c",
+    "title": "La Amada Residence",
+    "latitude": 21.240692,
+    "longitude": -86.8032359,
+    "address": "La Amada Residences, Playa Mujeres, Quintana Roo, México",
+    "sourceUrl": "https://laamada.com/ubicacion/",
+    "evidence": "Pin del lugar en el enlace de Google Maps publicado por La Amada.",
+    "verifiedOn": "2026-11-26",
+    "kind": "complex"
+  },
+  {
     "id": "prop-xlsx-6954138fa174d915e2b09278",
     "title": "Riva Puerto Cancún",
     "latitude": 21.1608986,

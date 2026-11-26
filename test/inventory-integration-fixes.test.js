@@ -298,12 +298,12 @@ test("I04: public price helpers convert once with a current rate and preserve st
   for (const lang of ["es", "en"]) {
     const api = ui({ lang });
     assert.deepEqual(Array.from(api.localizedPropertyPrice(p)), ["USD", 225]);
-    assert.match(api.formatPriceSummary(p), /≈ USD \$225/);
-    assert.match(api.formatPriceSummary(p), lang === "en" ? / · rate / : / · TC /);
+    assert.match(api.formatPriceSummary(p), lang === "en" ? /≈ USD \$225/ : /MXN \$4,500/);
+    assert.match(api.formatPriceSummary(p), lang === "en" ? / · rate / : /^MXN \$4,500$/);
     assert.equal(api.formatPriceSummary(property({ price: 250 })), "USD $250");
     assert.equal(api.localizedPropertyPrice(property({ price: null, priceUsd: 900 })), null);
     assert.equal(ui({ lang, exchangeRate: null }).localizedPropertyPrice(p), null);
-    assert.match(ui({ lang, exchangeRate: null }).formatPriceSummary(p), lang === "en" ? /USD price to be confirmed/ : /Precio en USD por confirmar/);
+    assert.match(ui({ lang, exchangeRate: null }).formatPriceSummary(p), lang === "en" ? /USD price to be confirmed/ : /MXN \$4,500/);
   }
   assert.deepEqual(plain(p), before);
 });
@@ -325,12 +325,12 @@ for (const [lang, labels] of [["es", { month: " / mes", day: " / d\u00eda", year
   });
 }
 
-test("I06: snake-case price metadata converts to USD while preserving rent period and square-meter basis", () => {
+test("I06: Spanish snake-case prices retain MXN while preserving rent period and square-meter basis", () => {
   const summary = ui().formatPriceSummary({ price_amount: 4200, price_currency: "MXN", price_unit: "sqm", operation: "rent", catalog_data: { rentPeriod: "day" } });
-  assert.match(summary, /≈ USD \$210/);
+  assert.match(summary, /MXN \$4,200/);
   assert.match(summary, /d\u00eda/);
   assert.match(summary, /\/ m\u00b2/);
-  assert.match(summary, / · TC /);
+  assert.doesNotMatch(summary, / · TC /);
 });
 
 test("I05: guided USD budgets include equivalent MXN prices and reject incomparable or over-budget records", () => {
