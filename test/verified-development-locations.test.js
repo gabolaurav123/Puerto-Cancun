@@ -49,7 +49,7 @@ test("verified community display has a scoped pin without changing inventory or 
   assert.equal(model.geocodeQuery, ""); assert.equal(JSON.stringify(source), before);
   const english = renderPublicLocationSection(source, { lang: "en" });
   assert.match(english, /Development location/); assert.match(english, /Verified building location/);
-  assert.match(english, /data-location-scope="building"/); assert.match(english, /not an individual unit/);
+  assert.match(english, /data-location-scope="building"/); assert.doesNotMatch(english, /Swipe to scroll|Use \+ and/);
   const unit = { ...source, id: "unit", titleEs: "Apartment in " + entry.title, publicationSection: "properties", type: "Departamento", developmentId: entry.id };
   const unitModel = resolvePublicLocation(unit, { properties: [source] });
   assert.equal(unitModel.precision, "approximate"); assert.equal(unitModel.coordinateSource, "zone");
@@ -86,7 +86,7 @@ test("Mondrian's presale project resolves its verified linked community in both 
     assert.ok(html.includes(`data-location-longitude="${entry.longitude}"`));
     assert.ok(html.includes(`data-development-id="${entry.id}"`));
     assert.ok(html.includes(`data-project-id="${projectId}"`));
-    assert.match(html, lang === "en" ? /not an individual unit/ : /no una unidad específica/);
+    assert.match(html, lang === "en" ? /Verified complex location/ : /Ubicación verificada del conjunto/);
     assert.doesNotMatch(html, /data-location-query=/);
   }
   assert.equal(JSON.stringify({ source, directory }), before);

@@ -16,14 +16,15 @@ function clientUrl(english = false) {
   });
 }
 
-test("server and browser automatic messages omit internal references while retaining natural context", () => {
+test("server and browser automatic messages include the public MLS once and omit internal references", () => {
   const sandbox={};vm.runInNewContext(fs.readFileSync(require.resolve("../whatsapp-message"),"utf8"),sandbox);
   for (const lang of ["es","en"]) {
-    const data={lang,intent:"buy",propertyTitle:"RIVA Puerto Cancún",development:"RIVA Puerto Cancún",zone:"Puerto Cancún",propertyType:"Departamento",reference:"prop-xlsx-1999999",mls:"M7612",whatsappRef:"a123456789abcdef",preferences:'Vista al mar & terraza "amplia"'};
+    const data={lang,intent:"buy",propertyId:"riva",propertyTitle:"RIVA Puerto Cancún",development:"RIVA Puerto Cancún",zone:"Puerto Cancún",propertyType:"Departamento",reference:"prop-xlsx-1999999",mls:"M7612",whatsappRef:"a123456789abcdef",preferences:'Vista al mar & terraza "amplia"'};
     const text=serverMessage(data,"https://portal.example.test/riva");
     assert.equal(text,sandbox.PccWhatsAppMessage.messageFor(data,"https://portal.example.test/riva"));
     assert.equal(text.match(/RIVA Puerto Cancún/g).length,1);
-    assert.doesNotMatch(text,/prop-xlsx|PCC-|M7612|a123456789abcdef|Referencia|Reference/);
+    assert.equal(text.match(/MLS M7612/g)?.length,1);
+    assert.doesNotMatch(text,/prop-xlsx|a123456789abcdef|Referencia|Reference/);
     assert.match(text,/Vista al mar & terraza "amplia"/);
     assert.match(text,/https:\/\/portal.example.test\/riva/);
   }

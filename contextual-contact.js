@@ -1,7 +1,7 @@
 (() => {
   "use strict";
   const key = "pcc-inquiry-contact";
-  const fields = ["intent","zone","subzone","development","developmentId","propertyId","propertyTitle","mls","project","reference","propertyType","budget","currency","priceMode","rentPeriod","office","origin","preferences","summary","sourcePath","service","visitPreferredAt","searchFilters","beds","baths","topic"];
+  const fields = ["intent","zone","subzone","development","developmentId","propertyId","propertyTitle","mls","project","projectId","reference","propertyType","budget","currency","priceMode","rentPeriod","office","origin","preferences","summary","sourcePath","service","visitPreferredAt","searchFilters","beds","baths","topic"];
   const intents = { buy:["Comprar","Buy"], rent:["Buscar una renta","Find a rental"], sell:["Vender","Sell"], let:["Poner mi propiedad en renta","List my property for rent"] };
   const types = { Casa:"House", Departamento:"Apartment", Terreno:"Land", Comercial:"Commercial property" };
   const escape = value => String(value ?? "").replace(/[&<>"']/g, ch => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[ch]));
@@ -35,7 +35,7 @@
   }
   function directOfficeLinks(context, config) {
     const contacts = config.offices || window.PccContacts?.contacts || [];
-    return '<div class="inquiry-direct-offices" aria-label="'+tr("Consultar por WhatsApp", "Request information on WhatsApp")+'">' + contacts.map(office => '<a class="office-inquiry-button" data-inquiry-office="'+escape(office.id)+'" href="'+escape(whatsappUrl({...context,office:office.id},config))+'" target="_blank" rel="noopener noreferrer"><span>WhatsApp '+(office.id==='us'?tr('USA','USA'):tr('México','Mexico'))+'</span><small>'+escape(office.display)+'</small></a>').join("")+'</div>';
+    return '<div class="inquiry-direct-offices" aria-label="'+tr("Consultar por WhatsApp", "Request information on WhatsApp")+'">' + contacts.map(office => '<a class="office-inquiry-button" data-inquiry-office="'+escape(office.id)+'" href="'+escape(whatsappUrl({...context,office:office.id},config))+'" target="_blank" rel="noopener noreferrer"><span>WhatsApp '+(office.id==='us'?tr('Estados Unidos','United States'):tr('México','Mexico'))+'</span></a>').join("")+'</div>';
   }
   function convertedBudget(amount, from, to, snapshot) {
     const value = Number(amount), rate = window.PccPublicPricing?.usableRate(snapshot);
@@ -63,8 +63,7 @@
     const inherited = { propertyType:filters.type || "", zone:filters.zone || (filters.locations || []).map(id=>zones[id] || "").filter(Boolean).join(", "), beds:filters.beds || "", baths:filters.baths || "", budget:filters.max || "", currency:filters.currency || "USD", rentPeriod:filters.rentPeriod || "", features:filters.text || "" };
     const data = {...inherited,...values,lang:english?"en":"es"};
     if(!Object.hasOwn(values,"budget")&&filters.max) { data.budget=filters.max;data.currency=filters.currency || "USD"; }
-    const path = /^\/(?![\\/])/.test(values.sourcePath || "") ? values.sourcePath : location.pathname + location.search;
-    const source = new URL(path, config.publicSiteUrl || location.origin).href;
+    const source = /^\/(?![\\/])/.test(values.listingPath || "") ? new URL(values.listingPath, config.publicSiteUrl || location.origin).href : "";
     const offices = config.offices || window.PccContacts?.contacts || [];
     const office = offices.find(item=>item.id===(values.office || config.defaultOffice || "mx")) || offices[0];
     return window.PccWhatsAppMessage?.handoffUrl(office?.number,data,source) || "";
@@ -101,7 +100,7 @@
     let opts, context, config;
     try {
       const params=new URLSearchParams({lang:lang()});
-      for (const name of ["propertyId","developmentId","reference","project","development","intent","origin","service"]) if(values[name]) params.set(name,values[name]);
+      for (const name of ["propertyId","developmentId","projectId","reference","project","development","intent","origin","service"]) if(values[name]) params.set(name,values[name]);
       if(values.searchFilters) params.set("searchFilters",JSON.stringify(values.searchFilters));
       [opts,context,config]=await Promise.all([getOptions(),fetch("/api/inquiries/context?"+params).then(async r=>{const result=await r.json();if(!r.ok)throw Error(result.error || tr("No pudimos identificar la publicación.","We could not identify the listing."));return result;}),publicConfig()]);
     } catch(error) {
@@ -126,11 +125,11 @@
     dialog.querySelector("#inquiryTitle").textContent=title;
     const summary=contextSummary(context, values);
     const owner=["sell","let"].includes(fixed);
-    const typeSelect='<select name="propertyType">' + option("",tr("Por definir","Not decided")) + Object.entries(types).map(([es,en])=>option(es,tr(es,en))).join("") + '</select>';
+    const typeSelect='<select name="propertyType">' + option("",tr("Por definir","Not decided")) + Object.entries(owner ? { ...types, Desarrollo: "Development" } : types).map(([es,en])=>option(es,tr(es,en))).join("") + '</select>';
     // A zone inquiry already carries its scope. Do not guess an apartment type
     // or ask the visitor to re-enter it; owners still describe their own listing.
     const contextFields = search || !known && !watch && (!fixed || !current.zone) || owner
-      ? row(tr("Tipo de propiedad","Property type"),"propertyType",typeSelect) + (owner&&context.zone ? "" : row(owner?tr("Zona aproximada","Approximate zone"):tr("Zona o destino (opcional)","Zone or destination (optional)"),"zone"))
+      ? row(tr("Tipo de propiedad","Property type"),"propertyType",typeSelect) + (owner&&context.zone ? "" : row(owner?tr("Zona o localidad","Zone or locality"):tr("Zona o destino (opcional)","Zone or destination (optional)"),"zone"))
       : "";
     const searchZones = [['Zona Hotelera',tr('Zona Hotelera','Hotel Zone')],['Puerto Cancún','Puerto Cancún'],['Ciudad de Cancún',tr('Ciudad de Cancún','Cancun City')],['Fuera de Cancún',tr('Fuera de Cancún','Outside Cancun')]];
     if(current.zone&&!searchZones.some(([value])=>normalizedContext(value)===normalizedContext(current.zone)))searchZones.push([current.zone,current.zone]);
@@ -140,7 +139,7 @@
       + (!search ? row(tr("Nombre (opcional)","Name (optional)"),"name",'<input name="name" maxlength="110" autocomplete="given-name">') : '')
       + (!owner && (!known || context.project) ? budget : "")
       + (!owner && !known ? '<div class="inquiry-room-counts">'+row(tr("Recámaras (opcional)","Bedrooms (optional)"),"beds",'<select name="beds">'+option('',tr('Sin preferencia','No preference'))+[1,2,3,4,5,6].map(n=>option(n,n===6?'6+':n)).join('')+'</select>')+row(tr("Baños (opcional)","Bathrooms (optional)"),"baths",'<select name="baths">'+option('',tr('Sin preferencia','No preference'))+[1,2,3,4,5,6].map(n=>option(n,n===6?'6+':n)).join('')+'</select>')+'</div>' : '')
-      + (owner || !known && !search ? row(tr("Superficie de terreno (m², opcional)","Lot size (m², optional)"),"area",'<input name="area" type="number" min="0" step="any" inputmode="decimal">') + row(tr("Uso previsto o características (opcional)","Intended use or features (optional)"),"features") : "")
+      + (owner || !known && !search ? row(tr("Superficie (m²)","Area (m²)"),"area",'<input name="area" type="number" min="0" step="any" inputmode="decimal">') + row(tr("Características","Features"),"features") : "")
       + (fixed==="rent"?row(tr("Mudanza estimada (opcional)","Estimated move date (optional)"),"moveDate",'<input name="moveDate" type="date">'):"")
       + row(tr("Comentario (opcional)","Note (optional)"),"preferences",'<textarea name="preferences" rows="2" maxlength="1200"></textarea>')+'</div></details>';
     dialog.querySelector(".inquiry-scroll").innerHTML='<form><section data-inquiry-fields>'
@@ -178,7 +177,13 @@
     const update=()=>{
       updateChannel(form);
       const isOwner=["sell","let"].includes(form.elements.intent.value);
-      if(form.elements.propertyType) form.elements.propertyType.required=isOwner;
+      if(form.elements.propertyType) {
+        const select = form.elements.propertyType;
+        select.required = isOwner;
+        const development = select.querySelector('option[value="Desarrollo"]');
+        if (isOwner && !development) select.add(new Option(tr("Desarrollo","Development"), "Desarrollo"));
+        if (!isOwner && development) development.remove();
+      }
       if(form.elements.zone) form.elements.zone.required=isOwner;
       if(isOwner) { const details=form.elements.zone?.closest("details");if(details)details.open=true; }
     };
@@ -217,24 +222,53 @@
       for(const link of form.querySelectorAll('[data-inquiry-office]'))link.href=whatsappUrl({...values,office:link.dataset.inquiryOffice},config);
     };
     form.addEventListener("input",refreshOfficeLinks);form.addEventListener("change",refreshOfficeLinks);refreshOfficeLinks();
+    let ownerReference;
+    async function openOwnerWhatsApp(values) {
+      if (!form.reportValidity() || form.elements.website.value) return;
+      // Preserve the user gesture while the server reserves the anonymous reference.
+      const popup = window.open("about:blank", "_blank");
+      if (popup) popup.opener = null;
+      try {
+        ownerReference ||= window.PccInquiryRequest("/api/inquiries/owner-reference", { requestId }).then(result => result.mls);
+        const mls = await ownerReference;
+        const url = whatsappUrl({ ...values, mls }, config);
+        if (!mls || !url) throw Error();
+        if (popup) popup.location.replace(url);
+        showHandoff(url);
+        drafts.delete(returnKey);
+      } catch {
+        popup?.close();
+        ownerReference = null;
+        notice.textContent = tr("No pudimos asignar el MLS. Intenta de nuevo.", "We could not assign an MLS. Please try again.");
+      }
+    }
     for(const link of form.querySelectorAll('[data-inquiry-office]'))link.addEventListener("click",event=>{
+      const values = valuesForMessage();
+      if (["sell", "let"].includes(values.intent) && !values.propertyId && !values.developmentId) {
+        event.preventDefault(); void openOwnerWhatsApp({ ...values, office: link.dataset.inquiryOffice }); return;
+      }
       if(form.elements.contactChannel.value==="email"&&!form.elements.email.reportValidity())event.preventDefault();
     });
     form.onsubmit=event=>{
       event.preventDefault();if(!form.reportValidity())return;
       if(form.elements.website.value)return;
-      const url=whatsappUrl(valuesForMessage(),config);
+      const values = valuesForMessage();
+      if (["sell", "let"].includes(values.intent) && !values.propertyId && !values.developmentId) { void openOwnerWhatsApp(values); return; }
+      const url=whatsappUrl(values,config);
       if(!url){notice.textContent=tr("No pudimos preparar WhatsApp. Usa uno de los botones de contacto.","We could not prepare WhatsApp. Please use one of the contact buttons.");return;}
       remember();
       // Open synchronously from the visitor's click; no phone or lead POST is needed.
       // Preparing or opening WhatsApp does not mean the visitor has sent the message.
       window.open(url,"_blank","noopener,noreferrer");
+      showHandoff(url);
+    };
+    function showHandoff(url) {
       form.querySelector("[data-inquiry-fields]").hidden=true;
       const success=form.querySelector("[data-inquiry-success]");success.hidden=false;
       form.querySelector("[data-success-message]").textContent=tr("Envía el mensaje en WhatsApp para completar tu consulta. Si no se abrió, usa el botón de abajo.","Send the message in WhatsApp to complete your inquiry. If it did not open, use the button below.");
       const link=form.querySelector("[data-inquiry-whatsapp]");link.hidden=false;link.href=url;
       notice.textContent="";success.focus();dialog.querySelector(".inquiry-scroll").scrollTop=0;
-    };
+    }
     form.querySelector('[name="contactChannel"]').focus({preventScroll:true});
   }
   function readValues(node) {

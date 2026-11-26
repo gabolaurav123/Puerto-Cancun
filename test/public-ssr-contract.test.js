@@ -98,19 +98,20 @@ test("explicit consult-price policy hides a stored amount and never creates an O
 });
 
 for (const currency of ["USD", "MXN"]) {
-  test(`valid ${currency} total exposes a consistent public USD helper, card and Offer`, () => {
+  test(`valid ${currency} total exposes a consistent localized helper, card and Offer`, () => {
     const p = property({ currency, price: 1234.5 });
     const before = plain(p);
-    const amount = currency === "MXN" ? 1234.5 / exchangeRate.rate : 1234.5;
-    assert.deepEqual(seo.localizedListingPrice(p, exchangeRate), { amount, currency: "USD" });
+    const amount = 1234.5;
+    assert.deepEqual(seo.localizedListingPrice(p, exchangeRate), { amount, currency });
     const offer = listingSchema(p).offers;
     assert.equal(offer.price, Number(amount.toFixed(2)));
-    assert.equal(offer.priceCurrency, "USD");
+    assert.equal(offer.priceCurrency, currency);
     assert.equal(Object.hasOwn(offer, "priceSpecification"), false);
-    assert.match(cardPrice(p), /USD/);
+    assert.ok(cardPrice(p).startsWith(currency));
     if (currency === "MXN") {
-      assert.equal(cardPrice(p), "≈ USD $62");
-      assert.match(seo.renderPropertyPage(p, "es", [], {}, [], exchangeRate).html, /<small class="seo-property-price-note">Tipo de cambio: .*Importe aproximado en USD/);
+      assert.equal(cardPrice(p), "MXN $1,235");
+      assert.equal(cardPrice(p, "en"), "≈ USD $62");
+      assert.doesNotMatch(seo.renderPropertyPage(p, "es", [], {}, [], exchangeRate).html, /<small class="seo-property-price-note">Tipo de cambio: .*Importe aproximado en USD/);
     }
     assert.deepEqual(plain(p), before);
   });
@@ -125,11 +126,12 @@ test("canonical null does not revive legacy amounts; unambiguous legacy still wo
 
 test("snake-case square-meter prices remain unit prices in rendering and JSON-LD", () => {
   const p = property({ price: undefined, currency: undefined, priceUnit: undefined, price_amount: "4200.5", price_currency: "MXN", price_unit: "sqm" });
-  assert.equal(cardPrice(p), "≈ USD $210 / m²");
+  assert.equal(cardPrice(p), "MXN $4,201 / m²");
+  assert.equal(cardPrice(p, "en"), "≈ USD $210 / m²");
   const offer = listingSchema(p).offers;
   assert.equal(Object.hasOwn(offer, "price"), false);
-  assert.equal(offer.priceSpecification.price, 210.03);
-  assert.equal(offer.priceSpecification.priceCurrency, "USD");
+  assert.equal(offer.priceSpecification.price, 4200.5);
+  assert.equal(offer.priceSpecification.priceCurrency, "MXN");
   assert.equal(offer.priceSpecification.referenceQuantity.unitCode, "MTK");
 });
 

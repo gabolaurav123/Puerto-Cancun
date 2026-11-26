@@ -47,6 +47,16 @@ test("parse and share only validated public IDs and the canonical route", () => 
   assert.equal(comparison.parseIds(`/propiedades?compare=${"a".repeat(129)}`).length, 0);
 });
 
+test("English comparison shows the dated USD estimate alongside the original MXN price", () => {
+  const records = [property("a", { currency: "MXN", price: 2000000 }), property("b")];
+  const exchangeRate = require("./helpers/public-exchange-fixture").publicExchangeFixture(20);
+  const table = lang => comparison.renderTable(comparison.buildComparison(records, ["a", "b"], { lang, exchangeRate }));
+  assert.match(table("en"), /≈ USD \$100,000 · rate/);
+  assert.match(table("en"), /Original price: MXN 2,000,000 total/);
+  assert.doesNotMatch(table("es"), /≈ USD/);
+  assert.match(comparison.renderTable(comparison.buildComparison(records, ["a", "b"], "en")), /USD price to be confirmed/);
+});
+
 test("compatible original prices retain the contract amounts without conversion", () => {
   const result = pair({}, { price: 700000 });
   assert.equal(result.pairs[0].price.compatible, true);
@@ -147,7 +157,7 @@ test("rendering escapes untrusted strings and never copies private/admin metadat
 
 test("public DTO media paths retain listing images without admitting private media or traversal", () => {
   const id = "property-dto_1707";
-  for (const patch of [{ image: `/media/properties/${id}/0` }, { image: null, images: [`/media/properties/${id}/12`] }]) {
+  for (const patch of [{ image: `/media/properties/${id}/0` }, { image: `/media/properties/${id}/0?v=1795637110778` }, { image: null, images: [`/media/properties/${id}/12`] }]) {
     const state = comparison.buildComparison([property(id, patch), property("b")], [id, "b"]);
     assert.equal(state.items[0].image, patch.image || patch.images[0]);
     assert.ok(comparison.renderTable(state).includes(`src="${state.items[0].image}"`));

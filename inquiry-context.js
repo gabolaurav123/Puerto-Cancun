@@ -38,7 +38,8 @@ function resolveInquiryContext(body = {}, properties = [], { validateIntent = fa
   const title = row => lang === "en" ? row.titleEn || row.titleEs : row.titleEs || row.titleEn;
   const context = { allowedIntents, fixedIntent: allowedIntents.length === 1 ? allowedIntents[0] : "", entity: listing ? "property" : development ? "development" : "general" };
   if (entity) Object.assign(context, {
-    propertyId: listing?.id || "", propertyTitle: listing ? title(listing) : "", mls: listing?.mls || "",
+    propertyId: listing?.id || "", propertyTitle: listing ? title(listing) : "", mls: entity.mls || "",
+    listingPath: require("./public-sharing").sharePath(entity, lang),
     developmentId: development?.id || "", development: development ? title(development) : "",
     project: policy?.isPresale ? title(development || listing) : "",
     reference: entity.id, zone: entity.zone || "", subzone: entity.subzone || entity.neighborhood || entity.municipality || entity.city || "",
@@ -46,6 +47,13 @@ function resolveInquiryContext(body = {}, properties = [], { validateIntent = fa
     intent: allowedIntents.includes(body.intent) ? body.intent : allowedIntents.length === 1 ? allowedIntents[0] : "",
     rentPeriod: ["day", "month", "year"].includes(listing?.catalogData?.rentPeriod) ? listing.catalogData.rentPeriod : "",
   });
+  if (body.projectId && directory) {
+    const project = require("./catalog-directory").projectRecords(directory, records).find(p => p.id === body.projectId);
+    if (project && (!entity || [project.linkedDevelopment?.id, project.linkedProperty?.id].includes(entity.id))) {
+      Object.assign(context, { entity: listing ? "property" : "development", projectId: project.id, project: title(project),
+        mls: project.mls, listingPath: require("./public-sharing").sharePath(project, lang), allowedIntents: ["buy"], fixedIntent: "buy", intent: "buy" });
+    }
+  }
   return context;
 }
 

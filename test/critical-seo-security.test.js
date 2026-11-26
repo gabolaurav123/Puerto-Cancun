@@ -24,17 +24,17 @@ const unitPriceLand = {
   amenities: [],
 };
 
-test("el terreno convierte a USD por m² también en datos estructurados sin fabricar un total", () => {
+test("el terreno conserva MXN por m² en español también en datos estructurados sin fabricar un total", () => {
   const exchangeRate = publicExchangeFixture();
   const original = JSON.stringify(unitPriceLand);
   const page = renderPropertyPage(unitPriceLand, "es", [], {}, [], exchangeRate);
   const head = renderPropertyHead(unitPriceLand, "https://www.puertocancun.center", "es", exchangeRate);
 
-  assert.match(page.html, /<span class="public-price-amount">≈ USD \$210 \/ m²<\/span>/);
-  assert.match(page.html, /<small class="seo-property-price-note">Tipo de cambio: .*Importe aproximado en USD/);
+  assert.match(page.html, /<span class="public-price-amount">MXN \$4,200 \/ m²<\/span>/);
+  assert.doesNotMatch(page.html, /<small class="seo-property-price-note">Tipo de cambio: .*Importe aproximado en USD/);
   assert.match(head.jsonLd, /"@type":"UnitPriceSpecification"/);
-  assert.match(head.jsonLd, /"price":210/);
-  assert.match(head.jsonLd, /"priceCurrency":"USD"/);
+  assert.match(head.jsonLd, /"price":4200/);
+  assert.match(head.jsonLd, /"priceCurrency":"MXN"/);
   assert.match(head.jsonLd, /"unitCode":"MTK"/);
   assert.doesNotMatch(head.jsonLd, /"@type":"Offer","price":/);
   assert.equal(JSON.stringify(unitPriceLand), original);

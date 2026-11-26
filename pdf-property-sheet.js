@@ -64,7 +64,7 @@ function propertyPdfPrice(property, options = {}) {
     return { text: price.amount && ["USD","MXN"].includes(price.currency) ? `${price.currency} $${new Intl.NumberFormat("es-MX", {maximumFractionDigits:0}).format(price.amount)}${suffix}${period}` : "Precio a consultar", note:"", mode:"original" };
   }
   const price = inventory.publicPriceOf(property, options.exchangeRate, {now:options.now});
-  return {text:publicPricing.format(price,"es",{includeRateDate:false}).replace("≈ ","Aprox. "),note:publicPricing.rateNote(price,"es"),mode:"public-usd",price};
+  return {text:publicPricing.format(price,"es",{includeRateDate:false,forceUsd:true}).replace("≈ ","Aprox. "),note:publicPricing.rateNote(price,"es",{forceUsd:true}),mode:"public-usd",price};
 }
 
 function drawPrice(document, property, options, y) {

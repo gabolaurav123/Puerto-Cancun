@@ -80,7 +80,7 @@ CREATE TABLE IF NOT EXISTS guest_sale_requests (
   country_code TEXT,
   phone TEXT,
   contact_id TEXT,
-  status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'contacted', 'archived')),
+  status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'contacted', 'approved', 'archived')),
   priority TEXT NOT NULL DEFAULT 'medium',
   internal_notes TEXT NOT NULL DEFAULT '',
   idempotency_key TEXT UNIQUE,

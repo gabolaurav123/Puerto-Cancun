@@ -58,20 +58,30 @@
     });
   }
 
-  function rateNote(descriptor, lang = "es") {
+  function displayPrice(descriptor, lang = "es") {
+    if (lang !== "en" && descriptor?.originalCurrency === "MXN" && number(descriptor.originalAmount)
+        && !descriptor.onRequest && descriptor.status !== "unconfirmed") {
+      return { ...descriptor, amount: descriptor.originalAmount, currency: "MXN", approximate: false, date: null, rate: null, status: "original" };
+    }
+    return descriptor;
+  }
+
+  function rateNote(descriptor, lang = "es", { forceUsd = false } = {}) {
+    if (!forceUsd) descriptor = displayPrice(descriptor, lang);
     if (!descriptor?.approximate || !descriptor.date) return "";
     const en = lang === "en";
     return (descriptor.rate?.status === "stale" ? en ? "Last available rate: " : "Última cotización disponible: " : en ? "Exchange rate: " : "Tipo de cambio: ")
       + dateText(descriptor.date, lang) + ". " + (en ? "Approximate USD amount." : "Importe aproximado en USD.");
   }
 
-  function format(descriptor, lang = "es", { includeRateDate = true, from = false, maximumFractionDigits = 0 } = {}) {
+  function format(descriptor, lang = "es", { includeRateDate = true, from = false, maximumFractionDigits = 0, forceUsd = false } = {}) {
+    if (!forceUsd) descriptor = displayPrice(descriptor, lang);
     const en = lang === "en";
-    if (!descriptor || number(descriptor.amount) === null || descriptor.currency !== "USD") {
+    if (!descriptor || number(descriptor.amount) === null || !["MXN", "USD"].includes(descriptor.currency)) {
       return descriptor?.status === "rate_unavailable" ? en ? "USD price to be confirmed" : "Precio en USD por confirmar"
         : en ? "Price on request" : "Precio a consultar";
     }
-    let value = (from ? en ? "From " : "Desde " : "") + (descriptor.approximate ? "≈ " : "") + "USD $"
+    let value = (from ? en ? "From " : "Desde " : "") + (descriptor.approximate ? "≈ " : "") + descriptor.currency + " $"
       + new Intl.NumberFormat(en ? "en-US" : "es-MX", { maximumFractionDigits }).format(descriptor.amount);
     if (descriptor.basis === "sqm") value += " / m²";
     if (descriptor.operation === "rent") {
@@ -97,5 +107,5 @@
     return result;
   }
 
-  return { MAX_RATE_AGE_DAYS, usableRate, convert, price, format, rateNote, budgetInUsd };
+  return { MAX_RATE_AGE_DAYS, usableRate, convert, price, displayPrice, format, rateNote, budgetInUsd };
 });

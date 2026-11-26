@@ -260,7 +260,7 @@ function externalPropertyWhatsappText(property, shareUrl, { includeContact = fal
     : [];
   return [
     "🏷️ *EXT · Propiedad externa de colaboración*",
-    `*${property.titleEs}*`,
+    `*${require("./whatsapp-message").titleWithMls(property.titleEs, property.mls)}*`,
     locationLabel(property) ? `📍 ${locationLabel(property)}` : "",
     `💰 ${require("./inventory-contract").publicPriceText(property,exchangeRate,"es")}`,
     property.beds ? `🛏️ ${property.beds} recámara${property.beds === 1 ? "" : "s"}` : "",

@@ -14,9 +14,19 @@
   };
   const clean = value => typeof value === "string" ? value.trim() : typeof value === "number" && Number.isFinite(value) ? String(value) : "";
   const folded = value => clean(value).normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+  function titleWithMls(title, mls) {
+    const text = clean(title);
+    const code = clean(mls);
+    if (!code) return text;
+    const bare = code.replace(/^MLS[\s:#-]+/i, "").trim() || code;
+    const escaped = bare.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const identifier = new RegExp("\\bMLS\\s*[:#-]?\\s*" + escaped + "(?![\\w-])", "i");
+    return identifier.test(text) ? text : [text, /^MLS[\s:#-]/i.test(code) ? code : "MLS " + code].filter(Boolean).join(" · ");
+  }
+
   function messageFor(data = {}, url = "") {
     const en = data.lang === "en", t = (es, english) => en ? english : es;
-    const types = { Casa: ["una casa", "a house"], Departamento: ["un departamento", "an apartment"], Terreno: ["un terreno", "land"], Comercial: ["un local comercial", "commercial property"], Oficina: ["una oficina", "an office"], Bodega: ["una bodega", "a warehouse"] };
+    const types = { Casa: ["una casa", "a house"], Departamento: ["un departamento", "an apartment"], Terreno: ["un terreno", "land"], Comercial: ["un local comercial", "commercial property"], Desarrollo: ["un desarrollo", "a development"], Oficina: ["una oficina", "an office"], Bodega: ["una bodega", "a warehouse"] };
     const what = types[data.propertyType] ? t(...types[data.propertyType]) : clean(data.propertyType) || t("una propiedad", "a property");
     const phrases = { buy: t("Me interesa comprar", "I would like to buy"), rent: t("Busco alquilar", "I am looking to rent"), sell: t("Quiero vender", "I would like to sell"), let: t("Quiero poner en renta", "I would like to offer for rent") };
     let intro = (phrases[data.intent] || t("Quisiera información sobre", "I would like information about")) + " " + what + ".";
@@ -27,7 +37,8 @@
     if (data.service === "guest-listing") intro = data.intent === "let" ? t("Quiero anunciar mi propiedad en renta.", "I would like to list my property for rent.") : t("Quiero anunciar mi propiedad en venta.", "I would like to list my property for sale.");
     const text = [t("Hola. ", "Hello. ") + intro];
     const title = clean(data.propertyTitle || data.project || data.development);
-    if (title) text.push(t("Me interesa: ", "I am interested in: ") + title);
+    if (title) text.push(t("Me interesa: ", "I am interested in: ") + titleWithMls(title, data.mls));
+    else if (data.mls) text.push(titleWithMls("", data.mls));
     if (data.development && !folded(title).includes(folded(data.development))) text.push(t("Desarrollo: ", "Gated community: ") + clean(data.development));
     const entries = [
       [data.name, "Mi nombre", "My name"],
@@ -35,7 +46,7 @@
       [data.subzone && !folded(data.zone).includes(folded(data.subzone)) ? data.subzone : "", "Sector", "Neighbourhood"],
       [data.propertyType && ["property-search", "search-watch"].includes(data.service) ? (types[data.propertyType] ? t(...types[data.propertyType]) : data.propertyType) : "", "Tipo de propiedad", "Property type"],
       [data.beds || data.bedrooms, "Recámaras", "Bedrooms"], [data.baths || data.bathrooms, "Baños", "Bathrooms"],
-      [data.area, "Superficie aproximada (m²)", "Approximate area (m²)"],
+      [data.area, "Superficie (m²)", "Area (m²)"],
       [data.landSize, "Superficie de terreno (m²)", "Land area (m²)"],
       [data.builtSize, "Superficie construida (m²)", "Built area (m²)"],
       [data.age, "Antigüedad del inmueble", "Age of the property"],
@@ -55,7 +66,7 @@
     if (data.ownerEstimate) text.push(t("Mi estimación: ", "My estimate: ") + clean(data.ownerEstimate) + " " + clean(data.currency));
     const email = clean(data.email || data.replyEmail);
     if (data.contactChannel === "email" && email) text.push(t("Deseo que me contacten por correo electrónico. Este es mi correo electrónico: ", "Please contact me by email. This is my email address: ") + email);
-    if (url) text.push(t("Lo vi en Puerto Cancún Center: ", "I saw this on Puerto Cancún Center: ") + url);
+    if (url && (data.propertyId || data.developmentId || data.projectId) && !["sell", "let"].includes(data.intent)) text.push(url);
     return text.join("\n");
   }
   function handoffUrl(number, data, url) {
@@ -63,5 +74,5 @@
     if (!/^[1-9]\d{6,14}$/.test(phone)) return "";
     return "https://wa.me/" + phone + "?text=" + encodeURIComponent(messageFor(data, url));
   }
-  return { messageFor, handoffUrl, topics };
+  return { titleWithMls, messageFor, handoffUrl, topics };
 });

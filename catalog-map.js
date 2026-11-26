@@ -50,7 +50,8 @@
     .public-location-canvas.is-page-scroll { touch-action:pan-y pinch-zoom; }
     .public-location-canvas .leaflet-control-zoom a { width:44px;height:44px;line-height:44px;font-size:24px; }
     .public-location-canvas .leaflet-control-attribution { font-size:11px;line-height:1.4;max-width:100%; }
-    .public-location-canvas .pcc-location-point { width:24px;height:24px;border:3px solid #fff;border-radius:50%;background:#075562;box-shadow:0 1px 5px #0007; }
+    .public-location-canvas .pcc-location-point { background:transparent;filter:drop-shadow(0 1px 2px #0007); }
+    .public-location-canvas .pcc-location-point::before { content:"";display:block;width:22px;height:22px;border:3px solid #fff;border-radius:50% 50% 50% 0;background:#075562;transform:translateY(1px) rotate(-45deg);box-sizing:border-box; }
     .public-location-status { margin:8px 0 0;line-height:1.5;overflow-wrap:anywhere; }
     @media(max-width:900px) {
       .pcc-catalog-map-mounted.catalog-map-open .catalog-results { display:flex;flex-direction:column;gap:16px; }
@@ -468,7 +469,7 @@
         return latitude !== null && longitude !== null && Math.abs(latitude) <= 90 && Math.abs(longitude) <= 180 && (latitude !== 0 || longitude !== 0) ? { latitude, longitude } : null;
       };
       const failure = () => {
-        setStatus(t("El mapa no está disponible en este momento. La ubicación y la referencia de la zona siguen visibles arriba; puedes consultarlas con nuestro equipo.", "The map is currently unavailable. The location and zone reference remain visible above; our team can help you confirm them."));
+        setStatus(t("Mapa no disponible por el momento.", "The map is currently unavailable."));
         section.dataset.locationMapState = "unavailable";
       };
       const load = () => {
@@ -479,22 +480,8 @@
             section.dataset.locationMapState = "loading";
             setStatus(t("Cargando mapa…", "Loading map…"));
             if (!["exact", "approximate"].includes(precision)) throw new Error("location-not-public");
-            let point = validPoint({ latitude: section.dataset.locationLatitude, longitude: section.dataset.locationLongitude });
-            let exact = precision === "exact" && Boolean(point);
-            if (!point) {
-              const query = section.dataset.locationQuery;
-              if (!query) throw new Error("missing-location");
-              const path = "/api/geocode?address=" + encodeURIComponent(query);
-              const result = options.request ? await options.request(path) : await win.fetch(path, { credentials: "same-origin" }).then(response => {
-                if (!response.ok) throw new Error("geocoder-unavailable");
-                return response.json();
-              });
-              point = validPoint(result);
-              if (!point) throw new Error("invalid-location");
-              // Provider lookup is only an ephemeral zone reference, never a listing's exact point.
-              exact = false;
-            }
-            if (!exact) point = { latitude: Math.round(point.latitude * 100) / 100, longitude: Math.round(point.longitude * 100) / 100 };
+            const point = validPoint({ latitude:section.dataset.locationLatitude, longitude:section.dataset.locationLongitude });
+            if (precision !== "exact" || !point) throw new Error("unconfirmed-location");
             const L = await loadLeaflet(doc);
             if (destroyed || !section.isConnected) { controller.destroy(); return null; }
             if (!doc.getElementById("pccCatalogMapStyles")) {
@@ -502,20 +489,15 @@
             }
             canvas.classList.toggle("is-page-scroll", Boolean(touchDevice));
             map = L.map(canvas, { zoomControl: true, attributionControl: true, scrollWheelZoom: false, dragging: !touchDevice, touchZoom: false, doubleClickZoom: !touchDevice, boxZoom: false, keyboard: true });
-            map.setView([point.latitude, point.longitude], exact ? 16 : 13);
+            map.setView([point.latitude, point.longitude], scope === "building" ? 17 : scope === "community" ? 15 : 16);
             const tiles = L.tileLayer(options.tileUrl || DEFAULT_TILES, { maxZoom: 19, attribution: ATTRIBUTION });
             tiles.on("tileerror", () => { failedTiles = true; failure(); });
             tiles.addTo(map);
-            if (exact) {
-              L.marker([point.latitude, point.longitude], { icon: L.divIcon({ className: "pcc-location-point", iconSize: [24, 24], iconAnchor: [12, 12] }), title: verifiedLabel || t("Ubicación exacta publicada", "Published exact location"), keyboard: true }).addTo(map);
-            } else {
-              L.circle([point.latitude, point.longitude], { radius: 1400, color: "#075562", weight: 2, dashArray: "6 5", fillColor: "#075562", fillOpacity: .12, interactive: false }).addTo(map);
-            }
+            L.marker([point.latitude, point.longitude], { icon: L.divIcon({ className: "pcc-location-point", iconSize: [24, 30], iconAnchor: [12, 30] }), title: verifiedLabel || t("Ubicación exacta publicada", "Published exact location"), keyboard: true }).addTo(map);
             const zoomIn = canvas.querySelector(".leaflet-control-zoom-in"), zoomOut = canvas.querySelector(".leaflet-control-zoom-out");
             if (zoomIn) { zoomIn.title = t("Acercar mapa", "Zoom in"); zoomIn.setAttribute("aria-label", zoomIn.title); }
             if (zoomOut) { zoomOut.title = t("Alejar mapa", "Zoom out"); zoomOut.setAttribute("aria-label", zoomOut.title); }
-            const label = exact ? verifiedLabel ? verifiedLabel + "." : t("Punto exacto publicado.", "Published exact point.") : t("Referencia aproximada de la zona; no indica el punto exacto del inmueble.", "Approximate zone reference; it does not mark the property's exact position.");
-            setStatus(label + " " + (touchDevice ? t("Desliza para seguir por la página. Usa + y − para ampliar el mapa.", "Swipe to scroll the page. Use + and − to zoom the map.") : t("Usa + y − para ampliar el mapa.", "Use + and − to zoom the map.")));
+            setStatus("");
             section.dataset.locationMapState = "ready";
             if (win.ResizeObserver) { resize = new win.ResizeObserver(() => map?.invalidateSize()); resize.observe(canvas); }
             if (win.MutationObserver) { removal = new win.MutationObserver(() => { if (!section.isConnected) controller.destroy(); }); removal.observe(doc.documentElement, { childList: true, subtree: true }); }

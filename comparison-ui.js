@@ -88,7 +88,7 @@
 
   function imageUrl(value, propertyId) {
     if (typeof value !== "string") return "";
-    const media = /^\/media\/properties\/([A-Za-z0-9][A-Za-z0-9_-]{0,127})\/(?:0|[1-9]\d*)$/.exec(value);
+    const media = /^\/media\/properties\/([A-Za-z0-9][A-Za-z0-9_-]{0,127})\/(?:0|[1-9]\d*)(?:\?v=\d{1,20})?$/.exec(value);
     if (media && media[1] === propertyId) return value;
     try {
       const decoded = decodeURIComponent(value);
@@ -108,7 +108,7 @@
     return `${base}?q=${encodeURIComponent(p.id)}`;
   }
 
-  function project(p, lang) {
+  function project(p, lang, exchangeRate) {
     const metadata = p.catalogData || p.catalog_data || {};
     const legacyPrice = inventory.priceOf(p);
     const currency = legacyPrice.currency || "";
@@ -117,6 +117,8 @@
       basis: ["total", "sqm"].includes(rawBasis) ? rawBasis : "", operation: ["sale", "rent"].includes(p.operation) ? p.operation : "",
       period: p.operation === "rent" && ["day", "month", "year"].includes(legacyPrice.period) ? legacyPrice.period : "", onRequest: metadata.priceOnRequest === true };
     if (price.onRequest) price.amount = null;
+    const convertedPrice = lang === "en" && currency === "MXN" && price.amount && price.basis
+      ? inventory.publicPriceText(p, exchangeRate, lang) : "";
     const unit = (value) => [undefined, "", "m2", "sqm", "m\u00b2"].includes(value) ? "m2" : ["ft2", "sqft", "ft\u00b2"].includes(value) ? "ft2" : "";
     const location = inventory.resolveLocation(p);
     const entity = inventory.entityOf(p);
@@ -127,7 +129,7 @@
     const locationEn = { "zona-hotelera": "Hotel Zone (HZ)", "puerto-cancun": "Puerto Cancun", "cancun-city": "Cancun City", "fuera-de-cancun": "Outside Cancun" };
     return { id: p.id, lang, title: title || (lang === "en" ? `Listing ${p.id} (English title pending)` : "Inmueble"), type, entity,
       location: { id: location.id, name: (lang === "en" ? locationEn[location.id] : inventory.LOCATIONS.find((l) => l.id === location.id)?.name) || tr(lang, "locationUnknown") },
-      zone: text(p.zone, 100), city: text(p.city, 100), price, beds: entity === "properties" ? number(p.beds, true) : null,
+      zone: text(p.zone, 100), city: text(p.city, 100), price, convertedPrice, beds: entity === "properties" ? number(p.beds, true) : null,
       baths: entity === "properties" ? number(p.baths, true) : null, parking: entity === "properties" ? number(p.parking, true) : null,
       maintenance: { amount: number(maintenance.amount, true), currency: ["USD", "MXN"].includes(maintenance.currency) ? maintenance.currency : "", period: ["day", "month", "year"].includes(maintenance.period) ? maintenance.period : "" },
       modality: p.operation === "sale" && ["presale", "direct", "resale"].includes(inventory.modalityOf(p)) ? inventory.modalityOf(p) : "",
@@ -137,7 +139,7 @@
       image: imageUrl(p.image || (Array.isArray(p.images) ? p.images[0] : ""), p.id), href: listingPath(p, lang) };
   }
 
-  function publicIndex(properties, lang = "es") {
+  function publicIndex(properties, lang = "es", exchangeRate) {
     requireContract();
     if (!Array.isArray(properties)) throw new TypeError("properties debe ser el array del endpoint publico.");
     const result = new Map(), denied = new Set();
@@ -146,7 +148,7 @@
       // A conflicting/private copy of an ID must never be resurrected by input order.
       if (!publicRecord(p)) { denied.add(p.id); result.delete(p.id); continue; }
       if (denied.has(p.id)) continue;
-      const clean = project(p, lang);
+      const clean = project(p, lang, exchangeRate);
       if (result.has(p.id) && JSON.stringify(result.get(p.id)) !== JSON.stringify(clean)) { denied.add(p.id); result.delete(p.id); }
       else result.set(p.id, clean);
     }
@@ -193,7 +195,7 @@
     return { ids: items.map((p) => p.id), items, pairs, ready: items.length >= 2, unavailable: unique.length !== available.length, limitExceeded: available.length > MAX };
   }
 
-  function buildComparison(properties, ids, options = {}) { return model(publicIndex(properties, language(options.lang ?? options)), ids); }
+  function buildComparison(properties, ids, options = {}) { return model(publicIndex(properties, language(options.lang ?? options), options.exchangeRate), ids); }
 
   function sharePath(properties, ids, options = {}) {
     const result = buildComparison(properties, ids, options);
@@ -226,7 +228,9 @@
       [t("entity"), (p) => t(p.entity === "developments" ? "development" : "property"), (p) => p.entity],
       [t("type"), (p) => escape(p.type || t("unknown")), (p) => p.type],
       [t("operation"), (p) => t(["rent", "sale"].includes(p.price.operation) ? p.price.operation : "unknown"), (p) => p.price.operation],
-      [t("originalPrice"), (p) => `<strong>${escape(priceText(p, lang))}</strong>`, (p) => p.price],
+      [state.items.some(p => p.convertedPrice) ? "Price" : t("originalPrice"), (p) => p.convertedPrice
+        ? `<strong>${escape(p.convertedPrice)}</strong><br><small>${t("originalPrice")}: ${escape(priceText(p, lang))}</small>`
+        : `<strong>${escape(priceText(p, lang))}</strong>`, (p) => p.price],
       [t("priceMatch"), (p) => compatibleCell(p, "price"), (p) => [p.entity, p.price]],
       [t("area"), (p) => escape(surfaceText(p.area, lang)), (p) => p.area],
       [t("areaMatch"), (p) => compatibleCell(p, "area"), (p) => [p.entity, p.area]],
@@ -261,7 +265,8 @@
     let languageOverride = options.lang;
     const currentLanguage = () => language(languageOverride ?? doc.documentElement.lang);
     let lang = currentLanguage(), properties = options.properties;
-    let index = publicIndex(properties, lang), ids = [], destroyed = false, notifying = false, differencesOnly = options.differencesOnly === true;
+    const exchangeRate = () => options.getExchangeRate?.() ?? options.exchangeRate;
+    let index = publicIndex(properties, lang, exchangeRate()), ids = [], destroyed = false, notifying = false, differencesOnly = options.differencesOnly === true;
     let opened = false, unavailableSelection = false, lastCompareControl = null;
     const t = (key, values) => tr(lang, key, values);
     mounted.get(doc)?.destroy();
@@ -504,7 +509,7 @@
         const nextOverride = Object.hasOwn(next, "lang") ? next.lang : languageOverride;
         const nextLang = language(nextOverride ?? doc.documentElement.lang);
         const nextProperties = Object.hasOwn(next, "properties") ? next.properties : properties;
-        const nextIndex = publicIndex(nextProperties, nextLang);
+        const nextIndex = publicIndex(nextProperties, nextLang, exchangeRate());
         properties = nextProperties; languageOverride = nextOverride; lang = nextLang; index = nextIndex;
         if (Object.hasOwn(next, "differencesOnly")) differencesOnly = next.differencesOnly === true;
         return setIds(Object.hasOwn(next, "ids") ? next.ids : ids, { notify: next.notify !== false, updateUrl: next.updateUrl !== false });

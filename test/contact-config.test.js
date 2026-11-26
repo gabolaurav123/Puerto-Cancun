@@ -56,14 +56,13 @@ test("Spanish and English office buttons open WhatsApp directly with a prepared 
         assert.match(tag, /target="_blank" rel="noopener noreferrer"/);
         const officeLabel = id === "mx" ? (lang === "en" ? "Mexico" : "México") : (lang === "en" ? "United States" : "Estados Unidos");
         assert.ok(tag.includes('aria-label="WhatsApp ' + officeLabel + '"'));
-        assert.match(tag, /<span class="office-method">WhatsApp<\/span>/);
-        assert.ok(tag.includes('<span>' + officeLabel + '</span>'));
-        assert.ok(tag.includes('<span data-contact-number>' + display + '</span>'));
+        assert.ok(tag.includes("<span>WhatsApp " + officeLabel + "</span>"));
+        assert.ok(!tag.includes(display));
         assert.ok(tag.includes('data-origin="' + origin + '"'));
       }
     }
     const custom = seo.renderSeoPage(route, { offices: [{ id: "us", display: "+1 202 555 0199" }] });
-    assert.match(custom, /\+1 202 555 0199/);
+    assert.doesNotMatch(custom, /\+1 202 555 0199/);
     assert.equal(whatsappLinks(custom)[0].url.pathname, "/12025550199");
     assert.doesNotMatch(custom, /data-office="mx"/);
   }
@@ -71,7 +70,7 @@ test("Spanish and English office buttons open WhatsApp directly with a prepared 
   assert.doesNotMatch(read("seo-pages.js"), /wa\.me\/\d+|5219982166563|19568037838/);
 });
 
-test("property and development inquiries keep localized title and public URL without reference codes", () => {
+test("property and development inquiries keep localized title and public URL with a single MLS", () => {
   for (const lang of ["es", "en"]) {
     for (const publicationSection of ["properties", "developments"]) {
       const item = { ...property, publicationSection, mls: "MLS-42" };
@@ -85,11 +84,11 @@ test("property and development inquiries keep localized title and public URL wit
         assert.equal(link.url.origin,"https://wa.me");
         const message = link.url.searchParams.get("text");
         assert.ok(message.includes(title));
-        assert.doesNotMatch(message, /MLS[ #:]+|(?:Referencia|Reference):|PCC-/i);
-        assert.ok(message.includes(seo.absoluteUrl(seo.propertyPath(item,lang))));
+        assert.equal(message.match(/MLS-42/g)?.length, 1);
+        assert.ok(message.includes(seo.absoluteUrl(require("../public-sharing").sharePath(item,lang))));
         assert.equal([...link.url.searchParams].length,1);
         assert.equal(link.url.hash,"");
-        assert.ok(link.label.includes(`<span data-contact-number>${display}</span>`));
+        assert.ok(!link.label.includes(display));
       }
       const development = publicationSection === "developments";
       assert.ok(html.includes((development ? 'data-development-id="' : 'data-property-id="') + item.id + '"'));

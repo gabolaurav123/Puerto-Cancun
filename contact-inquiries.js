@@ -3,7 +3,6 @@
 const crypto = require("node:crypto");
 const { getCountries, getCountryCallingCode, parsePhoneNumberFromString } = require("libphonenumber-js/max");
 const { contacts } = require("./contact-config");
-const { propertyPath } = require("./seo-pages");
 const { enrichCommercialInquiry } = require("./commercial-workflow");
 const inventoryContract = require("./inventory-contract");
 const { savedCatalogQuery } = require("./saved-catalog-search");
@@ -189,7 +188,7 @@ function businessPhoneLabel(number) {
 function inquiryAction(id, data, siteUrl, path, secret) {
   if (!data?.whatsappRef || !data.destination) return null;
   const clickToken = crypto.createHmac("sha256", secret).update("inquiry-click:" + id).digest("hex");
-  const url = new URL(data.listingPath || sourcePath(path), siteUrl).href;
+  const url = data.listingPath ? new URL(data.listingPath, siteUrl).href : "";
   return { id, clickToken, whatsappUrl: "https://wa.me/" + data.destination + "?text=" + encodeURIComponent(messageFor(data, url)) };
 }
 
@@ -197,7 +196,7 @@ async function serviceChannel(db, country) {
   return { whatsappRef: crypto.randomBytes(8).toString("hex"), destination: destination(await readContactRouting(db), country) };
 }
 
-function registerInquiries(app, { pool, query, uuid, siteUrl, secret, upsertContact, leadScoreFromData, getPublicProperties = async () => [], getAreas = () => undefined, getExchangeRate = () => null, channels = () => ({}) }) {
+function registerInquiries(app, { pool, query, uuid, siteUrl, secret, upsertContact, leadScoreFromData, getPublicProperties = async () => [], getDirectory = () => undefined, getAreas = () => undefined, getExchangeRate = () => null, channels = () => ({}) }) {
   const clickToken = id => crypto.createHmac("sha256", secret).update("inquiry-click:" + id).digest("hex");
   app.get("/api/inquiries/options", async (_req, res, next) => {
     try {
@@ -207,7 +206,7 @@ function registerInquiries(app, { pool, query, uuid, siteUrl, secret, upsertCont
     } catch (err) { next(err); }
   });
   app.get("/api/inquiries/context", async (req, res, next) => {
-    try { res.json(resolveInquiryContext(req.query || {}, await getPublicProperties())); }
+    try { res.json(resolveInquiryContext(req.query || {}, await getPublicProperties(), { directory: getDirectory() })); }
     catch (error) { if (error.status === 400) res.status(400).json({ error: error.message }); else next(error); }
   });
   app.post("/api/inquiries", async (req, res, next) => {
@@ -217,15 +216,16 @@ function registerInquiries(app, { pool, query, uuid, siteUrl, secret, upsertCont
       if (body.website) return res.status(201).json({ ok: true });
       const { phone, email, name, path, data } = readInquiry(body);
       const inventory = await getPublicProperties();
-      const context = resolveInquiryContext(body, inventory, { validateIntent: true });
+      const context = resolveInquiryContext(body, inventory, { validateIntent: true, directory: getDirectory() });
       const propertyId = context.propertyId || "";
       if (context.entity !== "general") {
         for (const name of ["propertyTitle", "mls", "developmentId", "development", "reference", "zone", "subzone", "propertyType", "project", "rentPeriod"]) {
           if (context[name]) data[name] = context[name]; else delete data[name];
         }
         if (context.entity === "development" && ["sell", "let"].includes(data.intent)) data.propertyType = clean(body.propertyType, 100);
-        const entity = inventory.find(p => p.id === (propertyId || context.developmentId));
-        if (entity) data.listingPath = propertyPath(entity, data.lang);
+        data.propertyId = propertyId;
+        if (context.projectId) data.projectId = context.projectId;
+        data.listingPath = context.listingPath;
       }
       if (["sell", "let"].includes(data.intent) && (!data.propertyType || !data.zone)) fail("Indica el tipo de inmueble y su zona aproximada.", "Enter the property type and approximate zone.", data.lang);
       const canonicalBody = { ...body, propertyId, developmentId: context.developmentId || body.developmentId };
@@ -240,7 +240,6 @@ function registerInquiries(app, { pool, query, uuid, siteUrl, secret, upsertCont
         const property = (await client.query("SELECT title_es, title_en, zone, mls, publication_section FROM properties WHERE id=$1 AND is_public=TRUE AND status IN ('active','featured') AND publication_section<>'typologies'", [propertyId])).rows[0];
         if (!property) fail("La publicación ya no está disponible. Abre el formulario general para consultar.", "This listing is no longer published. Open the general inquiry form for help.", data.lang);
         data.propertyTitle = (data.lang === "en" && property.title_en) || property.title_es;
-        data.listingPath = propertyPath({ id: propertyId, titleEs: property.title_es, zone: property.zone, mls: property.mls }, data.lang);
         if (!data.zone && !Object.hasOwn(body, "zone") && property.zone) data.zone = property.zone;
         if (property.mls) data.mls = property.mls;
         if (property.publication_section === "developments" && !data.development) data.development = data.propertyTitle;
@@ -268,6 +267,9 @@ function registerInquiries(app, { pool, query, uuid, siteUrl, secret, upsertCont
         const score = leadScoreFromData({ leadType, phone, email, payload: data, propertyId });
         const contact = await upsertContact(client, { name, phone, email, consentContact: true, source: "portal_inquiry", contactType: ["sell", "let"].includes(data.intent) ? "seller" : "buyer", preferredZones: data.zone ? [data.zone] : [], propertyType: data.propertyType, leadScore: score });
         payload = { ...data, consentAt: new Date().toISOString(), inquiryFingerprint: fingerprint, whatsappRef: crypto.randomBytes(8).toString("hex"), destination: number };
+        if (context.entity === "general" && ["sell", "let"].includes(data.intent)) {
+          payload.mls = (await client.query("SELECT pcc_reserve_mls($1) AS mls", [id])).rows[0].mls;
+        }
         if (data.service === "visit") {
           payload.visitId = "tour-" + id;
           const [date, time] = (data.visitPreferredAt || "").split("T");

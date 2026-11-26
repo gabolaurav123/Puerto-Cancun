@@ -24,19 +24,19 @@ test("only converted inquiry budgets round upward while using a dated, valid Ban
   assert.equal(convert(1e13, "USD", "MXN", rate), null);
 });
 
-test("direct office links contain the current listing and origin without submitting a lead", () => {
+test("direct office links contain the current listing and its short link without submitting a lead", () => {
   for (const english of [false, true]) {
     const links = vm.runInNewContext(functionSource("directOfficeLinks", "convertedBudget") + functionSource("whatsappUrl", "contactControls") + "\ndirectOfficeLinks", {
       window: { PccContacts: contacts, PccWhatsAppMessage: messages }, handoffOptions:{}, location: { origin: "https://preview.invalid", pathname: "/propiedades/riva", search: "" }, URL, lang:()=>english?'en':'es',
       tr: (es,en) => english ? en : es, escape: value => String(value).replace(/&/g, "&amp;").replace(/"/g, "&quot;"),
     });
-    const html = links({ propertyTitle: "RIVA Puerto Cancún", mls: "M7612", zone: "Puerto Cancún", sourcePath: "/propiedades/riva?view=map" }, { publicSiteUrl: "https://www.puertocancun.center" });
+    const html = links({ propertyId: "riva", propertyTitle: "RIVA Puerto Cancún", mls: "M7612", zone: "Puerto Cancún", sourcePath: "/propiedades?location=puerto-cancun", listingPath:"/s/abc123" }, { publicSiteUrl: "https://www.puertocancun.center" });
     const urls = [...html.matchAll(/href="([^"]+)"/g)].map(match => new URL(match[1].replace(/&amp;/g,"&")));
     assert.deepEqual(urls.map(url => url.pathname.slice(1)), contacts.contacts.map(contact => contact.number));
     for (const url of urls) {
       assert.equal(url.hostname, "wa.me"); assert.match(url.searchParams.get("text"), /RIVA Puerto Cancún/);
-      assert.doesNotMatch(url.searchParams.get("text"), /MLS|M7612|PCC-/);
-      assert.match(url.searchParams.get("text"), /https:\/\/www\.puertocancun\.center\/propiedades\/riva\?view=map/);
+      assert.equal(url.searchParams.get("text").match(/MLS M7612/g)?.length, 1);
+      assert.match(url.searchParams.get("text"), /https:\/\/www\.puertocancun\.center\/s\/abc123/);
     }
     assert.doesNotMatch(html, /data-contact-inquiry/);
   }

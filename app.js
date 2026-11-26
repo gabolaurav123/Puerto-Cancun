@@ -1120,6 +1120,15 @@ function bindMapPickers() {
         { enableHighAccuracy: true, timeout: 9000 }
       );
     });
+    picker.querySelector("[data-apply-map-pin]")?.addEventListener("click", () => {
+      const input = picker.querySelector("[data-map-pin-input]");
+      const point = window.PccPublicListingDetails.parsePlacePin(input.value);
+      if (!point) { setMapStatus(picker, "Pega las coordenadas del pin o un enlace completo al lugar.", true); return; }
+      setMapCoordinates(picker, point.latitude, point.longitude);
+      formField(picker.closest("form"), "latitude").dispatchEvent(new Event("input", { bubbles: true }));
+      input.value = "";
+      setMapStatus(picker, "Pin actualizado. Revisa su posición y la visibilidad antes de guardar.");
+    });
     picker.querySelector("[data-geocode-address]")?.addEventListener("click", () => {
       window.clearTimeout(mapGeocodeTimers.get(picker));
       void geocodeMapAddress(picker);
@@ -7774,6 +7783,7 @@ function mountPublicComparison(publicProperties, requested = false) {
   if (!hasLink && !requested) return;
   window.pccComparison = window.PccComparison.mount({
     properties: publicProperties,
+    getExchangeRate: () => state.config?.currencyExchange,
     ...(!hasLink ? { ids: state.compare } : {}),
     getFavoriteIds: () => state.favorites,
     onFavorite: (id) => toggleFavorite(id),
@@ -8141,6 +8151,8 @@ function configureListingFormMode(section = state.adminSection) {
   form.dataset.listingMode = developmentMode ? "development" : "property";
   formField(form, "publicationSection").value = developmentMode ? "developments" : "properties";
   const developmentLink = form.querySelector("[data-property-development-link]");
+  const plannedAmenities = form.querySelector("[data-amenities-planned]");
+  if (plannedAmenities) plannedAmenities.hidden = !developmentMode;
   const developmentPropertyLinker = form.querySelector("[data-development-property-linker]");
   const brochureImporter = form.querySelector("[data-development-brochure]");
   if (developmentLink) developmentLink.hidden = developmentMode;
@@ -8820,7 +8832,10 @@ function toggleLanguage() {
   }
   const alternate = String(document.body.dataset.alternateUrl || "").trim();
   const currentPath = `${window.location.pathname}${window.location.search}${window.location.hash}`;
-  window.location.assign(alternate ? `${alternate}${window.location.search}${window.location.hash}` : localizedRoute(currentPath, nextLanguage));
+  const target = new URL(alternate || localizedRoute(currentPath, nextLanguage), window.location.origin);
+  if (window.location.search) target.search = window.location.search;
+  target.hash = window.location.hash;
+  window.location.assign(target.pathname + target.search + target.hash);
 }
 
 function refreshIcons() {
@@ -10666,8 +10681,10 @@ async function listingSubmit(event) {
     parking: developmentMode ? 0 : Number(field("parking").value || 0),
     area: developmentMode ? 0 : Number(field("area").value || 0),
     lot: developmentMode ? 0 : Number(field("lot").value || 0),
-    mls: developmentMode ? "" : field("mls").value.trim(),
-    amenities: developmentMode ? [] : field("amenities").value.trim(),
+    mls: field("mls").value.trim(),
+    amenities: field("amenities").value.trim(),
+    editDevelopmentAmenities: developmentMode,
+    ...(developmentMode ? { developmentData:{ amenitiesPlanned:field("amenitiesPlanned").checked } } : {}),
     keywords,
     featured: field("featured").checked,
     description: field("description").value.trim(),
@@ -10964,7 +10981,8 @@ function editListing(id) {
   field("area").value = property.area || "";
   field("lot").value = property.lot || "";
   field("mls").value = property.mls || "";
-  field("amenities").value = Array.isArray(property.amenities) ? property.amenities.join(", ") : "";
+  field("amenitiesPlanned").checked = property.developmentData?.amenitiesPlanned === true;
+  field("amenities").value = [...new Set([...(property.amenities || []), ...(property.publicationSection === "developments" ? property.developmentData?.amenities || [] : [])])].join(", ");
   field("keywords").value = Array.isArray(property.keywords) ? property.keywords.join(", ") : "";
   field("featured").checked = Boolean(property.featured);
   field("description").value = property.descriptionEs || property.description || "";
@@ -11315,7 +11333,6 @@ function propertyFacts(property) {
     property.lot
       ? `${new Intl.NumberFormat(state.lang === "en" ? "en-US" : "es-MX").format(property.lot)} ${t("sqmLot")}`
       : "",
-    property.mls ? `${t("mls")} ${property.mls}` : "",
   ].filter(Boolean);
 }
 
@@ -11352,6 +11369,7 @@ function renderPropertyDetail(property) {
     .join("");
   const images = storedImages(property);
   const locationOptions = { lang: state.lang, directory: state.portalDirectory || {}, properties: state.properties || [] };
+  const publicAmenities = window.PccPublicListingDetails?.publicAmenities(property, locationOptions.properties) || [];
   const publicLocation = window.PccPublicListingDetails?.resolvePublicLocation(property, locationOptions);
   const locationSection = window.PccPublicListingDetails?.renderPublicLocationSection(property, locationOptions) || "";
   const galleryImages = images.length ? images : [fallbackImage];
@@ -11384,6 +11402,7 @@ function renderPropertyDetail(property) {
       <div class="property-detail-copy">
         <p class="property-detail-price">${escapeHtml(formatPriceSummary(property))}</p>
         <h2 id="propertyDetailTitle">${escapeHtml(localizedTitle(property))}</h2>
+        ${property.mls && window.PccWhatsAppMessage.titleWithMls(localizedTitle(property), property.mls) !== localizedTitle(property) ? `<p class="listing-mls">${escapeHtml(window.PccWhatsAppMessage.titleWithMls("", property.mls))}</p>` : ""}
         ${publicLocation?.compact ? `<p class="property-detail-location">${escapeHtml(publicLocation.compact)}</p>` : ""}
         ${contactActions}
         <div class="property-detail-meta">${facts}</div>
@@ -11391,6 +11410,7 @@ function renderPropertyDetail(property) {
         ${locationSection}
         <div class="property-detail-description">${paragraphs || `<p>${escapeHtml(t("noResults"))}</p>`}</div>
       </div>
+      ${publicAmenities.length ? `<section class="property-amenities"><h3>${property.developmentData?.amenitiesPlanned ? (state.lang === "en" ? "Planned amenities" : "Amenidades previstas") : (state.lang === "en" ? "Amenities" : "Amenidades")}</h3><ul>${publicAmenities.map(value => `<li>${escapeHtml(window.PccPublicListingDetails.localizedAmenity(value, state.lang))}</li>`).join("")}</ul></section>` : ""}
     </div>
   `;
   window.PccCatalogMap?.mountListingLocationMaps(content, { request: path => api(path) });

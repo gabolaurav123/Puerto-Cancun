@@ -160,7 +160,8 @@ test("el panel privado no se convierte en otra portada", () => {
 test("el acceso conserva la accion al redirigir el idioma", () => {
   const app = read("app.js");
   const server = read("server.js");
-  assert.match(app, /window\.location\.assign\(alternate \? `\$\{alternate\}\$\{window\.location\.search\}\$\{window\.location\.hash\}`/);
+  assert.match(app, /target\.search = window\.location\.search/);
+  assert.match(app, /window\.location\.assign\(target\.pathname \+ target\.search \+ target\.hash\)/);
   assert.match(app, /window\.location\.replace\("\/" \+ location\.search \+ location\.hash\)/);
   assert.match(server, /function renderAuthEntry\(html, requestedTab\)/);
   assert.match(server, /html = renderAuthEntry\(html, req\.query\.auth\)/);

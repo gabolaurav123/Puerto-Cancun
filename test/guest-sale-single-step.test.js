@@ -19,6 +19,7 @@ function fixture() {
     release() {},
     async query(sql, params = []) {
       queries.push({ sql, params });
+      if (sql.includes("pcc_reserve_mls")) return { rows: [{ mls: "PCC-" + nextId }] };
       if (sql.includes("WHERE g.idempotency_key=$1")) return { rows: rows.filter(row => row.idempotency_key === params[0]) };
       if (sql.includes("FROM guest_sale_requests g") && sql.includes("lower(g.title)")) return { rows: rows.filter(row => row.title.toLowerCase() === params[0].toLowerCase() && row.location.toLowerCase() === params[2].toLowerCase() && row.type.toLowerCase() === params[3].toLowerCase() && row.preferred_contact === params[4] && (params[4] === "email" ? row.email === params[5] : row.phone === params[1]) && (!sql.includes("'sell') = $7") || (row.inquiry_context?.intent || "sell") === params[6])) };
       if (sql.includes("INSERT INTO guest_sale_requests")) {

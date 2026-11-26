@@ -997,7 +997,7 @@ function toProperty(row) {
     descriptionEnStored: row.description_en || "",
     imageMetadata,
     developmentData: row.development_record && typeof row.development_record === "object"
-      ? row.development_record
+      ? { ...(row.development_data || {}), ...row.development_record }
       : row.development_data && typeof row.development_data === "object"
         ? row.development_data
         : {},
@@ -1527,7 +1527,7 @@ function validDocumentShareSignature(id, expiresAt, token) {
 }
 
 function propertyWhatsappSheetText(property, shareUrl, { neutral = false, exchangeRate } = {}) {
-  const price = require("./inventory-contract").publicPriceText(property, exchangeRate, "es");
+  const price = require("./inventory-contract").publicPriceText(property, exchangeRate, "es", { forceUsd: true });
   const location = [property.neighborhood, property.zone, property.city, property.state].filter(Boolean)
     .filter((value, index, values) => values.indexOf(value) === index)
     .join(", ");
@@ -1536,7 +1536,7 @@ function propertyWhatsappSheetText(property, shareUrl, { neutral = false, exchan
     neutral
       ? `\u{1F3E1} Ficha de propiedad ${property.operation === "rent" ? "en renta" : "en venta"}`
       : `\u{1F3E1} Puerto Cancún Center te presenta esta propiedad ${property.operation === "rent" ? "en renta" : "en venta"}`,
-    `*${property.titleEs}*`,
+    `*${require("./whatsapp-message").titleWithMls(property.titleEs, property.mls)}*`,
     location ? `\u{1F4CD} ${location}` : "",
     `\u{1F4B0} ${price}`,
     property.beds ? `\u{1F6CF}\uFE0F ${property.beds} recámara${Number(property.beds) === 1 ? "" : "s"}` : "",
@@ -1670,6 +1670,7 @@ const PROPERTY_SUMMARY_COLUMNS = `
     'developer', COALESCE(d.developer, ''),
     'stage', COALESCE(d.stage, ''),
     'amenities', d.amenities,
+    'amenitiesPlanned', dp.development_data->'amenitiesPlanned',
     'imageCount', GREATEST(COALESCE(jsonb_array_length(dp.images), 0), CASE WHEN dp.image IS NULL THEN 0 ELSE 1 END)
   ) FROM developments d
     JOIN properties dp ON dp.id = d.property_id
@@ -2872,7 +2873,7 @@ async function initDatabase() {
         country_code TEXT,
         phone TEXT,
         contact_id TEXT,
-        status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'contacted', 'archived')),
+        status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'contacted', 'approved', 'archived')),
         priority TEXT NOT NULL DEFAULT 'medium',
         internal_notes TEXT NOT NULL DEFAULT '',
         idempotency_key TEXT UNIQUE,
@@ -3373,6 +3374,18 @@ async function initDatabase() {
       );
     }
 
+    await runMigration(client, {
+      id: "20261126-listing-mls",
+      description: "Referencias MLS estables para propiedades, desarrollos y anuncios sin registro",
+      up: db => db.query(fs.readFileSync(path.join(__dirname, "db", "listing-mls.sql"), "utf8")),
+    });
+    await runMigration(client, require("./db/catalog-details"));
+    await runMigration(client, {
+      id: "20261126-guest-approval-status",
+      description: "Admitir la aprobación de un anuncio sin registro",
+      up: db => db.query(`ALTER TABLE guest_sale_requests DROP CONSTRAINT IF EXISTS guest_sale_requests_status_check,
+        ADD CONSTRAINT guest_sale_requests_status_check CHECK (status IN ('pending', 'contacted', 'approved', 'archived'))`),
+    });
     await recordMigration(client, "0001-legacy-schema", "Esquema base idempotente consolidado");
     await client.query("COMMIT");
   } catch (error) {
@@ -3690,6 +3703,14 @@ app.use("/api/geocode", createRateLimiter({ windowMs: 10 * 60 * 1000, max: 80, m
 app.use("/api/reverse-geocode", createRateLimiter({ windowMs: 10 * 60 * 1000, max: 120, message: "Se alcanzó el límite temporal de consultas del mapa." }));
 app.use("/api/search/intelligent", createRateLimiter({ windowMs: 10 * 60 * 1000, max: 30, message: "Se alcanzó el límite temporal de búsquedas inteligentes." }));
 app.use("/api/leads", createRateLimiter({ windowMs: 10 * 60 * 1000, max: 12, message: "Se recibieron demasiadas solicitudes desde esta conexión." }));
+app.post("/api/inquiries/owner-reference", createRateLimiter({ windowMs: 15 * 60 * 1000, max: 20 }), async (req, res, next) => {
+  const nonce = String(req.body?.requestId || "");
+  if (!/^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/i.test(nonce)) return res.status(400).json({ error: "Referencia inválida." });
+  try {
+    const { rows } = await query("SELECT pcc_owner_reference($1::uuid) AS mls", [nonce]);
+    res.json({ mls: rows[0].mls });
+  } catch (error) { next(error); }
+});
 app.post("/api/inquiries", createRateLimiter({ windowMs: 10 * 60 * 1000, max: 12, message: "Too many requests. Intenta nuevamente en unos minutos." }));
 app.post("/api/advisor/chat", createRateLimiter({ windowMs: 10 * 60 * 1000, max: 35, message: "Espera unos minutos antes de continuar. Please wait a few minutes." }));
 app.use("/api/guest-sale-requests", createRateLimiter({ windowMs: 15 * 60 * 1000, max: 6, message: "Se recibieron demasiadas solicitudes de venta desde esta conexión. Espera unos minutos antes de volver a intentar." }));
@@ -5140,7 +5161,7 @@ app.post("/api/guest-sale-requests", async (req, res, next) => {
       : contactIdentity({ ...body, contactChannel: preferredContact }, lang); } catch (error) { return res.status(400).json({ error: error.message }); }
     const { phone, email, prefix: countryCode } = phoneInfo;
     const images = parseUploadedImages(body, []);
-    if (!["Casa", "Departamento", "Terreno", "Comercial", "Preventa"].includes(type) || !location) {
+    if (!["Casa", "Departamento", "Terreno", "Comercial", "Preventa", "Desarrollo"].includes(type) || !location) {
       res.status(400).json({ error: lang === "en" ? "Choose the property type and its approximate zone or locality." : "Elige el tipo de propiedad e indica su zona o localidad aproximada." });
       return;
     }
@@ -5196,6 +5217,7 @@ app.post("/api/guest-sale-requests", async (req, res, next) => {
       leadScore: images.length >= 5 ? "hot" : "warm",
     }) : null;
     const id = uuid("guest-sale");
+    inquiry.mls = (await client.query("SELECT pcc_reserve_mls($1) AS mls", [id])).rows[0].mls;
     const result = await client.query(
       `INSERT INTO guest_sale_requests
         (id, title, type, location, description, image, images, preferred_contact, email, country_code, phone, contact_id,
@@ -5231,7 +5253,7 @@ app.post("/api/guest-sale-requests", async (req, res, next) => {
 });
 
 const inquiryChannels = () => ({ email: transactionalEmailConfigured(), whatsapp: whatsappService.getStatus().connection === "connected" });
-registerInquiries(app, { pool, query, uuid, siteUrl, secret: sessionSecret, upsertContact, leadScoreFromData, getPublicProperties, getAreas: () => publicPropertyCache.directory?.areas, getExchangeRate: () => exchangeRateService.getSnapshot(), channels: inquiryChannels });
+registerInquiries(app, { pool, query, uuid, siteUrl, secret: sessionSecret, upsertContact, leadScoreFromData, getPublicProperties, getDirectory: () => publicPropertyCache.directory, getAreas: () => publicPropertyCache.directory?.areas, getExchangeRate: () => exchangeRateService.getSnapshot(), channels: inquiryChannels });
 const commercialWorkflow = registerCommercialRoutes(app, { pool, query, uuid, siteUrl, secret: sessionSecret, requireRole, getPublicProperties, getAreas: () => publicPropertyCache.directory?.areas, getExchangeRate: () => exchangeRateService.getSnapshot(), channels: inquiryChannels, sendEmail: sendTransactionalEmail, sendWhatsapp: (phone, message) => whatsappService.sendMessage(`${phone}@s.whatsapp.net`, message) });
 if (publicAdvisorEnabled) registerAdvisorRoutes(app, { getPublicProperties, getAreas: () => publicPropertyCache.directory?.areas, apiKey: process.env.OPENAI_API_KEY, model: process.env.OPENAI_MODEL || "gpt-5-mini" });
 registerPropertySearchRoutes(app, { requireRole, apiKey: process.env.OPENAI_API_KEY, model: process.env.PROPERTY_SEARCH_MODEL || process.env.OPENAI_MODEL || "gpt-5-mini" });
@@ -8507,7 +8529,7 @@ app.post("/api/admin/requests/:id/approve", requireRole("admin"), async (req, re
           request.beds,
           request.baths,
           request.area,
-          String(Math.floor(2000 + Math.random() * 8000)),
+          "",
           requestImages[0] || null,
           JSON.stringify(requestImages),
           publishReady ? "active" : "draft",
@@ -8766,11 +8788,11 @@ app.post("/api/admin/guest-sale-requests/:id/approve", requireRole("admin"), asy
         `INSERT INTO properties
           (id, title_es, title_en, type, publication_section, state, city, zone, neighborhood, address,
            latitude, longitude, map_place, location_precision, google_maps_url, operation, image, images,
-           status, is_public, featured, badges, description_es, description_en, source_request_id, slug)
+           status, is_public, featured, badges, description_es, description_en, source_request_id, slug, mls)
          VALUES
-          ($1, $2, $2, $3, 'properties', $4, $5, $6, $7, $8,
+          ($1, $2, $2, $3, $21, $4, $5, $6, $7, $8,
            $9, $10, $11, $12, $13, $19, $14, $15::jsonb,
-           'draft', FALSE, FALSE, '["new"]'::jsonb, $16, $16, $17, $18)
+           'draft', FALSE, FALSE, '["new"]'::jsonb, $16, $16, $17, $18, $20)
          RETURNING *`,
         [
           propertyId,
@@ -8792,8 +8814,11 @@ app.post("/api/admin/guest-sale-requests/:id/approve", requireRole("admin"), asy
           request.id,
           propertySlug({ titleEs: request.title, zone: request.zone || request.location, id: propertyId }),
           operation,
+          savedContext.rows[0]?.new_value?.mls || "",
+          request.type === "Desarrollo" ? "developments" : "properties",
         ]
       );
+      if (request.type === "Desarrollo") await syncDevelopmentEntity(toProperty(propertyResult.rows[0]), client);
     }
     await client.query(
       `INSERT INTO activity_logs (id, user_id, action, entity_type, entity_id, new_value)
@@ -9095,32 +9120,40 @@ app.delete("/api/admin/properties/:id", requireRole("admin"), async (req, res, n
 });
 
 app.post("/api/admin/properties/:id/duplicate", requireRole("admin"), async (req, res, next) => {
+  const client = await pool.connect();
   try {
-    const source = await query("SELECT * FROM properties WHERE id = $1", [req.params.id]);
+    await client.query("BEGIN");
+    const source = await client.query("SELECT * FROM properties WHERE id = $1", [req.params.id]);
     const property = source.rows[0];
     if (!property) {
+      await client.query("ROLLBACK");
       res.status(404).json({ error: "Property not found" });
       return;
     }
-    const result = await query(
+    const result = await client.query(
       `INSERT INTO properties
         (id, title_es, title_en, type, state, city, zone, neighborhood, address, latitude, longitude, map_place,
          location_precision, google_maps_url, operation, price_usd, price_mxn, beds, baths, area, lot, mls,
          image, images, featured, status, is_public, badges, description_es, description_en, keywords, publication_section,
-         price_currency, price_amount, price_unit, development_data, parent_development_id, image_metadata)
+         price_currency, price_amount, price_unit, development_data, parent_development_id, image_metadata, amenities, parking, catalog_data)
        SELECT $2, title_es || ' (copia)', title_en || ' (copy)', type, state, city, zone, neighborhood, address,
          latitude, longitude, map_place, location_precision, google_maps_url, operation, price_usd, price_mxn,
           beds, baths, area, lot, $3, image, images, FALSE, 'draft', FALSE, badges, description_es, description_en, keywords,
           publication_section, price_currency, price_amount, price_unit, development_data
-          , parent_development_id, image_metadata
+          , parent_development_id, image_metadata, amenities, parking, catalog_data
        FROM properties WHERE id = $1
        RETURNING *`,
-      [req.params.id, uuid("prop"), String(Math.floor(2000 + Math.random() * 8000))]
+      [req.params.id, uuid("prop"), ""]
     );
-    const slugged = await query("UPDATE properties SET slug = COALESCE(slug, $2) WHERE id = $1 RETURNING *", [result.rows[0].id, propertySlug(toProperty(result.rows[0]))]);
+    const slugged = await client.query("UPDATE properties SET slug = COALESCE(slug, $2) WHERE id = $1 RETURNING *", [result.rows[0].id, propertySlug(toProperty(result.rows[0]))]);
+    await syncDevelopmentEntity(toProperty(slugged.rows[0]), client);
+    await client.query("COMMIT");
     res.status(201).json({ property: toProperty(slugged.rows[0]) });
   } catch (error) {
+    await client.query("ROLLBACK").catch(() => null);
     next(error);
+  } finally {
+    client.release();
   }
 });
 
@@ -12131,9 +12164,12 @@ function normalizePropertyInput(body, id, existingImages = [], existingProperty 
     throw error;
   }
 
-  const developmentData = developmentMode && body.developmentData && typeof body.developmentData === "object"
-    ? body.developmentData
-    : {};
+  const developmentData = developmentMode ? { ...(existingProperty?.development_data || {}), ...(body.developmentData || {}) } : {};
+  const rawAmenities = Array.isArray(body.amenities) ? body.amenities : String(body.amenities || "").split(",");
+  const retainLegacy = developmentMode && body.editDevelopmentAmenities !== true && !rawAmenities.some(value => String(value).trim());
+  const amenityValues = retainLegacy && Array.isArray(existingProperty?.amenities) ? existingProperty.amenities : rawAmenities;
+  const amenities = [...new Set(amenityValues.map(value => String(value).trim()).filter(Boolean))].slice(0, 60);
+  if (developmentMode && (body.editDevelopmentAmenities === true || amenities.length)) developmentData.amenities = amenities;
   const developmentId = publicationSection === "properties"
     ? String(body.developmentId || "").trim().slice(0, 180) || null
     : null;
@@ -12171,12 +12207,9 @@ function normalizePropertyInput(body, id, existingImages = [], existingProperty 
     parking: developmentMode ? 0 : parseNonNegativeInteger(body.parking, "Estacionamientos"),
     area: developmentMode ? 0 : parseNonNegativeNumber(body.area, "M2 construccion"),
     lot: developmentMode ? 0 : parseNonNegativeNumber(body.lot, "M2 terreno"),
-    amenities: (developmentMode ? [] : Array.isArray(body.amenities) ? body.amenities : String(body.amenities || "").split(","))
-      .map((item) => String(item).trim())
-      .filter(Boolean)
-      .slice(0, 30),
+    amenities,
     keywords,
-    mls: developmentMode ? "" : String(body.mls || ""),
+    mls: String(body.mls || existingProperty?.mls || "").trim().slice(0, 40),
     image: images[0] || null,
     images,
     imageMetadata,
@@ -12445,7 +12478,9 @@ async function renderPublicHtml(requestPath, noindex = false, params = {}) {
   const offices = routing ? ["mx", "us"].filter(id => routing[id]).map(id => ({ id, number: routing[id], display: businessPhoneLabel(routing[id]) })) : undefined;
   const directory = publicPropertyCache.directory || portalDirectoryModel.publicDirectory(null, properties);
   const page = require("./catalog-view").catalogPresentation({ ...basePage, catalogAreas: directory.areas, portalDirectory: directory, currencyExchange: exchangeRateService.getSnapshot() }, params);
-  const seo = renderSeoHead(page, siteUrl);
+  const project = typeof params.project === "string" && ["/preventas-cancun", "/en/cancun-presales"].includes(basePage.path)
+    ? require("./catalog-directory").projectRecords(directory, properties).find(item => item.id === params.project) : null;
+  const seo = project ? require("./seo-pages").renderPresaleHead(page, project, siteUrl) : renderSeoHead(page, siteUrl);
   let pageContent = isHome ? "" : renderSeoPage(page.path, { directory, properties, offices });
   if (page.category) {
     pageContent = renderCategoryPage(page, properties, params);
@@ -12762,6 +12797,7 @@ app.get("*", async (req, res, next) => {
 });
 
 app.use((error, req, res, _next) => {
+  if (error.constraint === "listing_mls_owner") return res.status(409).json({ error: "Ese MLS ya pertenece a otra ficha." });
   const status = error.type === "entity.too.large" ? 413 : error.code === "57014" ? 504 : error.status || 500;
   if (status >= 500) {
     console.error(error);

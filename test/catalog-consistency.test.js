@@ -84,7 +84,7 @@ test("zero matches offer saved intent with all filters and no alert delivery pro
   assert.doesNotMatch(renderCatalog({lang:"en",category:{}},[],{max:"invalid"},()=>""),/data-save-search/);
 });
 
-test("cards and details show the same converted USD rent and label both surface concepts", () => {
+test("cards and details show the original MXN rent in Spanish and label both surface concepts", () => {
   const row = property();
   const exchangeRate = publicExchangeFixture();
   const original = JSON.stringify(row);
@@ -92,8 +92,8 @@ test("cards and details show the same converted USD rent and label both surface 
   const cards = seo.renderCategoryPage(page,[row],{});
   const detail = seo.renderPropertyPage(row,"es",[],{},[],exchangeRate).html;
   for (const html of [cards,detail]) {
-    assert.match(html,/≈ USD \$1,250 \/ mes/);
-    assert.match(html,/(?:TC |<small class="seo-property-price-note">Tipo de cambio: )/);
+    assert.match(html,/MXN \$25,000 \/ mes/);
+    assert.doesNotMatch(html,/(?:TC |<small class="seo-property-price-note">Tipo de cambio: )/);
     assert.match(html,/120 m² construcción/); assert.match(html,/250 m² terreno/);
   }
   assert.equal(JSON.stringify(row),original);

@@ -81,7 +81,7 @@ function projectRecords(directory, properties) {
       .filter(src => !/\/assets\/(?:cancun-hotel-zone-hero-\d+|og-puerto-cancun-center)\.webp(?:[?#]|$)/i.test(src));
     const pathFor = locale => presalePath(locale) + "?" + new URLSearchParams({ project: project.id });
     return {
-      id: project.id, status: "active", isPublic: true, publicationSection: "developments", type: "Desarrollo",
+      id: project.id, mls: source?.mls || "", status: "active", isPublic: true, publicationSection: "developments", type: "Desarrollo",
       titleEs: project.nameEs, titleEn: project.nameEn || project.nameEs,
       descriptionEs: projectDescription(project.descriptionEs, !hidden.has("description") && source?.descriptionEs),
       descriptionEn: projectDescription(project.descriptionEn, !hidden.has("description") && source?.descriptionEn),
@@ -91,7 +91,7 @@ function projectRecords(directory, properties) {
         renderImageIndices:images.flatMap((image,index) => presalePolicy.imagePresentation(source,-1,"es",image).kind === "render" ? [index] : []),
         renderImages:images.flatMap((sourceImage,index) => presalePolicy.imagePresentation(source,-1,"es",sourceImage).kind === "render" ? [{index,source:sourceImage,kind:"render"}] : [])},
       portalHiddenBlocks: [...hidden],
-      amenities: hidden.has("amenities") ? [] : [...new Set([...(source?.amenities || []), ...(source?.developmentData?.amenities || [])])],
+      amenities: require("./public-listing-details").publicAmenities(source, properties), amenitiesPlanned: source?.developmentData?.amenitiesPlanned === true,
       urlEs: pathFor("es"), urlEn: pathFor("en"), locationPrecision: resolvedPosition?.precision || "hidden",
       latitude: resolvedPosition?.latitude ?? null, longitude: resolvedPosition?.longitude ?? null,
       publicUnits: hidden.has("units") ? [] : publicUnits,
@@ -111,7 +111,7 @@ function projectDetail(row, areas, lang, sourcePath) {
   };
   const unitLinks = row.publicUnits.map(unit => link(unit)).filter(Boolean);
   const developmentLink = linked && link(linked, en ? "View development details" : "Ver ficha del desarrollo");
-  const context = { intent: "buy", zone, subzone, developmentId:linked?.id || "", propertyId:row.linkedProperty?.id || "", projectId:project.id,
+  const context = { intent: "buy", zone, subzone, mls: row.mls, developmentId:linked?.id || "", propertyId:row.linkedProperty?.id || "", projectId:project.id,
     development: linked && ((en ? linked.titleEn : linked.titleEs) || linked.titleEs), project: title, reference: project.reference || project.id, origin: "presale-project", sourcePath };
   const photo = row.images[0] && optimizedPublicImage(row.images[0], 960);
   const reference = project.reference && ![linked?.id, project.id].includes(project.reference) ? project.reference : "";
@@ -120,11 +120,11 @@ function projectDetail(row, areas, lang, sourcePath) {
   const locationSection = row.locationSource ? renderPublicLocationSection(row.locationSource,{lang,directory:row.directory,properties:row.sourceRecords}) : "";
   const compactLocation = location?.compact || [zone, subzone].filter(Boolean).join(" · ");
   const { officeInquiryButtons, absoluteUrl } = require("./seo-pages");
-  const directMessage = (en ? "Hello, I would like more information about the presale project " : "Hola, me gustaría recibir más información sobre el proyecto en preventa ") + title +
-    (reference ? ` (${en ? "reference" : "referencia"}: ${reference})` : "") + ". " + absoluteUrl((en ? row.urlEn : row.urlEs) || sourcePath);
-  const directOffices = `<div class="listing-direct-contact"><p>${en ? "Or message us directly on WhatsApp" : "O escríbenos directamente por WhatsApp"}</p>${officeInquiryButtons(lang, "presale-whatsapp", businessContacts.contacts, directMessage)}</div>`;
+  const shareTitle = row.mls ? require("./whatsapp-message").titleWithMls(title, row.mls) : [title, reference].filter(Boolean).join(" · ");
+  const directMessage = (en ? "Hello, I would like more information about the presale project " : "Hola, me gustaría recibir más información sobre el proyecto en preventa ") + shareTitle + "\n" + absoluteUrl(en ? row.urlEn : row.urlEs);
+  const directOffices = `<div class="listing-direct-contact">${officeInquiryButtons(lang, "presale-whatsapp", businessContacts.contacts, directMessage)}</div>`;
   return `<article class="catalog-project-detail"><div class="property-page-navigation"><a class="text-link catalog-project-back" href="${presalePath(lang)}">← ${en ? "Back to presales" : "Volver a preventas"}</a>${require("./public-sharing").shareButton(row, lang)}</div>
-    <div class="catalog-project-intro"><header class="catalog-project-heading"><span class="seo-eyebrow">${en ? "Presale" : "Preventa"}</span><h1>${escape(title)}</h1>${compactLocation ? `<p class="catalog-project-location">${escape(compactLocation)}</p>` : ""}</header>
+    <div class="catalog-project-intro"><header class="catalog-project-heading"><span class="seo-eyebrow">${en ? "Presale" : "Preventa"}</span><h1>${escape(title)}</h1>${row.mls && require("./whatsapp-message").titleWithMls(title, row.mls) !== title ? `<p class="listing-mls">${escape(require("./whatsapp-message").titleWithMls("", row.mls))}</p>` : ""}${compactLocation ? `<p class="catalog-project-location">${escape(compactLocation)}</p>` : ""}</header>
       ${photo ? `<figure class="catalog-project-cover"><img data-presale-cover src="${escape(photo)}" width="960" height="640" decoding="async" alt="${escape(title)}${coverLabel ? ` — ${escape(coverLabel)}` : ""}" />${coverLabel ? `<figcaption>${escape(coverLabel)}</figcaption>` : ""}</figure>` : ""}
       <div class="catalog-project-contact"><div class="catalog-project-actions">${contactLink(lang, en ? "Request information" : "Pedir información", context)}${developmentLink || ""}</div>
       ${directOffices}
@@ -136,7 +136,7 @@ function projectDetail(row, areas, lang, sourcePath) {
       const label = presalePolicy.imagePresentation(row,index,lang).label;
       return `<figure><img src="${escape(optimizedPublicImage(image,640))}" alt="${escape(title)} — ${index+1}${label ? ` · ${escape(label)}` : ""}" width="640" height="426" loading="lazy" decoding="async" />${label ? `<figcaption>${escape(label)}</figcaption>` : ""}</figure>`;
     }).join("")}</div></section>` : ""}
-    ${row.amenities.length ? `<section><h3>${en ? "Amenities" : "Amenidades"}</h3><ul>${row.amenities.map(item => `<li>${escape(localizedAmenity(item, lang))}</li>`).join("")}</ul></section>` : ""}
+    ${row.amenities.length ? `<section><h3>${row.amenitiesPlanned ? (en ? "Planned amenities" : "Amenidades previstas") : (en ? "Amenities" : "Amenidades")}</h3><ul>${row.amenities.map(item => `<li>${escape(localizedAmenity(item, lang))}</li>`).join("")}</ul></section>` : ""}
     ${unitLinks.length ? `<h3>${en ? "Published listings" : "Propiedades publicadas"}</h3><ul>${unitLinks.map(item => `<li>${item}</li>`).join("")}</ul>` : ""}
     </article>`;
 }
