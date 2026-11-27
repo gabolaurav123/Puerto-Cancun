@@ -45,6 +45,38 @@ function fixture() {
 }
 const request = extra => ({ type: "Terreno", location: "Cozumel", preferredContact: "email", email: "owner@example.test", consent: true, lang: "en", formStartedAt: Date.now() - 2000, sourcePath: "/en/sell-property-cancun", ...extra });
 
+test("owner forms localize type labels while submitting the same inventory values", () => {
+  const copy = require("../site-language");
+  const types = { Casa:"House", Departamento:"Apartment", Terreno:"Land", Comercial:"Commercial", Preventa:"Presale", Desarrollo:"Development" };
+  for (const formId of ["guestSaleForm", "sellerRequestForm"]) {
+    const form = index.split(`<form id="${formId}"`)[1].split("</form>")[0];
+    const options = form.match(/<select name="type"[^>]*>([\s\S]*?)<\/select>/)[1];
+    for (const [value, english] of Object.entries(types)) {
+      const option = options.match(new RegExp(`<option value="${value}" data-i18n="([^"]+)"[^>]*>${value}</option>`));
+      assert.ok(option, formId + ": " + value);
+      assert.equal(copy.es[option[1]], value);
+      assert.equal(copy.en[option[1]], english);
+    }
+  }
+});
+
+test("guest handoff localizes the type and includes the reference and location once", async () => {
+  const { messageFor } = require("../whatsapp-message");
+  for (const lang of ["es","en"]) {
+    const f = fixture();
+    await f.send(request({ lang, name:"Test", type:"Departamento", operation:"rent" }), "rental");
+    const context = f.rows[0].inquiry_context;
+    for (const propertyTitle of [context.propertyTitle, "Departamento · Cozumel"]) {
+      const text = messageFor({ ...context, propertyTitle });
+      assert.ok(text.includes(lang === "en" ? "list an apartment for rent" : "anunciar un departamento en renta"));
+      assert.equal(text.match(/Cozumel/g)?.length, 1);
+      assert.equal(text.match(/MLS PCC-\d+/g)?.length, 1);
+      assert.ok(text.includes("Test"));
+    }
+    assert.ok(messageFor({ ...context, propertyTitle:"Casa del Mar" }).includes("Casa del Mar"));
+  }
+});
+
 test("guest listing keeps the essential form and a separate registration invitation", () => {
   assert.equal((modal.match(/type="submit"/g) || []).length, 1);
   assert.doesNotMatch(modal, /data-guest-sale-step|continueGuestSale|backGuestSale/);
