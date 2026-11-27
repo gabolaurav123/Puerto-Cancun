@@ -58,7 +58,7 @@
       document.title = parsed.title;
       const hero = document.querySelector(".seo-page-hero");
       const nextHero = parsed.querySelector(".seo-page-hero");
-      if (hero && nextHero) hero.replaceWith(nextHero);
+      if (hero && nextHero && !hero.isEqualNode(nextHero)) hero.replaceWith(nextHero);
       const alternate = parsed.body.dataset.alternateUrl;
       if (alternate) document.body.dataset.alternateUrl = alternate;
       if (push) history.pushState({ catalog: true }, "", url);

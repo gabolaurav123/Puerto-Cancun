@@ -92,45 +92,55 @@
     dialog.querySelector('[data-share-channel="facebook"]').href = "https://www.facebook.com/sharer/sharer.php?u=" + encodeURIComponent(url);
     dialog.showModal();
   });
-  const owner = document.querySelector("#ownerContactButton");
-  if (owner) {
-    const updateOwnerVisibility = () => {
-      const path = location.pathname.replace(/\/+$/, "") || "/";
-      const params = new URLSearchParams(location.search);
-      const home = path === "/" || path === "/en";
-      const allProperties = ["/propiedades", "/en/properties"].includes(path)
-        && (!params.has("entity") || params.get("entity") === "properties")
-        && !["1", "true"].includes(params.get("featured"));
-      const detail = document.querySelector(".property-page-layout, .catalog-project-detail");
-      owner.hidden = !(home || allProperties || detail);
-      document.body.classList.toggle("owner-contact-eligible", !owner.hidden);
-    };
-    const smallScreen = window.matchMedia("(max-width: 700px)");
-    const collapse = () => { owner.classList.remove("is-expanded"); };
-    owner.addEventListener("click", event => {
-      if (!smallScreen.matches || event.detail === 0 || owner.classList.contains("is-expanded")) {
-        collapse();
-        return;
+  const owner = document.querySelector("body[data-owner-contact] #ownerContactButton");
+  if (owner && document.querySelector("[data-catalog-root]")) {
+    const section = () => location.pathname + "|" + (new URLSearchParams(location.search).get("entity") || "");
+    let previousSection = section();
+    document.addEventListener("pcc:catalog:navigated", () => {
+      const nextSection = section();
+      if (nextSection === previousSection) return;
+      previousSection = nextSection;
+      for (const effect of owner.getAnimations({ subtree: true })) {
+        if (effect.animationName === "pcc-owner-ring" || effect.animationName === "pcc-owner-hint") {
+          effect.currentTime = 0;
+          effect.play();
+        }
       }
-      event.preventDefault();
-      event.stopImmediatePropagation();
-      owner.classList.add("is-expanded");
-    }, true);
-    document.addEventListener("pointerdown", event => { if (!owner.contains(event.target)) collapse(); });
-    owner.addEventListener("blur", collapse);
-    document.addEventListener("keydown", event => { if (event.key === "Escape") collapse(); });
-    updateOwnerVisibility();
-    document.addEventListener("pcc:catalog:navigated", updateOwnerVisibility);
-    window.addEventListener("popstate", updateOwnerVisibility);
-    const cookies = document.querySelector("#cookieBanner");
-    const updateCookieVisibility = () => document.body.classList.toggle("owner-contact-cookie-visible", Boolean(cookies && !cookies.hidden && cookies.getBoundingClientRect().height > 0 && getComputedStyle(cookies).visibility !== "hidden"));
-    if (cookies) {
-      new ResizeObserver(updateCookieVisibility).observe(cookies);
-      new MutationObserver(updateCookieVisibility).observe(cookies, { attributes: true, attributeFilter: ["hidden", "class", "style"] });
-      updateCookieVisibility();
-    }
-    owner.setAttribute("aria-label", en ? "Selling or renting out? Start here" : "¿Quieres vender o rentar? Clic aquí");
-    const action = owner.querySelector("[data-owner-float-action]");
-    if (action) action.textContent = en ? "Start here" : "Clic aquí";
+    });
+  }
+  const cookies = document.querySelector("#cookieBanner");
+  if (owner && cookies) {
+    const positionOwner = () => {
+      const bounds = cookies.getBoundingClientRect();
+      const offset = !cookies.hidden && bounds.height ? Math.max(0, window.innerHeight - bounds.top) : 0;
+      owner.style.setProperty("--owner-cookie-offset", Math.ceil(offset) + "px");
+    };
+    positionOwner();
+    if ("ResizeObserver" in window) new ResizeObserver(positionOwner).observe(cookies);
+    new MutationObserver(positionOwner).observe(cookies, { attributes: true, attributeFilter: ["hidden"] });
+    window.addEventListener("resize", positionOwner);
+  }
+
+  if ("IntersectionObserver" in window && document.body.matches('[data-page="home"], [data-page="seo"], [data-page="property"]')) {
+    const motion = window.matchMedia("(prefers-reduced-motion: no-preference)");
+    const cards = "main :is(.seo-property-card, .type-tile, .zone-card, .presale-feature, .exploration-area, .exploration-featured-card, .property-gallery-column)";
+    const observer = new IntersectionObserver(entries => {
+      const entering = entries.filter(entry => entry.isIntersecting);
+      entering.forEach(({ target }, index) => {
+        observer.unobserve(target);
+        target.style.setProperty("--card-delay", Math.min(index, 3) * 60 + "ms");
+        target.classList.add("public-card-arriving");
+      });
+    }, { threshold: 0.06 });
+    const observeCards = () => {
+      observer.disconnect();
+      if (!motion.matches) return;
+      document.querySelectorAll(cards).forEach(card => {
+        if (!card.classList.contains("public-card-arriving")) observer.observe(card);
+      });
+    };
+    observeCards();
+    motion.addEventListener("change", observeCards);
+    document.addEventListener("pcc:catalog:navigated", observeCards);
   }
 })();

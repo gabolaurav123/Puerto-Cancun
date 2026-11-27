@@ -31,9 +31,28 @@ test("la portada restaura su jerarquia sin el bloque de destacadas y conserva su
   const ownerFloat = index.match(/<a\s+class="owner-contact-float"[\s\S]*?<\/a>/)?.[0] || "";
   assert.match(ownerFloat, /id="ownerContactButton"\s+href="\/vender-casa-cancun"\s+data-open-seller-options/);
   assert.match(ownerFloat, /¿Quieres vender o rentar\?/);
-  assert.match(ownerFloat, /data-lucide="message-circle"/);
+  assert.match(ownerFloat, /class="owner-contact-icon" aria-hidden="true">\s*<svg/);
   assert.doesNotMatch(ownerFloat, /data-contact-inquiry/);
   assert.match(styles, /body\[data-page="home"\] \.hero h1[\s\S]*font-size: 4\.25rem/);
+});
+
+test("el botón para propietarios se entrega traducido desde el inicio en todos los catálogos", () => {
+  const { pages, getPageByPath, renderSeoHead } = require("../seo-pages");
+  const { decoratePublicHtml } = require("../server");
+  function shell(page, bodyPage) {
+    return decoratePublicHtml({ page, seo: renderSeoHead(page, "https://example.test"), bodyPage });
+  }
+  for (const page of pages.filter(page => page.category)) {
+    const html = shell(page, "seo");
+    const body = html.match(/<body\b[^>]*>/)[0];
+    assert.match(body, /\bdata-owner-contact\b/, page.path);
+    const owner = html.match(/<a\s+class="owner-contact-float"[\s\S]*?<\/a>/)[0];
+    assert.ok(owner.includes(`data-i18n="floatingContactAction">${page.lang === "en" ? "Click here" : "Click aquí"}</small>`), page.path);
+    assert.ok(owner.includes(page.lang === "en" ? "Selling or renting out?" : "¿Quieres vender o rentar?"), page.path);
+  }
+  const home = getPageByPath("/");
+  for (const bodyPage of ["home", "property"]) assert.match(shell(home, bodyPage), /<body\b[^>]*\bdata-owner-contact\b/);
+  for (const bodyPage of ["seo", "panel", "not-found"]) assert.doesNotMatch(shell(getPageByPath("/contacto"), bodyPage), /<body\b[^>]*\bdata-owner-contact\b/);
 });
 
 function homeCoverRuntime(properties) {

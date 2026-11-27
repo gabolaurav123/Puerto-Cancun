@@ -12459,7 +12459,8 @@ function decoratePublicHtml({ page, seo, pageContent = "", bodyPage = "seo", noi
     html = html.replace(/<h1 data-i18n="heroTitle">([\s\S]*?)<\/h1>/, '<p class="hero-title" data-i18n="heroTitle">$1</p>');
   }
   html = html.replace('<html lang="es">', `<html lang="${seo.lang === "en" ? "en" : "es-MX"}">`);
-  html = html.replace('<body data-page="home">', `<body data-page="${bodyPage}" data-lang="${seo.lang === "en" ? "en" : "es"}" data-release="${escapeHtml(releaseInfo.shortRelease)}" data-alternate-url="${escapeHtml(seo.alternate || "/")}">`);
+  const showOwnerContact = bodyPage === "home" || bodyPage === "property" || (bodyPage === "seo" && page?.category);
+  html = html.replace('<body data-page="home">', `<body data-page="${bodyPage}" data-lang="${seo.lang === "en" ? "en" : "es"}" data-release="${escapeHtml(releaseInfo.shortRelease)}" data-alternate-url="${escapeHtml(seo.alternate || "/")}"${showOwnerContact ? " data-owner-contact" : ""}>`);
   html = html.replace('<body', `<body data-public-advisor-enabled="${publicAdvisorEnabled}"`);
   return html;
 }
