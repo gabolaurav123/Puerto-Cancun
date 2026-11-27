@@ -88,6 +88,34 @@ test('mobile catalog: filters, history, pagination, touch map and contextual inq
         await page.waitForFunction(initial => Number(document.querySelectorAll('.seo-property-card')[4].style.getPropertyValue('--photo-rule')) > initial + .04, initialRule);
         await page.evaluate(() => window.scrollBy({ top: -70, behavior: 'instant' }));
         await page.waitForFunction(initial => Math.abs(Number(document.querySelectorAll('.seo-property-card')[4].style.getPropertyValue('--photo-rule')) - initial) < .02, initialRule);
+        const middleCover = middle.locator('.seo-property-image');
+        const middlePhoto = middleCover.locator('img');
+        await middleCover.evaluate(el => {
+          const rect = el.getBoundingClientRect();
+          const headerHeight = Math.min(document.getElementById('mainHeader').offsetHeight, innerHeight / 2);
+          window.scrollTo({ top: scrollY + rect.top + rect.height / 2 - (innerHeight + headerHeight) / 2 - 28, behavior: 'instant' });
+        });
+        const bounds = await middleCover.boundingBox();
+        const finger = { x: Math.round(bounds.x + bounds.width / 3), y: Math.round(bounds.y + bounds.height / 2) };
+        const offset = () => middlePhoto.evaluate(async img => {
+          await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+          return img.getBoundingClientRect().top - img.parentElement.getBoundingClientRect().top;
+        });
+        const moveFinger = async steps => {
+          for (const dy of steps) {
+            await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: finger.x, y: finger.y + dy }] });
+            await page.waitForTimeout(35);
+          }
+        };
+        const resting = await offset();
+        await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [finger] });
+        await moveFinger([-20, -45, -70, -95, -110]);
+        const forward = await offset();
+        await moveFinger([-90, -65, -40, -20, 0]);
+        const backward = await offset();
+        await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+        assert.ok(forward - resting > 8 && forward - backward > 8, `image offsets during drag and reversal: ${resting}, ${forward}, ${backward}`);
+        assert.equal(page.url(), listingUrl);
         await page.locator('footer.footer').evaluate(el => el.scrollIntoView({ behavior:'instant' }));
         await page.waitForFunction(() => !document.querySelectorAll('.seo-property-card')[4].classList.contains('public-card-arriving'));
         await middle.evaluate(el => window.scrollTo({ top: scrollY + el.getBoundingClientRect().top - innerHeight / 2, behavior: 'instant' }));
@@ -96,6 +124,7 @@ test('mobile catalog: filters, history, pagination, touch map and contextual inq
         await page.emulateMedia({ reducedMotion: 'reduce' });
         assert.equal(await cardMotion(), 'none');
         assert.equal(await ringMotion(), 'none');
+        assert.equal(await middlePhoto.evaluate(el => getComputedStyle(el).translate), 'none');
         assert.ok(await owner.isVisible());
         await page.emulateMedia({ reducedMotion: 'no-preference' });
         assert.equal(await root.locator('[data-compare-id], [data-start-comparison]').count(), 0);

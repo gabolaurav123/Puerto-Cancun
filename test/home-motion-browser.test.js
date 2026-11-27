@@ -49,10 +49,15 @@ test("homepage search, property types and press feedback on touch and desktop", 
           assert.ok(centered, selector + " centered in the viewport");
         }
         assert.equal(await page.locator(".hero h1").evaluate(el => getComputedStyle(el).textAlign), "center");
+        const coast = page.locator(".hero-media img");
+        const coastOffset = img => img.getBoundingClientRect().top - img.parentElement.getBoundingClientRect().top;
+        const atRest = await coast.evaluate(coastOffset);
         await page.evaluate(() => window.scrollTo({ top: 140, behavior: "instant" }));
         await page.waitForFunction(() => Number(document.querySelector(".hero").style.getPropertyValue("--coast-scroll")) > .1);
+        if (touch) assert.ok(await coast.evaluate(coastOffset) - atRest > 25, "the coast moves visibly inside the hero");
         await page.evaluate(() => window.scrollTo({ top: 0, behavior: "instant" }));
         await page.waitForFunction(() => document.querySelector(".hero").style.getPropertyValue("--coast-scroll") === "0.0000");
+        assert.ok(Math.abs(await coast.evaluate(coastOffset) - atRest) < 1);
         assert.equal(await control.evaluate(el => getComputedStyle(el, "::after").animationName), "pcc-search-sweep");
         const input = page.locator("#searchInput");
         await activate(input);

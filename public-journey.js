@@ -240,8 +240,12 @@
     const targets = hero
       ? ".hero-content, .contact-strip, .zones-band .section-heading, .zone-card, .type-section .center-heading, .type-tile, .presale-feature, .team-statement, .trust-signal-grid article, .sell-cta .content-wrap"
       : ".seo-property-card, .exploration-area, .exploration-featured-card, .property-gallery-column, .property-description-section .section-heading, .property-amenities, .seller-entry-options article, .seller-entry-choice-grid article";
+    const mobilePhotos = matchMedia("(max-width: 700px), (max-width: 1000px) and (pointer: coarse)");
+    const photoFrames = ".zone-card, .type-tile, .presale-photo, .seo-property-image:has(> img), .property-gallery-stage, .catalog-project-cover, .catalog-project-gallery figure";
     const visibleListings = new Set();
+    const visiblePhotos = new Set();
     const exitedAbove = new WeakMap();
+    const responseDistance = 100; // CSS pixels around the center where a finger drag is most visible.
     let observer, headerInset, lastY = window.scrollY, movingUp = false;
     let heroVisible = false, watchingScroll = false, frame = 0;
     const fraction = value => Math.max(0, Math.min(1, value)).toFixed(4);
@@ -250,16 +254,26 @@
       const coast = heroVisible ? hero.getBoundingClientRect() : null;
       const height = window.innerHeight;
       const travel = Math.max(1, height - headerInset);
+      const center = headerInset + travel / 2;
       // Read the visible geometry together before writing any styles.
       const positions = Array.from(visibleListings, card => [card, fraction((height - card.getBoundingClientRect().top) / travel)]);
+      const photos = Array.from(visiblePhotos, frame => {
+        const rect = frame.getBoundingClientRect();
+        const distance = center - (rect.top + rect.height / 2);
+        // Use the full safe inset between entry and exit, easing towards either edge.
+        const edge = (travel + rect.height) / 2;
+        const phase = Math.atan(distance / responseDistance) / Math.atan(edge / responseDistance);
+        return [frame, Math.max(-1, Math.min(1, phase)).toFixed(4)];
+      });
       if (coast) hero.style.setProperty("--coast-scroll", fraction(-coast.top / Math.max(1, coast.height)));
       for (const [card, progress] of positions) card.style.setProperty("--photo-rule", progress);
+      for (const [frame, offset] of photos) frame.style.setProperty("--photo-phase", offset);
     }
     function queuePaint() {
       if (!frame) frame = requestAnimationFrame(paintScroll);
     }
     function trackScroll() {
-      const active = heroVisible || visibleListings.size > 0;
+      const active = heroVisible || visibleListings.size > 0 || visiblePhotos.size > 0;
       if (active && !watchingScroll) window.addEventListener("scroll", queuePaint, { passive: true });
       if (!active && watchingScroll) {
         window.removeEventListener("scroll", queuePaint);
@@ -280,6 +294,11 @@
         if (target === hero) {
           heroVisible = isIntersecting;
           continue;
+        }
+        if (mobilePhotos.matches && target.matches(photoFrames)) {
+          if (isIntersecting) visiblePhotos.add(target);
+          else visiblePhotos.delete(target);
+          if (!target.matches(targets)) continue;
         }
         if (target.matches(".seo-property-card")) {
           if (isIntersecting) visibleListings.add(target);
@@ -302,6 +321,7 @@
     function observeCards() {
       observer?.disconnect();
       visibleListings.clear();
+      visiblePhotos.clear();
       heroVisible = false;
       trackScroll();
       headerInset = measureHeader();
@@ -313,7 +333,7 @@
       // Re-arm only after a full exit. An entry starts below the fixed header on the way back up.
       observer = new IntersectionObserver(reveal, { rootMargin: `-${headerInset}px 0px 0px`, threshold: [0, .12] });
       if (hero) observer.observe(hero);
-      main.querySelectorAll(targets).forEach(el => observer.observe(el));
+      main.querySelectorAll(mobilePhotos.matches ? targets + ", " + photoFrames : targets).forEach(el => observer.observe(el));
     }
     const resized = () => {
       if (headerInset !== measureHeader()) observeCards();
@@ -323,9 +343,11 @@
       const resize = new ResizeObserver(resized);
       if (header) resize.observe(header);
       if (hero) resize.observe(hero);
-    } else window.addEventListener("resize", resized);
+    }
+    window.addEventListener("resize", resized);
     observeCards();
     motion.addEventListener("change", observeCards);
+    mobilePhotos.addEventListener("change", observeCards);
     document.addEventListener("pcc:catalog:navigated", observeCards);
   }
 })();
