@@ -38,7 +38,9 @@ function parseSiteUrl(raw, siteUrl) {
   try {
     const base = new URL(siteUrl);
     const url = new URL(raw, base);
-    return url.origin === base.origin && !url.username && !url.password ? url : null;
+    const officialHosts = ["puertocancun.center","www.puertocancun.center"];
+    const sameSite = url.origin === base.origin || (url.protocol === "https:" && !url.port && officialHosts.includes(base.hostname) && officialHosts.includes(url.hostname));
+    return sameSite && !url.username && !url.password ? url : null;
   } catch { return null; }
 }
 
@@ -93,6 +95,14 @@ async function linkContact(db, body, leadId, secret) {
     AND opened_at > now()-interval '24 hours' ON CONFLICT DO NOTHING`, [leadId,attribution.token,"visit-"+key.slice(0,32)]);
 }
 
+async function expireAttribution(db, days) {
+  await db.query("DELETE FROM share_invitation_opens WHERE opened_at < NOW() - make_interval(days => $1)",[days]);
+  // Keep public links usable after personal attribution reaches its retention limit.
+  await db.query(`UPDATE share_invitations SET creator_id=NULL, creator_name=NULL, intended_for=NULL
+    WHERE created_at < NOW() - make_interval(days => $1)
+    AND (creator_id IS NOT NULL OR creator_name IS NOT NULL OR intended_for IS NOT NULL)`,[days]);
+}
+
 function register(app, deps) {
   const { query, requireRole, siteUrl } = deps;
   const create = fromPanel => async (req,res,next) => {
@@ -144,4 +154,4 @@ function register(app, deps) {
     } catch(error) { next(error); }
   });
 }
-module.exports = { register, migration, resolveTarget, recordOpen, linkContact };
+module.exports = { register, migration, resolveTarget, recordOpen, linkContact, expireAttribution };

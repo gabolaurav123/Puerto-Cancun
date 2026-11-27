@@ -292,20 +292,21 @@ function renderDevelopmentPropertyLinker() {
   const selectedProperties = selected
     .map((id) => state.properties.find((property) => property.id === id))
     .filter(Boolean);
-  count.textContent = `${selectedProperties.length} vinculada${selectedProperties.length === 1 ? "" : "s"}`;
+  const en = state.lang === "en";
+  count.textContent = en ? `${selectedProperties.length} linked` : `${selectedProperties.length} vinculada${selectedProperties.length === 1 ? "" : "s"}`;
   selection.innerHTML = selectedProperties.length
     ? selectedProperties.map((property) => `<button type="button" data-unlink-development-property="${escapeHtml(property.id)}"><span>${escapeHtml(property.titleEs)}</span><i data-lucide="x"></i></button>`).join("")
-    : '<p class="empty-state compact">Todavía no hay propiedades vinculadas.</p>';
+    : `<p class="empty-state compact">${en ? "No properties linked yet." : "Todavía no hay propiedades vinculadas."}</p>`;
   results.innerHTML = available.length
     ? available.map((property) => {
         const linkedElsewhere = property.developmentId && property.developmentId !== currentDevelopmentId;
-        const parentName = property.parentDevelopment?.nameEs || "";
+        const parentName = (en && property.parentDevelopment?.nameEn) || property.parentDevelopment?.nameEs || "";
         return `<label class="development-property-option ${selectedSet.has(property.id) ? "is-selected" : ""}">
           <input type="checkbox" data-link-development-property="${escapeHtml(property.id)}" ${selectedSet.has(property.id) ? "checked" : ""} />
-          <span><strong>${escapeHtml(property.titleEs)}</strong><small>${escapeHtml([property.mls ? `MLS# ${property.mls}` : "", displayLocation(property)].filter(Boolean).join(" · "))}</small>${linkedElsewhere ? `<em>Actualmente vinculada a ${escapeHtml(parentName || "otro desarrollo")}; al guardar se moverá a este desarrollo.</em>` : ""}</span>
+          <span><strong>${escapeHtml(property.titleEs)}</strong><small>${escapeHtml([property.mls ? `MLS# ${property.mls}` : "", displayLocation(property)].filter(Boolean).join(" · "))}</small>${linkedElsewhere ? `<em>${en ? "Saving moves this unit from " : "Al guardar, esta unidad se trasladará desde "}${escapeHtml(parentName || (en ? "another development" : "otro desarrollo"))}.</em>` : ""}</span>
         </label>`;
       }).join("")
-    : '<p class="empty-state">No se encontraron propiedades con esa búsqueda.</p>';
+    : `<p class="empty-state">${en ? "No matching properties." : "No se encontraron propiedades con esa búsqueda."}</p>`;
   refreshIcons();
 }
 
@@ -8507,6 +8508,16 @@ const panelStaticEnglish = {
   "Publicaciones": "Listings",
   "Nueva publicación": "New listing",
   "Inventario": "Inventory",
+  "Desarrollos": "Developments",
+  "Nueva propiedad": "New property",
+  "Nuevo desarrollo": "New development",
+  "Inventario de propiedades": "Property inventory",
+  "Inventario de desarrollos": "Development inventory",
+  "Archivos de propiedades": "Property files",
+  "Archivos de desarrollos": "Development files",
+  "Volver al listado": "Back to inventory",
+  "Buscar propiedades": "Search properties",
+  "Propiedades dentro de este desarrollo": "Properties in this development",
   "Desarrollos públicos": "Public developments",
   "Contactos y cuentas": "Contacts and accounts",
   "Crear y enviar correos": "Create and send emails",
