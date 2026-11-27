@@ -248,7 +248,8 @@ function renderCatalog(page, properties, params = {}, renderCards) {
   const mapSourcePath = (page.path || path) + "?" + mapSourceParams;
   const singular = total === 1;
   const label = mixed ? t(singular ? "resultado destacado":"resultados destacados",singular ? "featured result":"featured results") : presales ? t(singular ? "preventa":"preventas",singular ? "presale":"presales") : projects ? t(singular ? "desarrollo":"desarrollos",singular ? "gated community":"gated communities") : t(singular ? "propiedad":"propiedades",singular ? "listing":"listings");
-  const cardContext = { ...ctx, sourcePath, records:publicRows };
+  const eagerImageIds = new Set(view === "list" ? result.items.slice(0, 2).map(row => row.id) : []);
+  const cardContext = { ...ctx, sourcePath, records:publicRows, eagerImageIds };
   let cards = "";
   if (presales && params.project && result.items[0]) {
     // A project is a detail view, not a one-result directory. Keep its public

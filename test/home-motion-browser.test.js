@@ -23,6 +23,15 @@ test("homepage search, property types and press feedback on touch and desktop", 
         const control = page.locator('#searchForm button[type="submit"]');
         const tile = page.locator(".type-grid .type-tile").first();
         const activate = el => touch ? el.tap() : el.click();
+        let releaseInventory;
+        const inventoryGate = new Promise(resolve => { releaseInventory = resolve; });
+        await page.route("**/api/properties", async route => {
+          const response = await route.fetch();
+          const data = await response.json();
+          const area = { id: "puerto-qa", nameEs: "Puerto QA", nameEn: "Puerto QA" };
+          await inventoryGate;
+          await route.fulfill({ response, json: { ...data, directory: { ...data.directory, areas: [...(data.directory?.areas || []), area] } } });
+        }, { times: 1 });
         // A delayed response keeps the real submit handler in its working state for inspection.
         let releaseSearch;
         const searchResponse = new Promise(resolve => { releaseSearch = resolve; });
@@ -30,12 +39,26 @@ test("homepage search, property types and press feedback on touch and desktop", 
           await searchResponse;
           await route.fulfill({ json: { url: catalog + "?type=Casa" } });
         });
-        await page.goto(home);
+        await page.goto(home, { waitUntil: "domcontentloaded" });
         await page.locator('[data-cookie-choice="essential"]').click();
         assert.equal(await control.evaluate(el => getComputedStyle(el, "::after").animationName), "pcc-search-sweep");
         const input = page.locator("#searchInput");
         await activate(input);
         await page.waitForFunction(() => getComputedStyle(document.querySelector("#searchForm .search-field"), "::after").transform === "matrix(1, 0, 0, 1, 0, 0)");
+        await input.fill("Puerto QA");
+        releaseInventory();
+        const suggestion = page.locator("#homeSearchSuggestions a").first();
+        await suggestion.waitFor();
+        assert.match(await suggestion.innerText(), /Puerto QA/);
+        await page.waitForFunction(() => {
+          const link = document.querySelector("#homeSearchSuggestions a");
+          const r = link.getBoundingClientRect();
+          return link.contains(document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2));
+        });
+        await input.press("ArrowDown");
+        assert.ok(await suggestion.evaluate(node => node === document.activeElement));
+        await suggestion.press("Escape");
+        assert.equal(await input.getAttribute("aria-expanded"), "false");
         await input.fill(lang === "en" ? "Homes" : "Casas");
         await activate(control);
         await page.waitForFunction(() => document.querySelector("#searchForm button:disabled"));
@@ -43,6 +66,14 @@ test("homepage search, property types and press feedback on touch and desktop", 
         releaseSearch();
         await page.waitForURL(base + catalog + "?type=Casa");
         await page.goto(home);
+        const footer = page.locator(".footer-section").first();
+        assert.equal(await footer.evaluate(node => node.open), !touch);
+        if (touch) {
+          await activate(footer.locator("summary"));
+          assert.ok(await footer.locator("a").first().isVisible());
+          await activate(footer.locator("summary"));
+          assert.equal(await footer.locator("a").first().isVisible(), false);
+        }
         if (touch) await page.locator("#menuToggle").tap();
         const summary = page.locator('#mainNav summary[data-i18n="navPropertyType"]');
         await activate(summary);

@@ -12355,7 +12355,7 @@ function replaceMetaTag(html, pattern, replacement) {
   return html.replace(pattern, replacement);
 }
 
-function decoratePublicHtml({ page, seo, pageContent = "", bodyPage = "seo", noindex = false, includePrivatePanel = false, showBlog = true, offices }) {
+function decoratePublicHtml({ page, seo, pageContent = "", bodyPage = "seo", noindex = false, includePrivatePanel = false, showBlog = true, offices, homeProperties = [] }) {
   let html = fs.readFileSync(indexPath, "utf8");
   if (["/contacto", "/en/contact"].includes(page?.path)) html = html.replace(/\s*<h3 class="footer-location"[^>]*>[\s\S]*?<\/h3>\s*<p>[\s\S]*?<\/p>/, "");
   if (!publicAdvisorEnabled) html = html.replace(/\s*<(?:script|link)\b[^>]*(?:src|href)="\/advisor-widget\.(?:js|css)[^"]*"[^>]*>(?:<\/script>)?/g, "");
@@ -12368,6 +12368,7 @@ function decoratePublicHtml({ page, seo, pageContent = "", bodyPage = "seo", noi
     html = html.replace(/(<div class="public-nav-popover public-nav-communities">)[\s\S]*?<\/div>/, (_m, start) => start + exploration.areaNav(directory, language) + "</div>");
     html = html.replace(/(<h3 data-i18n="footerCommunities">[^<]*<\/h3>)[\s\S]*?<\/div>/, (_m, start) => start + exploration.areaNav(directory, language, true) + "</div>");
     html = html.replace(/(<div class="zone-grid">)[\s\S]*?<\/div>/, (_m, start) => start + exploration.areaCards(directory, language) + "</div>");
+    if (bodyPage === "home") html = exploration.renderHomeCovers(html, homeProperties, directory.areas, language);
   }
   if (bodyPage !== "home") {
     html = html.replace(/\s*<link rel="preload" as="image" href="\/assets\/cancun-hotel-zone-hero-[^"]+"[^>]*>/g, "");
@@ -12500,6 +12501,7 @@ async function renderPublicHtml(requestPath, noindex = false, params = {}) {
     seo,
     pageContent,
     bodyPage: isHome ? "home" : "seo",
+    homeProperties: isHome ? properties : [],
     offices,
     noindex: noindex || (Boolean(page.category) && Object.keys(params).length > 0),
     showBlog: await hasPublishedBlogPosts(page.lang),

@@ -1,38 +1,51 @@
-const test = require('node:test');
-const assert = require('node:assert/strict');
-const fs = require('node:fs');
-const vm = require('node:vm');
-const inventory = require('../inventory-contract');
-const source = fs.readFileSync(require.resolve('../app.js'), 'utf8');
+const test = require("node:test");
+const assert = require("node:assert/strict");
+const inventory = require("../inventory-contract");
+const { publicDirectory } = require("../portal-directory");
+const { areaCards, renderHomeCovers } = require("../exploration-view");
+const { homeEditorialCovers } = require("../public-listing-details");
 
-test('Location images come only from eligible listings in that Location, with no unrelated stock fallback', () => {
-  const cards = inventory.LOCATIONS.map(location => {
-    const image = { dataset: {}, removeAttribute(key) { delete this[key]; } };
-    return { dataset: { commercialLocation: location.id }, image, querySelector: selector => selector === '[data-home-cover]' ? image : null, classList: { toggle() {} } };
-  });
-  const p = { id: 'real', titleEs: 'Real listing', type: 'Casa', status: 'active', isPublic: true, zone: 'Puerto Cancun', images: ['/media/properties/real/0'] };
-  const functions = ['updateHomeEditorialImages', 'storedImages', 'optimizedMediaUrl'].map(name => {
-    const match = source.match(new RegExp(`function ${name}\\([^]*?\\n}`));
-    assert.ok(match, `missing function ${name}`);
-    return match[0];
-  });
-  const update = vm.runInNewContext(functions.join('\n') + '\nupdateHomeEditorialImages', {
-    state: { properties: [
-      p,
-      { ...p, id: 'private', isPublic: false, zone: 'Merida', images: ['/media/properties/private/0'] },
-      { ...p, id: 'stock', zone: 'Zona Hotelera', images: ['https://images.example.test/stock.jpg'] },
-    ] },
-    window: { PccInventory: inventory }, localizedTitle: item => item.titleEs,
-    document: { querySelector: selector => {
-      return cards.find(card => selector === `.zone-grid [data-commercial-location="${card.dataset.commercialLocation}"]`) || null;
-    } },
-  }, { timeout: 1000 });
-  update();
-  assert.equal(cards[1].image.src, `${p.images[0]}?w=640`);
-  assert.equal(cards[1].image.alt, p.titleEs);
-  assert.equal(cards[1].image.hidden, false);
-  for (const card of [cards[0], cards[2], cards[3]]) {
-    assert.equal(card.image.hidden, true);
-    assert.equal(card.image.src, undefined);
+const house = {
+  id: "real", type: "Casa", status: "active", isPublic: true, zone: "Puerto Cancún",
+  titleEs: 'Casa "Mar" & Sol', titleEn: 'House "Sea" & Sun', images: ["/media/properties/real/0"],
+};
+
+test("las portadas de zona usan únicamente fotos públicas del lugar y respetan la selección editorial", () => {
+  const areas = inventory.LOCATIONS.map(area => area.id === "zona-hotelera" ? { ...area, image: "/media/editorial/hotel.webp" } : area);
+  const rows = [
+    house,
+    { ...house, id: "private", isPublic: false, zone: "Mérida", images: ["/media/properties/private/0"] },
+    { ...house, id: "stock", zone: "Cancún Centro", images: ["https://example.test/stock.jpg"] },
+    { ...house, id: "hidden", zone: "Tulum", portalHiddenBlocks: ["gallery"], images: ["/media/properties/hidden/0"] },
+    { ...house, id: "hotel", zone: "Zona Hotelera", images: ["/media/properties/hotel/0"] },
+  ];
+  const covers = homeEditorialCovers(rows, areas);
+  assert.deepEqual(covers.get("area:puerto-cancun"), { src: house.images[0] + "?w=640", alt: house.titleEs });
+  assert.deepEqual([...covers.keys()].filter(key => key.startsWith("area:")), ["area:puerto-cancun"]);
+  const html = renderHomeCovers(areaCards({ areas }, "es"), rows, areas, "es");
+  assert.match(html, /data-home-cover="area:zona-hotelera"[^>]+src="\/media\/editorial\/hotel.webp"/);
+  assert.doesNotMatch(html, /properties\/(?:hidden|private)|example\.test/);
+});
+
+test("las fotos elegidas se entregan en el HTML antes de JavaScript y coinciden con el idioma y el inventario", () => {
+  const { getPageByPath, renderSeoHead } = require("../seo-pages");
+  const { decoratePublicHtml } = require("../server");
+  const directory = publicDirectory(null, []);
+  for (const lang of ["es", "en"]) {
+    const page = getPageByPath(lang === "es" ? "/" : "/en");
+    const html = decoratePublicHtml({ page, seo: renderSeoHead(page, "https://example.test"), bodyPage: "home", homeProperties: [house] });
+    const covers = homeEditorialCovers([house], directory.areas, lang);
+    const tags = [...html.matchAll(/<img\b[^>]*\bdata-home-cover="([^"]+)"[^>]*>/g)];
+    assert.equal(tags.length, 5 + directory.areas.length);
+    for (const [tag, slot] of tags) {
+      if (covers.has(slot)) {
+        assert.ok(tag.includes(`src="${covers.get(slot).src}"`));
+        assert.ok(tag.includes(lang === "es" ? "Casa &quot;Mar&quot; &amp; Sol" : "House &quot;Sea&quot; &amp; Sun"));
+        assert.doesNotMatch(tag, /\shidden\b/);
+      } else {
+        assert.match(tag, /\shidden\b/);
+        assert.doesNotMatch(tag, /\ssrc=/);
+      }
+    }
   }
 });
