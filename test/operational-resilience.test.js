@@ -98,7 +98,7 @@ test("el acceso público y el vendedor conservan inventario y el administrador c
       return {};
     };
     await vm.runInNewContext(loader + "\nloadPublicData()", {
-      api, state, document: { body: { dataset: { page } } },
+      api, state, Event, document: { body: { dataset: { page } }, dispatchEvent: event => rendered.push(event.type) },
       mountPublicComparison: () => rendered.push("compare"), updateHomeEditorialImages: () => rendered.push("covers"),
       renderCurrencyExchange() {},
     });
@@ -106,7 +106,7 @@ test("el acceso público y el vendedor conservan inventario y el administrador c
     assert.equal(state.session, user);
     assert.equal(state.csrfToken, "csrf");
     assert.equal(state.properties.length, Number(needsPublic));
-    assert.deepEqual(rendered, needsCovers ? ["compare", "covers"] : []);
+    assert.deepEqual(rendered, needsCovers ? ["compare", "covers", "pcc:inventory-ready"] : []);
   }
 });
 

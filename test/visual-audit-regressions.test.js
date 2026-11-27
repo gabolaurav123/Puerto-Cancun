@@ -100,7 +100,9 @@ test('inventory retry prevents duplicate requests and recovers without changing 
   const state = { publicInventoryStatus: 'error', properties: [], session: { id: 'admin' }, filters: { text: 'Lagos' } };
   let resolve;
   let calls = 0;
-  const api = runtime(['retryPublicInventory'], { state, renderProperties() {}, mountPublicComparison() {}, api: async path => {
+  const events = [];
+  const document = { dispatchEvent: event => events.push(event.type) };
+  const api = runtime(['retryPublicInventory'], { state, Event, document, renderProperties() {}, mountPublicComparison() {}, api: async path => {
     assert.equal(path, '/api/properties');
     calls++;
     return new Promise(done => { resolve = done; });
@@ -108,15 +110,17 @@ test('inventory retry prevents duplicate requests and recovers without changing 
   const work = api.retryPublicInventory();
   await api.retryPublicInventory();
   assert.equal(calls, 1);
-  resolve({ properties: [{ id: 'loaded' }] });
+  resolve({ properties: [{ id: 'loaded' }], directory: { areas: [{ id: 'puerto-cancun' }] } });
   await work;
   assert.equal(state.publicInventoryStatus, 'ready');
   assert.equal(state.properties[0].id, 'loaded');
+  assert.equal(state.portalDirectory.areas[0].id, 'puerto-cancun');
   assert.deepEqual(state.session, { id: 'admin' });
   assert.deepEqual(state.filters, { text: 'Lagos' });
-  const failing = runtime(['retryPublicInventory'], { state, renderProperties() {}, mountPublicComparison() {}, api: async () => { throw new Error('offline'); } });
+  const failing = runtime(['retryPublicInventory'], { state, Event, document, renderProperties() {}, mountPublicComparison() {}, api: async () => { throw new Error('offline'); } });
   await failing.retryPublicInventory();
   assert.equal(state.publicInventoryStatus, 'error');
+  assert.deepEqual(events, ['pcc:inventory-ready']);
   assert.equal(state.properties[0].id, 'loaded');
 });
 

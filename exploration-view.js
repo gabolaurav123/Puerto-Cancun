@@ -1,6 +1,7 @@
 "use strict";
 
 const inventory = require("./inventory-contract");
+const { homeEditorialCovers } = require("./public-listing-details");
 const esc = value => String(value ?? "").replace(/[&<>"']/g, ch => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[ch]);
 function nameOf(record, lang) {
   return lang === "en" ? record.nameEn || record.nameEs || record.name : record.nameEs || record.name;
@@ -19,8 +20,16 @@ function propertyLink(property, lang) {
 function areaCards(directory, lang) {
   return directory.areas.map(area => {
     const image = area.image ? `src="${esc(area.image)}"` : "hidden";
-    return `<a class="zone-card${area.image ? " has-home-cover" : ""}" href="${esc(areaLink(area.id, lang))}" data-commercial-location="${esc(area.id)}"${area.image ? ' data-editorial-cover="true"' : ""}><img data-home-cover data-location-cover ${image} alt="" width="900" height="600" loading="lazy" decoding="async"><i class="location-cover-placeholder" data-lucide="map-pin" aria-hidden="true"></i><span>${esc(nameOf(area, lang))}</span></a>`;
+    return `<a class="zone-card${area.image ? " has-home-cover" : ""}" href="${esc(areaLink(area.id, lang))}" data-commercial-location="${esc(area.id)}"${area.image ? ' data-editorial-cover="true"' : ""}><img data-home-cover="area:${esc(area.id)}" data-location-cover ${image} alt="" width="900" height="600" loading="lazy" decoding="async"><i class="location-cover-placeholder" data-lucide="map-pin" aria-hidden="true"></i><span>${esc(nameOf(area, lang))}</span></a>`;
   }).join("");
+}
+function renderHomeCovers(html, records, areas, lang) {
+  const covers = homeEditorialCovers(records, areas, lang);
+  return html.replace(/<img\b[^>]*\bdata-home-cover="([^"]+)"[^>]*>/g, (tag, slot) => {
+    const cover = covers.get(slot);
+    if (!cover || !/\shidden\b/.test(tag)) return tag;
+    return tag.replace(/\shidden\b/, () => ` src="${esc(cover.src)}"`).replace('alt=""', () => `alt="${esc(cover.alt)}"`);
+  });
 }
 function areaNav(directory, lang, footer = false) {
   const overview = lang === "en" ? "/en/cancun-areas" : "/zonas-cancun";
@@ -70,4 +79,4 @@ function featuredSection(directory, properties, lang, placement, contextId = "")
   return `<section class="exploration-featured content-wrap"><h2>${en ? "Featured" : "Destacados"}</h2><div>${cards.join("")}</div></section>`;
 }
 
-module.exports = { areaLink, areaCards, areaNav, renderAreaGuideContent, featuredSection, nameOf };
+module.exports = { areaLink, areaCards, areaNav, renderHomeCovers, renderAreaGuideContent, featuredSection, nameOf };

@@ -26,6 +26,54 @@
     }
   });
   const en = document.documentElement.lang.startsWith("en");
+  function markCurrentNavigation() {
+    const catalogParent = document.querySelector(".property-page-heading [data-return-catalog]");
+    const here = new URL(catalogParent?.href || location.href);
+    const path = url => url.pathname.replace(/\/$/, "");
+    const allListings = document.querySelector("#mainNav .public-nav-search");
+    const developments = allListings && path(allListings) === path(here) && here.searchParams.get("entity") === "developments";
+    document.querySelectorAll(".public-quick-nav, #mainNav").forEach(nav => {
+      let current = null, specificity = -1;
+      for (const link of nav.querySelectorAll("a[href]")) {
+        link.removeAttribute("aria-current");
+        const url = new URL(link.href);
+        if (url.origin !== here.origin || path(url) !== path(here)) continue;
+        const filters = [...url.searchParams];
+        if (filters.length > specificity && filters.every(([key, value]) => here.searchParams.get(key) === value)) {
+          current = link;
+          specificity = filters.length;
+        }
+      }
+      if (developments && specificity <= 0) {
+        current = nav.querySelector('a[data-i18n="navDevelopments"]') || current;
+        specificity = -1;
+      }
+      if (current) current.setAttribute("aria-current", !catalogParent && specificity === here.searchParams.size ? "page" : "location");
+    });
+  }
+  markCurrentNavigation();
+  document.addEventListener("pcc:catalog:navigated", markCurrentNavigation);
+
+  const footerGroups = [];
+  for (const heading of document.querySelectorAll(".footer-grid > div > h3")) {
+    const group = document.createElement("details");
+    const summary = document.createElement("summary");
+    group.className = "footer-section";
+    heading.before(group);
+    group.append(summary);
+    while (heading.nextElementSibling && heading.nextElementSibling.tagName !== "H3") group.append(heading.nextElementSibling);
+    summary.append(heading);
+    footerGroups.push(group);
+  }
+  if (footerGroups.length) {
+    const compactFooter = matchMedia("(max-width: 700px)");
+    const fitFooter = () => footerGroups.forEach(group => {
+      group.open = !compactFooter.matches || group.contains(document.activeElement);
+    });
+    fitFooter();
+    compactFooter.addEventListener("change", fitFooter);
+  }
+
   let shareDialog, shareOpener;
   function getShareDialog() {
     if (shareDialog) return shareDialog;
@@ -130,8 +178,12 @@
     typeGrid.addEventListener("load", event => markPhotoReady(event.target), true);
     typeGrid.querySelectorAll("img[data-home-cover]").forEach(markPhotoReady);
   }
-  if (document.body.dataset.page === "home" && Element.prototype.animate) {
-    const controls = ":is(.main-header, .home-only) :is(a[href], button:enabled, summary):not(.brand), #ownerContactButton";
+  if (document.body.matches('[data-page="home"], [data-page="seo"], [data-page="property"]') && Element.prototype.animate) {
+    const controls = [
+      ":is(.main-header, .home-only) :is(a[href], button:enabled, summary):not(.brand)", "#ownerContactButton",
+      "#siteShell :is(.primary-button, .accent-button, .outline-dark-button, .office-inquiry-button, [data-catalog-view], .catalog-entity-nav a)",
+      ".contextual-inquiry :is(.inquiry-submit, .office-inquiry-button)", ".footer-section > summary",
+    ].join(",");
     let activePress;
     function showPress(event) {
       if (!motion.matches) return;

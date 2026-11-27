@@ -1844,13 +1844,15 @@ function restoreCatalogBackLink() {
 function bindHomeSuggestions() {
   const input = document.getElementById("searchInput");
   const list = document.getElementById("homeSearchSuggestions");
-  if (!input || !list) return;
-  const close = () => { list.hidden = true; input.setAttribute("aria-expanded", "false"); };
+  if (document.body.dataset.page !== "home" || !input || !list) return;
+  let awaitingInventory = false;
+  const close = () => { awaitingInventory = false; list.hidden = true; input.setAttribute("aria-expanded", "false"); };
   const suggest = () => {
     const contract = window.PccInventory;
     if (!contract) return;
     const term = contract.fold(input.value.trim());
     if (term.length < 2) return close();
+    awaitingInventory = state.publicInventoryStatus === "loading";
     const en = state.lang === "en";
     const base = en ? "/en/properties" : "/propiedades";
     const areas = (state.portalDirectory?.areas || []).map(area => ({
@@ -1882,6 +1884,9 @@ function bindHomeSuggestions() {
   input.setAttribute("aria-controls", list.id);
   input.addEventListener("input", suggest);
   input.addEventListener("focus", suggest);
+  document.addEventListener("pcc:inventory-ready", () => {
+    if (awaitingInventory && document.activeElement === input) suggest();
+  });
   document.addEventListener("pointerdown", event => { if (!input.closest("form")?.contains(event.target)) close(); });
   input.closest("form")?.addEventListener("focusout", event => { if (!event.currentTarget.contains(event.relatedTarget)) close(); });
   input.closest("form")?.addEventListener("keydown", event => {
@@ -1895,40 +1900,26 @@ function bindHomeSuggestions() {
 }
 
 function updateHomeEditorialImages() {
-  const contract = window.PccInventory;
-  if (!contract) return;
-  // Home covers only reuse photos attached to public inventory; no stock-photo defaults.
-  const candidates = state.properties.filter(contract.isPublic);
-  const inventoryImages = (property) => storedImages(property).filter(source => /^\/media\/properties\//.test(source));
-  const usedProperties = new Set();
-  const usedImages = new Set();
-  const assignments = [
-    [".type-grid .type-tile:nth-child(1)", (property) => property.type === "Casa"],
-    [".type-grid .type-tile:nth-child(2)", (property) => property.type === "Departamento"],
-    [".type-grid .type-tile:nth-child(3)", (property) => property.type === "Terreno"],
-    [".type-grid .type-tile:nth-child(4)", (property) => property.type === "Comercial"],
-    ...(state.portalDirectory?.areas || contract.LOCATIONS).map(area => [
-      `.zone-grid [data-commercial-location="${area.id}"]`, property => (property.portalAreaId || contract.resolveLocation(property).id) === area.id,
-    ]),
-    [".presale-feature", (property) => contract.modalityOf(property) === "presale"],
-  ];
-  assignments.forEach(([selector, matches]) => {
-    const card = document.querySelector(selector);
-    const image = card?.querySelector('[data-home-cover]');
-    if (!image || card.dataset?.editorialCover) return;
-    const matching = candidates.filter(candidate => matches(candidate) && inventoryImages(candidate).length);
-    const property = matching.find(candidate => !usedProperties.has(candidate.id) && inventoryImages(candidate).some(source => !usedImages.has(source))) || matching[0];
-    const images = property ? inventoryImages(property) : [];
-    const source = images.find(source => !usedImages.has(source)) || images[0];
-    image.hidden = !source;
-    card.classList.toggle('has-home-cover', Boolean(source));
-    image.removeAttribute('srcset');
+  if (document.body.dataset.page !== "home" || state.publicInventoryStatus !== "ready") return;
+  const areas = state.portalDirectory?.areas || window.PccInventory.LOCATIONS;
+  const covers = window.PccPublicListingDetails.homeEditorialCovers(state.properties, areas, state.lang);
+  document.querySelectorAll("img[data-home-cover]").forEach(image => {
+    const card = image.closest(".zone-card, .type-tile, .presale-feature");
+    if (!card || card.dataset.editorialCover) return;
+    const cover = covers.get(image.dataset.homeCover);
+    const sameSource = cover && image.getAttribute("src") === cover.src;
+    const failed = sameSource && image.complete && image.naturalWidth === 0;
+    image.hidden = !cover || Boolean(failed);
+    card.classList.toggle("has-home-cover", !image.hidden);
+    image.removeAttribute("srcset");
     delete image.dataset.fallbackApplied;
-    if (!source) { image.removeAttribute('src'); image.alt = ''; return; }
-    usedProperties.add(property.id);
-    usedImages.add(source);
-    image.src = optimizedMediaUrl(source, 640);
-    image.alt = localizedTitle(property);
+    if (cover) {
+      if (!sameSource) image.src = cover.src;
+      image.alt = cover.alt;
+    } else {
+      image.removeAttribute("src");
+      image.alt = "";
+    }
   });
 }
 
@@ -1953,7 +1944,9 @@ async function retryPublicInventory() {
   try {
     const data = await api("/api/properties");
     state.properties = data.properties || [];
+    state.portalDirectory = data.directory || state.portalDirectory;
     state.publicInventoryStatus = "ready";
+    document.dispatchEvent(new Event("pcc:inventory-ready"));
   } catch {
     state.publicInventoryStatus = "error";
   }
@@ -7763,6 +7756,7 @@ async function loadPublicData() {
   if (!panelPage) {
     mountPublicComparison(state.properties);
     updateHomeEditorialImages();
+    if (state.publicInventoryStatus === "ready") document.dispatchEvent(new Event("pcc:inventory-ready"));
   }
   if (results.every((result) => result.status === "rejected")) throw results[0].reason;
   if (results.some((result) => result.status === "rejected")) {
@@ -11561,7 +11555,14 @@ function initializePropertyGallery() {
       slide.setAttribute("aria-hidden", active ? "false" : "true");
     });
     $$('[data-gallery-go]').forEach((button) => {
-      button.classList.toggle("is-active", Number(button.dataset.galleryGo) === activeIndex);
+      const selected = Number(button.dataset.galleryGo) === activeIndex;
+      button.classList.toggle("is-active", selected);
+      button.setAttribute("aria-pressed", String(selected));
+      if (!selected || !button.getClientRects().length) return;
+      const strip = button.parentElement;
+      const frame = strip.getBoundingClientRect(), thumb = button.getBoundingClientRect();
+      const offset = Math.min(0, thumb.left - frame.left) + Math.max(0, thumb.right - frame.right);
+      if (offset) strip.scrollBy({ left: offset, behavior: "instant" });
     });
     const current = `${activeIndex + 1} / ${slides.length}`;
     if (mainCounter) mainCounter.textContent = current;

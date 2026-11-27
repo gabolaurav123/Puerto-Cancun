@@ -56,33 +56,28 @@ test("el botón para propietarios se entrega traducido desde el inicio en todos 
 });
 
 function homeCoverRuntime(properties) {
-  const selectors = [
-    ...Array.from({ length: 4 }, (_, i) => `.type-grid .type-tile:nth-child(${i + 1})`),
-    ...inventory.LOCATIONS.map(area => `.zone-grid [data-commercial-location="${area.id}"]`),
-    ".presale-feature",
+  const slots = [
+    ...["Casa", "Departamento", "Terreno", "Comercial"].map(type => "type:" + type),
+    ...inventory.LOCATIONS.map(area => "area:" + area.id), "presale",
   ];
-  const cards = selectors.map((selector, index) => {
+  const cards = slots.map((slot, index) => {
     const classes = new Set(["has-home-cover"]);
-    const image = {
-      hidden: false, src: "/old-photo.webp", srcset: "/old-photo-large.webp 2x", alt: "Anterior",
-      dataset: { fallbackApplied: "true" }, removeAttribute(name) { delete this[name]; },
-    };
-    return {
-      selector, image, classes, href: `/destination-${index}`, hidden: false,
+    const card = {
+      dataset: {}, classes, href: `/destination-${index}`, hidden: false,
       classList: { toggle(name, enabled) { if (enabled) classes.add(name); else classes.delete(name); } },
-      querySelector: selector => selector === "[data-home-cover]" ? image : null,
     };
+    card.image = {
+      hidden: false, src: "/old-photo.webp", srcset: "/old-photo-large.webp 2x", alt: "Anterior",
+      dataset: { homeCover: slot, fallbackApplied: "true" }, closest: () => card,
+      getAttribute(name) { return this[name] ?? null; }, removeAttribute(name) { delete this[name]; },
+    };
+    return card;
   });
-  const state = { properties };
-  const source = read("app.js");
-  const functions = ["updateHomeEditorialImages", "storedImages", "optimizedMediaUrl"].map(name => {
-    const match = source.match(new RegExp(`function ${name}\\([^]*?\\n}`));
-    assert.ok(match, `missing function ${name}`);
-    return match[0];
-  });
-  const update = vm.runInNewContext(`${functions.join("\n")}\nupdateHomeEditorialImages`, {
-    state, window: { PccInventory: inventory }, localizedTitle: property => property.titleEs,
-    document: { querySelector: selector => cards.find(card => card.selector === selector) || null },
+  const state = { properties, lang: "es", publicInventoryStatus: "ready" };
+  const render = read("app.js").match(/function updateHomeEditorialImages\([^]*?\n}/)[0];
+  const update = vm.runInNewContext(`${render}\nupdateHomeEditorialImages`, {
+    state, window: { PccInventory: inventory, PccPublicListingDetails: require("../public-listing-details") },
+    document: { body: { dataset: { page: "home" } }, querySelectorAll: selector => selector === "img[data-home-cover]" ? cards.map(card => card.image) : [] },
   }, { timeout: 1000 });
   return { update, state, cards };
 }
@@ -162,6 +157,23 @@ test("sin una foto compatible la tarjeta conserva su enlace y limpia la portada 
     assert.equal(card.hidden, false);
     assert.equal(card.href, `/destination-${index}`);
   });
+});
+
+test("un error de inventario conserva las fotos iniciales y una foto rota conserva el fondo de reserva", () => {
+  const { update, state, cards } = homeCoverRuntime([homeProperty("casa", "Casa", "Puerto Cancún")]);
+  state.publicInventoryStatus = "error";
+  update();
+  assert.equal(cards[0].image.src, "/old-photo.webp");
+  state.publicInventoryStatus = "ready";
+  update();
+  Object.assign(cards[0].image, { complete: true, naturalWidth: 0 });
+  update();
+  assert.equal(cards[0].image.hidden, true);
+  assert.equal(cards[0].classes.has("has-home-cover"), false);
+  state.properties = [homeProperty("otra", "Casa", "Puerto Cancún")];
+  update();
+  assert.equal(cards[0].image.hidden, false);
+  assert.equal(cards[0].image.src, "/media/properties/otra/0?w=640");
 });
 
 test("el panel privado no se convierte en otra portada", () => {

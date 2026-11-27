@@ -19,6 +19,33 @@ function optimizedPublicImage(image, width) {
   return `${image}${separator}w=${width}`;
 }
 
+function homeEditorialCovers(properties, areas, lang = "es") {
+  const candidates = properties.filter(row => inventory.isPublic(row) && !row.portalHiddenBlocks?.includes("gallery"))
+    .map(row => {
+      const images = Array.isArray(row.images) ? row.images : [];
+      const ordered = row.image && !images.includes(row.image) ? [row.image, ...images] : images;
+      return { row, photos: ordered.filter(src => typeof src === "string" && src.startsWith("/media/properties/")) };
+    }).filter(item => item.photos.length);
+  const covers = new Map();
+  const usedProperties = new Set(), usedPhotos = new Set();
+  function pick(slot, matches) {
+    const eligible = candidates.filter(({row}) => matches(row));
+    const match = eligible.find(({row, photos}) => !usedProperties.has(row.id) && photos.some(src => !usedPhotos.has(src))) || eligible[0];
+    if (!match) return;
+    const source = match.photos.find(src => !usedPhotos.has(src)) || match.photos[0];
+    const row = match.row;
+    usedProperties.add(row.id);
+    usedPhotos.add(source);
+    covers.set(slot, { src: optimizedPublicImage(source, 640), alt: (lang === "en" && row.titleEn) || row.titleEs || row.title || "" });
+  }
+  for (const type of ["Casa", "Departamento", "Terreno", "Comercial"]) pick("type:" + type, row => row.type === type);
+  for (const area of areas) {
+    if (!area.image) pick("area:" + area.id, row => (row.portalAreaId || inventory.resolveLocation(row).id) === area.id);
+  }
+  pick("presale", row => inventory.modalityOf(row) === "presale");
+  return covers;
+}
+
 function propertySlug(property) {
   const identity = property.mls || property.id || "propiedad";
   const title = property.titleEs || property.title_es || property.titleEn || property.title_en || "propiedad";
@@ -310,5 +337,5 @@ function renderPublicLocationSection(property, options = {}) {
   </section>`;
 }
 
-return { propertySlug, propertyPath, publicAmenities, renderListingAmenities, safePublicImages, optimizedPublicImage, localizedAmenity, parsePlacePin, publicCoordinatePair, locationPrecisionOf, resolvePublicLocation, renderPublicLocationSection };
+return { propertySlug, propertyPath, publicAmenities, renderListingAmenities, safePublicImages, optimizedPublicImage, homeEditorialCovers, localizedAmenity, parsePlacePin, publicCoordinatePair, locationPrecisionOf, resolvePublicLocation, renderPublicLocationSection };
 });

@@ -337,3 +337,43 @@ body[data-page=seo]:has(.catalog-project-view) .seo-page-content { padding-top: 
   .public-catalog-toolbar .catalog-result-bar { gap: 8px; }
   .public-catalog-toolbar #categoryInventoryCount { font-size: .85rem; }
 }
+
+/* Compact segmented controls keep the search and the first result together. */
+.catalog-experience .public-catalog-toolbar {
+  border-radius: var(--public-card-radius, 16px);
+  box-shadow: var(--shadow-soft);
+}
+.public-catalog-toolbar :is(.catalog-entity-nav, .catalog-view-toggle) {
+  gap: 3px;
+  padding: 3px;
+  border: 1px solid var(--line-strong);
+  border-radius: 12px;
+}
+.public-catalog-toolbar :is(.catalog-entity-nav a, .catalog-view-toggle button) {
+  border: 0;
+  border-radius: 8px;
+  min-height: 44px;
+}
+.public-catalog-toolbar .catalog-entity-nav [aria-current] {
+  box-shadow: inset 0 -2px var(--blue-900);
+}
+.public-catalog-toolbar .catalog-search-row input,
+.public-catalog-toolbar .catalog-controls details > summary,
+.public-catalog-toolbar .catalog-zone-chooser > summary {
+  border-radius: var(--public-control-radius, 10px);
+}
+.public-catalog-toolbar .catalog-result-bar { align-items: center; }
+.catalog-experience .seo-property-card {
+  overflow: hidden;
+  border-radius: var(--public-card-radius, 16px);
+  box-shadow: var(--shadow-soft);
+}
+.catalog-experience .seo-property-image { border-radius: 0; }
+.catalog-experience .seo-property-card :is(h2, .seo-property-price) { letter-spacing: -.025em; }
+.catalog-experience .seo-property-card h2 { line-height: 1.2; text-wrap: pretty; }
+.catalog-experience .seo-property-card .seo-property-price { font-variant-numeric: lining-nums tabular-nums; }
+.catalog-experience .seo-property-actions { gap: 8px; }
+@media (max-width: 700px) {
+  .catalog-experience .public-catalog-toolbar { padding: 10px; margin-bottom: 14px; }
+  .public-catalog-toolbar .catalog-view-toggle button { min-width: 60px; }
+}
