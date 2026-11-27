@@ -784,12 +784,12 @@
                 <label>
                   <span data-i18n="propertyType">Tipo de propiedad</span>
                   <select name="type" required>
-                    <option value="">Selecciona el tipo de propiedad</option>
-                    <option>Casa</option>
-                    <option>Departamento</option>
-                    <option>Terreno</option>
-                    <option>Comercial</option>
-                    <option hidden>Preventa</option>
+                    <option value="" data-i18n="ownerChooseType">Elige el tipo de propiedad</option>
+                    <option value="Casa" data-i18n="ownerHouseType">Casa</option>
+                    <option value="Departamento" data-i18n="ownerApartmentType">Departamento</option>
+                    <option value="Terreno" data-i18n="ownerLandType">Terreno</option>
+                    <option value="Comercial" data-i18n="typeCommercial">Comercial</option>
+                    <option value="Preventa" data-i18n="ownerPresaleType" hidden>Preventa</option>
                     <option value="Desarrollo" data-i18n="ownerDevelopmentType">Desarrollo</option>
                   </select>
                 </label>
@@ -2948,7 +2948,16 @@
             <input class="honeypot-field" name="website" tabindex="-1" autocomplete="off" aria-hidden="true" />
             <input name="formStartedAt" type="hidden" />
             <label><span data-i18n="sellerOperation">¿Qué quieres anunciar?</span><select name="operation" required><option value="sale" data-i18n="sellerOperationSale">Una propiedad en venta</option><option value="rent" data-i18n="sellerOperationRent">Una propiedad en renta</option></select></label>
-            <label><span data-i18n="propertyType">Tipo de propiedad</span><select name="type" required><option>Casa</option><option>Departamento</option><option>Terreno</option><option>Comercial</option><option>Preventa</option><option value="Desarrollo" data-i18n="ownerDevelopmentType">Desarrollo</option></select></label>
+            <label><span data-i18n="propertyType">Tipo de propiedad</span>
+              <select name="type" required>
+                <option value="Casa" data-i18n="ownerHouseType">Casa</option>
+                <option value="Departamento" data-i18n="ownerApartmentType">Departamento</option>
+                <option value="Terreno" data-i18n="ownerLandType">Terreno</option>
+                <option value="Comercial" data-i18n="typeCommercial">Comercial</option>
+                <option value="Preventa" data-i18n="ownerPresaleType">Preventa</option>
+                <option value="Desarrollo" data-i18n="ownerDevelopmentType">Desarrollo</option>
+              </select>
+            </label>
             <label><span data-i18n="guestLocation">Zona o localidad</span><input name="location" maxlength="260" data-i18n-placeholder="guestLocationPlaceholder" placeholder="Zona, colonia o localidad" required /></label>
             <input name="state" type="hidden" />
             <input name="city" type="hidden" />

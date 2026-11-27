@@ -5139,7 +5139,8 @@ app.post("/api/guest-sale-requests", async (req, res, next) => {
     const body = await sanitizePropertyImageBody(rawBody);
     const type = String(body.type || "").trim().slice(0, 80);
     const location = String(body.location || "").trim().slice(0, 260);
-    const title = (String(body.title || "").trim() || `${type} · ${location}`).slice(0, 180);
+    const propertyTitle = String(body.title || "").trim().slice(0, 180);
+    const title = propertyTitle || `${type} · ${location}`.slice(0, 180);
     const name = String(body.name || "").trim().slice(0, 110);
     const state = String(body.state || "").trim().slice(0, 120);
     const city = String(body.city || "").trim().slice(0, 120);
@@ -5162,7 +5163,7 @@ app.post("/api/guest-sale-requests", async (req, res, next) => {
     const { phone, email, prefix: countryCode } = phoneInfo;
     const images = parseUploadedImages(body, []);
     if (!["Casa", "Departamento", "Terreno", "Comercial", "Preventa", "Desarrollo"].includes(type) || !location) {
-      res.status(400).json({ error: lang === "en" ? "Choose the property type and its approximate zone or locality." : "Elige el tipo de propiedad e indica su zona o localidad aproximada." });
+      res.status(400).json({ error: lang === "en" ? "Choose a property type and enter the zone or locality." : "Elige el tipo de propiedad e indica la zona o localidad." });
       return;
     }
     if ((body.latitude !== "" && body.latitude != null || body.longitude !== "" && body.longitude != null) && (!validCoordinates || latitude === 0 && longitude === 0)) {
@@ -5206,7 +5207,7 @@ app.post("/api/guest-sale-requests", async (req, res, next) => {
       res.json({ request: { id: row.id }, action: inquiryAction(row.id, row.inquiry_context, siteUrl, row.inquiry_context?.sourcePath, sessionSecret), duplicate: true });
       return;
     }
-    const inquiry = { ...await serviceChannel(client, phoneInfo.country || "MX"), lang, intent: operation === "rent" ? "let" : "sell", service: "guest-listing", email: email || "", country: phoneInfo.country, prefix: countryCode, contactChannel: preferredContact, consentContact: true, propertyTitle: title, propertyType: type, zone: zone || location, preferences: description, photoCount: images.length, sourcePath: inquirySourcePath(body.sourcePath), origin: "guest-sale" };
+    const inquiry = { ...await serviceChannel(client, phoneInfo.country || "MX"), lang, intent: operation === "rent" ? "let" : "sell", service: "guest-listing", name, email: email || "", country: phoneInfo.country, prefix: countryCode, contactChannel: preferredContact, consentContact: true, propertyTitle, propertyType: type, zone: zone || location, preferences: description, photoCount: images.length, sourcePath: inquirySourcePath(body.sourcePath), origin: "guest-sale" };
     const contact = phone || email ? await upsertContact(client, {
       name: name || `${lang === "en" ? "Owner" : "Propietario"} · ${title}`,
       email, phone,
