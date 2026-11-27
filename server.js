@@ -3079,7 +3079,7 @@ async function initDatabase() {
       },
     });
     await runMigration(client, require("./share-invitations").migration);
-    await client.query("DELETE FROM share_invitations WHERE created_at < NOW() - make_interval(days => $1)", [visitorAnalyticsRetentionDays]);
+    await require("./share-invitations").expireAttribution(client, visitorAnalyticsRetentionDays);
     await client.query(
       "DELETE FROM visitor_page_views WHERE created_at < NOW() - make_interval(days => $1)",
       [visitorAnalyticsRetentionDays]

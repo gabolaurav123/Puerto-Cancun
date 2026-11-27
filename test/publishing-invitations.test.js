@@ -39,6 +39,7 @@ test("invitations accept only published local destinations, keep project identit
   const siteUrl = "https://www.puertocancun.center";
   const dir = directory.publicDirectory(null,[dev,unit]);
   const deps = { siteUrl, query:async()=>({rows:[]}), inventory:async()=>[dev,unit], directory:()=>dir, aliases:()=>({"/zonas":"/zonas-cancun"}) };
+  assert.equal((await resolveTarget("https://puertocancun.center/en",deps)).landing,"/en");
   const token = sharePath(unit,"en"), result = await resolveTarget(token,deps,true);
   assert.equal(result.landing,seo.propertyPath(unit,"en"));
   assert.equal((await resolveTarget(result.landing,deps)).source,token);
