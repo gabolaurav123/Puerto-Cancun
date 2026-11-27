@@ -41,6 +41,18 @@ test("homepage search, property types and press feedback on touch and desktop", 
         });
         await page.goto(home, { waitUntil: "domcontentloaded" });
         await page.locator('[data-cookie-choice="essential"]').click();
+        for (const selector of [".hero h1", ".hero-subtitle", "#searchForm"]) {
+          const centered = await page.locator(selector).evaluate(el => {
+            const r = el.getBoundingClientRect();
+            return Math.abs(r.left + r.width / 2 - document.documentElement.clientWidth / 2) < 2;
+          });
+          assert.ok(centered, selector + " centered in the viewport");
+        }
+        assert.equal(await page.locator(".hero h1").evaluate(el => getComputedStyle(el).textAlign), "center");
+        await page.evaluate(() => window.scrollTo({ top: 140, behavior: "instant" }));
+        await page.waitForFunction(() => Number(document.querySelector(".hero").style.getPropertyValue("--coast-scroll")) > .1);
+        await page.evaluate(() => window.scrollTo({ top: 0, behavior: "instant" }));
+        await page.waitForFunction(() => document.querySelector(".hero").style.getPropertyValue("--coast-scroll") === "0.0000");
         assert.equal(await control.evaluate(el => getComputedStyle(el, "::after").animationName), "pcc-search-sweep");
         const input = page.locator("#searchInput");
         await activate(input);
@@ -89,6 +101,11 @@ test("homepage search, property types and press feedback on touch and desktop", 
           await photo.evaluate(img => img.decode());
           assert.equal(await photo.evaluate(img => getComputedStyle(img).animationName), "pcc-type-photo");
         }
+        await page.locator(".sell-cta").evaluate(el => el.scrollIntoView({ block: "center", behavior: "instant" }));
+        await page.waitForFunction(() => !document.querySelector(".type-tile").classList.contains("public-card-arriving"));
+        await tile.evaluate(el => el.scrollIntoView({ block: "center", behavior: "instant" }));
+        await page.waitForFunction(() => document.querySelector(".type-tile").matches(".public-card-arriving.public-card-from-top"));
+        assert.equal(await tile.locator("> span").evaluate(el => getComputedStyle(el).animationName), "pcc-type-label");
         const href = await tile.getAttribute("href");
         const originalLabel = await tile.innerText();
         const bounds = await tile.boundingBox();
@@ -108,6 +125,7 @@ test("homepage search, property types and press feedback on touch and desktop", 
         await page.goto(home);
         await tile.scrollIntoViewIfNeeded();
         assert.equal(await tile.locator("> span").evaluate(el => getComputedStyle(el).animationName), "none");
+        assert.equal(await page.locator(".hero-media img").evaluate(el => getComputedStyle(el).translate), "none");
         assert.equal(await control.evaluate(el => getComputedStyle(el, "::after").animationName), "none");
         assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1));
       } finally { await context.close(); }
