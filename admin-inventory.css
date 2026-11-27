@@ -200,7 +200,7 @@ button[data-portal-command="delete-presale"] { color: var(--danger, #923b32); }
   #listingForm .form-row, .portal-edit .portal-fields { grid-template-columns: 1fr; }
 }
 
-#visitorInvitations .invitation-rows { display: grid; gap: .75rem; grid-template-columns: repeat(auto-fit, minmax(min(100%, 19rem), 1fr)); }
+:is(#visitorInvitations, #publicSharesPanel) .invitation-rows { display: grid; gap: .75rem; grid-template-columns: repeat(auto-fit, minmax(min(100%, 19rem), 1fr)); }
 .invitation-rows article { border: 1px solid var(--line, #cbdbd8); border-radius: .65rem; padding: 1rem; overflow-wrap: anywhere; }
 .invitation-rows h3, .invitation-rows dd { margin: 0; }
 .invitation-rows dl { display: grid; gap: .5rem; }
@@ -210,4 +210,15 @@ button[data-portal-command="delete-presale"] { color: var(--danger, #923b32); }
 #listingForm label.checkbox-label { display: flex; align-items: center; gap: .6rem; }
 #listingForm label.checkbox-label input { margin: 0; }
 #listingForm [data-sale-modality][hidden], #invitationForm [hidden] { display: none; }
-#visitorInvitations .portal-actions { display: flex; flex-wrap: wrap; gap: .5rem; }
+:is(#visitorInvitations, #publicSharesPanel) .portal-actions { display: flex; flex-wrap: wrap; gap: .5rem; }
+
+#publicSharesPanel .invitation-rows { grid-template-columns: repeat(auto-fit, minmax(min(100%, 23rem), 1fr)); align-items: start; }
+#publicSharesPanel .invitation-rows h3 { font-size: 1.05rem; }
+#publicSharesPanel article p { margin: .4rem 0; }
+#publicSharesPanel [data-share-audience] { margin-top: .75rem; border-top: 1px solid var(--line, #cbdbd8); }
+#publicSharesPanel [data-share-audience] summary { padding: .7rem 0; cursor: pointer; font-weight: 650; }
+#publicSharesPanel .share-audience-body ul { padding: 0; margin: 0; list-style: none; }
+#publicSharesPanel .share-audience-body li { display: grid; gap: .2rem; padding: .65rem 0; border-top: 1px solid var(--line, #cbdbd8); }
+#publicSharesPanel .share-audience-body span { font-size: .88rem; }
+#publicShareRows:empty, #publicShareNotice:empty,
+#publicSharesPanel .portal-actions:not(:has(button:not([hidden]))), #publicSharesPanel [hidden] { display: none; }

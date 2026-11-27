@@ -3079,6 +3079,7 @@ async function initDatabase() {
       },
     });
     await runMigration(client, require("./share-invitations").migration);
+    await runMigration(client, require("./share-invitations").publicSharesMigration);
     await require("./share-invitations").expireAttribution(client, visitorAnalyticsRetentionDays);
     await client.query(
       "DELETE FROM visitor_page_views WHERE created_at < NOW() - make_interval(days => $1)",
@@ -12615,7 +12616,7 @@ const legacyRedirects = {
   "/propiedades/puerto-cancun/terrenos": "/propiedades/terrenos-cancun",
   "/en/properties/puerto-cancun/land": "/en/properties/land-cancun",
 };
-require("./share-invitations").register(app, { query, requireRole, siteUrl, inventory:getPublicProperties, directory:() => publicPropertyCache.directory, aliases:() => legacyRedirects });
+require("./share-invitations").register(app, { query, requireRole, siteUrl, sessionSecret, inventory:getPublicProperties, directory:() => publicPropertyCache.directory, aliases:() => legacyRedirects });
 Object.entries(legacyRedirects).forEach(([from, to]) => app.get(from, (req, res) => res.redirect(301, to + (req.originalUrl.includes("?") ? req.originalUrl.slice(req.originalUrl.indexOf("?")) : ""))));
 
 app.get(["/blog", "/en/blog"], async (req, res, next) => {
@@ -12699,7 +12700,8 @@ app.get(["/s/:token", "/en/s/:token"], async (req, res, next) => {
     const target = require("./public-sharing").resolveSharePath(req.params.token, properties, publicPropertyCache.directory, req.path.startsWith("/en/") ? "en" : "es");
     res.set("Cache-Control", "no-store");
     if (!target) return res.status(404).send(await renderNotFoundHtml(req.path));
-    res.redirect(302, target);
+    const landing = await require("./share-invitations").publicShareLanding(query, req.path, target, req.query.inv);
+    res.redirect(302, landing);
   } catch (error) { next(error); }
 });
 

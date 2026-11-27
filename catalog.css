@@ -280,7 +280,7 @@ body[data-page=home] .presale-feature:not(.has-home-cover) .primary-button { wid
 
 /* A selected presale reads as a project, with its own title and primary CTA. */
 body[data-page=seo]:has(.catalog-project-view) .seo-page-hero { display: none; }
-body[data-page=seo]:has(.catalog-project-view) .seo-page-content { padding-top: 22px; }
+body[data-page=seo]:has(.catalog-project-view) .seo-page-content { padding-top: calc(var(--public-header-height, 115px) + 18px); }
 .catalog-project-detail { max-width: none; padding-top: 0; }
 .catalog-project-back { display: inline-flex; min-height: 44px; align-items: center; font-size: .85rem; font-weight: 500; text-underline-offset: 3px; }
 .catalog-project-intro { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(240px, 1fr); gap: 20px 32px; align-items: center; margin: 12px 0 32px; }

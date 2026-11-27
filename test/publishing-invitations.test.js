@@ -2,7 +2,7 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 const directory = require("../portal-directory");
 const { publicIp, enrichStoredLocations } = require("../ip-geography");
-const { resolveTarget, recordOpen, linkContact } = require("../share-invitations");
+const { register, resolveTarget, recordOpen, linkContact, publicShareLanding } = require("../share-invitations");
 const seo = require("../seo-pages");
 const { sharePath } = require("../public-sharing");
 const dev = {id:"development-qa",type:"Desarrollo",publicationSection:"developments",titleEs:"Proyecto QA",titleEn:"QA development",status:"active",isPublic:true,zone:"Puerto Cancún",developmentData:{id:"dev-development-qa"},catalogData:{salesModality:"presale"}};
@@ -69,4 +69,48 @@ test("private, test and carrier NAT addresses cannot be assigned a city, includi
   const batches=[];
   await enrichStoredLocations(async(sql,params)=>{batches.push(params);return {rows:params[0] ? [] : [{id:"a",ip_address:"10.1.2.3"}]};});
   assert.deepEqual(batches,[[""],["a"],[""],["a"]]);
+});
+
+test("public sharing prepares separate channel links and attributes only a confirmed action with the private proof",async()=>{
+  const handlers=new Map(), writes=[];
+  const app={get(){},post:(path,...handlersForPath)=>handlers.set(path,handlersForPath.at(-1))};
+  const deps={siteUrl:"https://www.puertocancun.center",query:async(sql,args)=>{writes.push({sql,args});return {rows:[]}},
+    inventory:async()=>[dev,unit],directory:()=>({}),aliases:()=>({}),sessionSecret:"test-secret",requireRole:()=>()=>{}};
+  register(app,deps);
+  const req={body:{path:sharePath(unit),analyticsConsent:true},session:{}};
+  const res={statusCode:200,status(n){this.statusCode=n;return this},set(){return this},json(data){this.data=data},sendStatus(n){this.statusCode=n}};
+  const prepare=handlers.get("/api/invitations/prepare"), activate=handlers.get("/api/invitations/activate");
+  await prepare(req,res,assert.fail);
+  assert.equal(res.statusCode,201);
+  const {links}=res.data;
+  assert.deepEqual(Object.keys(links),["whatsapp","facebook","instagram","copy"]);
+  assert.equal(new Set(Object.values(links).map(link=>link.path)).size,4);
+  for (const link of Object.values(links)) {
+    assert.equal(link.path,sharePath(unit)+"?inv="+link.token);
+    assert.ok(!link.path.includes(link.proof));
+  }
+  assert.doesNotMatch(writes[0].sql,/shared_at|creator_name/);
+  req.body={...links.copy,channel:"copy",analyticsConsent:true,visitorId:"visitor-00000000001",sessionId:"session-00000000001",senderName:"Nombre voluntario"};
+  await activate({...req,body:{...req.body,proof:links.facebook.proof}},res,assert.fail);
+  assert.equal(res.statusCode,400);
+  await activate({...req,body:{...req.body,analyticsConsent:false}},res,assert.fail);
+  assert.equal(writes.length,1);
+  await activate(req,res,assert.fail);
+  assert.equal(writes.length,2);
+  assert.match(writes[1].sql,/public_channel=\$2.*shared_at IS NULL/);
+  assert.equal(writes[1].args[3],"Nombre voluntario");
+  assert.match(writes[1].args[4],/^visitor-[0-9a-f]{32}$/);
+  await prepare({...req,body:{path:sharePath(dev),analyticsConsent:false}},res,assert.fail);
+  assert.equal(writes.length,2);
+});
+
+test("public tokens belong to the original listing and gracefully preserve the canonical destination",async()=>{
+  const short=sharePath(dev), token="a".repeat(32), target="/preventas-cancun?project=proyecto";
+  let lookups=0;
+  const query=async(_sql,params)=>{lookups++;assert.deepEqual(params,[token,short]);return {rows:[{landing_path:target}]}};
+  assert.equal(await publicShareLanding(query,short,target,"bad"),target);
+  assert.equal(lookups,0);
+  assert.equal(await publicShareLanding(query,short,target,token),target+"&inv="+token);
+  assert.equal(await publicShareLanding(async()=>({rows:[]}),sharePath(unit),target,token),target);
+  assert.equal(await publicShareLanding(async()=>{throw Error("offline")},short,target,token),target);
 });
