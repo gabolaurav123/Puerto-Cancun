@@ -1,6 +1,7 @@
 const assert = require("node:assert/strict");
 const test = require("node:test");
 const { propertyPath, renderPropertyPage } = require("../seo-pages");
+const { renderListingAmenities } = require("../public-listing-details");
 
 const development = {
   id: "development-order-test",
@@ -28,6 +29,24 @@ const unit = {
 };
 
 for (const lang of ["es", "en"]) {
+  test(`a property links to its published development in the current language (${lang})`, () => {
+    const parent = { ...development, status: "active", titleEs: "Riva & Marina", titleEn: "Riva & Marina Residences", locationPrecision: "hidden" };
+    const linkedUnit = { ...unit, portalDevelopmentId: parent.id, amenities: ["Alberca"] };
+    const path = propertyPath(parent, lang);
+    const label = lang === "en" ? "Linked development" : "Desarrollo vinculado";
+    const name = lang === "en" ? "Riva &amp; Marina Residences" : "Riva &amp; Marina";
+    const page = renderPropertyPage(linkedUnit, lang, [], {}, [parent]).html;
+    const preview = renderListingAmenities(linkedUnit, { lang, properties: [parent] }, 3);
+    for (const html of [page, preview]) {
+      assert.equal(html.split(`href="${path}"`).length - 1, 1);
+      const amenities = html.match(/<section class="property-amenities">([\s\S]*?)<\/section>/)[1];
+      const link = amenities.match(/<a href="([^"]+)">([\s\S]*?)<\/a>/);
+      assert.equal(link[1], path);
+      assert.ok(link[2].includes(label) && link[2].includes(name));
+      assert.ok(amenities.includes(lang === "en" ? "<li>Swimming pool</li>" : "<li>Alberca</li>"));
+    }
+  });
+
   test(`development linked properties precede the contextual inquiry (${lang})`, () => {
     const { html } = renderPropertyPage(development, lang, [unit]);
     const relatedIndex = html.indexOf('<section class="similar-properties">');
@@ -58,3 +77,27 @@ for (const lang of ["es", "en"]) {
     assert.ok(relatedIndex > leadIndex);
   });
 }
+
+test("the development link remains when amenities are empty or hidden, including legacy relations", () => {
+  const parent = { ...development, slug: "", status: "featured", developmentData: { id: "legacy-development" }, titleEn: "" };
+  const legacy = { ...unit, parentDevelopment: { id: parent.developmentData.id } };
+  for (const property of [legacy, { ...legacy, amenities: ["Gym"], portalHiddenBlocks: ["amenities"] }]) {
+    const html = renderPropertyPage(property, "en", [], {}, [parent]).html;
+    assert.ok(html.includes(`href="${propertyPath(parent, "en")}"`));
+    assert.ok(html.includes(parent.titleEs));
+    assert.doesNotMatch(html, /class="property-amenities"/);
+  }
+});
+
+test("unpublished, unlinked and unrelated records have no development link", () => {
+  const parent = { ...development, status: "active" };
+  const linkedUnit = { ...unit, parentDevelopment: { propertyId: parent.id, nameEs: parent.titleEs } };
+  for (const [property, records] of [
+    [unit, [parent]], [linkedUnit, []], [linkedUnit, [{ ...parent, status: "draft" }]],
+    [linkedUnit, [{ ...parent, isPublic: false }]], [linkedUnit, [{ ...unit, id: parent.id, status: "active" }]],
+    [{ ...linkedUnit, portalDevelopmentId: "" }, [parent]], [{ ...linkedUnit, portalDevelopmentId: "other" }, [parent]],
+    [{ ...parent, portalDevelopmentId: parent.id }, [parent]],
+  ]) {
+    assert.doesNotMatch(renderPropertyPage(property, "es", [], {}, records).html, /class="listing-development"/);
+  }
+});
