@@ -253,3 +253,61 @@ body:is([data-page="home"], [data-page="seo"], [data-page="property"]) .office-i
 @media(max-width:700px) {
   .property-detail-copy .property-detail-meta { display:none; }
 }
+
+/* Homepage feedback stays inside the existing controls and their hit areas. */
+.home-press-wave { display: none; }
+@media (prefers-reduced-motion: no-preference) {
+  :where(body[data-page="home"] :is(.main-header, .home-only)) :where(a, button, summary) {
+    position: relative; isolation: isolate;
+  }
+  .home-press-wave {
+    display: block; position: absolute; inset: 0; z-index: -1;
+    border-radius: inherit; background: currentColor; opacity: 0; pointer-events: none;
+  }
+  :is(.type-tile, .zone-card, #ownerContactButton) > .home-press-wave { z-index: 1; }
+
+  body[data-page="home"] #searchForm .search-field { position: relative; }
+  body[data-page="home"] :where(#searchForm .search-field, .public-nav-search)::after {
+    content: ""; position: absolute; pointer-events: none;
+    inset: auto 3px 0; height: 3px; background: var(--gold);
+    transform-origin: left; transform: scaleX(0);
+    transition: transform 320ms cubic-bezier(.16,.8,.3,1);
+  }
+  body[data-page="home"] :is(#searchForm .search-field:focus-within, .public-nav-search:is(:focus-visible, :active))::after {
+    transform: scaleX(1);
+  }
+  body[data-page="home"] #searchForm .accent-button { overflow: hidden; }
+  body[data-page="home"] #searchForm .accent-button::after {
+    content: ""; position: absolute; inset: 0; z-index: -1; pointer-events: none;
+    background: linear-gradient(110deg, transparent 28%, var(--gold-light) 50%, transparent 72%);
+    opacity: .75; transform: translateX(110%);
+    animation: pcc-search-sweep 850ms 280ms backwards;
+  }
+  body[data-page="home"] #searchForm .accent-button:disabled::after {
+    animation: pcc-search-sweep 1.2s ease-in-out infinite;
+  }
+  @keyframes pcc-search-sweep { from { transform: translateX(-110%); } to { transform: translateX(110%); } }
+
+  body[data-page="home"] .public-nav-group > summary::after { transition: transform 220ms ease-out; }
+  body[data-page="home"] .public-nav-group[open] > .public-nav-popover,
+  body[data-page="home"] #homeSearchSuggestions:not([hidden]) { animation: pcc-panel-arrive 250ms ease-out backwards; }
+
+  body[data-page="home"] .type-tile.public-card-arriving > .type-photo-ready {
+    animation: pcc-type-photo 620ms var(--card-delay, 0ms) cubic-bezier(.2,.76,.3,1) backwards;
+  }
+  body[data-page="home"] .type-tile.public-card-arriving > span {
+    animation: pcc-type-label 520ms calc(var(--card-delay, 0ms) + 70ms) ease-out backwards;
+  }
+  body[data-page="home"] .type-tile > span::after {
+    content: ""; position: absolute; inset-inline-start: 0; bottom: -5px;
+    width: 2.65rem; height: 2px; background: var(--gold-light); pointer-events: none;
+    transform-origin: left; transform: scaleX(.36); transition: transform 260ms ease-out;
+  }
+  body[data-page="home"] .type-tile:is(:focus-visible, :active) > span::after { transform: scaleX(1); }
+  @media (hover: hover) and (pointer: fine) {
+    body[data-page="home"] .public-nav-search:hover::after,
+    body[data-page="home"] .type-tile:hover > span::after { transform: scaleX(1); }
+  }
+  @keyframes pcc-type-photo { from { clip-path: inset(0 38% 0 0); } to { clip-path: inset(0); } }
+  @keyframes pcc-type-label { from { translate: -18px 0; opacity: .55; } to { translate: 0 0; opacity: 1; } }
+}

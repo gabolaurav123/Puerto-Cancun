@@ -121,8 +121,49 @@
     window.addEventListener("resize", positionOwner);
   }
 
+  const motion = window.matchMedia("(prefers-reduced-motion: no-preference)");
+  const typeGrid = document.querySelector('body[data-page="home"] .type-grid');
+  if (typeGrid) {
+    const markPhotoReady = image => {
+      if (image.matches("img[data-home-cover]") && image.naturalWidth) image.classList.add("type-photo-ready");
+    };
+    typeGrid.addEventListener("load", event => markPhotoReady(event.target), true);
+    typeGrid.querySelectorAll("img[data-home-cover]").forEach(markPhotoReady);
+  }
+  if (document.body.dataset.page === "home" && Element.prototype.animate) {
+    const controls = ":is(.main-header, .home-only) :is(a[href], button:enabled, summary):not(.brand), #ownerContactButton";
+    let activePress;
+    function showPress(event) {
+      if (!motion.matches) return;
+      const control = event.target.closest(controls);
+      if (!control) return;
+      const bounds = control.getBoundingClientRect();
+      const origin = event.type === "pointerdown"
+        ? `${event.clientX - bounds.left}px ${event.clientY - bounds.top}px` : "50% 50%";
+      const wave = document.createElement("i");
+      wave.className = "home-press-wave";
+      wave.setAttribute("aria-hidden", "true");
+      activePress?.cancel();
+      control.append(wave);
+      const effect = wave.animate([
+        { clipPath: `circle(7px at ${origin})`, opacity: .5 },
+        { clipPath: `circle(145% at ${origin})`, opacity: 0 },
+      ], { duration: 500, easing: "cubic-bezier(.18,.72,.3,1)" });
+      activePress = effect;
+      const finish = () => {
+        wave.remove();
+        if (activePress === effect) activePress = null;
+      };
+      effect.onfinish = finish;
+      effect.oncancel = finish;
+    }
+    document.addEventListener("pointerdown", event => {
+      if (event.isPrimary && event.button === 0) showPress(event);
+    }, { passive: true });
+    document.addEventListener("pointercancel", event => { if (event.isPrimary) activePress?.cancel(); });
+    document.addEventListener("click", event => { if (event.detail === 0) showPress(event); }, true);
+  }
   if ("IntersectionObserver" in window && document.body.matches('[data-page="home"], [data-page="seo"], [data-page="property"]')) {
-    const motion = window.matchMedia("(prefers-reduced-motion: no-preference)");
     const cards = "main :is(.seo-property-card, .type-tile, .zone-card, .presale-feature, .exploration-area, .exploration-featured-card, .property-gallery-column)";
     const observer = new IntersectionObserver(entries => {
       const entering = entries.filter(entry => entry.isIntersecting);
