@@ -36,6 +36,12 @@
     "¿Retirar de esta ubicación? La ficha seguirá publicada.":"Remove this placement? The listing will stay published.",
     "No se pudo cargar el directorio. Pulsa Actualizar para reintentar.":"The directory could not be loaded. Select Refresh to try again.",
   };
+  Object.assign(english, {
+    "Nueva preventa":"New presale", "Crear preventa":"Create presale", "Eliminar preventa":"Delete presale",
+    "Zona y unidades":"Area and units", "Descripción y portada":"Description and cover",
+    "Inglés y referencia":"English and reference", "La zona y la fuente son obligatorias para confirmar la preventa.":"An area and a source are required to confirm the presale.",
+    "Eliminar esta preventa del directorio":"Delete this presale from the directory",
+  });
   const tr = value => document.documentElement.lang === "en" ? english[value] || value : value;
   function translateControls(target) {
     if (document.documentElement.lang !== "en") return;
@@ -68,7 +74,7 @@
     const {host,section,data,ctx} = v;
     const h = headings[section][ctx.lang === "en" ? 1 : 0];
     const actions = section === "portal-areas" ? btn("new-area","Nueva zona")+btn("new-sub","Nueva subzona")+btn("assign","Ubicación y bloques de fichas")
-      : section === "portal-presales" ? btn("new-presale","Nuevo proyecto") : btn("new-feature","Añadir destacado");
+      : section === "portal-presales" ? btn("new-presale","Nueva preventa") : btn("new-feature","Añadir destacado");
     host.innerHTML = `<div class="admin-module-heading"><h2>${esc(h)}</h></div><div class="portal-actions">${ctx.editable ? actions : ""}${btn("reload","Actualizar")}</div><p data-portal-message role="status"></p><div data-portal-editor></div><div data-portal-list></div>`;
     if (!data?.config) { notify(v,"No se pudo cargar el directorio. Pulsa Actualizar para reintentar."); return; }
     host.querySelector("[data-portal-list]").innerHTML = (section === "portal-areas" ? ["areas","subareas"] : section === "portal-presales" ? ["presales"] : ["featured"]).map(key => listHtml(v,key)).join("");
@@ -89,7 +95,7 @@
         : key === "presales" ? `${tr(statusText[x.status])} · ${x.reference}`
         : `${x.areaId ? title(v,"area",x.areaId)+" · " : ""}${tr(x.active ? "Activa" : "Inactiva")}`;
       const move = key === "featured" || key === "areas" || key === "subareas";
-      return `<li><div><strong>${esc(titleText)}</strong><small>${esc(secondary)}</small></div><div class="portal-actions">${v.ctx.editable ? btn("edit","Editar",attrs)+(move ? btn("up","Subir",attrs)+btn("down","Bajar",attrs) : "") : ""}${key === "presales" ? btn("preview","Vista previa",attrs) : ""}${key === "featured" && v.ctx.editable ? btn("remove","Retirar",attrs) : ""}</div></li>`;
+      return `<li><div><strong>${esc(titleText)}</strong><small>${esc(secondary)}</small></div><div class="portal-actions">${v.ctx.editable ? btn("edit","Editar",attrs)+(move ? btn("up","Subir",attrs)+btn("down","Bajar",attrs) : "") : ""}${key === "presales" ? btn("preview","Vista previa",attrs) : ""}${key === "presales" && v.ctx.editable ? btn("delete-presale","Eliminar preventa",attrs) : ""}${key === "featured" && v.ctx.editable ? btn("remove","Retirar",attrs) : ""}</div></li>`;
     };
     return `<section><h3>${collectionTitles[key]}</h3>${items.length ? `<ul class="portal-rows">${items.map(row).join("")}</ul>` : "<p>Todavía no hay registros en esta sección.</p>"}</section>`;
   }
@@ -97,7 +103,7 @@
     if (v.dirty && !root.confirm(tr("¿Descartar los cambios sin guardar de este formulario?"))) return;
     v.dirty = false;
     const target = v.host.querySelector("[data-portal-editor]");
-    target.innerHTML = `<form class="portal-edit" data-key="${key}" data-id="${esc(item.id || "")}"><h3>${esc(item.nameEs || (item.id ? "Editar registro" : "Nuevo registro"))}</h3>${contents}<div class="portal-actions"><button class="primary-button" type="submit">Guardar cambios</button>${btn("cancel","Cancelar")}</div></form>`;
+    target.innerHTML = `<form class="portal-edit" data-key="${key}" data-id="${esc(item.id || "")}"><h3>${esc(item.nameEs || (item.id ? "Editar registro" : key === "presales" ? "Nueva preventa" : "Nuevo registro"))}</h3>${contents}<div class="portal-actions"><button class="primary-button" type="submit">${key === "presales" && !item.id ? "Crear preventa" : "Guardar cambios"}</button>${btn("cancel","Cancelar")}${key === "presales" && item.id ? btn("delete-presale","Eliminar preventa",`data-key="presales" data-id="${esc(item.id)}"`) : ""}</div></form>`;
     const form = target.querySelector("form");
     hydrate(v,form);
     translateControls(target);
@@ -125,9 +131,16 @@
       +select("O elegir una portada del inventario público","cover",areaLabels(v.data.records.filter(r => r.image && root.PccInventory.isPublic(r)),"","Elegir imagen"));
     if (key === "subareas") contents += select("Zona superior","areaId",areaLabels(v.data.config.areas,item.areaId));
     if (key === "presales") {
-      contents += field("Referencia del proyecto","reference",item.reference,true) + select("Desarrollo del inventario (opcional)","developmentId",areaLabels(records(v,"development"),item.developmentId)) +
-        geoFields(v,item) + `<label><span>Unidades vinculadas a la preventa</span><select multiple size="5" name="propertyIds">${records(v,"property").map(r => option(r.id,r.titleEs,item.propertyIds?.includes(r.id))).join("")}</select><small>Selecciona únicamente unidades confirmadas para el proyecto.</small></label>`+
-        select("Estado comercial del proyecto","status",Object.entries(statusText).map(([id,label]) => option(id,label,id === (item.status || "draft"))).join(""))+textarea("Fuente de verificación (privada)","evidence",item.evidence);
+      const group = (label, fields) => `<details class="publication-group"><summary>${esc(label)}</summary><div class="publication-group-body">${fields}</div></details>`;
+      const photo = select("O elegir una portada del inventario público","cover",areaLabels(v.data.records.filter(r => r.image && root.PccInventory.isPublic(r)),"","Elegir imagen"));
+      contents = field("Nombre en español","nameEs",item.nameEs,true) +
+        select("Estado comercial del proyecto","status",Object.entries(statusText).map(([id,label]) => option(id,label,id === (item.status || "draft"))).join("")) +
+        select("Desarrollo del inventario (opcional)","developmentId",areaLabels(records(v,"development"),item.developmentId)) +
+        '<p data-presale-confirmation hidden>La zona y la fuente son obligatorias para confirmar la preventa.</p>' +
+        textarea("Fuente de verificación (privada)","evidence",item.evidence) +
+        group("Zona y unidades", geoFields(v,item) + `<label><span>Unidades vinculadas a la preventa</span><select multiple size="5" name="propertyIds">${records(v,"property").map(r => option(r.id,displayName(r),item.propertyIds?.includes(r.id))).join("")}</select></label>`) +
+        group("Descripción y portada", textarea("Descripción en español","descriptionEs",item.descriptionEs) + photo + field("URL de la imagen","image",item.image)) +
+        group("Inglés y referencia", field("Nombre en inglés","nameEn",item.nameEn) + textarea("Descripción en inglés","descriptionEn",item.descriptionEn) + field("Referencia del proyecto","reference",item.reference));
     } else {
       contents += check("active","yes","Mostrar en el directorio público",item.active !== false);
       if (key === "areas") contents += check("homeFeatured","yes","Mostrar en la página de destacadas",v.data.config.featured.some(f => f.active && f.kind === "area" && f.targetId === item.id && f.placement === "home"));
@@ -171,7 +184,13 @@
     }
     if (changed === "areaId" && e.subareaId) e.subareaId.innerHTML = areaLabels(cfg.subareas.filter(s => s.areaId === value("areaId")),"");
     if (form.dataset.key === "presales") {
+      const confirmed = value("status") === "confirmed";
+      e.evidence.required = confirmed;
+      e.evidence.closest("label").hidden = !confirmed && !e.evidence.value;
+      form.querySelector("[data-presale-confirmation]").hidden = !confirmed;
       const parent = value("developmentId");
+      e.areaId.required = confirmed && !parent;
+      if (confirmed && !parent && !e.areaId.value) e.areaId.closest("details").open = true;
       e.areaId.disabled = e.subareaId.disabled = Boolean(parent);
       if (parent) {
         const geo = v.data.effective[parent] || {};
@@ -244,6 +263,15 @@
     if (action === "preview") return preview(v,cfg[key].find(x => x.id === id));
     if (!v.ctx.editable) return;
     if (action === "native") { const selected = id || button.closest("form")?.elements.recordId.value; if (selected) await v.ctx.editRecord(selected); return; }
+    if (action === "delete-presale" && key === "presales") {
+      const project = cfg.presales.find(item => item.id === id);
+      if (!project || !root.confirm(tr("Eliminar esta preventa del directorio") + " «" + displayName(project) + "»?")) return;
+      const updated = structuredClone(cfg);
+      updated.presales = updated.presales.filter(item => item.id !== id);
+      updated.featured = updated.featured.filter(slot => slot.kind !== "presale" || slot.targetId !== id);
+      await persist(v,updated);
+      return;
+    }
     if (action === "cancel") { if (!v.dirty || root.confirm(tr("¿Descartar los cambios sin guardar?"))) redraw(v); return; }
     if (action === "edit") return edit(v,key,cfg[key].find(x => x.id === id));
     const commands = {"new-area":"areas","new-sub":"subareas","new-feature":"featured","new-presale":"presales","assign":"assignments"};
@@ -276,6 +304,7 @@
       });
       host.addEventListener("input",event => { if (event.target.closest(".portal-edit")) v.dirty = true; });
       host.addEventListener("change",event => { const f=event.target.closest(".portal-edit"); if (f) { v.dirty=true; hydrate(v,f,event.target.name); } });
+      host.addEventListener("invalid",event => { const group = event.target.closest("details"); if (group) group.open = true; }, true);
       host.addEventListener("submit",event => {
         const f = event.target.closest(".portal-edit");
         if (!f) return;

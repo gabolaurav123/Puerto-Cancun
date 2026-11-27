@@ -1,4 +1,6 @@
 const crypto = require("crypto");
+const { isIP } = require("node:net");
+const { publicIp, lookupIp } = require("./ip-geography");
 
 const TRACKING_ID_PATTERN = /^[A-Za-z0-9._:-]{12,120}$/;
 
@@ -26,7 +28,7 @@ function hashTrackingId(value, secret) {
 function normalizeClientIp(value) {
   let candidate = String(value || "").split(",")[0].trim().toLowerCase();
   if (candidate.startsWith("::ffff:")) candidate = candidate.slice(7);
-  if (!/^[0-9a-f:.]{2,64}$/i.test(candidate)) return "";
+  if (!isIP(candidate)) return "";
   return candidate;
 }
 
@@ -59,14 +61,23 @@ function countryNameFromCode(code) {
 }
 
 function locationFromRequest(req) {
-  const countryCode = headerValue(req, ["cf-ipcountry", "x-vercel-ip-country", "x-country-code", "x-appengine-country"], 8).toUpperCase();
-  const countryName = headerValue(req, ["x-geo-country", "x-country-name"], 100) || countryNameFromCode(countryCode);
+  let ipAddress = normalizeClientIp(req.ip || req.socket?.remoteAddress);
+  // Walk back through private ingress hops only when the socket is also behind that ingress.
+  const socketIp = normalizeClientIp(req.socket?.remoteAddress);
+  if (socketIp && !publicIp(socketIp) && !publicIp(ipAddress)) {
+    const chain = String(req.get("x-forwarded-for") || "").split(",").slice(-12).reverse();
+    const nearestPublic = chain.map(normalizeClientIp).find(publicIp);
+    if (nearestPublic) ipAddress = nearestPublic;
+  }
+  const headerCode = headerValue(req, ["cf-ipcountry", "x-vercel-ip-country", "x-country-code", "x-appengine-country"], 8).toUpperCase();
+  const local = lookupIp(ipAddress);
+  const countryCode = /^[A-Z]{2}$/.test(headerCode) && !["XX","ZZ"].includes(headerCode) ? headerCode : local?.countryCode || "";
+  const compatible = countryCode === local?.countryCode ? local : null;
   return {
-    ipAddress: normalizeClientIp(req.ip || req.socket?.remoteAddress),
-    countryCode: /^[A-Z]{2}$/.test(countryCode) ? countryCode : "",
-    countryName,
-    region: headerValue(req, ["x-vercel-ip-country-region", "cf-region", "x-geo-region", "x-appengine-region"], 120),
-    city: headerValue(req, ["x-vercel-ip-city", "cf-ipcity", "x-geo-city", "x-appengine-city"], 120),
+    ipAddress, countryCode,
+    countryName: headerValue(req, ["x-geo-country", "x-country-name"], 100) || countryNameFromCode(countryCode),
+    region: headerValue(req, ["x-vercel-ip-country-region", "cf-region", "x-geo-region", "x-appengine-region"], 120) || compatible?.region || "",
+    city: headerValue(req, ["x-vercel-ip-city", "cf-ipcity", "x-geo-city", "x-appengine-city"], 120) || compatible?.city || "",
   };
 }
 

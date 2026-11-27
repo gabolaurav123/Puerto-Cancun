@@ -174,3 +174,40 @@
 @media (max-width: 380px) {
   .panel-open .pcc-segments button { font-size: 12px; flex-direction: column; gap: 2px; overflow-wrap: normal; }
 }
+
+.publication-group {
+  border: 1px solid var(--line, #cbdbd8);
+  border-radius: 10px;
+  background: var(--white, #fff);
+  min-width: 0;
+}
+.publication-group > summary {
+  cursor: pointer;
+  padding: .85rem 1rem;
+  color: var(--teal, #064c55);
+  font-weight: 700;
+}
+.publication-group > summary::marker { color: var(--gold, #ab7f24); }
+.publication-group[open] > summary { border-bottom: 1px solid var(--line, #cbdbd8); }
+.publication-group > summary:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }
+.publication-group-body { display: grid; gap: 1rem; padding: 1rem; min-width: 0; }
+.publication-group-body > *, .portal-edit .publication-group { min-width: 0; }
+#listingForm .publication-group[hidden], #listingForm [data-rent-period][hidden] { display: none; }
+#listingForm .publication-group-body textarea { min-height: 6rem; }
+button[data-portal-command="delete-presale"] { color: var(--danger, #923b32); }
+@media (max-width: 640px) {
+  .publication-group-body { padding: .75rem; }
+  #listingForm .form-row, .portal-edit .portal-fields { grid-template-columns: 1fr; }
+}
+
+#visitorInvitations .invitation-rows { display: grid; gap: .75rem; grid-template-columns: repeat(auto-fit, minmax(min(100%, 19rem), 1fr)); }
+.invitation-rows article { border: 1px solid var(--line, #cbdbd8); border-radius: .65rem; padding: 1rem; overflow-wrap: anywhere; }
+.invitation-rows h3, .invitation-rows dd { margin: 0; }
+.invitation-rows dl { display: grid; gap: .5rem; }
+.invitation-rows dt { font-weight: 650; }
+#invitationNotice { overflow-wrap: anywhere; }
+
+#listingForm label.checkbox-label { display: flex; align-items: center; gap: .6rem; }
+#listingForm label.checkbox-label input { margin: 0; }
+#listingForm [data-sale-modality][hidden], #invitationForm [hidden] { display: none; }
+#visitorInvitations .portal-actions { display: flex; flex-wrap: wrap; gap: .5rem; }

@@ -113,9 +113,10 @@
     }
     const assignments = adminAssignments(config,records);
     const isExplicitPresale = r => presalePolicy ? presalePolicy.isPresale(r, { directory: config, records }) : r.catalogData?.salesModality === "presale" || r.salesModality === "presale" || r.type === "Preventa";
+    const suppressed = new Set(config.suppressedPresaleSources || []);
     const existing = new Set(config.presales.filter(p => p.developmentId).map(p => p.developmentId));
     for (const r of records.filter(isDev)) {
-      if (!isExplicitPresale(r) || existing.has(r.id)) continue;
+      if (!isExplicitPresale(r) || existing.has(r.id) || suppressed.has(r.id)) continue;
       const geography = assignments[r.id];
       config.presales.push({ id:`presale-${r.id}`, nameEs:r.titleEs || r.titleEn, nameEn:r.titleEn || r.titleEs, descriptionEs:"",descriptionEn:"",
         image:r.image || "", reference:r.mls || r.id, developmentId:r.id, areaId:geography.areaId, subareaId:geography.subareaId,
@@ -126,7 +127,7 @@
     // Reviewed presale units without a verified parent keep their own identity.
     // This adds a directory view; it never creates or changes an inventory record.
     for (const r of records.filter(record => !isDev(record) && isExplicitPresale(record))) {
-      if (config.presales.some(project => project.propertyIds?.includes(r.id))) continue;
+      if (suppressed.has(r.id) || suppressed.has(assignments[r.id]?.developmentId) || config.presales.some(project => project.propertyIds?.includes(r.id))) continue;
       const geography = assignments[r.id];
       const parentProject = config.presales.find(project => project.developmentId && project.developmentId === geography.developmentId && project.status === "confirmed");
       if (parentProject) { parentProject.propertyIds.push(r.id); continue; }
@@ -200,7 +201,7 @@
       const evidence = text(p.evidence, 2000, "la fuente");
       if (p.status === "confirmed" && (!geo.areaId || !evidence)) invalid("Confirma la zona y registra la fuente antes de publicar una preventa.");
       if (!Array.isArray(p.propertyIds) || p.propertyIds.some(id => !byId.has(id) || isDev(byId.get(id)) || (developmentId && effective[id]?.developmentId !== developmentId) || (!developmentId && geo.areaId && effective[id]?.areaId !== geo.areaId))) invalid(`Revisa las unidades de la preventa «${p.nameEs || p.id}». Quita o corrige el vínculo incompatible con su desarrollo o zona antes de guardar.`);
-      return {...editorial(p), ...geo, developmentId,propertyIds:[...new Set(p.propertyIds)], status:p.status,evidence,reference:text(p.reference,180,"la referencia",true)};
+      return {...editorial({...p, nameEn:p.nameEn || p.nameEs}), ...geo, developmentId,propertyIds:[...new Set(p.propertyIds)], status:p.status,evidence,reference:text(p.reference || p.id,180,"la referencia",true)};
     }), "preventas");
     const linked = presales.filter(p => p.developmentId).map(p => p.developmentId);
     if (new Set(linked).size !== linked.length) invalid("Ya existe un proyecto de preventa para ese desarrollo.");
@@ -210,8 +211,18 @@
       if (kind === "presale") return presales.some(p => p.id === id);
       return byId.has(id) && isDev(byId.get(id)) === (kind === "development");
     }
+    const kept = new Set(presales.map(project => project.id));
+    const removed = (previous?.presales || []).filter(project => !kept.has(project.id));
+    const removedIds = new Set(removed.map(project => project.id));
+    const suppressed = new Set(previous?.suppressedPresaleSources || []);
+    for (const project of removed) {
+      for (const source of [project.developmentId, ...project.propertyIds]) if (source) suppressed.add(source);
+    }
+    for (const project of presales) {
+      for (const source of [project.developmentId, ...project.propertyIds]) suppressed.delete(source);
+    }
     const placed = new Set();
-    const featured = unique(list(input.featured, 4000, "destacados").map(f => {
+    const featured = unique(list(input.featured, 4000, "destacados").filter(f => f.kind !== "presale" || !removedIds.has(f.targetId)).map(f => {
       if (!KINDS.includes(f.kind) || !target(f.kind,f.targetId)) invalid("El destacado debe apuntar a un registro existente.");
       if (!["home","area","development"].includes(f.placement) || (f.placement !== "home" && !target(f.placement,f.contextId))) invalid("El destino del destacado no existe.");
       const item = {id:identifier(f.id),kind:f.kind,targetId:f.targetId,placement:f.placement,contextId:f.placement === "home" ? "" : f.contextId,active:f.active !== false};
@@ -229,11 +240,11 @@
       for (let n = 1; featured.some(slot => slot.id === id); n++) id = `hidden-${n}-${old.targetId}`.slice(0,180);
       featured.push({ ...old, id, active:false });
     }
-    for (const [key, rows] of [["areas",areas],["subareas",subareas],["presales",presales]]) {
+    for (const [key, rows] of [["areas",areas],["subareas",subareas]]) {
       const ids = new Set(rows.map(x => x.id));
       if (previous?.[key]?.some(x => !ids.has(x.id))) invalid("Desactiva el registro para retirarlo de la web sin eliminarlo.");
     }
-    return {...config,presales,featured};
+    return {...config,presales,featured,suppressedPresaleSources:[...suppressed]};
   }
   function publicDirectory(stored, inputRecords = []) {
     const records = inputRecords.filter(r => inventory.isPublic(r) && inventory.entityOf(r) !== "typologies");
