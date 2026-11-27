@@ -19,8 +19,10 @@ test("el idioma se guarda antes de navegar y tambien se controla desde los panel
   assert.match(indexSource, /name="descriptionEn"/);
   assert.match(serverSource, /automaticallyTranslateProperty/);
   assert.match(serverSource, /titleEnStored/);
-  assert.match(seoSource, /localizedAmenity\(item, lang\)/);
-  assert.equal(require("../public-listing-details").localizedAmenity("Seguridad 24/7", "en"), "24/7 security");
+  const listing = { id: "unit", type: "Departamento", amenities: ["Seguridad 24/7"] };
+  const { renderPropertyPage } = require("../seo-pages");
+  assert.match(renderPropertyPage(listing, "es").html, /<li>Seguridad 24\/7<\/li>/);
+  assert.match(renderPropertyPage(listing, "en").html, /<li>24\/7 security<\/li>/);
   assert.doesNotMatch(serverSource, /Original property description:\\n\$\{descriptionEs\}/);
   assert.match(serverSource, /function propertyEnglishFallback/);
   assert.match(appSource, /descriptionSummary = truncateText\(localizedDescription\(property\), 190\)/);

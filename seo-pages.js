@@ -1,6 +1,6 @@
 const LAST_UPDATED = "2026-07-10";
 const inventoryContract = require("./inventory-contract");
-const { safePublicImages, optimizedPublicImage, localizedAmenity, resolvePublicLocation, renderPublicLocationSection } = require("./public-listing-details");
+const { propertySlug, propertyPath, safePublicImages, optimizedPublicImage, localizedAmenity, renderListingAmenities, resolvePublicLocation, renderPublicLocationSection } = require("./public-listing-details");
 const businessContacts = require("./contact-config");
 const { shareButton } = require("./public-sharing");
 const { renderCatalog, categoryDefaults } = require("./catalog-view");
@@ -59,25 +59,6 @@ function absoluteUrl(path, baseUrl = DEFAULT_SITE_URL) {
   if (/^https?:\/\//i.test(path || "")) return new URL(path).href;
   if (!path || path === "/") return `${cleanBase}/`;
   return `${cleanBase}${path.startsWith("/") ? path : `/${path}`}`;
-}
-
-function slugify(value) {
-  return String(value || "")
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "")
-    .slice(0, 110);
-}
-
-function propertySlug(property) {
-  const identity = property.mls || property.id || "propiedad";
-  return slugify(`${property.titleEs || property.title_es || property.titleEn || property.title_en || "propiedad"}-${property.zone || "cancun"}-${identity}`);
-}
-
-function propertyPath(property, lang = "es") {
-  return `${lang === "en" ? "/en/properties" : "/propiedades"}/${property.slug || propertySlug(property)}`;
 }
 
 function JsonLd(data) {
@@ -1220,8 +1201,7 @@ function renderPropertyPage(property, lang = "es", similar = [], directory = {},
     ? english ? "Properties available in this development" : "Propiedades disponibles en este desarrollo"
     : english ? "Similar properties" : "Propiedades similares";
   const similarSection = similar.length ? `<section class="similar-properties"><div class="section-heading"><h2>${similarTitle}</h2></div>${renderInventoryCards(similar.slice(0, developmentMode ? 12 : 3), lang, {exchangeRate, records:publicProperties})}</section>` : "";
-  const allAmenities = require("./public-listing-details").publicAmenities(property, publicProperties);
-  const amenities = allAmenities.length ? `<section class="property-amenities"><h2>${property.developmentData?.amenitiesPlanned ? (english ? "Planned amenities" : "Amenidades previstas") : (english ? "Amenities" : "Amenidades")}</h2>${property.parentDevelopment?.nameEs ? `<p>${english ? "This unit belongs to" : "Esta unidad pertenece a"} <strong>${escapeHtml(english ? property.parentDevelopment.nameEn || property.parentDevelopment.nameEs : property.parentDevelopment.nameEs)}</strong>.</p>` : ""}<ul>${allAmenities.map((item) => `<li>${escapeHtml(localizedAmenity(item, lang))}</li>`).join("")}</ul></section>` : "";
+  const amenities = renderListingAmenities(property, locationOptions);
   const leadTitle = policy.isPresale ? (english ? "Request presale information" : "Pedir información de preventa") : (english ? "Request information" : "Pedir información");
   const knownDevelopment = developmentMode ? title : property.parentDevelopment?.nameEs || "";
   const actions = [[policy.intent || "buy", leadTitle]];
@@ -1256,7 +1236,7 @@ function renderPropertyPage(property, lang = "es", similar = [], directory = {},
   const content = `<div class="property-page-layout"><div class="property-page-overview">${summary}${galleryColumn}</div>${measurements.length ? `<p class="property-measurements">${escapeHtml(measurements.join(" · "))}</p>` : ""}${mapSection}${hiddenBlocks.has("video") ? "" : videoSection}
     <section class="property-page-information">${hiddenBlocks.has("description") || !description ? "" : `<section class="property-description-section"><h2>${developmentMode ? (english ? "About this community" : "Sobre el desarrollo") : (english ? "Property details" : "Detalles de la propiedad")}</h2>
       <div class="property-long-description">${String(description || "").split(/\n+/).filter(Boolean).map(part => `<p>${escapeHtml(part)}</p>`).join("")}</div>
-    </section>`}${hiddenBlocks.has("amenities") ? "" : amenities}${exchangeInquiry}</section></div>${images.length && !hiddenBlocks.has("gallery") ? galleryModal : ""}${relatedContent}`;
+    </section>`}${amenities}${exchangeInquiry}</section></div>${images.length && !hiddenBlocks.has("gallery") ? galleryModal : ""}${relatedContent}`;
   return { page, html: pageShell(page, content, heading) };
 }
 

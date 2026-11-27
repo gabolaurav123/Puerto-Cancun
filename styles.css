@@ -9314,6 +9314,20 @@ button[aria-busy="true"] {
   padding-left: 18px;
 }
 
+.listing-development { margin: 0 0 8px; }
+.listing-development > a {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  column-gap: .45em;
+  min-height: 44px;
+  max-width: 100%;
+  color: inherit;
+  text-decoration: none;
+}
+.listing-development .text-link { overflow-wrap: anywhere; }
+.listing-development a:is(:hover, :focus-visible) .text-link { text-decoration-color: currentColor; }
+
 .property-lead {
   padding: 32px;
   background: #fff;

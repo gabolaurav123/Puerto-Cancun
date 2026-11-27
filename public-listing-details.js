@@ -19,6 +19,21 @@ function optimizedPublicImage(image, width) {
   return `${image}${separator}w=${width}`;
 }
 
+function propertySlug(property) {
+  const identity = property.mls || property.id || "propiedad";
+  const title = property.titleEs || property.title_es || property.titleEn || property.title_en || "propiedad";
+  return `${title}-${property.zone || "cancun"}-${identity}`.normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 110);
+}
+
+function propertyPath(property, lang = "es") {
+  return `${lang === "en" ? "/en/properties" : "/propiedades"}/${property.slug || propertySlug(property)}`;
+}
+
 function publicAmenities(property = {}, records = []) {
   if (!property || property.portalHiddenBlocks?.includes("amenities")) return [];
   const parent = property.parentDevelopment;
@@ -100,7 +115,7 @@ function localizedAmenity(amenity, lang = "es") {
 }
 
 const locationText = (value) => typeof value === "string" ? value.trim().replace(/\s+/g, " ") : "";
-const escapeLocation = (value) => String(value ?? "").replace(/[&<>"']/g, (character) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[character]);
+const escapeHtml = (value) => String(value ?? "").replace(/[&<>"']/g, (character) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[character]);
 const distinctLocationParts = (parts) => [...new Map(parts.map(locationText).filter(Boolean).map(value => [inventory.fold(value), value])).values()];
 
 function parsePlacePin(value) {
@@ -170,16 +185,35 @@ function locationNames(property, directory = {}, lang = "es") {
 }
 
 function linkedPublicDevelopment(property, properties) {
-  const linkedIds = property.portalDevelopmentId ? [property.portalDevelopmentId]
-    : [property.parentDevelopment?.propertyId, property.developmentId].filter(Boolean);
-  if (!linkedIds.length || !Array.isArray(properties)) return null;
+  if (inventory.entityOf(property) !== "properties" || !Array.isArray(properties)) return null;
+  const linkedIds = (property.portalDevelopmentId !== undefined
+    ? [property.portalDevelopmentId]
+    : [property.parentDevelopment?.propertyId, property.parentDevelopment?.id, property.developmentId]).filter(Boolean);
+  if (!linkedIds.length) return null;
   return properties.find(candidate => {
     if (!candidate || candidate.id === property.id || inventory.entityOf(candidate) !== "developments") return false;
     if (candidate.isPublic === false || candidate.is_public === false || !["active", "featured"].includes(candidate.status)) return false;
-    if (locationPrecisionOf(candidate) === "hidden") return false;
-    const candidateIds = [candidate.id, candidate.developmentData?.id].filter(Boolean);
+    const candidateIds = [candidate.id, candidate.developmentData?.id || `dev-${candidate.id}`];
     return linkedIds.every(id => candidateIds.includes(id));
   }) || null;
+}
+
+function renderListingAmenities(property, { lang = "es", properties = [] } = {}, headingLevel = 2) {
+  const english = lang === "en";
+  const parent = linkedPublicDevelopment(property, properties);
+  const name = parent && ((english ? parent.titleEn : parent.titleEs) || parent.titleEs || parent.titleEn);
+  const link = name ? `<p class="listing-development"><a href="${escapeHtml(propertyPath(parent, lang))}">
+    <span>${english ? "Linked development" : "Desarrollo vinculado"}</span>
+    <span class="text-link">${escapeHtml(name)}&nbsp;<span aria-hidden="true">→</span></span>
+  </a></p>` : "";
+  const amenities = publicAmenities(property, properties);
+  if (!amenities.length) return link;
+  const heading = headingLevel === 3 ? "h3" : "h2";
+  const title = property.developmentData?.amenitiesPlanned
+    ? (english ? "Planned amenities" : "Amenidades previstas")
+    : (english ? "Amenities" : "Amenidades");
+  const items = amenities.map(item => `<li>${escapeHtml(localizedAmenity(item, lang))}</li>`).join("");
+  return `<section class="property-amenities"><${heading}>${title}</${heading}>${link}<ul>${items}</ul></section>`;
 }
 
 /** Resolve a display-only public location. Verified community references never change inventory or unit precision. */
@@ -210,7 +244,8 @@ function resolvePublicLocation(property = {}, { lang = "es", directory = {}, pro
     point = null;
   }
   if (entity !== "developments") {
-    const parent = linkedPublicDevelopment(property, properties);
+    const linked = linkedPublicDevelopment(property, properties);
+    const parent = linked && locationPrecisionOf(linked) !== "hidden" ? linked : null;
     const parentPoint = parent && (publicCoordinatePair(parent) || verifiedDevelopmentLocations?.find(parent));
     const copied = point && parentPoint && Math.abs(point.latitude - parentPoint.latitude) < 0.000006 && Math.abs(point.longitude - parentPoint.longitude) < 0.000006;
     if (parent && (!point || copied) && declaredPrecision === "exact") {
@@ -258,7 +293,7 @@ function resolvePublicLocation(property = {}, { lang = "es", directory = {}, pro
 
 function renderPublicLocationSection(property, options = {}) {
   const model = resolvePublicLocation(property, options), english = options.lang === "en";
-  const e = escapeLocation;
+  const e = escapeHtml;
   const mapAvailable = model.precision === "exact";
   const attrs = [`data-location-precision="${e(model.precision)}"`, `data-location-source="${e(model.coordinateSource)}"`];
   if (model.locationScope) attrs.push(`data-location-scope="${e(model.locationScope)}"`);
@@ -275,5 +310,5 @@ function renderPublicLocationSection(property, options = {}) {
   </section>`;
 }
 
-return { publicAmenities, safePublicImages, optimizedPublicImage, localizedAmenity, parsePlacePin, publicCoordinatePair, locationPrecisionOf, resolvePublicLocation, renderPublicLocationSection };
+return { propertySlug, propertyPath, publicAmenities, renderListingAmenities, safePublicImages, optimizedPublicImage, localizedAmenity, parsePlacePin, publicCoordinatePair, locationPrecisionOf, resolvePublicLocation, renderPublicLocationSection };
 });

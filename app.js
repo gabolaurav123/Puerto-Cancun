@@ -11369,7 +11369,7 @@ function renderPropertyDetail(property) {
     .join("");
   const images = storedImages(property);
   const locationOptions = { lang: state.lang, directory: state.portalDirectory || {}, properties: state.properties || [] };
-  const publicAmenities = window.PccPublicListingDetails?.publicAmenities(property, locationOptions.properties) || [];
+  const amenitiesSection = window.PccPublicListingDetails?.renderListingAmenities(property, locationOptions, 3) || "";
   const publicLocation = window.PccPublicListingDetails?.resolvePublicLocation(property, locationOptions);
   const locationSection = window.PccPublicListingDetails?.renderPublicLocationSection(property, locationOptions) || "";
   const galleryImages = images.length ? images : [fallbackImage];
@@ -11410,7 +11410,7 @@ function renderPropertyDetail(property) {
         ${locationSection}
         <div class="property-detail-description">${paragraphs || `<p>${escapeHtml(t("noResults"))}</p>`}</div>
       </div>
-      ${publicAmenities.length ? `<section class="property-amenities"><h3>${property.developmentData?.amenitiesPlanned ? (state.lang === "en" ? "Planned amenities" : "Amenidades previstas") : (state.lang === "en" ? "Amenities" : "Amenidades")}</h3><ul>${publicAmenities.map(value => `<li>${escapeHtml(window.PccPublicListingDetails.localizedAmenity(value, state.lang))}</li>`).join("")}</ul></section>` : ""}
+      ${amenitiesSection}
     </div>
   `;
   window.PccCatalogMap?.mountListingLocationMaps(content, { request: path => api(path) });
