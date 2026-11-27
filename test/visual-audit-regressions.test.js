@@ -139,7 +139,8 @@ test('editor headings distinguish creation from editing without changing the rec
       });
       api.configureListingFormMode(section);
       const kind = section === 'new-development' ? 'desarrollo' : 'propiedad';
-      assert.match(nodes['#listingModeIntro'].innerHTML, new RegExp(id ? `Editar ${kind}` : kind === 'desarrollo' ? 'Nuevo desarrollo' : 'Nueva propiedad'));
+      assert.match(nodes['#adminListingsTitle'].textContent, new RegExp(id ? `Editar ${kind}` : kind === 'desarrollo' ? 'Nuevo desarrollo' : 'Nueva propiedad'));
+      assert.equal(nodes['#listingModeIntro'].innerHTML, undefined, 'The static instructions do not repeat the heading');
       assert.equal(nodes['#adminListingsTitle'].textContent, api.listingEditorTitle(kind === 'desarrollo', Boolean(id)));
       assert.equal(form.dataset.listingMode, kind === 'desarrollo' ? 'development' : 'property');
       assert.equal(fields.has('id'), false);

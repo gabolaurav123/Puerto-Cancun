@@ -98,8 +98,9 @@
       const rect = shareDialog.getBoundingClientRect();
       if (event.clientX < rect.left || event.clientX > rect.right || event.clientY < rect.top || event.clientY > rect.bottom) shareDialog.close();
     });
-    async function copyLink() {
+    async function copyLink(channel) {
       const field = shareDialog.querySelector("input");
+      field.value = channel === "instagram" ? shareDialog.dataset.instagramUrl : shareDialog.dataset.copyUrl;
       try { await navigator.clipboard.writeText(field.value); return true; }
       catch {
         field.focus(); field.select();
@@ -114,7 +115,7 @@
     });
     shareDialog.querySelector('[data-share-channel="instagram"]').addEventListener("click", async () => {
       // Instagram has no URL composer; copy the link without claiming a post was sent.
-      const copying = copyLink();
+      const copying = copyLink("instagram");
       window.open("https://www.instagram.com/", "_blank", "noopener,noreferrer");
       const copied = await copying;
       shareDialog.querySelector(".public-share-status").textContent = copied
@@ -131,13 +132,39 @@
     event.preventDefault();
     shareOpener = trigger;
     const dialog = getShareDialog();
-    const url = new URL(path, location.origin).href;
     const title = trigger.dataset.shareTitle || "Puerto Cancún Center";
     dialog.querySelector(".public-share-name").textContent = title;
-    dialog.querySelector("input").value = url;
     dialog.querySelector(".public-share-status").textContent = "";
-    dialog.querySelector('[data-share-channel="whatsapp"]').href = "https://api.whatsapp.com/send?text=" + encodeURIComponent(title + "\n" + url);
-    dialog.querySelector('[data-share-channel="facebook"]').href = "https://www.facebook.com/sharer/sharer.php?u=" + encodeURIComponent(url);
+    function setLinks(sharedPath, invitation) {
+      const target = channel => {
+        const url = new URL(sharedPath,location.origin);
+        if (invitation) url.searchParams.set("via",channel);
+        return url.href;
+      };
+      dialog.querySelector("input").value = dialog.dataset.copyUrl = target("copy");
+      dialog.querySelector('[data-share-channel="whatsapp"]').href = "https://api.whatsapp.com/send?text=" + encodeURIComponent(title + "\n" + target("whatsapp"));
+      dialog.querySelector('[data-share-channel="facebook"]').href = "https://www.facebook.com/sharer/sharer.php?u=" + encodeURIComponent(target("facebook"));
+      dialog.dataset.instagramUrl = target("instagram");
+    }
+    setLinks(path,false);
+    const request = Symbol();
+    dialog.shareRequest = request;
+    const options = dialog.querySelector(".public-share-options"), field = dialog.querySelector("input");
+    options.inert = field.disabled = false;
+    const pending = window.PccCreateShareInvitation?.(path);
+    if (pending) {
+      options.inert = field.disabled = true;
+      dialog.setAttribute("aria-busy","true");
+      dialog.querySelector(".public-share-status").textContent = en ? "Preparing link…" : "Preparando enlace…";
+      pending.then(result => {
+        if (result?.path && dialog.open && dialog.shareRequest === request) setLinks(result.path,true);
+      }).catch(() => {}).finally(() => {
+        if (dialog.shareRequest !== request) return;
+        options.inert = field.disabled = false;
+        dialog.removeAttribute("aria-busy");
+        dialog.querySelector(".public-share-status").textContent = "";
+      });
+    } else dialog.removeAttribute("aria-busy");
     dialog.showModal();
   });
   const owner = document.querySelector("body[data-owner-contact] #ownerContactButton");

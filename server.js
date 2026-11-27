@@ -3078,6 +3078,8 @@ async function initDatabase() {
         await migrationClient.query("CREATE INDEX IF NOT EXISTS idx_external_share_expires ON external_property_share_links (expires_at) WHERE is_active = TRUE");
       },
     });
+    await runMigration(client, require("./share-invitations").migration);
+    await client.query("DELETE FROM share_invitations WHERE created_at < NOW() - make_interval(days => $1)", [visitorAnalyticsRetentionDays]);
     await client.query(
       "DELETE FROM visitor_page_views WHERE created_at < NOW() - make_interval(days => $1)",
       [visitorAnalyticsRetentionDays]
@@ -3714,6 +3716,7 @@ app.post("/api/inquiries/owner-reference", createRateLimiter({ windowMs: 15 * 60
 app.post("/api/inquiries", createRateLimiter({ windowMs: 10 * 60 * 1000, max: 12, message: "Too many requests. Intenta nuevamente en unos minutos." }));
 app.post("/api/advisor/chat", createRateLimiter({ windowMs: 10 * 60 * 1000, max: 35, message: "Espera unos minutos antes de continuar. Please wait a few minutes." }));
 app.use("/api/guest-sale-requests", createRateLimiter({ windowMs: 15 * 60 * 1000, max: 6, message: "Se recibieron demasiadas solicitudes de venta desde esta conexión. Espera unos minutos antes de volver a intentar." }));
+app.use("/api/invitations", createRateLimiter({ windowMs: 5 * 60 * 1000, max: 50 }));
 app.use("/api/analytics", createRateLimiter({ windowMs: 5 * 60 * 1000, max: 180 }));
 app.use("/api/metrics", createRateLimiter({ windowMs: 5 * 60 * 1000, max: 180 }));
 const authenticatedRateKey = (req) => `${req.session?.user?.id || "anonymous"}:${req.ip || req.socket?.remoteAddress || "unknown"}`;
@@ -4979,10 +4982,10 @@ app.post("/api/analytics/visit", async (req, res, next) => {
          last_seen_at = NOW(),
          last_path = EXCLUDED.last_path,
          ip_address = COALESCE(EXCLUDED.ip_address, visitor_profiles.ip_address),
-         country_code = COALESCE(EXCLUDED.country_code, visitor_profiles.country_code),
-         country_name = COALESCE(EXCLUDED.country_name, visitor_profiles.country_name),
-         region = COALESCE(EXCLUDED.region, visitor_profiles.region),
-         city = COALESCE(EXCLUDED.city, visitor_profiles.city),
+         country_code = CASE WHEN EXCLUDED.ip_address IS DISTINCT FROM visitor_profiles.ip_address AND EXCLUDED.ip_address IS NOT NULL THEN EXCLUDED.country_code ELSE COALESCE(EXCLUDED.country_code, visitor_profiles.country_code) END,
+         country_name = CASE WHEN EXCLUDED.ip_address IS DISTINCT FROM visitor_profiles.ip_address AND EXCLUDED.ip_address IS NOT NULL THEN EXCLUDED.country_name ELSE COALESCE(EXCLUDED.country_name, visitor_profiles.country_name) END,
+         region = CASE WHEN EXCLUDED.ip_address IS DISTINCT FROM visitor_profiles.ip_address AND EXCLUDED.ip_address IS NOT NULL THEN EXCLUDED.region ELSE COALESCE(EXCLUDED.region, visitor_profiles.region) END,
+         city = CASE WHEN EXCLUDED.ip_address IS DISTINCT FROM visitor_profiles.ip_address AND EXCLUDED.ip_address IS NOT NULL THEN EXCLUDED.city ELSE COALESCE(EXCLUDED.city, visitor_profiles.city) END,
          timezone = COALESCE(EXCLUDED.timezone, visitor_profiles.timezone),
          device_type = COALESCE(EXCLUDED.device_type, visitor_profiles.device_type),
          browser_name = COALESCE(EXCLUDED.browser_name, visitor_profiles.browser_name),
@@ -5088,6 +5091,7 @@ app.post("/api/analytics/visit", async (req, res, next) => {
     );
     const created = Boolean(pageViewResult.rows[0]);
     if (created) {
+      if (!agent.isBot) await require("./share-invitations").recordOpen(client, req.body, storedSessionId);
       await client.query(
         `UPDATE visitor_sessions SET
            user_id = COALESCE($2, user_id), user_role = COALESCE($3, user_role),
@@ -5346,6 +5350,7 @@ app.post("/api/leads", async (req, res, next) => {
     delete payload.whatsapp;
     delete payload.phone;
     delete payload.email;
+    delete payload.invitationVisit;
     delete payload.sourcePath;
     delete payload.propertyId;
     delete payload.website;
@@ -5486,6 +5491,7 @@ app.post("/api/leads", async (req, res, next) => {
         }),
       ]
     );
+    if (body.invitationVisit) await require("./share-invitations").linkContact(client, body, result.rows[0].id, sessionSecret);
     await client.query("COMMIT");
     const savedLead = toLead(result.rows[0]);
     res.status(201).json({ lead: savedLead, action: valuationInquiry ? inquiryAction(savedLead.id, payload, siteUrl, sourcePath, sessionSecret) : undefined });
@@ -12609,6 +12615,7 @@ const legacyRedirects = {
   "/propiedades/puerto-cancun/terrenos": "/propiedades/terrenos-cancun",
   "/en/properties/puerto-cancun/land": "/en/properties/land-cancun",
 };
+require("./share-invitations").register(app, { query, requireRole, siteUrl, inventory:getPublicProperties, directory:() => publicPropertyCache.directory, aliases:() => legacyRedirects });
 Object.entries(legacyRedirects).forEach(([from, to]) => app.get(from, (req, res) => res.redirect(301, to + (req.originalUrl.includes("?") ? req.originalUrl.slice(req.originalUrl.indexOf("?")) : ""))));
 
 app.get(["/blog", "/en/blog"], async (req, res, next) => {
@@ -12937,6 +12944,9 @@ async function startServer() {
   const server = app.listen(port, "0.0.0.0", () => {
     console.log(`Puerto Cancun Center ${releaseInfo.version} (${releaseInfo.shortRelease}) listening on http://0.0.0.0:${port}`);
   });
+  if (databaseRuntimeState.ready) void require("./scripts/prepare-geoip").prepare()
+    .then(() => require("./ip-geography").enrichStoredLocations(query))
+    .catch(error => console.warn("[geoip] " + error.message));
   installShutdownHandlers(server);
   return server;
 }

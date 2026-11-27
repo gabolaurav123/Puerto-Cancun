@@ -269,6 +269,7 @@
       const link=form.querySelector("[data-inquiry-whatsapp]");link.hidden=false;link.href=url;
       notice.textContent="";success.focus();dialog.querySelector(".inquiry-scroll").scrollTop=0;
     }
+    if (window.PccInvitationVisit?.()) window.PccMountInvitationContact?.(form,countryList(opts),valuesForMessage,started);
     form.querySelector('[name="contactChannel"]').focus({preventScroll:true});
   }
   function readValues(node) {

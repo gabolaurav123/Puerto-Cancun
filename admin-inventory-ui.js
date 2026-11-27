@@ -574,7 +574,7 @@
     }
     const zone = document.querySelector('#listingForm [name="zone"]');
     const help = section(ctx, "pccInventoryLocationHelp", zone?.closest(".form-row") || zone?.closest("label"), "afterend");
-    if (help) updateHTML(help, `<details class="pcc-details" data-pcc-details="zone-help"><summary>\u00bfQu\u00e9 incluye esta zona?</summary><dl class="pcc-location-help">${locationOptions(ctx).map((item) => `<div><dt>${escape(item.name)}</dt><dd>${escape(item.description)}</dd></div>`).join("")}</dl><p class="pcc-note">La agrupaci\u00f3n no cambia la direcci\u00f3n original. La ubicaci\u00f3n ambigua queda pendiente de revisar.</p></details>`);
+    if (help) updateHTML(help, `<details class="pcc-details" data-pcc-details="zone-help"><summary>${ctx.state.lang === "en" ? "Areas included" : "Zonas incluidas"}</summary><dl class="pcc-location-help">${locationOptions(ctx).map((item) => `<div><dt>${escape(item.name)}</dt><dd>${escape(item.description)}</dd></div>`).join("")}</dl><p class="pcc-note">${ctx.state.lang === "en" ? "Review uncertain addresses before assigning an area." : "Revisa la dirección antes de asignar una zona."}</p></details>`);
     if (controls && !controls.hidden) syncNativeFilters(ctx);
     const sort = document.getElementById("adminListingSort");
     if (sort) for (const option of sort.options) {

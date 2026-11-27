@@ -281,6 +281,7 @@ function registerInquiries(app, { pool, query, uuid, siteUrl, secret, upsertCont
         await client.query("INSERT INTO notifications (id,type,title,message,related_entity_type,related_entity_id) VALUES ($1,'lead_created','Nueva consulta comercial',$2,'lead_request',$3)", [uuid("notif"), [leadType, data.project || data.propertyTitle || data.development || data.zone].filter(Boolean).join(" · "), id]);
         await client.query("INSERT INTO analytics_events (id,event_type,contact_id,property_id,metadata) VALUES ($1,'lead_submitted',$2,$3,$4::jsonb)", [uuid("evt"), contact.id, propertyId || null, JSON.stringify({ leadType, zone: data.zone || "", source: path })]);
       }
+      if (!previous) await require("./share-invitations").linkContact(client, body, recordId, secret);
       const action = inquiryAction(recordId, payload, siteUrl, path, secret);
       await client.query("COMMIT");
       res.status(previous ? 200 : 201).json({ ok: true, id: recordId, ...action, contactChannel: payload?.contactChannel, visitStatus: payload?.visitStatus, searchWatchStatus: payload?.searchWatch?.status });

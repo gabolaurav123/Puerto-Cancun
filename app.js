@@ -1271,7 +1271,61 @@ async function api(path, options = {}) {
   throw new Error("No fue posible completar la solicitud.");
 }
 
-window.PccInquiryRequest = (path, body) => api(path, { method: "POST", body, keepalive: path.endsWith("/whatsapp-click") });
+function invitationVisit() {
+  if (!analyticsConsentGranted()) return null;
+  const { visitorId, sessionId } = analyticsIdentity();
+  const fromLink = new URLSearchParams(location.search).get("inv");
+  try {
+    if (/^[a-f0-9]{32}$/.test(fromLink || "")) sessionStorage.setItem("pcc.invitation",JSON.stringify({token:fromLink,sessionId}));
+    const saved = JSON.parse(sessionStorage.getItem("pcc.invitation") || "null");
+    return saved?.sessionId === sessionId ? { token:saved.token, visitorId, sessionId, analyticsConsent:true } : null;
+  } catch { return fromLink && /^[a-f0-9]{32}$/.test(fromLink) ? {token:fromLink,visitorId,sessionId,analyticsConsent:true} : null; }
+}
+window.PccInvitationVisit = invitationVisit;
+window.PccMountInvitationContact = function(form,countryOptions,valuesForMessage,started) {
+  const details = document.createElement("details");
+  details.className = "inquiry-optional invitation-callback";
+  details.innerHTML = '<summary>' + visitorLeadCopy("Quiero que me contacte un asesor","Ask an advisor to contact me") + '</summary><form class="stacked-form">' +
+    '<label>' + visitorLeadCopy("Nombre","Name") + '<input name="name" required autocomplete="name" maxlength="110"></label>' +
+    '<label>' + visitorLeadCopy("Responder por","Reply by") + '<select name="channel"><option value="email">' + visitorLeadCopy("Correo","Email") + '</option><option value="whatsapp">WhatsApp</option></select></label>' +
+    '<label>' + visitorLeadCopy("Correo","Email") + '<input type="email" name="email" autocomplete="email" required></label>' +
+    '<label hidden>' + visitorLeadCopy("País del teléfono","Phone country") + '<select name="country" disabled>' + countryOptions + '</select></label>' +
+    '<label hidden>WhatsApp<input type="tel" name="phone" autocomplete="tel" disabled></label>' +
+    '<label><input type="checkbox" name="consent" required> ' + visitorLeadCopy("Acepto que me contacten por esta invitación.","I agree to be contacted about this invitation.") + '</label>' +
+    '<button class="primary-button" type="submit">' + visitorLeadCopy("Enviar mis datos","Send my details") + '</button><p role="status"></p></form>';
+  form.after(details);
+  const callback = details.querySelector("form"), fields = callback.elements;
+  const contactRequest = crypto.randomUUID();
+  fields.name.value = form.elements.name?.value || "";
+  fields.channel.onchange = () => {
+    for (const name of ["email","country","phone"]) {
+      const active = (name === "email") === (fields.channel.value === "email");
+      fields[name].disabled = !active; fields[name].required = active; fields[name].closest("label").hidden = !active;
+    }
+  };
+  callback.onsubmit = async event => {
+    event.preventDefault();
+    const status = callback.querySelector('[role="status"]'), button = callback.querySelector("button");
+    if (button.disabled) return;
+    const data = valuesForMessage();
+    if (!data.intent) {
+      form.elements.intent.reportValidity(); return;
+    }
+    button.disabled = true;
+    try {
+      await window.PccInquiryRequest("/api/inquiries", {...data, name:fields.name.value, phone:fields.phone.value,
+        country:fields.country.value, email:fields.email.value, contactChannel:fields.channel.value,
+        consent:fields.consent.checked, requestId:contactRequest, formStartedAt:started});
+      status.textContent = visitorLeadCopy("Tu solicitud de contacto se envió.","Your contact request was sent.");
+      callback.reset(); fields.channel.onchange();
+    } catch(error) { status.textContent = error.message; button.disabled = false; }
+  };
+};
+window.PccCreateShareInvitation = path => {
+  if (!analyticsConsentGranted() && state.session?.role !== "admin") return null;
+  return api("/api/invitations", {method:"POST", body:{path, analyticsConsent:analyticsConsentGranted(), lang:state.lang}, retry:false, timeoutMs:3000});
+};
+window.PccInquiryRequest = (path, body) => api(path, { method:"POST", body:path === "/api/inquiries" ? {...body,invitationVisit:invitationVisit()} : body, keepalive:path.endsWith("/whatsapp-click") });
 
 function safeParseImageMetadata(value) {
   try {
@@ -1381,6 +1435,9 @@ function trackPageVisit() {
       visitorId: metadata.visitorId,
       sessionId: metadata.sessionId,
       pageViewId: newTrackingId("page"),
+      invitation: new URLSearchParams(location.search).has("inv") ? invitationVisit()?.token : undefined,
+      inviteChannel: new URLSearchParams(location.search).get("via"),
+      inviteProject: new URLSearchParams(location.search).get("project"),
       path: metadata.path,
       title: document.title,
       referrer: metadata.referrer,
@@ -5188,6 +5245,64 @@ function syncVisitorLeadControls() {
   if (bots) bots.checked = filters.includeBots ?? bots.checked;
 }
 
+function bindInvitationPanel() {
+  const panel = $("#visitorInvitations");
+  if (!panel) return;
+  const form = $("#invitationForm"), notice = $("#invitationNotice"), rows = $("#invitationRows");
+  const endpoint = "/api/admin/visitor-leads/invitations";
+  const copy = visitorLeadCopy;
+  let offset = 0, generation = 0;
+  async function load(start = 0) {
+    const current = ++generation;
+    try {
+      const data = await api(endpoint + "?offset=" + start);
+      if (current !== generation || !panel.open) return;
+      offset = data.offset;
+      form.querySelector(".form-row").hidden = !data.canCreate;
+      form.querySelector("[type=submit]").hidden = !data.canCreate;
+      rows.innerHTML = data.items.length ? data.items.map(item => {
+        const details = (item.details || []).map(lead => [lead.name,lead.phone && "+"+lead.phone,lead.email].filter(Boolean).map(escapeHtml).join(" · "));
+        const places = (item.places || []).map(escapeHtml).join(" · ");
+        const entry = (label,value) => `<div><dt>${escapeHtml(label)}</dt><dd>${value}</dd></div>`;
+        return `<article><h3>${escapeHtml(item.title)}</h3><small>${escapeHtml(new Date(item.created_at).toLocaleString(state.lang))}</small><dl>
+          ${entry(copy("Creado por","Created by"), escapeHtml(item.creator_name || copy("Visitante anónimo","Anonymous visitor")))}
+          ${item.intended_for ? entry(copy("Destinatario previsto","Intended recipient"),escapeHtml(item.intended_for)) : ""}
+          ${entry(copy("Sesiones con apertura","Sessions that opened"),String(Number(item.opens)) + (item.channels?.length ? " · " + item.channels.map(escapeHtml).join(", ") : ""))}
+          ${places ? entry(copy("Procedencia aproximada","Approximate location"),places) : ""}
+          ${entry(copy("Consultas recibidas","Inquiries received"),details.length ? details.join("<br>") : String(Number(item.inquiries)))}</dl>
+          <button class="ghost-button" type="button" data-copy-invitation="${escapeHtml(item.token)}">${copy("Copiar enlace","Copy link")}</button></article>`;
+      }).join("") : `<p>${copy("Todavía no hay invitaciones.","No invitations yet.")}</p>`;
+      $("#invitationsPrevious").hidden = offset === 0;
+      $("#invitationsNext").hidden = !data.more;
+    } catch (error) { if (current === generation) notice.textContent = error.message; }
+  }
+  panel.addEventListener("toggle", () => {
+    if (panel.open) { notice.textContent = ""; void load(); }
+    else { ++generation; rows.replaceChildren(); }
+  });
+  $("#invitationsPrevious").addEventListener("click", () => void load(Math.max(0,offset-20)));
+  $("#invitationsNext").addEventListener("click", () => void load(offset+20));
+  $("#refreshInvitations").addEventListener("click", () => void load(offset));
+  rows.addEventListener("click", async event => {
+    const button = event.target.closest("[data-copy-invitation]");
+    if (!button) return;
+    const url = new URL("/i/"+button.dataset.copyInvitation, location.origin).href;
+    try { await navigator.clipboard.writeText(url); notice.textContent = copy("Enlace copiado.","Link copied."); }
+    catch { notice.textContent = url; }
+  });
+  form.addEventListener("submit", async event => {
+    event.preventDefault();
+    const submit = form.querySelector("[type=submit]");
+    if (submit.disabled) return;
+    submit.disabled = true;
+    try {
+      const result = await api(endpoint,{method:"POST",body:{path:form.elements.path.value.trim(),recipient:form.elements.recipient.value.trim(),lang:state.lang}});
+      notice.textContent = copy("Enlace creado. ","Link created. ") + new URL(result.path,location.origin).href;
+      form.reset(); await load();
+    } catch(error) { notice.textContent = error.message; }
+    finally { submit.disabled = false; }
+  });
+}
 function renderVisitorLeads() {
   const summaryContainer = $("#visitorLeadSummary");
   const insightsContainer = $("#visitorLeadInsights");
@@ -8177,14 +8292,14 @@ function configureListingFormMode(section = state.adminSection) {
     const choices = developmentMode
       ? ["Desarrollo"]
       : ["Casa", "Departamento", "Terreno", "Comercial", "Preventa"];
-    type.innerHTML = choices.map((choice) => `<option value="${choice}">${choice}</option>`).join("");
+    type.innerHTML = choices.map((choice) => `<option value="${choice}">${state.lang === "en" ? displayType(choice) : choice}</option>`).join("");
     type.value = choices.includes(previous) ? previous : choices[0];
   }
 
   const developmentSelect = formField(form, "developmentId");
   if (developmentSelect) {
     const current = developmentSelect.value;
-    developmentSelect.innerHTML = `<option value="">Propiedad independiente / sin desarrollo</option>`;
+    developmentSelect.innerHTML = `<option value="">${state.lang === "en" ? "Independent property" : "Propiedad independiente"}</option>`;
     state.properties
       .filter((property) => property.publicationSection === "developments")
       .sort((a, b) => String(a.titleEs || "").localeCompare(String(b.titleEs || ""), "es"))
@@ -8197,27 +8312,30 @@ function configureListingFormMode(section = state.adminSection) {
 
   const heading = listingEditorTitle(developmentMode, editing);
   if ($("#adminListingsTitle")) $("#adminListingsTitle").textContent = heading;
-  const intro = $("#listingModeIntro");
-  if (intro) {
-    intro.innerHTML = developmentMode
-      ? `<span class="eyebrow">DESARROLLO INMOBILIARIO</span><h3>${heading}</h3><p>Registra nombre, ubicación, galería y descripción en español e inglés. Las propiedades disponibles se vinculan por separado.</p>`
-      : `<span class="eyebrow">PROPIEDAD INDIVIDUAL</span><h3>${heading}</h3><p>Registra los datos y fotografías de la unidad. Si pertenece a un desarrollo, selecciónalo para completar su ubicación y vincular sus áreas comunes. Las galerías se mantienen separadas.</p>`;
+  const titleCaption = $("#listingTitleCaption");
+  if (titleCaption) {
+    titleCaption.dataset.i18n = developmentMode ? "editorDevelopmentName" : "propertyTitleEs";
+    titleCaption.textContent = t(titleCaption.dataset.i18n);
   }
+  const units = form.querySelector("[data-development-units]");
+  if (units) units.hidden = !developmentMode;
+  const rentPeriod = form.querySelector("[data-rent-period]");
+  if (rentPeriod) rentPeriod.hidden = developmentMode || formField(form, "operation").value !== "rent";
+  const saleMode = form.querySelector("[data-sale-modality]");
+  if (saleMode) saleMode.hidden = !developmentMode && formField(form,"operation").value === "rent";
   const imageLabel = formField(form, "imageFile")?.closest("label")?.querySelector("span");
-  if (imageLabel) imageLabel.textContent = developmentMode ? "Imágenes generales del desarrollo" : "Imágenes propias de la unidad";
+  if (imageLabel) imageLabel.textContent = state.lang === "en" ? (developmentMode ? "Development photos" : "Unit photos") : (developmentMode ? "Fotos del desarrollo" : "Fotos de la unidad");
   const submitButton = $("#listingSubmitButton");
   const resetButton = $("#resetListingForm");
   const deleteButton = $("#deleteListingFromForm");
   if (submitButton) {
-    const translationKey = developmentMode
-      ? editing ? "saveDevelopmentChanges" : "publishDevelopment"
-      : "saveListing";
+    const translationKey = "editorReviewSave";
     submitButton.dataset.i18n = translationKey;
     submitButton.textContent = t(translationKey);
   }
   if (resetButton) {
-    resetButton.hidden = developmentMode;
-    resetButton.disabled = developmentMode;
+    resetButton.hidden = developmentMode || !editing;
+    resetButton.disabled = resetButton.hidden;
     resetButton.dataset.i18n = "newListing";
     resetButton.textContent = t("newListing");
   }
@@ -9327,6 +9445,7 @@ async function leadFormSubmit(event) {
       method: "POST",
       body: {
         ...payload,
+        invitationVisit: window.PccInvitationVisit?.(),
         lang: state.lang,
         requestId: form.dataset.inquiryRequestId ||= crypto.randomUUID(),
         sourcePath: `${window.location.pathname}${window.location.search}${window.location.hash || ""}`,
@@ -9950,7 +10069,7 @@ async function saveListingProgress(button = $("#saveListingProgress")) {
 function confirmListingPublication(form) {
   const dialog = $("#listingPublishDialog");
   const development = listingFormIsDevelopment(form);
-  $("#listingPublishTitle").textContent = development ? "Guardar desarrollo" : "Guardar propiedad";
+  $("#listingPublishTitle").textContent = document.documentElement.lang === "en" ? (development ? "Save development" : "Save property") : (development ? "Guardar desarrollo" : "Guardar propiedad");
   $("#listingPublishName").textContent = formField(form, "title").value;
   $("#listingPublishPublic").checked = formField(form, "isPublic").checked && formField(form, "status").value === "active";
   $("#listingPublishPrivate").checked = !$("#listingPublishPublic").checked;
@@ -10196,6 +10315,7 @@ function resetListingForm(clearDraft = true) {
     deleteButton.hidden = true;
     deleteButton.dataset.deleteListing = "";
   }
+  form.querySelectorAll("details.publication-group").forEach(group => { group.open = false; });
   if (formField(form, "status")) formField(form, "status").value = "draft";
   if (formField(form, "isPublic")) formField(form, "isPublic").checked = false;
   if (formField(form, "priceUnit")) formField(form, "priceUnit").value = "total";
@@ -11662,6 +11782,7 @@ function initializePropertyGallery() {
 }
 
 function bindEvents() {
+  bindInvitationPanel();
   const compactPanelDetails = [$("#adminListingAdvancedFilters"), $("#sellerPanel .seller-help-card-top")].filter(Boolean);
   if (compactPanelDetails.length) {
     const compactPanel = window.matchMedia("(max-width: 980px)");
@@ -12398,7 +12519,16 @@ function bindEvents() {
     window.clearTimeout(listingDraftTimer);
     saveListingDraft();
   });
+  $("#listingForm").addEventListener("invalid", event => {
+    for (let group = event.target.closest("details"); group; group = group.parentElement.closest("details")) group.open = true;
+  }, true);
   $("#listingForm").addEventListener("change", (event) => {
+    if (event.target.name === "operation") {
+      const group = event.currentTarget.querySelector("[data-rent-period]");
+      if (group) group.hidden = event.target.value !== "rent";
+      const saleMode = event.currentTarget.querySelector("[data-sale-modality]");
+      if (saleMode) saleMode.hidden = event.target.value === "rent";
+    }
     if (event.target?.name !== "imageFile") event.currentTarget.dataset.contentDirty = "true";
     window.clearTimeout(listingDraftTimer);
     saveListingDraft();

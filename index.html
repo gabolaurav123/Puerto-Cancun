@@ -1262,9 +1262,26 @@
               <button class="primary-button" type="button" id="refreshVisitorLeads"><i data-lucide="refresh-cw"></i><span data-i18n="visitorLeadsRefresh">Actualizar</span></button>
             </div>
           </div>
+          <details id="visitorInvitations" class="publication-group">
+            <summary><span data-i18n="invTitle">Invitaciones</span></summary>
+            <div class="publication-group-body">
+              <p class="form-note" data-i18n="invHint">Cada enlace distingue las aperturas con permiso y las consultas recibidas.</p>
+              <form id="invitationForm" class="stacked-form">
+                <div class="form-row">
+                  <label><span data-i18n="invPage">Enlace de la página o ficha</span><input name="path" type="text" inputmode="url" required maxlength="1800" placeholder="https://www.puertocancun.center/…" /></label>
+                  <label><span data-i18n="invRecipient">Destinatario previsto (opcional)</span><input name="recipient" maxlength="120" autocomplete="off" /></label>
+                </div>
+                <div class="portal-actions"><button class="primary-button" type="submit" data-i18n="invCreate">Crear enlace</button><button class="ghost-button" type="button" id="refreshInvitations" data-i18n="visitorLeadsRefresh">Actualizar</button></div>
+              </form>
+              <p id="invitationNotice" role="status" aria-live="polite"></p>
+              <div id="invitationRows" class="invitation-rows"></div>
+              <div class="portal-actions"><button class="ghost-button" type="button" id="invitationsPrevious" data-i18n="invPrevious" hidden>Anteriores</button><button class="ghost-button" type="button" id="invitationsNext" data-i18n="invNext" hidden>Siguientes</button></div>
+            </div>
+          </details>
           <div class="visitor-leads-notice">
             <i data-lucide="shield-check"></i>
-            <p data-i18n="visitorLeadsPrivacy">La medición se registra solo cuando el visitante acepta las cookies de analítica. La ubicación procede de cabeceras del servidor y puede no estar disponible o ser aproximada.</p>
+            <p data-i18n="visitorLeadsPrivacy">Con permiso del visitante, la IP permite estimar el país y, cuando hay cobertura, la ciudad.</p>
+            <a href="https://db-ip.com" target="_blank" rel="noopener noreferrer">IP Geolocation by DB-IP</a>
           </div>
           <div class="visitor-leads-filters" aria-label="Filtros de leads">
             <label><span data-i18n="visitorPeriod">Periodo</span><select id="visitorLeadPeriod"><option value="1" data-i18n="visitorPeriodToday">Hoy</option><option value="7" data-i18n="visitorPeriod7">Últimos 7 días</option><option value="30" data-i18n="visitorPeriod30" selected>Últimos 30 días</option><option value="90" data-i18n="visitorPeriod90">Últimos 90 días</option><option value="all" data-i18n="visitorPeriodAll">Todo el historial</option></select></label>
@@ -2381,11 +2398,7 @@
               <input type="hidden" name="id" />
               <input name="publicationSection" type="hidden" value="properties" />
               <div class="form-actions"><button class="ghost-button" type="button" id="listingReturnButton"><i data-lucide="arrow-left" aria-hidden="true"></i><span>Volver al listado</span></button></div>
-              <section class="listing-mode-intro" id="listingModeIntro" aria-live="polite">
-                <span class="eyebrow">PROPIEDAD INDIVIDUAL</span>
-                <h3>Nueva propiedad en venta o renta</h3>
-                <p>Registra los datos y fotografías de la unidad. Si pertenece a un desarrollo, vincúlala para reutilizar automáticamente sus amenidades e imágenes generales.</p>
-              </section>
+              <p class="form-note" id="listingModeIntro" data-i18n="editorIntro">Completa los datos básicos. Al guardar podrás elegir si la ficha queda privada o se publica.</p>
               <section class="brochure-importer" id="developmentBrochureImporter" data-development-brochure hidden>
                 <div class="admin-module-heading">
                   <div>
@@ -2407,7 +2420,7 @@
               </section>
               <div class="form-row">
                 <label>
-                  <span data-i18n="propertyTitleEs">Título de la propiedad en español</span>
+                  <span id="listingTitleCaption" data-i18n="propertyTitleEs">Título de la propiedad en español</span>
                   <input name="title" required />
                 </label>
                 <label data-property-only>
@@ -2417,24 +2430,115 @@
                     <option>Departamento</option>
                     <option>Terreno</option>
                     <option>Comercial</option>
-                    <option>Preventa</option>
+                    <option data-i18n="editorPresale">Preventa</option>
                     <option>Desarrollo</option>
                   </select>
                 </label>
               </div>
-              <label>
-                <span data-i18n="propertyTitleEn">Título de la propiedad en inglés</span>
-                <input name="titleEn" />
-                <small data-i18n="bilingualFieldHelp">Este texto se muestra cuando el visitante navega en inglés.</small>
-              </label>
+              <div class="form-row">
+                <label data-property-only>
+                  <span data-i18n="operation">Operacion</span>
+                  <select name="operation">
+                    <option value="sale" data-i18n="sale">Venta</option>
+                    <option value="rent" data-i18n="rent">Renta</option>
+                  </select>
+                </label>
+                <label data-sale-modality><span data-i18n="editorSaleMode">Modalidad de venta</span><select name="salesModality"><option value="unclassified" data-i18n="editorUnclassified">Por clasificar</option><option value="presale" data-i18n="editorPresale">Preventa</option><option value="direct" data-i18n="editorDirect">Venta directa / entrega inmediata</option><option value="resale" data-i18n="editorResale">Reventa</option></select></label>
+                <label data-property-only data-rent-period><span data-i18n="editorRentPeriod">Periodo si es renta</span><select name="rentPeriod"><option value="unclassified" data-i18n="editorUnknown">Por confirmar / no aplica</option><option value="month" data-i18n="editorMonth">Mensual</option><option value="day" data-i18n="editorDay">Diario</option><option value="year" data-i18n="editorYear">Anual</option></select></label>
+              </div>
+              <div class="form-row" data-property-only>
+                <label>
+                  <span data-i18n="editorCurrency">Moneda original de publicación</span>
+                  <select name="currency" required>
+                    <option value="USD" data-i18n="editorUsd">Dólares estadounidenses (USD)</option>
+                    <option value="MXN" data-i18n="editorMxn">Pesos mexicanos (MXN)</option>
+                  </select>
+                </label>
+                <label>
+                  <span data-i18n="editorAmount">Precio publicado</span>
+                  <input name="price" type="number" min="0" step="0.01" required />
+                </label>
+                <label>
+                  <span data-i18n="editorPriceBasis">Forma de mostrar el precio</span>
+                  <select name="priceUnit" required>
+                    <option value="total" data-i18n="editorTotalPrice">Precio total del inmueble</option>
+                    <option value="sqm" data-i18n="editorPriceSqm">Precio por m²</option>
+                  </select>
+                </label>
+              </div>
+              <label data-property-only class="checkbox-label"><input type="checkbox" name="priceOnRequest" /><span data-i18n="editorOnRequest">Precio a consultar</span></label>
               <label data-property-development-link>
                 <span data-i18n="listingDevelopment">Desarrollo al que pertenece</span>
                 <select name="developmentId" id="listingDevelopmentSelect">
-                  <option value="">Propiedad independiente / sin desarrollo</option>
+                  <option value="">Propiedad independiente</option>
                 </select>
-                <small data-i18n="listingDevelopmentHelp">Selecciona el desarrollo para completar su ubicación. Puedes ajustar los datos de la unidad; sus fotografías se mantienen separadas.</small>
+                <small data-i18n="listingDevelopmentHelp">Al vincular un desarrollo se completa la ubicación.</small>
                 <small id="listingDevelopmentLocationStatus" role="status" aria-live="polite"></small>
               </label>
+              <details class="publication-group" ><summary><span data-i18n="editorPhotos">Fotos y descripción</span></summary>
+              <div class="publication-group-body">
+              <label class="file-field">
+                <span data-i18n="imageUpload">Imagenes de la propiedad</span>
+                <input name="imageFile" type="file" accept="image/jpeg,image/jpg,image/png,image/webp" multiple />
+                <small data-i18n="imageHelp">JPG, PNG o WEBP. Maximo 60 imagenes. Se optimizan antes de guardarse.</small>
+              </label>
+              <div class="image-preview" id="listingImagePreview" hidden>
+                <div class="image-preview-header">
+                  <span data-i18n="imageGalleryTitle">Galería y orden de publicación</span>
+                  <div class="image-preview-header-actions">
+                    <button class="ghost-button" type="button" id="analyzeListingImages" data-photo-ai hidden><i data-lucide="scan-eye"></i><span>Generar descripciones para fotos</span></button>
+                    <button class="ghost-button" type="button" id="cancelPhotoCaptions" hidden>Detener después de este lote</button>
+                    <button class="text-button" type="button" id="saveListingImages" hidden>Guardar galería</button>
+                    <button class="text-button danger" type="button" id="clearListingImage" data-i18n="removeImage">Quitar todas</button>
+                  </div>
+                </div>
+                <div class="image-preview-grid"></div>
+                <small data-i18n="imageGalleryHelp">La primera imagen será la portada. Arrastra las fotos o usa las flechas para cambiar su orden.</small>
+              </div>
+              <section class="image-analysis-panel" id="listingImageAnalysis" hidden>
+                <div class="table-heading"><h3>Descripciones propuestas para las fotos</h3></div>
+                <p class="form-message" id="listingImageAnalysisMessage" role="status" aria-live="polite"></p>
+                <div id="listingImageAnalysisSummary"></div>
+                <div class="form-actions"><button class="primary-button" id="applyAllPhotoCaptions" type="button"><i data-lucide="check-check"></i> Aplicar descripciones revisadas</button><button class="ghost-button" id="useRecommendedCover" type="button" hidden><i data-lucide="image"></i> Usar portada recomendada</button><button class="ghost-button" id="applySuggestedImageOrder" type="button" hidden><i data-lucide="arrow-up-down"></i> Aplicar orden sugerido</button></div>
+              </section>
+              <label>
+                <span data-i18n="descriptionEs">Descripción en español</span>
+                <textarea name="description" rows="4" maxlength="50000"></textarea>
+                <small class="character-counter" id="listingDescriptionCounter">0 / 50,000 caracteres</small>
+                <span class="description-ai-actions"><button class="ghost-button" type="button" data-generate-photo-description="description" data-photo-ai><i data-lucide="sparkles"></i> Generar descripción</button><button class="ghost-button" type="button" data-improve-description="description"><i data-lucide="pencil-line"></i> Mejorar texto</button></span>
+              </label>
+              <label class="checkbox-row" id="listingResearchOption" hidden><input type="checkbox" id="listingResearchEnabled" /><span>Complementar con información pública del desarrollo y revisar sus fuentes</span></label>
+              <section id="listingAiReview" class="listing-ai-review" hidden>
+                <h3>Descripción propuesta</h3>
+                <textarea id="listingAiSuggestion" rows="7" aria-label="Descripción propuesta editable"></textarea>
+                <div id="listingAiSources"></div>
+                <div class="form-actions"><button class="primary-button" type="button" id="applyListingAi">Aplicar propuesta</button><button class="ghost-button" type="button" id="discardListingAi">Descartar</button></div>
+              </section>
+              <p class="form-message" id="listingAiMessage" aria-live="polite"></p>
+              <section class="listing-video-manager">
+                <div class="admin-module-heading">
+                  <div>
+                    <span class="eyebrow">VIDEO OPCIONAL</span>
+                    <h3>Recorrido de la propiedad o desarrollo</h3>
+                    <p>Cuando exista, se mostrará antes de la galería dentro de la ficha pública. No se carga en la portada ni en el inventario.</p>
+                  </div>
+                </div>
+                <label class="file-field">
+                  <span>Subir video</span>
+                  <input name="videoFile" type="file" accept="video/mp4,video/webm" />
+                  <small>MP4 o WEBM, máximo 45 MB. Se recomienda formato horizontal 16:9 y resolución 1080p.</small>
+                </label>
+                <div class="listing-video-preview" id="listingVideoPreview" hidden>
+                  <video controls preload="metadata" playsinline></video>
+                  <div><strong id="listingVideoName">Video seleccionado</strong><span id="listingVideoSize"></span></div>
+                  <button class="ghost-button danger" type="button" id="removeListingVideo"><i data-lucide="trash-2"></i><span>Quitar video</span></button>
+                </div>
+                <p class="form-message" id="listingVideoMessage"></p>
+              </section>
+              </div>
+              </details>
+              <details class="publication-group" ><summary><span data-i18n="editorMap">Ubicación y mapa</span></summary>
+              <div class="publication-group-body">
               <p class="form-note" data-i18n="listingOptionalLocation">La ubicación es opcional y no impide publicar. Si vinculas un desarrollo, se completan los datos disponibles.</p>
               <div class="form-row">
                 <label>
@@ -2455,80 +2559,15 @@
                   <span data-i18n="neighborhoodField">Colonia / desarrollo</span>
                   <input name="neighborhood" data-location-select="neighborhood" autocomplete="address-line2" />
                 </label>
-                <label data-property-only>
-                  <span data-i18n="operation">Operacion</span>
-                  <select name="operation">
-                    <option value="sale" data-i18n="sale">Venta</option>
-                    <option value="rent" data-i18n="rent">Renta</option>
-                  </select>
-                </label>
-                <label>
-                  <span data-i18n="listingStatus">Estado de publicacion</span>
-                  <select name="status">
-                    <option value="draft" data-i18n="statusDraft" selected>Borrador</option>
-                    <option value="pending" data-i18n="statusPending">Pendiente</option>
-                    <option value="active" data-i18n="statusActive">Activa</option>
-                    <option value="disabled" data-i18n="statusDisabled">Deshabilitada</option>
-                    <option value="sold" data-i18n="statusSold">Vendida</option>
-                    <option value="rented" data-i18n="statusRented">Rentada</option>
-                    <option value="archived" data-i18n="statusArchived">Archivada</option>
-                  </select>
-                </label>
               </div>
-              <div class="form-row" data-property-only>
-                <label>
-                  <span>Moneda original de publicación</span>
-                  <select name="currency" required>
-                    <option value="USD">Dólares estadounidenses (USD)</option>
-                    <option value="MXN">Pesos mexicanos (MXN)</option>
-                  </select>
-                </label>
-                <label>
-                  <span>Precio publicado</span>
-                  <input name="price" type="number" min="0" step="0.01" required />
-                </label>
-                <label>
-                  <span>Forma de mostrar el precio</span>
-                  <select name="priceUnit" required>
-                    <option value="total">Precio total del inmueble</option>
-                    <option value="sqm">Precio por m²</option>
-                  </select>
-                </label>
-              </div>
-              <details class="listing-commercial-classification" open>
-                <summary>Clasificación comercial y publicación</summary>
-                <div class="form-row">
-                  <label><span>Ubicación comercial</span><select name="commercialLocationId"><option value="">Según subzona documentada / pendiente de revisar</option><option value="zona-hotelera">Zona Hotelera (ZH)</option><option value="puerto-cancun">Puerto Cancún</option><option value="cancun-city">Cancún City</option><option value="fuera-de-cancun">Fuera de Cancún</option></select></label>
-                  <label><span>Modalidad de venta</span><select name="salesModality"><option value="unclassified">Por clasificar</option><option value="presale">Preventa</option><option value="direct">Venta directa / entrega inmediata</option><option value="resale">Reventa</option></select></label>
-                  <label data-property-only><span>Periodo si es renta</span><select name="rentPeriod"><option value="unclassified">Por confirmar / no aplica</option><option value="month">Mensual</option><option value="day">Diario</option><option value="year">Anual</option></select></label>
-                </div>
-                <details class="location-classification-help"><summary>¿Qué incluye esta zona?</summary><ul><li><strong>Zona Hotelera (ZH):</strong> Zona Hotelera de Cancún, Costa Mujeres y Punta Sam.</li><li><strong>Puerto Cancún:</strong> únicamente Puerto Cancún.</li><li><strong>Cancún City:</strong> ciudad de Cancún, Huayacán, corredor Colosio y subzonas urbanas confirmadas.</li><li><strong>Fuera de Cancún:</strong> Tulum, Playa del Carmen, Mérida, Ciudad de México y otros destinos fuera de las anteriores.</li></ul><p>Esta agrupación no cambia la dirección, municipio ni coordenadas. Confirma en la fuente los casos ambiguos.</p></details>
-                <div class="form-row">
-                  <label data-property-only class="checkbox-label"><input type="checkbox" name="priceOnRequest" /><span>Precio a consultar (sin inventar un importe)</span></label>
-                  <label><span>Orden en destacadas</span><input name="homeOrder" type="number" min="0" max="9999" step="1" /><small>Menor número primero. Solo aparece si está destacada y publicada.</small></label>
-                  <label><span>Ubicación en la web pública</span><select name="publicLocationPrecision"><option value="approximate">Aproximada</option><option value="exact">Dirección y pin exactos</option><option value="hidden">No mostrar ubicación exacta ni pin</option></select></label>
-                </div>
-              </details>
-              <section class="development-property-linker" data-development-property-linker hidden>
-                <div class="admin-module-heading">
-                  <div>
-                    <span class="eyebrow">UNIDADES VINCULADAS</span>
-                    <h3>Propiedades dentro de este desarrollo</h3>
-                    <p>Busca por título, MLS o ubicación y selecciona las publicaciones que deben compartir la información general de este desarrollo.</p>
-                  </div>
-                  <strong id="developmentLinkedPropertyCount">0 vinculadas</strong>
-                </div>
-                <label class="development-property-search" for="developmentPropertySearch">
-                  <span>Buscar propiedades</span>
-                  <span class="search-input-with-icon"><i data-lucide="search"></i><input id="developmentPropertySearch" type="search" autocomplete="off" placeholder="Título, MLS o ubicación" /></span>
-                </label>
-                <div class="development-linked-selection" id="developmentLinkedSelection" aria-live="polite"></div>
-                <div class="development-property-results" id="developmentPropertyResults"></div>
-              </section>
               <label>
                 <span data-i18n="address">Direccion</span>
                 <input name="address" />
               </label>
+              <div class="form-row">
+                <label><span>Ubicación comercial</span><select name="commercialLocationId"><option value="">Según subzona documentada / pendiente de revisar</option><option value="zona-hotelera">Zona Hotelera (ZH)</option><option value="puerto-cancun">Puerto Cancún</option><option value="cancun-city">Cancún City</option><option value="fuera-de-cancun">Fuera de Cancún</option></select></label>
+                <label><span>Ubicación en la web pública</span><select name="publicLocationPrecision"><option value="approximate">Aproximada</option><option value="exact">Dirección y pin exactos</option><option value="hidden">No mostrar ubicación exacta ni pin</option></select></label>
+              </div>
               <div class="map-picker" data-map-picker>
                 <div class="map-picker-copy">
                   <div>
@@ -2578,51 +2617,10 @@
                 <span>¿No aparece el estado, municipio, zona o colonia?</span>
                 <button class="text-button" type="button" data-open-location-catalog>Agregar ubicación faltante</button>
               </div>
-              <label class="file-field">
-                <span data-i18n="imageUpload">Imagenes de la propiedad</span>
-                <input name="imageFile" type="file" accept="image/jpeg,image/jpg,image/png,image/webp" multiple />
-                <small data-i18n="imageHelp">JPG, PNG o WEBP. Maximo 60 imagenes. Se optimizan antes de guardarse.</small>
-              </label>
-              <div class="image-preview" id="listingImagePreview" hidden>
-                <div class="image-preview-header">
-                  <span data-i18n="imageGalleryTitle">Galería y orden de publicación</span>
-                  <div class="image-preview-header-actions">
-                    <button class="ghost-button" type="button" id="analyzeListingImages" data-photo-ai hidden><i data-lucide="scan-eye"></i><span>Generar descripciones para fotos</span></button>
-                    <button class="ghost-button" type="button" id="cancelPhotoCaptions" hidden>Detener después de este lote</button>
-                    <button class="text-button" type="button" id="saveListingImages" hidden>Guardar galería</button>
-                    <button class="text-button danger" type="button" id="clearListingImage" data-i18n="removeImage">Quitar todas</button>
-                  </div>
-                </div>
-                <div class="image-preview-grid"></div>
-                <small data-i18n="imageGalleryHelp">La primera imagen será la portada. Arrastra las fotos o usa las flechas para cambiar su orden.</small>
               </div>
-              <section class="image-analysis-panel" id="listingImageAnalysis" hidden>
-                <div class="table-heading"><h3>Descripciones propuestas para las fotos</h3></div>
-                <p class="form-message" id="listingImageAnalysisMessage" role="status" aria-live="polite"></p>
-                <div id="listingImageAnalysisSummary"></div>
-                <div class="form-actions"><button class="primary-button" id="applyAllPhotoCaptions" type="button"><i data-lucide="check-check"></i> Aplicar descripciones revisadas</button><button class="ghost-button" id="useRecommendedCover" type="button" hidden><i data-lucide="image"></i> Usar portada recomendada</button><button class="ghost-button" id="applySuggestedImageOrder" type="button" hidden><i data-lucide="arrow-up-down"></i> Aplicar orden sugerido</button></div>
-              </section>
-              <section class="listing-video-manager">
-                <div class="admin-module-heading">
-                  <div>
-                    <span class="eyebrow">VIDEO OPCIONAL</span>
-                    <h3>Recorrido de la propiedad o desarrollo</h3>
-                    <p>Cuando exista, se mostrará antes de la galería dentro de la ficha pública. No se carga en la portada ni en el inventario.</p>
-                  </div>
-                </div>
-                <label class="file-field">
-                  <span>Subir video</span>
-                  <input name="videoFile" type="file" accept="video/mp4,video/webm" />
-                  <small>MP4 o WEBM, máximo 45 MB. Se recomienda formato horizontal 16:9 y resolución 1080p.</small>
-                </label>
-                <div class="listing-video-preview" id="listingVideoPreview" hidden>
-                  <video controls preload="metadata" playsinline></video>
-                  <div><strong id="listingVideoName">Video seleccionado</strong><span id="listingVideoSize"></span></div>
-                  <button class="ghost-button danger" type="button" id="removeListingVideo"><i data-lucide="trash-2"></i><span>Quitar video</span></button>
-                </div>
-                <p class="form-message" id="listingVideoMessage"></p>
-              </section>
-              <p class="form-message" id="listingFormMessage"></p>
+              </details>
+              <details class="publication-group" ><summary><span data-i18n="editorFeatures">Características y amenidades</span></summary>
+              <div class="publication-group-body">
               <div class="form-row listing-metrics-row" data-property-only>
                 <label>
                   <span data-i18n="bedrooms">Recamaras</span>
@@ -2646,15 +2644,73 @@
                 </label>
               </div>
               <label>
-                <span>MLS</span>
-                <input name="mls" maxlength="40" placeholder="Automático al guardar" />
-              </label>
-              <label>
                 <span>Amenidades</span>
                 <input name="amenities" placeholder="Alberca, marina, gimnasio, seguridad" />
               </label>
               <label class="checkbox-label" data-amenities-planned hidden>
                 <input name="amenitiesPlanned" type="checkbox" /><span>Amenidades previstas</span>
+              </label>
+              </div>
+              </details>
+              <details class="publication-group" data-development-units hidden><summary><span data-i18n="editorUnits">Unidades vinculadas</span></summary>
+              <div class="publication-group-body">
+              <section class="development-property-linker" data-development-property-linker hidden>
+                <div class="admin-module-heading">
+                  <div>
+                    <span class="eyebrow">UNIDADES VINCULADAS</span>
+                    <h3>Propiedades dentro de este desarrollo</h3>
+                    <p>Busca por título, MLS o ubicación y selecciona las publicaciones que deben compartir la información general de este desarrollo.</p>
+                  </div>
+                  <strong id="developmentLinkedPropertyCount">0 vinculadas</strong>
+                </div>
+                <label class="development-property-search" for="developmentPropertySearch">
+                  <span>Buscar propiedades</span>
+                  <span class="search-input-with-icon"><i data-lucide="search"></i><input id="developmentPropertySearch" type="search" autocomplete="off" placeholder="Título, MLS o ubicación" /></span>
+                </label>
+                <div class="development-linked-selection" id="developmentLinkedSelection" aria-live="polite"></div>
+                <div class="development-property-results" id="developmentPropertyResults"></div>
+              </section>
+              </div>
+              </details>
+              <details class="publication-group" ><summary><span data-i18n="editorEnglish">Versión en inglés</span></summary>
+              <div class="publication-group-body">
+              <label>
+                <span data-i18n="propertyTitleEn">Título de la propiedad en inglés</span>
+                <input name="titleEn" />
+                <small data-i18n="bilingualFieldHelp">Este texto se muestra cuando el visitante navega en inglés.</small>
+              </label>
+              <label>
+                <span data-i18n="descriptionEn">Descripción en inglés</span>
+                <textarea name="descriptionEn" rows="4" maxlength="50000"></textarea>
+                <span class="description-ai-actions"><button class="ghost-button" type="button" id="translateListingDescription"><i data-lucide="languages"></i> Traducir descripción en español</button></span>
+                <small data-i18n="bilingualFieldHelp">Este texto se muestra cuando el visitante navega en inglés.</small>
+              </label>
+              <button class="ghost-button" type="button" id="translateListingToEnglish">
+                <i data-lucide="languages"></i>
+                <span>Traducir título y descripción al inglés</span>
+              </button>
+              </div>
+              </details>
+              <details class="publication-group" ><summary><span data-i18n="editorOptions">Estado y opciones de publicación</span></summary>
+              <div class="publication-group-body">
+              <div class="form-row">
+                <label>
+                  <span data-i18n="listingStatus">Estado de publicacion</span>
+                  <select name="status">
+                    <option value="draft" data-i18n="statusDraft" selected>Borrador</option>
+                    <option value="pending" data-i18n="statusPending">Pendiente</option>
+                    <option value="active" data-i18n="statusActive">Activa</option>
+                    <option value="disabled" data-i18n="statusDisabled">Deshabilitada</option>
+                    <option value="sold" data-i18n="statusSold">Vendida</option>
+                    <option value="rented" data-i18n="statusRented">Rentada</option>
+                    <option value="archived" data-i18n="statusArchived">Archivada</option>
+                  </select>
+                </label>
+                <label><span>Orden en destacadas</span><input name="homeOrder" type="number" min="0" max="9999" step="1" /><small>Menor número primero. Solo aparece si está destacada y publicada.</small></label>
+              </div>
+              <label>
+                <span>MLS</span>
+                <input name="mls" maxlength="40" placeholder="Automático al guardar" />
               </label>
               <div class="keyword-editor" data-keyword-editor>
                 <label for="listingKeywords">Keywords / palabras clave</label>
@@ -2681,30 +2737,9 @@
                 <input name="isPublic" type="checkbox" />
                 <span data-i18n="publicListing">Visible en web publica</span>
               </label>
-              <label>
-                <span data-i18n="descriptionEs">Descripción en español</span>
-                <textarea name="description" rows="10" maxlength="50000"></textarea>
-                <small class="character-counter" id="listingDescriptionCounter">0 / 50,000 caracteres</small>
-                <span class="description-ai-actions"><button class="ghost-button" type="button" data-generate-photo-description="description" data-photo-ai><i data-lucide="sparkles"></i> Generar descripción</button><button class="ghost-button" type="button" data-improve-description="description"><i data-lucide="pencil-line"></i> Mejorar texto</button></span>
-              </label>
-              <label class="checkbox-row" id="listingResearchOption" hidden><input type="checkbox" id="listingResearchEnabled" /><span>Complementar con información pública del desarrollo y revisar sus fuentes</span></label>
-              <label>
-                <span data-i18n="descriptionEn">Descripción en inglés</span>
-                <textarea name="descriptionEn" rows="10" maxlength="50000"></textarea>
-                <span class="description-ai-actions"><button class="ghost-button" type="button" id="translateListingDescription"><i data-lucide="languages"></i> Traducir descripción en español</button></span>
-                <small data-i18n="bilingualFieldHelp">Este texto se muestra cuando el visitante navega en inglés.</small>
-              </label>
-              <section id="listingAiReview" class="listing-ai-review" hidden>
-                <h3>Descripción propuesta</h3>
-                <textarea id="listingAiSuggestion" rows="7" aria-label="Descripción propuesta editable"></textarea>
-                <div id="listingAiSources"></div>
-                <div class="form-actions"><button class="primary-button" type="button" id="applyListingAi">Aplicar propuesta</button><button class="ghost-button" type="button" id="discardListingAi">Descartar</button></div>
-              </section>
-              <p class="form-message" id="listingAiMessage" aria-live="polite"></p>
-              <button class="ghost-button" type="button" id="translateListingToEnglish">
-                <i data-lucide="languages"></i>
-                <span>Traducir título y descripción al inglés</span>
-              </button>
+              </div>
+              </details>
+              <p class="form-message" id="listingFormMessage"></p>
               <p id="listingDraftStatus" class="draft-save-status" role="status" aria-live="polite"></p>
               <section id="listingConflict" class="form-section" aria-labelledby="listingConflictTitle" hidden>
                 <h3 id="listingConflictTitle">Cambios en otra sesión</h3>
@@ -3284,11 +3319,11 @@
         <h2 id="listingPublishTitle">Guardar publicación</h2>
         <p id="listingPublishName"></p>
         <fieldset class="publication-visibility-options">
-          <legend>¿Será visible en la web pública?</legend>
-          <label><input type="radio" name="visibility" id="listingPublishPublic" value="public" /><span><strong>Sí, publicar en la web</strong><small>El estado pasará a Activa y los visitantes podrán encontrarla.</small></span></label>
-          <label><input type="radio" name="visibility" id="listingPublishPrivate" value="private" checked /><span><strong>No, guardar en privado</strong><small>Solo el equipo podrá verla en el inventario.</small></span></label>
+          <legend data-i18n="editorVisible">¿Será visible en la web pública?</legend>
+          <label><input type="radio" name="visibility" id="listingPublishPublic" value="public" /><span><strong data-i18n="editorPublish">Sí, publicar en la web</strong><small data-i18n="editorPublishHelp">El estado pasará a Activa y los visitantes podrán encontrarla.</small></span></label>
+          <label><input type="radio" name="visibility" id="listingPublishPrivate" value="private" checked /><span><strong data-i18n="editorPrivate">No, guardar en privado</strong><small data-i18n="editorPrivateHelp">Solo el equipo podrá verla en el inventario.</small></span></label>
         </fieldset>
-        <label class="checkbox-row"><input type="checkbox" id="listingPublishFeatured" /><span>Destacar cuando esté visible en la web</span></label>
+        <label class="checkbox-row"><input type="checkbox" id="listingPublishFeatured" /><span data-i18n="editorFeature">Destacar cuando esté visible en la web</span></label>
         <div class="form-actions"><button class="primary-button" type="submit" value="save">Guardar</button><button class="ghost-button" type="submit" value="cancel" autofocus>Volver al editor</button></div>
       </form>
     </dialog>
