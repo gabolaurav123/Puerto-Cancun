@@ -1262,10 +1262,23 @@
               <button class="primary-button" type="button" id="refreshVisitorLeads"><i data-lucide="refresh-cw"></i><span data-i18n="visitorLeadsRefresh">Actualizar</span></button>
             </div>
           </div>
-          <details id="visitorInvitations" class="publication-group">
-            <summary><span data-i18n="invTitle">Invitaciones</span></summary>
+          <details id="publicSharesPanel" class="publication-group">
+            <summary><span data-i18n="publicSharesTitle">Enlaces compartidos desde la web</span></summary>
             <div class="publication-group-body">
-              <p class="form-note" data-i18n="invHint">Cada enlace distingue las aperturas con permiso y las consultas recibidas.</p>
+              <p class="form-note" data-i18n="publicSharesHint">Consulta quién usó Compartir y quién abrió cada ficha con permiso de medición. WhatsApp mantiene privado el destinatario del chat.</p>
+              <div class="portal-actions"><button class="ghost-button" type="button" id="refreshPublicShares" data-i18n="visitorLeadsRefresh">Actualizar</button></div>
+              <p id="publicShareNotice" role="status" aria-live="polite"></p>
+              <div id="publicShareRows" class="invitation-rows"></div>
+              <div class="portal-actions">
+                <button class="ghost-button" type="button" id="publicSharesPrevious" data-i18n="invPrevious" hidden>Anteriores</button>
+                <button class="ghost-button" type="button" id="publicSharesNext" data-i18n="invNext" hidden>Siguientes</button>
+              </div>
+            </div>
+          </details>
+          <details id="visitorInvitations" class="publication-group">
+            <summary><span data-i18n="invTitle">Enlaces manuales e historial anterior</span></summary>
+            <div class="publication-group-body">
+              <p class="form-note" data-i18n="invHint">Aquí se conservan las invitaciones manuales y los enlaces creados antes de medir el botón Compartir.</p>
               <form id="invitationForm" class="stacked-form">
                 <div class="form-row">
                   <label><span data-i18n="invPage">Enlace de la página o ficha</span><input name="path" type="text" inputmode="url" required maxlength="1800" placeholder="https://www.puertocancun.center/…" /></label>

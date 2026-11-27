@@ -700,3 +700,7 @@ body[data-page="home"] .zones-band .section-heading > a { order: 1; }
     }
   }
 }
+.public-share-signature { margin: .7rem 0; font-size: .88rem; }
+.public-share-signature summary { cursor: pointer; padding: .3rem 0; }
+.public-share-signature label { display: grid; gap: .3rem; margin-top: .4rem; }
+.public-share-signature input { width: 100%; box-sizing: border-box; padding: .6rem; font: inherit; }

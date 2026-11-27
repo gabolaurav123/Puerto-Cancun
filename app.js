@@ -1322,9 +1322,21 @@ window.PccMountInvitationContact = function(form,countryOptions,valuesForMessage
     } catch(error) { status.textContent = error.message; button.disabled = false; }
   };
 };
-window.PccCreateShareInvitation = path => {
-  if (!analyticsConsentGranted() && state.session?.role !== "admin") return null;
-  return api("/api/invitations", {method:"POST", body:{path, analyticsConsent:analyticsConsentGranted(), lang:state.lang}, retry:false, timeoutMs:3000});
+window.PccPublicSharing = {
+  allowed: analyticsConsentGranted,
+  canSign: () => !state.session,
+  prepare: path => api("/api/invitations/prepare", {
+    method:"POST", body:{path, analyticsConsent:true}, retry:false, timeoutMs:3000
+  }),
+  async record(ticket, channel, senderName) {
+    if (!analyticsConsentGranted()) return;
+    const body = {token:ticket.token, proof:ticket.proof, channel, senderName, ...analyticsIdentity(), analyticsConsent:true};
+    const send = () => api("/api/invitations/activate", {method:"POST", body, keepalive:true, retry:false});
+    try { await send(); }
+    catch (error) {
+      if (analyticsConsentGranted() && (!error.status || error.status >= 500)) await send().catch(() => {});
+    }
+  }
 };
 window.PccInquiryRequest = (path, body) => api(path, { method:"POST", body:path === "/api/inquiries" ? {...body,invitationVisit:invitationVisit()} : body, keepalive:path.endsWith("/whatsapp-click") });
 
@@ -5244,6 +5256,99 @@ function syncVisitorLeadControls() {
   }
   if (search && document.activeElement !== search) search.value = filters.search ?? search.value;
   if (bots) bots.checked = filters.includeBots ?? bots.checked;
+}
+
+function bindPublicSharesPanel() {
+  const panel = $("#publicSharesPanel");
+  if (!panel) return;
+  const rows = $("#publicShareRows"), notice = $("#publicShareNotice");
+  const previous = $("#publicSharesPrevious"), next = $("#publicSharesNext");
+  const endpoint = "/api/admin/visitor-leads/public-shares";
+  const copy = visitorLeadCopy;
+  const date = value => escapeHtml(new Date(value).toLocaleString(state.lang, {dateStyle:"short",timeStyle:"short"}));
+  let offset = 0, generation = 0;
+  function person(name, registered, named, alias) {
+    if (name) return escapeHtml(name);
+    let label = copy("Visitante anónimo","Anonymous visitor");
+    if (registered) label = copy("Cuenta registrada","Registered account");
+    else if (named) label = copy("Visitante identificado","Identified visitor");
+    return label + (alias ? " · " + escapeHtml(alias.toUpperCase()) : "");
+  }
+  function shareCard(item) {
+    const channels = {
+      whatsapp: copy("Eligió WhatsApp","Selected WhatsApp"),
+      facebook: copy("Eligió Facebook","Selected Facebook"),
+      instagram: copy("Copió para Instagram","Copied for Instagram"),
+      copy: copy("Copió el enlace","Copied the link")
+    };
+    const name = person(item.sender_name, item.sender_registered, item.sender_named, item.sender_alias);
+    const declared = item.sender_name && !item.sender_registered ? " (" + copy("nombre indicado","self-reported name") + ")" : "";
+    return `<article><h3><a href="${escapeHtml(item.source_path)}" target="_blank" rel="noopener">${escapeHtml(item.title)}</a></h3>
+      <p class="share-byline"><strong>${copy("Compartido por","Shared by")} ${name}${declared}</strong>${item.sender_place ? " · " + escapeHtml(item.sender_place) : ""}</p>
+      <p>${channels[item.public_channel]} · <time datetime="${escapeHtml(item.shared_at)}">${date(item.shared_at)}</time></p>
+      ${item.visitors ? `<details data-share-audience="${escapeHtml(item.token)}"><summary>${copy("Ver quién abrió","See who opened")} (${Number(item.visitors)})</summary>
+        <div class="share-audience-body"></div></details>` : `<p class="form-note">${copy("Aún sin aperturas registradas.","No recorded opens yet.")}</p>`}
+      ${item.inquiries ? `<p class="share-inquiries">${copy("Consultas recibidas","Inquiries received")} · ${Number(item.inquiries)}</p>` : ""}
+      </article>`;
+  }
+  function visitorRow(item) {
+    const contacts = item.contacts || [];
+    const name = item.account_name || contacts.find(contact => contact.name)?.name;
+    const contactRows = contacts.map(contact => {
+      const fields = [contact.name && contact.name !== name && contact.name, contact.phone && String(contact.phone).replace(/^\+?/, "+"), contact.email];
+      return fields.filter(Boolean).map(escapeHtml).join(" · ");
+    }).filter(Boolean);
+    return `<li><strong>${person(name, item.registered, Boolean(item.inquiries), item.alias)}</strong>
+      <span>${(item.places || []).map(escapeHtml).join(" · ") || copy("Ubicación sin determinar","Location unknown")}</span>
+      <span>${date(item.first_open)}${item.sessions > 1 ? " – " + date(item.last_open) + " · " + Number(item.sessions) + " " + copy("sesiones","sessions") : ""}</span>
+      ${contactRows.length ? `<span>${[...new Set(contactRows)].join("<br>")}</span>` : ""}
+      </li>`;
+  }
+  async function loadVisitors(details, start = 0) {
+    const body = details.querySelector(".share-audience-body");
+    const request = Symbol();
+    body.request = request;
+    body.setAttribute("aria-busy","true");
+    try {
+      const data = await api(endpoint + "/" + details.dataset.shareAudience + "/visitors?offset=" + start);
+      if (!details.open || !details.isConnected || body.request !== request) return;
+      body.innerHTML = `<ul>${data.items.map(visitorRow).join("")}</ul><div class="portal-actions">
+        ${start ? `<button class="ghost-button" type="button" data-audience-offset="${Math.max(0,start-20)}">${copy("Anteriores","Previous")}</button>` : ""}
+        ${data.more ? `<button class="ghost-button" type="button" data-audience-offset="${start+20}">${copy("Siguientes","Next")}</button>` : ""}</div>`;
+    } catch (error) { if (body.request === request) body.textContent = error.message; }
+    finally { if (body.request === request) body.removeAttribute("aria-busy"); }
+  }
+  async function load(start = 0) {
+    const current = ++generation;
+    notice.textContent = "";
+    rows.setAttribute("aria-busy","true");
+    try {
+      const data = await api(endpoint + "?offset=" + start);
+      if (current !== generation || !panel.open) return;
+      offset = data.offset;
+      rows.innerHTML = data.items.map(shareCard).join("");
+      if (!data.items.length) notice.textContent = copy("Aquí aparecerán las fichas compartidas desde la web.","Listings shared from the website will appear here.");
+      previous.hidden = !offset;
+      next.hidden = !data.more;
+      for (const details of rows.querySelectorAll("[data-share-audience]")) details.addEventListener("toggle", () => {
+        if (details.open) void loadVisitors(details);
+        else details.querySelector(".share-audience-body").replaceChildren();
+      });
+    } catch (error) { if (current === generation) notice.textContent = error.message; }
+    finally { if (current === generation) rows.removeAttribute("aria-busy"); }
+  }
+  rows.addEventListener("click", event => {
+    const button = event.target.closest("[data-audience-offset]");
+    if (button) void loadVisitors(button.closest("details"), Number(button.dataset.audienceOffset));
+  });
+  panel.addEventListener("toggle", () => {
+    if (panel.open) void load();
+    else { ++generation; rows.replaceChildren(); notice.textContent = ""; }
+  });
+  previous.addEventListener("click", () => void load(Math.max(0,offset-20)));
+  next.addEventListener("click", () => void load(offset+20));
+  $("#refreshPublicShares").addEventListener("click", () => void load(offset));
+  new MutationObserver(() => { if (panel.open) void load(offset); }).observe(document.documentElement, {attributes:true,attributeFilter:["lang"]});
 }
 
 function bindInvitationPanel() {
@@ -11793,6 +11898,7 @@ function initializePropertyGallery() {
 }
 
 function bindEvents() {
+  bindPublicSharesPanel();
   bindInvitationPanel();
   const compactPanelDetails = [$("#adminListingAdvancedFilters"), $("#sellerPanel .seller-help-card-top")].filter(Boolean);
   if (compactPanelDetails.length) {
