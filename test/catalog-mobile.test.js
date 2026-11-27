@@ -61,6 +61,37 @@ test('mobile catalog: filters, history, pagination, touch map and contextual inq
         const cardMotion = () => firstCard.evaluate(el => getComputedStyle(el).animationName);
         const ringMotion = () => owner.locator('.owner-contact-icon').evaluate(el => getComputedStyle(el, '::after').animationName);
         assert.equal(await cardMotion(), 'pcc-card-arrive');
+        const photo = firstCard.locator('.seo-property-image img');
+        assert.equal(await photo.evaluate(el => getComputedStyle(el).animationName), 'pcc-scroll-photo');
+        await page.locator('footer.footer').evaluate(el => el.scrollIntoView({ behavior:'instant' }));
+        await page.waitForFunction(() => !document.querySelector('.seo-property-card').classList.contains('public-card-arriving'));
+        await firstCard.evaluate(el => el.scrollIntoView({ block:'center', behavior:'instant' }));
+        await page.waitForFunction(() => document.querySelector('.seo-property-card').matches('.public-card-arriving.public-card-from-top'));
+        const cover = firstCard.locator('.seo-property-image');
+        assert.equal(await cover.evaluate(el => getComputedStyle(el, '::before').animationName), 'pcc-photo-frame');
+        await cover.evaluate(el => el.scrollIntoView({ block:'center', behavior:'instant' }));
+        const coverBox = await cover.boundingBox();
+        const cdp = await context.newCDPSession(page);
+        const listingUrl = page.url();
+        await cdp.send('Input.dispatchTouchEvent', { type:'touchStart', touchPoints:[{ x: Math.round(coverBox.x + coverBox.width / 2), y: Math.round(coverBox.y + coverBox.height / 2) }] });
+        await page.waitForFunction(() => Number(getComputedStyle(document.querySelector('.seo-property-image'), '::before').opacity) > .8 &&
+          document.querySelector('.seo-property-card').classList.contains('public-card-pressed'));
+        await cdp.send('Input.dispatchTouchEvent', { type:'touchCancel', touchPoints:[] });
+        await page.waitForFunction(() => !document.querySelector('.public-card-pressed'));
+        assert.equal(page.url(), listingUrl);
+        const middle = root.locator('.seo-property-card').nth(4);
+        await middle.evaluate(el => window.scrollTo({ top: scrollY + el.getBoundingClientRect().top - innerHeight / 2, behavior: 'instant' }));
+        const rule = el => Number(el.style.getPropertyValue('--photo-rule'));
+        await page.waitForFunction(() => Number(document.querySelectorAll('.seo-property-card')[4].style.getPropertyValue('--photo-rule')) > .3);
+        const initialRule = await middle.evaluate(rule);
+        await page.evaluate(() => window.scrollBy({ top: 70, behavior: 'instant' }));
+        await page.waitForFunction(initial => Number(document.querySelectorAll('.seo-property-card')[4].style.getPropertyValue('--photo-rule')) > initial + .04, initialRule);
+        await page.evaluate(() => window.scrollBy({ top: -70, behavior: 'instant' }));
+        await page.waitForFunction(initial => Math.abs(Number(document.querySelectorAll('.seo-property-card')[4].style.getPropertyValue('--photo-rule')) - initial) < .02, initialRule);
+        await page.locator('footer.footer').evaluate(el => el.scrollIntoView({ behavior:'instant' }));
+        await page.waitForFunction(() => !document.querySelectorAll('.seo-property-card')[4].classList.contains('public-card-arriving'));
+        await middle.evaluate(el => window.scrollTo({ top: scrollY + el.getBoundingClientRect().top - innerHeight / 2, behavior: 'instant' }));
+        await page.waitForFunction(() => document.querySelectorAll('.seo-property-card')[4].classList.contains('public-card-from-top'));
         assert.equal(await ringMotion(), 'pcc-owner-ring');
         await page.emulateMedia({ reducedMotion: 'reduce' });
         assert.equal(await cardMotion(), 'none');
@@ -101,7 +132,6 @@ test('mobile catalog: filters, history, pagination, touch map and contextual inq
         await canvas.scrollIntoViewIfNeeded();
         assert.equal(await page.evaluate(() => qaCatalogMap.dragging.enabled()), false);
         assert.ok((await canvas.boundingBox()).height < height);
-        const cdp = await context.newCDPSession(page);
         const swipe = async () => {
           const box = await canvas.boundingBox(); const x = Math.round(box.x + box.width / 2), start = Math.round(Math.min(height - 30, box.y + box.height * .75)), end = Math.round(Math.max(140, box.y + box.height * .25));
           await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x, y: start, id: 0 }] });

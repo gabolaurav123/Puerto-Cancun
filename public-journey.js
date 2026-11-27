@@ -184,7 +184,11 @@
       "#siteShell :is(.primary-button, .accent-button, .outline-dark-button, .office-inquiry-button, [data-catalog-view], .catalog-entity-nav a)",
       ".contextual-inquiry :is(.inquiry-submit, .office-inquiry-button)", ".footer-section > summary",
     ].join(",");
-    let activePress;
+    let activePress, pressedListing;
+    function releaseListing() {
+      pressedListing?.classList.remove("public-card-pressed");
+      pressedListing = null;
+    }
     function showPress(event) {
       if (!motion.matches) return;
       const control = event.target.closest(controls);
@@ -210,28 +214,116 @@
       effect.oncancel = finish;
     }
     document.addEventListener("pointerdown", event => {
-      if (event.isPrimary && event.button === 0) showPress(event);
+      if (!event.isPrimary || event.button !== 0) return;
+      if (event.pointerType !== "mouse" && motion.matches) {
+        releaseListing();
+        pressedListing = event.target.closest(".seo-property-card");
+        pressedListing?.classList.add("public-card-pressed");
+      }
+      showPress(event);
     }, { passive: true });
-    document.addEventListener("pointercancel", event => { if (event.isPrimary) activePress?.cancel(); });
+    document.addEventListener("pointerup", event => { if (event.isPrimary) releaseListing(); }, { passive: true });
+    document.addEventListener("pointercancel", event => {
+      if (!event.isPrimary) return;
+      releaseListing();
+      activePress?.cancel();
+    });
+    window.addEventListener("blur", releaseListing);
+    motion.addEventListener("change", releaseListing);
     document.addEventListener("click", event => { if (event.detail === 0) showPress(event); }, true);
   }
   if ("IntersectionObserver" in window && document.body.matches('[data-page="home"], [data-page="seo"], [data-page="property"]')) {
-    const cards = "main :is(.seo-property-card, .type-tile, .zone-card, .presale-feature, .exploration-area, .exploration-featured-card, .property-gallery-column)";
-    const observer = new IntersectionObserver(entries => {
-      const entering = entries.filter(entry => entry.isIntersecting);
-      entering.forEach(({ target }, index) => {
-        observer.unobserve(target);
-        target.style.setProperty("--card-delay", Math.min(index, 3) * 60 + "ms");
+    const main = document.querySelector("#siteShell main");
+    if (!main) return;
+    const header = document.getElementById("mainHeader");
+    const hero = document.body.dataset.page === "home" ? main.querySelector(".hero") : null;
+    const targets = hero
+      ? ".hero-content, .contact-strip, .zones-band .section-heading, .zone-card, .type-section .center-heading, .type-tile, .presale-feature, .team-statement, .trust-signal-grid article, .sell-cta .content-wrap"
+      : ".seo-property-card, .exploration-area, .exploration-featured-card, .property-gallery-column, .property-description-section .section-heading, .property-amenities, .seller-entry-options article, .seller-entry-choice-grid article";
+    const visibleListings = new Set();
+    const exitedAbove = new WeakMap();
+    let observer, headerInset, lastY = window.scrollY, movingUp = false;
+    let heroVisible = false, watchingScroll = false, frame = 0;
+    const fraction = value => Math.max(0, Math.min(1, value)).toFixed(4);
+    function paintScroll() {
+      frame = 0;
+      const coast = heroVisible ? hero.getBoundingClientRect() : null;
+      const height = window.innerHeight;
+      const travel = Math.max(1, height - headerInset);
+      // Read the visible geometry together before writing any styles.
+      const positions = Array.from(visibleListings, card => [card, fraction((height - card.getBoundingClientRect().top) / travel)]);
+      if (coast) hero.style.setProperty("--coast-scroll", fraction(-coast.top / Math.max(1, coast.height)));
+      for (const [card, progress] of positions) card.style.setProperty("--photo-rule", progress);
+    }
+    function queuePaint() {
+      if (!frame) frame = requestAnimationFrame(paintScroll);
+    }
+    function trackScroll() {
+      const active = heroVisible || visibleListings.size > 0;
+      if (active && !watchingScroll) window.addEventListener("scroll", queuePaint, { passive: true });
+      if (!active && watchingScroll) {
+        window.removeEventListener("scroll", queuePaint);
+        cancelAnimationFrame(frame);
+        frame = 0;
+      }
+      watchingScroll = active;
+      if (active) queuePaint();
+    }
+    function reveal(entries, source) {
+      if (source !== observer || !motion.matches) return;
+      const y = window.scrollY;
+      const scrolled = y !== lastY;
+      if (scrolled) movingUp = y < lastY;
+      lastY = y;
+      let stagger = 0;
+      for (const { target, isIntersecting, intersectionRatio, boundingClientRect, rootBounds } of entries) {
+        if (target === hero) {
+          heroVisible = isIntersecting;
+          continue;
+        }
+        if (target.matches(".seo-property-card")) {
+          if (isIntersecting) visibleListings.add(target);
+          else visibleListings.delete(target);
+        }
+        if (!isIntersecting) {
+          if (rootBounds && boundingClientRect.height) exitedAbove.set(target, boundingClientRect.bottom <= rootBounds.top);
+          target.classList.remove("public-card-arriving", "public-card-from-top");
+          continue;
+        }
+        if (intersectionRatio < .12 || target.classList.contains("public-card-arriving")) continue;
+        const fromTop = scrolled ? movingUp : exitedAbove.get(target) ?? movingUp;
+        target.classList.toggle("public-card-from-top", fromTop);
+        target.style.setProperty("--card-delay", Math.min(stagger++, 3) * 50 + "ms");
         target.classList.add("public-card-arriving");
-      });
-    }, { threshold: 0.06 });
-    const observeCards = () => {
-      observer.disconnect();
-      if (!motion.matches) return;
-      document.querySelectorAll(cards).forEach(card => {
-        if (!card.classList.contains("public-card-arriving")) observer.observe(card);
-      });
+      }
+      trackScroll();
+    }
+    const measureHeader = () => Math.min(header?.offsetHeight || 0, Math.round(innerHeight / 2));
+    function observeCards() {
+      observer?.disconnect();
+      visibleListings.clear();
+      heroVisible = false;
+      trackScroll();
+      headerInset = measureHeader();
+      if (!motion.matches) {
+        hero?.style.removeProperty("--coast-scroll");
+        main.querySelectorAll(".public-card-arriving").forEach(el => el.classList.remove("public-card-arriving", "public-card-from-top"));
+        return;
+      }
+      // Re-arm only after a full exit. An entry starts below the fixed header on the way back up.
+      observer = new IntersectionObserver(reveal, { rootMargin: `-${headerInset}px 0px 0px`, threshold: [0, .12] });
+      if (hero) observer.observe(hero);
+      main.querySelectorAll(targets).forEach(el => observer.observe(el));
+    }
+    const resized = () => {
+      if (headerInset !== measureHeader()) observeCards();
+      else if (watchingScroll) queuePaint();
     };
+    if ("ResizeObserver" in window) {
+      const resize = new ResizeObserver(resized);
+      if (header) resize.observe(header);
+      if (hero) resize.observe(hero);
+    } else window.addEventListener("resize", resized);
     observeCards();
     motion.addEventListener("change", observeCards);
     document.addEventListener("pcc:catalog:navigated", observeCards);
